@@ -47,6 +47,9 @@ FlockStack is a newsletter app: write an issue, send it to your list, publish it
   - spam and bounce limits: a send pauses past 2% hard bounces or 0.08% complaints, and the account is blocked past 5% or 0.3%, or on a spam trap hit;
   - Gmail's spam rates, which Gmail never reports one complaint at a time: every email carries a `Feedback-ID` for Gmail's feedback loop (its campaign or newsletter, its account, its kind), and once an admin connects [Google Postmaster Tools](https://postmaster.google.com), FlockStack reads it every day. An account Gmail flags at 0.08% has its sends paused, at 0.3% it's blocked, and the admins hear when the whole domain reaches 0.1%;
   - one-click unsubscribe (RFC 8058) and a signed unsubscribe link in every email, and confirmed opt-in, on by default.
+- **RSS feed** for each newsletter's website, with the full text of the free issues: `/feed.xml` on its own host, linked from every page of the website so feed apps find it.
+- **Leave with everything, free, any time.** One click on the account page, or `export_account_data` through the API and MCP, makes ZIP files with every newsletter's contacts as CSV, every issue as Markdown and HTML with frontmatter, your pictures, the suppression list and a manifest, and emails the links to the owner. It works for blocked and paused accounts and accounts without a plan, and it's never a paid feature.
+- **Referral program**: every subscriber gets a link of their own; a signup that confirms counts for them, rewards unlock at numbers you set (a link or a message, on the subscriber's referral page and in an email), `{{referral_link}}` and `{{referral_count}}` work in issues, and self-referrals, repeats of one inbox or network and floods don't count.
 - **Several newsletters**: up to 3 per account, each with its own contacts, campaigns and website.
 - **Signups and stats**: signup forms and a signup API, welcome emails, open and click tracking that leaves link scanners out, subscribers over time, and reports by inbox provider (Gmail, Outlook, Yahoo, iCloud...).
 
@@ -110,7 +113,8 @@ Set them as Worker secrets (`wrangler secret put NAME`), or as `vars` in `wrangl
 1. Install dependencies and log in: `npm ci && npx wrangler login`.
 2. Create the D1 database and the R2 bucket, and put their names and ids in `wrangler.jsonc`: `npx wrangler d1 create flockstack`, `npx wrangler r2 bucket create flockstack-images`.
 3. Create the tables: `npx wrangler d1 migrations apply flockstack --remote`. The SQL in `migrations/` comes from the models' schemas (`node scripts/docdb-schema.mjs`).
-4. Connect a domain to the bucket for image uploads (`npx wrangler r2 bucket domain add flockstack-images --domain img.example.com --zone-id <zone>`) and set `IMAGES_CDN_URL` to it.
+4. For account exports, create a second bucket that stays private, `npx wrangler r2 bucket create flockstack-exports`, and give it a lifecycle rule that deletes objects after 8 days (the dashboard's R2 settings, or `npx wrangler r2 bucket lifecycle add`). Then bind it as `EXPORTS`: uncomment the line next to the `IMAGES` bucket in `wrangler.jsonc`. Exports are built by background jobs, so they need QStash (step 5). Without the bucket, `export_account_data` answers `unavailable`.
+5. Connect a domain to the bucket for image uploads (`npx wrangler r2 bucket domain add flockstack-images --domain img.example.com --zone-id <zone>`) and set `IMAGES_CDN_URL` to it.
 
 ### 2. Deploy
 

@@ -34,6 +34,14 @@ const contactSchema = new mongoose.Schema(
 			opens: { type: Number, default: 0 },
 			clicks: { type: Number, default: 0 },
 		},
+		// The referral program (lib/referrals.js): referrals this contact brought in, once they confirmed, and who brought
+		// this one in. signupIpHash: a keyed hash of the address they signed up from, to tell a household from a farm.
+		referral: {
+			count: { type: Number },
+			referredBy: { type: mongoose.Schema.Types.ObjectId },
+			referredAt: { type: Date },
+		},
+		signupIpHash: { type: String },
 		// From a CSV import: engagement on the previous platform, so sends reach the most engaged first.
 		imported: {
 			emailsReceived: { type: Number },
@@ -59,5 +67,8 @@ contactSchema.index({ newsletterId: 1, status: 1, subscribedAt: -1, _id: -1 });
 contactSchema.index({ newsletterId: 1, lastChanceAt: 1 }, { partialFilterExpression: { lastChanceAt: { $exists: true } } });
 // An admin taking an address off the never-email list finds the contacts it stopped, in every account.
 contactSchema.index({ email: 1 }, { partialFilterExpression: { undeliverableAt: { $exists: true } } });
+
+// The referral leaderboard.
+contactSchema.index({ newsletterId: 1, "referral.count": -1, _id: 1 }, { partialFilterExpression: { "referral.count": { $exists: true } } });
 
 export default mongoose.models.Contact || mongoose.model("Contact", contactSchema);

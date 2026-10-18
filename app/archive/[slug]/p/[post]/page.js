@@ -45,7 +45,7 @@ export default async function IssuePage({ params }) {
 		countReaders(newsletter),
 	]);
 	const urls = getArchiveUrls(newsletter);
-	const body = renderIssueBody(issue);
+	const body = renderIssueBody(issue, { referralLink: `${urls.siteIndex}#subscribe` });
 	const date = getIssueDate(issue);
 	const views = issue.webViews ?? 0;
 	const author = getArchiveAuthor(newsletter);

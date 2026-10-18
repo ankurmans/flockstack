@@ -27,6 +27,7 @@ const PUBLIC_PATHS = [
 	/^\/unsubscribe$/,
 	/^\/confirm$/,
 	/^\/keep$/,
+	/^\/referral$/,
 	/^\/o\//,
 	/^\/c\//,
 	/^\/p\//,
@@ -46,6 +47,7 @@ const ARCHIVE_HOST_PATHS = [
 	/^\/api\/views$/,
 	/^\/confirm$/,
 	/^\/keep$/,
+	/^\/referral$/,
 	/^\/o\//,
 	/^\/c\//,
 ];

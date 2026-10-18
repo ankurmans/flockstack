@@ -1,14 +1,20 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { Check, Loader2, MailOpen } from "lucide-react";
 import { subscribe } from "@/app/archive/actions";
 import { Button } from "@/components/ui/button";
-import { storeValue, subscribedKey } from "@/lib/storage";
+import { captureReferralCode, storeValue, subscribedKey } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
 export default function FormSubscribe({ newsletterSlug, className }) {
 	const [state, action, isPending] = useActionState(subscribe, null);
+	const referralRef = useRef(null);
+
+	// The form is on every page of the archive: it picks up the referral code the visitor arrived with.
+	useEffect(() => {
+		if (referralRef.current) referralRef.current.value = captureReferralCode(newsletterSlug);
+	}, [newsletterSlug, state]);
 
 	useEffect(() => {
 		if (state?.ok && !state.pending) storeValue(subscribedKey(newsletterSlug), 1);
@@ -33,6 +39,7 @@ export default function FormSubscribe({ newsletterSlug, className }) {
 	return (
 		<form action={action} className={cn("w-full", className)}>
 			<input type="hidden" name="newsletter" value={newsletterSlug} />
+			<input type="hidden" name="ref" ref={referralRef} defaultValue="" />
 			<div aria-hidden="true" className="absolute -left-[10000px] size-px overflow-hidden">
 				<input type="text" name="website" tabIndex={-1} autoComplete="off" />
 			</div>

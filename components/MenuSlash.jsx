@@ -14,8 +14,10 @@ import {
 	Minus,
 	Pilcrow,
 	RectangleHorizontal,
+	Share2,
 	TextQuote,
 } from "lucide-react";
+import { REFERRAL_COUNT_TAG, REFERRAL_LINK_TAG } from "@/lib/referral-tags";
 import { cn } from "@/lib/utils";
 
 export default function MenuSlash({ items, command, ref }) {
@@ -146,5 +148,23 @@ const SLASH_ITEMS = [
 		keywords: "callout container update promo",
 		icon: RectangleHorizontal,
 		run: (chain) => chain.wrapIn("callout"),
+	},
+	{
+		title: "Referral block",
+		keywords: "share refer friends rewards invite",
+		icon: Share2,
+		run: (chain) =>
+			chain.insertContent({
+				type: "callout",
+				content: [
+					{
+						type: "paragraph",
+						content: [
+							{ type: "text", text: `Share this newsletter and get rewards. You've referred ${REFERRAL_COUNT_TAG} so far. ` },
+							{ type: "text", text: "Your link", marks: [{ type: "link", attrs: { href: REFERRAL_LINK_TAG } }] },
+						],
+					},
+				],
+			}),
 	},
 ];

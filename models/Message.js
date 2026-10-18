@@ -17,10 +17,12 @@ export const MESSAGE_STATUSES = [
 
 const messageSchema = new mongoose.Schema(
 	{
-		kind: { type: String, enum: ["campaign", "last-chance", "welcome", "confirmation", "test"], required: true },
+		kind: { type: String, enum: ["campaign", "last-chance", "welcome", "confirmation", "referral", "test"], required: true },
 		campaignId: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign" },
 		newsletterId: { type: mongoose.Schema.Types.ObjectId, ref: "Newsletter", required: true },
 		contactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact" },
+		// A referral email: the reward it announces (Newsletter.referral.rewards[].id).
+		referralRewardId: { type: String },
 		email: { type: String, required: true, lowercase: true, trim: true },
 		provider: { type: String },
 		status: { type: String, enum: MESSAGE_STATUSES, default: "queued" },

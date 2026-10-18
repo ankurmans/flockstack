@@ -15,6 +15,7 @@ const PRIVATE_PATHS = [
 	"/mcp",
 	"/newsletters",
 	"/oauth/",
+	"/referrals",
 	"/restore",
 	"/welcome",
 	"/c/",

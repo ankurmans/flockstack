@@ -25,10 +25,20 @@ How lib/docdb works: one table per collection (`c_<name>`: `_id`, `accountId`, `
 - Worker runs under `wrangler dev` on local D1/R2 and serves pages.
 - Provisioned in the KMF Ventures account: D1 `flockstack` (97615845-8aa2-413f-ad98-89821937069f, migration applied), R2 bucket `flockstack-images`.
 
+## Growth and portability
+
+Branch `feat/growth`, migration `0006_growth.sql`.
+
+- **RSS**: `/archive/<slug>/feed` (`/feed.xml` on a newsletter's own host through `proxy.js`), RSS 2.0 with the full issue in `content:encoded`, 30 issues, guid `flockstack:<campaign id>`, ETag and 304, `<link rel="alternate">` in every archive page's head. `buildFeed` (`lib/archive-feed.js`) takes a `filter` for which issues show; the default keeps issues with no access level or `free`, so a paid tier added later stays out of the feed.
+- **Export**: `export_account_data` / `get_account_export`, allowed while blocked, paused or without a plan. Background steps (`app/api/jobs/export-account`, `lib/account-export.js`) of at most ~20 s each write every file to the private R2 bucket `EXPORTS` and chain through QStash; `AccountExport` holds the cursor, `ExportFile` one document per file with its size and CRC-32. The download (`app/api/v1/account/export.zip`) streams a stored ZIP built on the fly from those objects (`lib/zip.js`), split into several ZIPs past 3.5 GB or 60,000 files. Links are signed and last 7 days; the hourly cron deletes expired exports. Images are fetched from the account's own uploads only.
+- **Referrals**: `Newsletter.referral`, `Contact.referral`, `Referral`, `ReferralReward`; code = contact ID + signature (nothing stored). A signup through `?ref=` is pending until the new contact confirms (`lib/referrals.js`); needs confirmed opt-in and the website. Reward emails are `Message` kind `referral`, through `sendMessageBatch` like welcome emails (suppression, plan accounting, unsubscribe link).
+- Not done: referral credit for newsletters without confirmed opt-in, a referral leaderboard page for subscribers, paid-tier aware feeds (the filter is there), ZIP64.
+
 ## Still to do
 
 Done since the first deploy: passkey login, cloud mode with SES-only platform email, Polar billing next to Stripe (needs the owner's Polar token, products and webhook), the landing page at `/` for signed-out visitors, database-backed rate limits, R2 images at img.flockstack.io, the gull-stack logo, README and AGENTS.md for the new setup.
 
+0. Growth: create the private R2 bucket `flockstack-exports` with an 8-day lifecycle rule and bind it as `EXPORTS` (commented line in `wrangler.jsonc`); apply `migrations/0006_growth.sql`.
 1. Polar: create the org token, run `scripts/polar-setup.mjs`, add the webhook, set `POLAR_ACCESS_TOKEN` / `POLAR_WEBHOOK_SECRET` (see README, billing).
 2. SES stays on the owner's existing AWS account (decided, shared with other products). Each customer is its own SES tenant with its own suppression list, and the app pauses senders on bounce and complaint rates, which limits the blast radius; revisit if a customer ever hurts the account's reputation.
 3. Push the fork to a public repository (AGPL), then point `SOURCE_URL` in `lib/site.js` at it and add a source link to the site footer.
