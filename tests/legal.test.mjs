@@ -190,8 +190,10 @@ describe("lib/legal.js and the check", () => {
 		assert.ok(!("EU_REPRESENTATIVE" in m.legal) && !("DPO_CONTACT" in m.legal));
 	});
 
-	test("the deploy script does not run the check", async () => {
-		assert.doesNotMatch(await readFile(join(ROOT, "scripts/deploy-all.mjs"), "utf8"), /check-legal/);
+	test("the deploy script runs the check and stops, unless it is told to deploy with TODOs", async () => {
+		const script = await readFile(join(ROOT, "scripts/deploy-all.mjs"), "utf8");
+		assert.match(script, /check-legal/);
+		assert.match(script, /--allow-legal-todos/);
 		assert.match(await readFile(join(ROOT, "README.md"), "utf8"), /node scripts\/check-legal\.mjs/);
 	});
 });
