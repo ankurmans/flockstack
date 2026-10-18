@@ -36,6 +36,7 @@ const STUBS = {
 // next.config.mjs. The open source has none, so the defaults stay.
 const SITE_EXTENSIONS = {
 	"@/lib/site-extensions": "lib/marketing/site-extensions.js",
+	"@/lib/site-routing": "lib/marketing/site-routing.js",
 	"@/components/SiteExtensions": "components/marketing/SiteExtensions.jsx",
 };
 

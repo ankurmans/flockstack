@@ -4,7 +4,7 @@ import { getArchiveHostUrl } from "@/lib/archive-hosts";
 import { isCloud } from "@/lib/config";
 import { resolveArchiveHost } from "@/lib/host-routing";
 import { getCookiePrefix } from "@/lib/region";
-import { siteExtensions } from "@/lib/site-extensions";
+import { siteRouting } from "@/lib/site-routing";
 
 // No route can live under an underscore folder, so this always renders the not-found page with a 404.
 const NOT_FOUND_PATH = "/_not-on-this-server";
@@ -105,7 +105,7 @@ export async function proxy(request) {
 	const hasSession = Boolean(getSessionCookie(request, { cookiePrefix: getCookiePrefix() }));
 	// FlockStack Cloud's marketing site (site extensions): its landing page shows at / to signed-out visitors, rendered
 	// at landingPath, which never shows in the address bar. A self-hosted server has none of its pages.
-	const { landingPath, publicPages, isPublicPath } = siteExtensions;
+	const { landingPath, publicPages, isPublicPath } = siteRouting;
 	if (isCloud()) {
 		if (pathname === "/" && landingPath) return hasSession ? NextResponse.next() : rewriteTo(request, landingPath);
 		if (pathname === landingPath) return NextResponse.redirect(new URL("/", request.url), 308);

@@ -28,6 +28,7 @@ const SECURITY_HEADERS = [
 // take the defaults' place; the open source has none of them (tests/setup/hooks.mjs resolves the same way).
 const SITE_EXTENSIONS = Object.entries({
 	"@/lib/site-extensions": "./lib/marketing/site-extensions.js",
+	"@/lib/site-routing": "./lib/marketing/site-routing.js",
 	"@/components/SiteExtensions": "./components/marketing/SiteExtensions.jsx",
 }).filter(([, target]) => existsSync(new URL(target, import.meta.url)));
 
