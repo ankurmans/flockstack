@@ -65,6 +65,12 @@ const newsletterSchema = new mongoose.Schema(
 				},
 			],
 		},
+		// Recommendations between newsletters (lib/recommendations.js). allowIncoming: other newsletters may recommend this one, on
+		// unless its owner turns it off. listed: shown in the app's /recommendations directory, off unless its owner turns it on.
+		recommendations: {
+			allowIncoming: { type: Boolean, default: true },
+			listed: { type: Boolean, default: false },
+		},
 		// The paid tier (lib/payments/subscriptions.js): readers subscribe through Stripe Checkout on the creator's own Stripe
 		// account. Prices are in cents of `currency`; a price of 0 means that interval isn't offered. Set by set_paid_tier,
 		// never by the settings form.
@@ -88,6 +94,8 @@ const newsletterSchema = new mongoose.Schema(
 
 newsletterSchema.plugin(accountScoped);
 newsletterSchema.index({ accountId: 1, createdAt: 1 });
+// The directory of newsletters that take recommendations lists only these.
+newsletterSchema.index({ "recommendations.listed": 1 });
 newsletterSchema.index({ archiveHost: 1 }, { unique: true, partialFilterExpression: { archiveHost: { $type: "string" } } });
 
 export default mongoose.models.Newsletter || mongoose.model("Newsletter", newsletterSchema);
