@@ -138,7 +138,7 @@ describe("the legal pages", () => {
 
 	test("the sub-processors and the regions page agree: messages may be processed on Cloudflare's global network, and nothing is stored", () => {
 		const cloudflare = m.subprocessors.SUBPROCESSORS.find(({ name }) => name === "Cloudflare");
-		assert.match(cloudflare.purpose, /support assistant on Workers AI, through AI Gateway with its logging turned off/);
+		assert.match(cloudflare.purpose, /support assistant on Workers AI,? through AI Gateway with its logging turned off/);
 		assert.match(cloudflare.data, /messages typed to the support assistant/);
 		assert.match(cloudflare.us, /Workers AI runs on Cloudflare's global network/);
 		assert.match(cloudflare.eu, /may be processed outside the EU/);
