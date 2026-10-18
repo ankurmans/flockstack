@@ -111,6 +111,14 @@ Customers' own archive domains and shared addresses' DNS, native on Cloudflare. 
 - **Admin.** `/admin` shows whether custom hostnames and the shared DNS are on, and counts of active, pending and refused hostnames.
 - **Not verified against the real API.** Every call ran against the stub only: the duplicate-route error code, routes for custom hostnames created through the API (the docs show the dashboard), the HTTP validation passing through a Worker route, and the shared zone's wildcard route. Past 1,000 Worker routes per zone this needs Workers for Platforms or a `*/*` route that picks the region inside the Worker.
 
+## Support assistant (branch feat/support-assistant)
+
+A help chat on FlockStack's own pages, FlockStack Cloud only (README, Support assistant), answering from the docs with Workers AI.
+
+- **Pieces.** `lib/marketing/support-corpus.js` reads the docs pages' and legal pages' server components as text (`support-page-text.js`, without react-dom/server), adds one chunk per API endpoint, the prices and the FAQ, and indexes them with BM25 in memory (`support-search.js`). `support-prompt.js` holds the rules and reads the model's answer and citations back; `support-context.js` the signed-in account's few facts; `support-assistant.js` the two routes' handlers, reached through `siteExtensions.supportAssistant` from `app/api/support/chat` and `app/api/support/email`. The UI is `components/marketing/SupportChat.jsx` (renders only with the `AI` binding) and `PanelSupportChat.jsx`.
+- **Choices.** Qwen3 30B A3B, then gpt-oss-20b, through the default AI Gateway with logs off. No Vectorize: about 300 chunks, scored in well under a millisecond. Nothing a person types is stored; the legal placeholders for it are filled.
+- **Not done.** A real Workers AI call (stub only in tests). Streaming answers. Per-region wording in answers beyond what the docs say. An admin view of how often it says "I don't know" (it would need counting without the text).
+
 ## Still to do
 
 Done since the first deploy: passkey login, cloud mode with SES-only platform email, Polar billing next to Stripe (needs the owner's Polar token, products and webhook), the landing page at `/` for signed-out visitors, database-backed rate limits, R2 images at img.flockstack.io, the gull-stack logo, README and AGENTS.md for the new setup.
@@ -119,7 +127,7 @@ Done since the first deploy: passkey login, cloud mode with SES-only platform em
 1. Polar: create the org token, run `scripts/polar-setup.mjs`, add the webhook, set `POLAR_ACCESS_TOKEN` / `POLAR_WEBHOOK_SECRET` (see README, billing).
 2. SES stays on the owner's existing AWS account (decided, shared with other products). Each customer is its own SES tenant with its own suppression list, and the app pauses senders on bounce and complaint rates, which limits the blast radius; revisit if a customer ever hurts the account's reputation.
 3. Push the fork to a public repository (AGPL), then point `SOURCE_URL` in `lib/site.js` at it and add a source link to the site footer.
-4. Terms, Privacy and Sub-processors pages are written (`/terms`, `/privacy`, `/sub-processors`, `lib/legal.js`). Not legal advice: have them checked. Still open in `lib/legal.js` (`node scripts/check-legal.mjs`): the effective date, what the support assistant stores and for how long, how long PostHog keeps events (`ANALYTICS_RETENTION`), and `SERVICES_LIVE_CONFIRMED`, which the owner sets once Google sign-in, PostHog with the consent banner (built, set `POSTHOG_KEY`) and the support assistant are live. Update the pages whenever the product changes what it stores or shares.
+4. Terms, Privacy and Sub-processors pages are written (`/terms`, `/privacy`, `/sub-processors`, `lib/legal.js`). Not legal advice: have them checked. Still open in `lib/legal.js` (`node scripts/check-legal.mjs`): the effective date, how long PostHog keeps events (`ANALYTICS_RETENTION`), and `SERVICES_LIVE_CONFIRMED`, which the owner sets once Google sign-in, PostHog with the consent banner (built, set `POSTHOG_KEY`) and the support assistant are live. Update the pages whenever the product changes what it stores or shares.
 5. Bulk updates (large imports, status changes) read and write each row separately: fine for small lists, make them single statements before big ones. Archive old Event rows (D1 is 10 GB per database).
 6. wrangler.jsonc holds the owner's account and database ids and domains: move them out before publishing a reusable template.
 

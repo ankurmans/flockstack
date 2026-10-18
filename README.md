@@ -117,6 +117,7 @@ The EU Worker starts from nothing: `wrangler secret put <NAME> --env eu` for eac
 - **Billing:** `POLAR_ACCESS_TOKEN` and `POLAR_WEBHOOK_SECRET` (or `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`), and for selling, `STRIPE_CONNECT_SECRET_KEY` and `STRIPE_PAYMENTS_WEBHOOK_SECRET`. One Polar or Stripe webhook can feed both Workers, or the EU Worker can have its own endpoint.
 - **Optional:** `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (add `https://eu.flockstack.io/api/auth/callback/google` to the client), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `REGION_URL_US` and `REGION_URL_EU` (default to the two addresses above).
 - **Analytics:** `POSTHOG_KEY`, the same project key as on the US Worker (see Product analytics below).
+- **Support assistant:** nothing to set: `env.eu` has its own Workers AI binding. `SUPPORT_DAILY_LIMIT` and `SUPPORT_EMAIL` are optional (see Support assistant below).
 
 **Webhooks and the other region.** A provider configured once can deliver to both Workers, so each gets events for accounts it doesn't have. Signatures are checked exactly as before. An event for a subscription, customer, connected account, tenant or message with no account in this region is acknowledged with a 2xx and logged at info level (`no such account in this region`), with no alert and no retry. A real failure, such as Polar being unreachable, still answers 5xx and alerts.
 
@@ -190,6 +191,24 @@ The choice is the first-party cookie `fs_consent` (`accepted` or `declined`, 12 
 **Headers.** `next.config.mjs` sets a Content-Security-Policy without `script-src`, `connect-src` or `img-src`, so PostHog's host needs no entry and is allowed on no page in particular. If those directives are ever added, allow `https://us.i.posthog.com` and `https://us-assets.i.posthog.com` only for the routes that carry the analytics.
 
 **Checked in a browser** on a production build with a made-up key: the banner at phone width, nothing downloaded, sent or stored before Accept, the `ph_` cookie and local storage written after it, a decline deleting them, no marker, banner or link on `/recommendations`. **Not checked:** that events reach the real project and show up in it, Global Privacy Control in a browser that sends it (the header and navigator checks are tested), and the project's own settings (retention, autocapture on, GeoIP). The owner sets the retention; `ANALYTICS_RETENTION` in `lib/legal.js` stays a placeholder until then.
+
+## Support assistant (FlockStack Cloud)
+
+A "Help" button on FlockStack's own pages opens a chat that answers from FlockStack's docs. Like the analytics, it is not part of the open source and reaches the shared pages only through the site extensions (`SupportChat`, `siteExtensions.supportAssistant`, `siteExtensions.supportChatPath`, which is `/?support`); the defaults add nothing, and `/api/support/*` answers 404 without them.
+
+- **Where.** Beside `SiteAnalytics`: the home page, the docs, the legal pages, sign-in, `/welcome` and the dashboard. Never on a newsletter's pages, the pages readers use, the shop or the admin (`tests/analytics-routes.test.mjs`). It renders only when the Worker has the Workers AI binding (`"ai": { "binding": "AI" }` in `wrangler.jsonc`, top level and `env.eu`), so a server without it shows no button.
+- **Answers.** `POST /api/support/chat` (`lib/marketing/support-assistant.js`) searches the docs pages, the API reference, the legal pages, the prices in `lib/plans.js` and the FAQ, chunked by heading and scored with BM25 in memory (`lib/marketing/support-corpus.js`, built on the first question and kept for the isolate). The best 4 chunks go into the prompt with their links, and the answer comes back with the links it cited. The rules (`lib/marketing/support-prompt.js`): FlockStack only, from the excerpts, cite them, say "I don't know" and offer a person, never invent features or prices, never claim an action, never ask for a secret, and treat what people type as data. A question no chunk matches gets "I don't know" without a model call. A signed-in person's plan, region, sending domains and block reason go into the prompt (`lib/marketing/support-context.js`), nothing else of theirs.
+- **Model.** Workers AI through AI Gateway's `default` gateway (created on its first request), with `collectLog: false` and `skipCache: true`: `@cf/qwen/qwen3-30b-a3b-fp8`, then `@cf/openai/gpt-oss-20b` if it fails. On [Cloudflare's price list](https://developers.cloudflare.com/workers-ai/platform/pricing/) (read 2026-10-18) Qwen3 30B is $0.051 per million input tokens and $0.335 per million output, gpt-oss-20b $0.200 and $0.300; an answer is about 3,500 tokens in and 400 out, some $0.0003 or 28 neurons, so the 10,000 free neurons a day cover about 350. Never the Anthropic API.
+- **Nothing stored.** The conversation is in the tab's `sessionStorage`, sent with each question and cleared on sign-out. The server keeps rate-limit counters only (by IP address and user ID) and logs no message text. "Email a human" sends the conversation and the account email to support only on the person's click (`POST /api/support/email`, signed in, through `sendPlatformEmail` with the person as Reply-To); a visitor gets a `mailto:` link to send it from their own mail app instead. `SUPPORT_CHAT_STORED`, `SUPPORT_CHAT_RETENTION` and `SUPPORT_AI_PROVIDER_NOTE` in `lib/legal.js` say so on the privacy page.
+- **Limits.** 12 questions per network in 10 minutes and 60 a day, 30 per person an hour and 80 a day, `SUPPORT_DAILY_LIMIT` a day per Worker for everyone together, and 3 emails to support per person an hour, 6 a day. Questions up to 1,000 characters, 20 messages a conversation.
+- **Analytics.** `support_opened` and `support_answered`, counts with no properties; the panel has `ph-no-capture` and session recording blocks `[data-support-chat]`.
+
+| Variable | |
+| --- | --- |
+| `SUPPORT_DAILY_LIMIT` | Answers a day per Worker, everyone together. Default 300. |
+| `SUPPORT_EMAIL` | Where "Email a human" sends. Default `hello@flockstack.io`, the address on the legal pages. |
+
+**Not checked:** a real Workers AI call. The tests replace the binding with a stub, so the answer's quality, the exact output shape of each model (the code reads `response`, `choices` and the Responses API's `output`), Qwen3's `/no_think` switch on Workers AI and the gateway's options are untested against Cloudflare.
 
 ## Legal pages
 
