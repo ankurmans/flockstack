@@ -3,8 +3,8 @@
 // SiteAnalytics also counts the steps shared markup names with data-goal attributes (autocapture keeps them). It goes
 // in the layouts of FlockStack's own pages only, never the root layout, a newsletter's pages, the pages readers use or
 // the admin; on the dashboard it gets the signed-in user and account. FooterCookies is the "Cookie settings" list item
-// beside the legal links. SupportChat, the chat on signed-in dashboard pages, opens in place from links to
-// siteExtensions.supportChatPath and renders [data-support-chat].
+// beside the legal links. SupportChat, the help chat, goes beside SiteAnalytics on the same pages (the signed-in user on
+// the dashboard), opens in place from links to siteExtensions.supportChatPath and renders [data-support-chat].
 export const SiteAnalytics = null;
 export const FooterCookies = null;
 export const SiteBand = null;

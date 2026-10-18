@@ -153,7 +153,7 @@ describe("asking", () => {
 		const { status, body } = await json(await ask(question("How do I export?")));
 		assert.equal(status, 503);
 		assert.deepEqual(body.error, { code: "support_unavailable", message: "The support assistant isn't available on this server." });
-		assert.equal(await m.assistant.getAiBinding(), null);
+		assert.equal(await (await import("../lib/marketing/support-config.js")).getAiBinding(), null);
 	});
 
 	test("a server that isn't FlockStack Cloud has no assistant: the route is a 404", async () => {

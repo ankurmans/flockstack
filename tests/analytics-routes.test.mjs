@@ -158,7 +158,75 @@ describe("which pages carry the analytics", () => {
 
 	test("the open source's defaults add nothing", async () => {
 		const source = await read("components/SiteExtensions.jsx");
-		for (const name of ["SiteAnalytics", "FooterCookies"]) assert.match(source, new RegExp(`export const ${name} = null;`));
+		for (const name of ["SiteAnalytics", "FooterCookies", "SupportChat"]) assert.match(source, new RegExp(`export const ${name} = null;`));
+		assert.match(await read("lib/site-extensions.js"), /supportChatPath: null,[\s\S]*supportAssistant: null,/);
+	});
+});
+
+// The help chat (SupportChat) goes where the analytics goes, FlockStack's own pages, plus the newsletter setup page, and
+// never on a newsletter's pages, the pages readers use, the shop or the admin.
+describe("which pages carry the help chat", () => {
+	const rendersChat = (source) => /<SupportChat[\s/>]/.test(source);
+
+	async function scanChatPages() {
+		const files = (await walk("app")).map((file) => file.slice("app/".length));
+		const sources = new Map();
+		for (const file of files) if (/(^|\/)(layout|page)\.js$/.test(file)) sources.set(file, await read(`app/${file}`));
+		const dashboard = rendersChat(await read("components/LayoutDashboard.jsx"));
+		const renders = (source) => rendersChat(source) || (dashboard && /<LayoutDashboard[\s>]/.test(source));
+		return [...sources.keys()]
+			.filter((file) => file.endsWith("page.js"))
+			.map((file) => {
+				const dir = file.slice(0, -"page.js".length).replace(/\/$/, "");
+				const chain = ["", ...dir.split("/").filter(Boolean).map((_, index, parts) => parts.slice(0, index + 1).join("/"))];
+				const carriers = [...chain.map((path) => (path ? `${path}/layout.js` : "layout.js")), file].filter((path) => sources.has(path) && renders(sources.get(path)));
+				return { file: `app/${file}`, address: addressOf(dir), carriers };
+			});
+	}
+
+	test("FlockStack's own pages do: the home page, docs, legal pages, sign-in and the dashboard", async () => {
+		const pages = await scanChatPages();
+		for (const address of ["/home", "/docs", "/docs/api", "/docs/comments", "/privacy", "/terms", "/sub-processors", "/signin", "/welcome", "/campaigns", "/contacts", "/billing", "/account", "/api-keys"]) {
+			const page = pages.find((item) => item.address === address);
+			assert.ok(page?.carriers.length > 0, address);
+		}
+		assert.doesNotMatch(await read("app/layout.js"), /SupportChat/);
+		assert.doesNotMatch(await read("app/(site)/layout.js"), /<SupportChat/);
+	});
+
+	test("a newsletter's pages, the pages readers use, the shop and the admin do not", async () => {
+		const pages = await scanChatPages();
+		for (const address of ["/archive/x", "/recommendations", "/unsubscribe", "/confirm", "/keep", "/referral", "/reader/signin", "/reader/replies", "/admin", "/oauth/consent", "/restore"]) {
+			const matching = pages.filter((item) => item.address === address || item.address.startsWith(`${address}/`));
+			assert.ok(matching.length > 0, `a page at ${address}`);
+			assert.deepEqual(matching.filter((item) => item.carriers.length > 0).map((item) => item.file), [], address);
+		}
+		for (const page of pages.filter((item) => item.address.startsWith("/archive"))) assert.deepEqual(page.carriers, [], page.file);
+	});
+
+	test("every page with the chat is one the analytics may track, so neither reaches a reader", async () => {
+		for (const { file, address, carriers } of await scanChatPages()) {
+			if (carriers.length > 0) assert.equal(isTrackedPath(address === "/home" ? "/" : address), true, file);
+		}
+	});
+
+	test("it is rendered from the analytics' files and the newsletter setup page only", async () => {
+		const carriers = [];
+		for (const dir of ["app", "components", "lib"]) {
+			for (const file of (await walk(dir)).filter((name) => /\.(js|jsx)$/.test(name) && !name.includes("/marketing/"))) {
+				if (rendersChat(await read(file))) carriers.push(file);
+			}
+		}
+		assert.deepEqual(carriers.sort(), [
+			"app/(site)/docs/layout.js",
+			"app/(site)/home/layout.js",
+			"app/(site)/privacy/layout.js",
+			"app/(site)/sub-processors/layout.js",
+			"app/(site)/terms/layout.js",
+			"app/signin/page.js",
+			"app/welcome/page.js",
+			"components/LayoutDashboard.jsx",
+		]);
 	});
 });
 

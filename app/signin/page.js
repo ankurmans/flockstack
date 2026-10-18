@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight } from "lucide-react";
@@ -7,7 +8,7 @@ import FormSignin from "@/components/FormSignin";
 import LayoutSplit from "@/components/LayoutSplit";
 import LogoWordmark from "@/components/LogoWordmark";
 import RegionPicker from "@/components/RegionPicker";
-import { FooterCookies, SigninAside, SiteAnalytics } from "@/components/SiteExtensions";
+import { FooterCookies, SigninAside, SiteAnalytics, SupportChat } from "@/components/SiteExtensions";
 import { Button } from "@/components/ui/button";
 import { DELETION_GRACE_DAYS } from "@/lib/account-deletion";
 import { getSession, getSignupError, isGoogleEnabled } from "@/lib/auth";
@@ -89,6 +90,11 @@ export default async function SigninPage({ searchParams }) {
 					{isCloud() && <LegalNotice />}
 				</div>
 			</div>
+			{SupportChat && (
+				<Suspense fallback={null}>
+					<SupportChat />
+				</Suspense>
+			)}
 			{SiteAnalytics && <SiteAnalytics />}
 		</LayoutSplit>
 	);

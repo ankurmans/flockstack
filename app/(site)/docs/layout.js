@@ -1,5 +1,6 @@
+import { Suspense } from "react";
 import NavDocs from "@/components/NavDocs";
-import { SiteAnalytics } from "@/components/SiteExtensions";
+import { SiteAnalytics, SupportChat } from "@/components/SiteExtensions";
 import { getAppUrl } from "@/lib/config";
 import { DOC_PAGES } from "@/lib/docs/llms";
 import { getEndpointGroups } from "@/lib/docs/reference";
@@ -23,6 +24,11 @@ export default function DocsLayout({ children }) {
 				</aside>
 				<main className="min-w-0 pb-24">{children}</main>
 			</div>
+			{SupportChat && (
+				<Suspense fallback={null}>
+					<SupportChat />
+				</Suspense>
+			)}
 			{SiteAnalytics && <SiteAnalytics />}
 		</>
 	);
