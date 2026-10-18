@@ -37,7 +37,7 @@ commentSchema.index({ campaignId: 1, status: 1, createdAt: 1 });
 commentSchema.index({ newsletterId: 1, createdAt: -1, _id: -1 });
 commentSchema.index({ newsletterId: 1, status: 1, createdAt: -1, _id: -1 });
 // A reader's own comments on an issue, and the duplicate check.
-commentSchema.index({ campaignId: 1, authorId: 1 }, { sparse: true });
+commentSchema.index({ campaignId: 1, authorId: 1 });
 // Anonymizing a deleted contact's comments.
 commentSchema.index({ authorId: 1 }, { sparse: true });
 commentSchema.index({ parentId: 1 }, { sparse: true });

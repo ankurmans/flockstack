@@ -1,0 +1,15 @@
+CREATE TABLE IF NOT EXISTS c_comments (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_comments__accountId ON c_comments (accountId);
+CREATE INDEX IF NOT EXISTS i_comments__campaignId__status__createdAt ON c_comments (json_extract(data, '$.campaignId') ASC, json_extract(data, '$.status') ASC, json_extract(data, '$.createdAt') ASC);
+CREATE INDEX IF NOT EXISTS i_comments__newsletterId__createdAt_d___id_d ON c_comments (json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.createdAt') DESC, _id DESC);
+CREATE INDEX IF NOT EXISTS i_comments__newsletterId__status__createdAt_d___id_d ON c_comments (json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.status') ASC, json_extract(data, '$.createdAt') DESC, _id DESC);
+CREATE INDEX IF NOT EXISTS i_comments__campaignId__authorId ON c_comments (json_extract(data, '$.campaignId') ASC, json_extract(data, '$.authorId') ASC);
+CREATE INDEX IF NOT EXISTS i_comments__authorId ON c_comments (json_extract(data, '$.authorId') ASC) WHERE json_extract(data, '$.authorId') IS NOT NULL;
+CREATE INDEX IF NOT EXISTS i_comments__parentId ON c_comments (json_extract(data, '$.parentId') ASC) WHERE json_extract(data, '$.parentId') IS NOT NULL;
+CREATE INDEX IF NOT EXISTS i_comments__notifyPending ON c_comments (json_extract(data, '$.notifyPending') ASC) WHERE json_extract(data, '$.notifyPending') IS NOT NULL;
+CREATE TABLE IF NOT EXISTS c_commentreports (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_commentreports__accountId ON c_commentreports (accountId);
+CREATE UNIQUE INDEX IF NOT EXISTS u_commentreports__commentId__reporterId ON c_commentreports (json_extract(data, '$.commentId') ASC, json_extract(data, '$.reporterId') ASC);
+CREATE INDEX IF NOT EXISTS i_commentreports__newsletterId__status__createdAt_d___id_d ON c_commentreports (json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.status') ASC, json_extract(data, '$.createdAt') DESC, _id DESC);
+CREATE INDEX IF NOT EXISTS i_commentreports__reporterId ON c_commentreports (json_extract(data, '$.reporterId') ASC);
+CREATE INDEX IF NOT EXISTS i_commentreports__notifyPending ON c_commentreports (json_extract(data, '$.notifyPending') ASC) WHERE json_extract(data, '$.notifyPending') IS NOT NULL;
