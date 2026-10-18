@@ -27,6 +27,7 @@ const PUBLIC_PATHS = [
 	/^\/unsubscribe$/,
 	/^\/confirm$/,
 	/^\/keep$/,
+	/^\/referral$/,
 	/^\/o\//,
 	/^\/c\//,
 	/^\/p\//,
@@ -46,6 +47,7 @@ const ARCHIVE_HOST_PATHS = [
 	/^\/api\/views$/,
 	/^\/confirm$/,
 	/^\/keep$/,
+	/^\/referral$/,
 	/^\/o\//,
 	/^\/c\//,
 ];
@@ -70,6 +72,7 @@ export async function proxy(request) {
 		if (pathname === "/") return rewriteTo(request, `/archive/${archiveSlug}`);
 		if (pathname === "/sitemap.xml") return rewriteTo(request, `/archive/${archiveSlug}/sitemap`);
 		if (pathname === "/robots.txt") return rewriteTo(request, `/archive/${archiveSlug}/robots`);
+		if (pathname === "/feed.xml") return rewriteTo(request, `/archive/${archiveSlug}/feed`);
 		const issueSlug = ISSUE_PATH_PATTERN.exec(pathname)?.[1];
 		if (issueSlug) return rewriteTo(request, `/archive/${archiveSlug}/p/${issueSlug}`);
 		const authorSlug = AUTHOR_PATH_PATTERN.exec(pathname)?.[1];

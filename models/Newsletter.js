@@ -50,6 +50,21 @@ const newsletterSchema = new mongoose.Schema(
 			previewText: { type: String, trim: true },
 			markdown: { type: String },
 		},
+		// The referral program (lib/referrals.js). Rewards unlock at a number of referrals; each is a title and a link and/or
+		// text, shown on the subscriber's referral page and sent in an email. id: stable, so editing a reward keeps its unlocks.
+		referral: {
+			enabled: { type: Boolean, default: false },
+			rewards: [
+				{
+					_id: false,
+					id: { type: String },
+					referrals: { type: Number },
+					title: { type: String, trim: true },
+					url: { type: String, trim: true },
+					text: { type: String, trim: true },
+				},
+			],
+		},
 		// The newsletter's own confirmation email; the built-in one goes out until it has one.
 		confirmation: {
 			subject: { type: String, trim: true },

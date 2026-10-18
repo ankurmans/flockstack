@@ -4,6 +4,7 @@ import { openBillingPortal } from "@/app/(account)/billing/actions";
 import AvatarUser from "@/components/AvatarUser";
 import CardPasskeys from "@/components/CardPasskeys";
 import BadgeStatus from "@/components/BadgeStatus";
+import CardExport from "@/components/CardExport";
 import CardSettings, { RowSettings } from "@/components/CardSettings";
 import { getPlanDetails } from "@/components/CardSubscription";
 import DialogDeleteAccount from "@/components/DialogDeleteAccount";
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { DELETION_GRACE_DAYS, getDeletionBlockers } from "@/lib/account-deletion";
 import { getAccountStatus, hasActiveSubscription } from "@/lib/account-state";
 import { hasGoogleSignIn } from "@/lib/accounts";
+import { runDashboardAction } from "@/lib/actions/dashboard";
 import { requireAccount } from "@/lib/auth";
 import { getBillingProviderName } from "@/lib/billing-provider";
 import { isCloud } from "@/lib/config";
@@ -26,7 +28,11 @@ export const metadata = { title: "Account" };
 // The whole account, apart from any newsletter: who signs in, billing, and deleting it.
 export default async function AccountPage() {
 	const { user, account } = await requireAccount();
-	const [blockers, hasGoogle] = await Promise.all([getDeletionBlockers(account), hasGoogleSignIn(user.id)]);
+	const [blockers, hasGoogle, { output: latestExport }] = await Promise.all([
+		getDeletionBlockers(account),
+		hasGoogleSignIn(user.id),
+		runDashboardAction("get_account_export", {}),
+	]);
 
 	return (
 		<LayoutNarrow>
@@ -43,6 +49,7 @@ export default async function AccountPage() {
 				</CardSettings>
 				<CardPasskeys />
 				{isCloud() && <CardBilling account={account} />}
+				<CardExport initial={latestExport ?? null} />
 				<CardDelete email={user.email} blockers={blockers} cancelAt={account.cancelAt} />
 			</div>
 		</LayoutNarrow>
@@ -76,7 +83,7 @@ function CardBilling({ account }) {
 
 function CardDelete({ email, blockers, cancelAt }) {
 	return (
-		<CardSettings title="Delete account" stagger={3} className="mt-6">
+		<CardSettings title="Delete account" stagger={4} className="mt-6">
 			<p className="px-4 py-3 text-sm text-pretty text-muted-foreground">
 				Your account stops at once. {DELETION_GRACE_DAYS} days later, its newsletters, contacts, campaigns and images are deleted
 				for good. Signing in before then restores it.

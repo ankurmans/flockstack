@@ -6,6 +6,7 @@ import { verifyConfirmToken } from "@/lib/confirmation";
 import { confirmContact } from "@/lib/contacts";
 import { connectDb } from "@/lib/db";
 import { findOpenNewsletter } from "@/lib/public-newsletters";
+import { creditReferral } from "@/lib/referrals";
 import { queueWelcomeEmail } from "@/lib/sending";
 
 export async function confirmSubscription(token) {
@@ -18,6 +19,12 @@ export async function confirmSubscription(token) {
 	const { contact, confirmed } = await confirmContact({ accountId: newsletter.accountId, ...reference });
 	if (contact?.status !== "active") return { error: "invalid" };
 
+	// The referrer's count and rewards, when this subscriber came through someone's referral link.
+	if (confirmed) {
+		after(() =>
+			creditReferral({ newsletter, contact }).catch((error) => console.error(`[confirm] Referral for ${contact._id} not credited:`, error.message))
+		);
+	}
 	if (confirmed && isSendingEnabled()) {
 		// Skipped while the newsletter confirms signups: the confirmation was their one email.
 		after(() =>

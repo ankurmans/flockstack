@@ -283,7 +283,9 @@ describe("the confirmation", () => {
 	});
 
 	test("isn't an action, so no API key or connected app can delete an account or change its profile", () => {
-		for (const { name } of m.registry.ACTIONS) assert.doesNotMatch(name, /account|profile|user/, name);
+		// Leaving with a copy of everything is the one thing an account's keys may do to the account itself.
+		const exports = new Set(["export_account_data", "get_account_export"]);
+		for (const { name } of m.registry.ACTIONS) if (!exports.has(name)) assert.doesNotMatch(name, /account|profile|user/, name);
 	});
 });
 

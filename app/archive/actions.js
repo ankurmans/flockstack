@@ -9,6 +9,7 @@ import { connectDb } from "@/lib/db";
 import { getInbox } from "@/lib/inbox-links";
 import { findSignupNewsletter } from "@/lib/public-newsletters";
 import { getClientIp, isRateLimited } from "@/lib/rate-limit";
+import { recordReferral } from "@/lib/referrals";
 import { queueConfirmationEmail, queueWelcomeEmail } from "@/lib/sending";
 import { normalizeEmail } from "@/lib/validation";
 
@@ -49,7 +50,17 @@ export async function subscribe(_state, formData) {
 		);
 	}
 
+	const ip = getClientIp(await headers());
 	const { contact, created } = await upsertContact({ newsletter, email, source: "website", resubscribe: true });
+	// A signup through a subscriber's referral link: counted once the new subscriber confirms.
+	const referralCode = String(formData.get("ref") ?? "").trim();
+	if (referralCode && created) {
+		after(() =>
+			recordReferral({ newsletter, contact, created, code: referralCode, ip }).catch((error) =>
+				console.error(`[subscribe] Referral for ${contact._id} not recorded:`, error.message)
+			)
+		);
+	}
 	const isPending = contact.status === "pending";
 	if (isSendingEnabled() && (isPending || (created && contact.status === "active"))) {
 		const queue = isPending ? queueConfirmationEmail : queueWelcomeEmail;
