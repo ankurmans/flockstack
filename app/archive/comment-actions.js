@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { getArchiveIssue, getArchiveNewsletter } from "@/lib/archive-data";
+import { notifyAfterPost } from "@/lib/comment-notify";
 import { areCommentsOn } from "@/lib/comment-rules";
 import { deleteOwnComment, editComment, getViewerState, postComment, reportComment } from "@/lib/comments";
 import { connectDb } from "@/lib/db";
@@ -93,6 +94,8 @@ export async function submitComment(_state, formData) {
 		ip: getClientIp(await headers()),
 	});
 	if (!result.ok) return { error: result.message, code: result.code };
+	// After the response: the owner's digest, if one is due, and the email for a reply.
+	after(() => notifyAfterPost({ newsletter: context.newsletter, campaign: context.campaign, comment: result.comment }));
 	return { ok: true, id: String(result.comment._id), status: result.comment.status, reason: result.comment.reason ?? null };
 }
 
