@@ -20,10 +20,22 @@ How lib/docdb works: one table per collection (`c_<name>`: `_id`, `accountId`, `
 
 ## Status
 
-- Test suite: 782 tests, all passing on SQLite (`node scripts/test-all.mjs <logdir>`).
+- Test suite: 943 tests, all passing on SQLite (`node scripts/test-all.mjs <logdir>`).
 - `opennextjs-cloudflare build` works (needs network for next/font; behind a proxy set `NODE_USE_ENV_PROXY=1`).
 - Worker runs under `wrangler dev` on local D1/R2 and serves pages.
 - Provisioned in the KMF Ventures account: D1 `flockstack` (97615845-8aa2-413f-ad98-89821937069f, migration applied), R2 bucket `flockstack-images`.
+
+## Selling (branch feat/commerce)
+
+Products, orders and paid subscriptions, paid to the creator's own Stripe account with no application fee (the 0% platform fee is a product decision; `lib/payments/stripe-api.js` refuses any `application_fee*` parameter).
+
+- `lib/payments/`: `config.js` (mode: connect on Cloud with Stripe Connect Standard accounts and direct charges, direct on a self-hosted server with its own key), `stripe-api.js` (fetch against Stripe's REST API, Workers-safe), `signature.js` (WebCrypto webhook check), `connect.js` (onboarding link, status), `checkout.js`, `orders.js` (fulfillment, refunds, chargebacks), `subscriptions.js` (tier sync), `events.js` (account resolution, once-per-event ids in `PaymentEvent`). Route: `app/api/webhooks/payments`.
+- Files are in a private R2 bucket (`FILES`, `lib/private-files.js`) and leave it only through `app/api/shop/download` behind a signed, expiring link (`lib/download-link.js`); a refund or dispute revokes it.
+- Contacts have `tier` and `paidUntil`; campaigns have `audience` (all, free, paid). The audience query (`lib/audience.js`, `lib/tiers.js`) feeds the existing send pipeline, so warm-up, first-send steps, plan limits, the list cleanup (paid readers are exempt) and suppression apply as before. Paid issues are a teaser on the archive (`lib/paywall.js`).
+- Order emails go through `sendTransactionalEmail` (`lib/sending.js`): the newsletter's own sender and the account's tenant, no unsubscribe link, still blocked for a blocked account or a bounced address.
+- D1: `migrations/0004_commerce.sql`.
+
+Left out for now: file uploads over 15 MB (they pass through the Worker's memory; a direct-to-R2 upload would lift it), tax and VAT (Stripe Tax is not turned on), coupons beyond Stripe's promotion codes, bundles and variants, a reader-facing order history, pruning old `PaymentEvent` rows.
 
 ## Still to do
 

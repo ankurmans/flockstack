@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { readFile, readdir } from "node:fs/promises";
+import { join } from "node:path";
 import { after, before, beforeEach, describe, test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { activate, anonymous, as, mockStripe, signIn, startTestApp, withEnv } from "./helpers/app.mjs";
 import { createFakeStripe } from "./stubs/stripe-connect.mjs";
 
@@ -108,6 +111,18 @@ describe("Stripe's REST API", () => {
 			await assert.rejects(m.api.stripeRequest("/v1/checkout/sessions", { method: "POST", account: "acct_seller", params }), /never takes an application fee/);
 		}
 		assert.equal(fake.requests.length, 0, "refused before anything reached Stripe");
+	});
+
+	test("no source file but the guard ever names an application fee", async () => {
+		const root = fileURLToPath(new URL("../", import.meta.url));
+		const offenders = [];
+		for (const folder of ["lib", "app", "components"]) {
+			for (const file of await readdir(join(root, folder), { recursive: true })) {
+				if (!/\.(m?js|jsx)$/.test(file) || file === join("payments", "stripe-api.js")) continue;
+				if (/application_fee/i.test(await readFile(join(root, folder, file), "utf8"))) offenders.push(`${folder}/${file}`);
+			}
+		}
+		assert.deepEqual(offenders, []);
 	});
 
 	test("Stripe's errors keep their code and status", async () => {

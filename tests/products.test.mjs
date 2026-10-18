@@ -50,6 +50,7 @@ before(async () => {
 		shopPage: (await import("../app/archive/[slug]/shop/page.js")).default,
 		productPage: (await import("../app/archive/[slug]/shop/[product]/page.js")).default,
 		productFiles: await import("../app/api/product-files/route.js"),
+		sitemapRoute: await import("../app/archive/[slug]/sitemap/route.js"),
 		links: await import("../lib/download-link.js"),
 		proxy: (await import("../proxy.js")).proxy,
 		NextRequest: (await import("next/server")).NextRequest,
@@ -196,6 +197,17 @@ describe("the shop on the newsletter's site", () => {
 		assert.equal(await catchNotFound(m.shopPage(shopParams(seller.slug))), true, "payments off");
 		assert.match(await render(m.productPage, shopParams(seller.slug, product.slug)), /can(?:'|&#x27;)t be bought right now/);
 		assert.doesNotMatch(await render(m.productPage, shopParams(seller.slug, product.slug)), /Buy for/);
+	});
+
+	test("is in the website's sitemap while payments can take a sale", async () => {
+		seller = await newSeller();
+		const product = await createProduct(seller, { title: "Template pack" });
+		const read = async () => (await m.sitemapRoute.GET(new Request(`https://${seller.slug}.flockstackmail.com/sitemap.xml`), { params: Promise.resolve({ slug: seller.slug }) })).text();
+		const sitemap = await read();
+		assert.match(sitemap, new RegExp(`<loc>https://${seller.slug}\\.flockstackmail\\.com/shop</loc>`));
+		assert.match(sitemap, new RegExp(`<loc>https://${seller.slug}\\.flockstackmail\\.com/shop/${product.slug}</loc>`));
+		await api(seller, "POST", `/products/${product.id}/archive`);
+		assert.doesNotMatch(await read(), /\/shop/);
 	});
 
 	test("is served on the newsletter's own host", async () => {
