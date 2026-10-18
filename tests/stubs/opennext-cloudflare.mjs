@@ -1,5 +1,5 @@
-// The Cloudflare bindings of a Worker, in memory: the private R2 bucket digital products live in (FILES). `files` maps each
-// key to what was stored, so a test can see what is in the bucket.
+// The Cloudflare bindings of a Worker, in memory: the private R2 bucket digital products live in (FILES), and Workers AI
+// (AI) once a test sets one. `files` maps each key to what was stored, so a test can see what is in the bucket.
 export const files = new Map();
 
 const bucket = {
@@ -30,6 +30,13 @@ export function setCf(value) {
 	cf = value;
 }
 
+// Workers AI: an object with run(model, input, options), as the binding has, or null for a Worker without it.
+let ai = null;
+
+export function setAi(value) {
+	ai = value;
+}
+
 export async function getCloudflareContext() {
-	return { env: { FILES: bucket }, cf };
+	return { env: { FILES: bucket, ...(ai && { AI: ai }) }, cf };
 }
