@@ -71,7 +71,7 @@ export async function subscribe(_state, formData) {
 	// A visitor who followed another newsletter's recommendation: the signup is counted for it (lib/recommendations.js).
 	const recommended = await findAttribution({ newsletter, slug: String(formData.get("rec") ?? "") }).catch(() => null);
 	const { contact, created } = await upsertContact({ newsletter, email, source: recommended?.source ?? "website", resubscribe: true, fieldUpdate });
-	if (recommended && created) {
+	if (recommended && created && contact.status !== "unsubscribed" && contact.status !== "bounced" && contact.status !== "complained") {
 		await countSignup({ recommender: recommended.recommender, recommendedId: newsletter._id, isConfirmed: contact.status === "active" }).catch((error) =>
 			console.error(`[subscribe] Recommendation signup for ${contact._id} not counted:`, error.message)
 		);
