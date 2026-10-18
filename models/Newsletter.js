@@ -25,6 +25,8 @@ const newsletterSchema = new mongoose.Schema(
 			providerDomainId: { type: String },
 			verified: { type: Boolean },
 			dnsRecordIds: { type: [String], default: undefined },
+			// Where those records are (lib/shared-dns.js): "cloudflare", or the DNS helper when unset.
+			dnsDriver: { type: String },
 			createdAt: { type: Date },
 			checkedAt: { type: Date },
 			verifiedAt: { type: Date },

@@ -73,6 +73,14 @@ export function listRecords(zoneId) {
 	return [...zone(zoneId).records.values()].map(copy);
 }
 
+// What a resolver would find at a name in any zone, in the DNS helper stub's shape, for the provider stubs.
+export function findCloudflareRecord(name, type) {
+	for (const { records } of zones.values()) {
+		for (const item of records.values()) if (item.name === name && item.type === type) return { ...item, value: item.content };
+	}
+	return null;
+}
+
 export async function findCustomHostname(zoneId, hostname) {
 	record("findCustomHostname", { zoneId, hostname });
 	return findHostname(zoneId, hostname);
