@@ -91,7 +91,7 @@ async function run(argv) {
 	const log = console.log;
 	console.log = (...parts) => lines.push(parts.join(" "));
 	try {
-		main(argv, { migrationsDir: migrations });
+		main(["--allow-legal-todos", ...argv], { migrationsDir: migrations });
 	} finally {
 		console.log = log;
 	}
@@ -130,9 +130,9 @@ beforeEach(() => {
 });
 
 describe("the pieces", () => {
-	test("--only, --dry-run, --skip-build and --baseline, and nothing else", () => {
-		assert.deepEqual(parseArgs([]), { only: null, isDryRun: false, skipBuild: false, baseline: 6 });
-		assert.deepEqual(parseArgs(["--only", "eu", "--dry-run", "--skip-build", "--baseline", "0004"]), { only: "eu", isDryRun: true, skipBuild: true, baseline: 4 });
+	test("--only, --dry-run, --skip-build, --allow-legal-todos and --baseline, and nothing else", () => {
+		assert.deepEqual(parseArgs([]), { only: null, isDryRun: false, skipBuild: false, allowLegalTodos: false, baseline: 6 });
+		assert.deepEqual(parseArgs(["--only", "eu", "--dry-run", "--skip-build", "--allow-legal-todos", "--baseline", "0004"]), { only: "eu", isDryRun: true, skipBuild: true, allowLegalTodos: true, baseline: 4 });
 		assert.throws(() => parseArgs(["--only", "asia"]), /--only takes us or eu/);
 		assert.throws(() => parseArgs(["--only"]), /--only takes us or eu/);
 		assert.throws(() => parseArgs(["--baseline", "soon"]), /--baseline takes a migration number/);

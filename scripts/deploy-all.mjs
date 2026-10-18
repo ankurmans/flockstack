@@ -1,6 +1,6 @@
 // Builds FlockStack once, applies the migrations that are missing from each region's database, then deploys the same build
 // to each region's Worker: flockstack (US, flockstack.io) and flockstack-eu (EU, eu.flockstack.io). wrangler.jsonc has both.
-//   node scripts/deploy-all.mjs [--only us|eu] [--dry-run] [--skip-build] [--baseline 0006]
+//   node scripts/deploy-all.mjs [--only us|eu] [--dry-run] [--skip-build] [--baseline 0006] [--allow-legal-todos]
 // --only deploys one region (its database and Worker; the build is still the one build). --dry-run prints every command
 // and runs none, and talks to nothing. --skip-build deploys the .open-next folder as it is.
 //
@@ -28,14 +28,15 @@ export const REGIONS = {
 };
 
 export function parseArgs(argv) {
-	const options = { only: null, isDryRun: false, skipBuild: false, baseline: DEFAULT_BASELINE };
+	const options = { only: null, isDryRun: false, skipBuild: false, allowLegalTodos: false, baseline: DEFAULT_BASELINE };
 	for (let index = 0; index < argv.length; index++) {
 		const argument = argv[index];
 		if (argument === "--dry-run") options.isDryRun = true;
 		else if (argument === "--skip-build") options.skipBuild = true;
+		else if (argument === "--allow-legal-todos") options.allowLegalTodos = true;
 		else if (argument === "--only") options.only = argv[++index];
 		else if (argument === "--baseline") options.baseline = Number.parseInt(argv[++index], 10);
-		else throw new Error(`Unknown option ${argument}. Options: --only us|eu, --dry-run, --skip-build, --baseline <number>.`);
+		else throw new Error(`Unknown option ${argument}. Options: --only us|eu, --dry-run, --skip-build, --allow-legal-todos, --baseline <number>.`);
 	}
 	if (options.only !== null && !Object.hasOwn(REGIONS, options.only)) throw new Error("--only takes us or eu.");
 	if (!Number.isInteger(options.baseline) || options.baseline < 0) throw new Error("--baseline takes a migration number such as 0006, or 0.");
@@ -143,6 +144,12 @@ export function main(argv = process.argv.slice(2), { migrationsDir = MIGRATIONS_
 	const regions = options.only ? [options.only] : Object.keys(REGIONS);
 	const files = listMigrations(migrationsDir);
 	if (options.isDryRun) console.log("Dry run: nothing below is executed.\n");
+
+	// The Terms and Privacy pages print lib/legal.js as it is: a deploy with a TODO left would publish the TODO.
+	if (!options.isDryRun && !options.allowLegalTodos) {
+		const legal = spawnSync(process.execPath, ["scripts/check-legal.mjs"], { stdio: "inherit" });
+		if (legal.status !== 0) throw new Error("lib/legal.js still has TODO placeholders (listed above). Fill them, or pass --allow-legal-todos to deploy anyway.");
+	}
 
 	console.log("==> Build");
 	if (options.skipBuild) console.log("    Skipped (--skip-build): deploying .open-next as it is.");
