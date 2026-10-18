@@ -5,7 +5,6 @@ import { switchAccount } from "@/app/oauth/consent/actions";
 import ButtonSignout from "@/components/ButtonSignout";
 import FormConsent from "@/components/FormConsent";
 import LogoFlockstack from "@/components/LogoFlockstack";
-import { SiteAnalytics } from "@/components/SiteExtensions";
 import { hasActiveSubscription, isDeletionPending } from "@/lib/account-state";
 import { getCurrentAccount } from "@/lib/auth";
 import { isCloud } from "@/lib/config";
@@ -100,7 +99,6 @@ export default async function ConsentPage({ searchParams }) {
 					Then you go back to {redirectHost}. Disconnect it anytime on the API keys page.
 				</p>
 			</div>
-			{SiteAnalytics && <SiteAnalytics />}
 		</main>
 	);
 }
@@ -113,7 +111,6 @@ function Expired() {
 				<h1 className="text-lg font-semibold tracking-tight">This request expired</h1>
 				<p className="text-sm text-pretty text-muted-foreground">Go back to the app and connect FlockStack again.</p>
 			</div>
-			{SiteAnalytics && <SiteAnalytics />}
 		</main>
 	);
 }

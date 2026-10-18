@@ -7,7 +7,7 @@ import FormSignin from "@/components/FormSignin";
 import LayoutSplit from "@/components/LayoutSplit";
 import LogoWordmark from "@/components/LogoWordmark";
 import RegionPicker from "@/components/RegionPicker";
-import { SigninAside, SiteAnalytics } from "@/components/SiteExtensions";
+import { FooterCookies, SigninAside, SiteAnalytics } from "@/components/SiteExtensions";
 import { Button } from "@/components/ui/button";
 import { DELETION_GRACE_DAYS } from "@/lib/account-deletion";
 import { getSession, getSignupError, isGoogleEnabled } from "@/lib/auth";
@@ -120,6 +120,7 @@ function LegalNotice() {
 							</Link>
 						</li>
 					))}
+					{FooterCookies && <FooterCookies className={LINK_CLASS} />}
 				</ul>
 			</nav>
 		</div>

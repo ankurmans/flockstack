@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { runDashboardAction, toFormError } from "@/lib/actions/dashboard";
 import { getSelectedNewsletter, saveSelectedNewsletter, switchNewsletter } from "@/lib/selected-newsletter";
+import { siteExtensions } from "@/lib/site-extensions";
 
 function readText(formData, key) {
 	return String(formData.get(key) ?? "").trim();
@@ -100,5 +101,6 @@ export async function createNewsletter(_state, formData) {
 	});
 	if (failure) return toFormError(failure);
 	await saveSelectedNewsletter(output.id);
+	await siteExtensions.sendGoalOnNextPage("newsletter_created");
 	redirect("/newsletters");
 }

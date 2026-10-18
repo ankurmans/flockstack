@@ -1,6 +1,6 @@
 import FooterSite from "@/components/FooterSite";
 import HeaderSite from "@/components/HeaderSite";
-import { SiteAnalytics, SiteBand } from "@/components/SiteExtensions";
+import { SiteBand } from "@/components/SiteExtensions";
 import { getAppUrl, isCloud } from "@/lib/config";
 import { newsreader } from "@/lib/fonts";
 import { SITE_OPEN_GRAPH } from "@/lib/site";
@@ -21,7 +21,9 @@ export const metadata = {
 	twitter: { card: "summary_large_image", ...(TWITTER_CREATOR && { creator: TWITTER_CREATOR }) },
 };
 
-// The docs need a wider page than the rest; the header and footer follow whichever page is open.
+// The docs need a wider page than the rest; the header and footer follow whichever page is open. The analytics
+// (SiteAnalytics) is not here: this layout also holds the directory readers use (recommendations), so each of
+// FlockStack's own pages gets it from the layout of its folder.
 export default function SiteLayout({ children }) {
 	return (
 		<div
@@ -34,7 +36,6 @@ export default function SiteLayout({ children }) {
 			<div className="flex-1">{children}</div>
 			{isCloud() && SiteBand && <SiteBand />}
 			<FooterSite />
-			{SiteAnalytics && <SiteAnalytics />}
 		</div>
 	);
 }

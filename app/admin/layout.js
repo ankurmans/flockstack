@@ -4,7 +4,6 @@ import ButtonSignout from "@/components/ButtonSignout";
 import ButtonThemeToggle from "@/components/ButtonThemeToggle";
 import LogoWordmark from "@/components/LogoWordmark";
 import { Button } from "@/components/ui/button";
-import { SiteAnalytics } from "@/components/SiteExtensions";
 import { requireAdmin } from "@/lib/auth";
 import { isCloud } from "@/lib/config";
 import { REGION_NAMES, getRegion } from "@/lib/region";
@@ -42,7 +41,6 @@ export default async function AdminLayout({ children }) {
 				</div>
 			</header>
 			<main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:px-10 md:py-10">{children}</main>
-			{SiteAnalytics && <SiteAnalytics />}
 		</div>
 	);
 }

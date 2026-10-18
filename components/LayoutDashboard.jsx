@@ -61,7 +61,7 @@ export default async function LayoutDashboard({ user, account, isAdmin, children
 					<SupportChat user={user} account={account} />
 				</Suspense>
 			)}
-			{SiteAnalytics && <SiteAnalytics />}
+			{SiteAnalytics && <SiteAnalytics user={user} account={account} />}
 		</ProviderPaywall>
 	);
 }

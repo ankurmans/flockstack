@@ -1,12 +1,14 @@
 import Link from "next/link";
 import ButtonThemeToggle from "@/components/ButtonThemeToggle";
 import LogoWordmark from "@/components/LogoWordmark";
-import { FooterCredit, FooterNote } from "@/components/SiteExtensions";
+import { FooterCookies, FooterCredit, FooterNote } from "@/components/SiteExtensions";
 import { isCloud } from "@/lib/config";
 import { currentYear } from "@/lib/format";
 import { SOURCE_URL } from "@/lib/site";
 import { siteExtensions } from "@/lib/site-extensions";
 import { cn } from "@/lib/utils";
+
+const LEGAL_LINK_CLASS = "text-muted-foreground transition-colors hover:text-foreground";
 
 // A self-hosted server keeps the link to the source: the AGPL asks it to offer its users the code it runs. On
 // FlockStack Cloud the marketing site's columns, credit and company take its place.
@@ -57,11 +59,12 @@ export default function FooterSite() {
 							<ul className="flex flex-wrap gap-x-5 gap-y-2 text-xs">
 								{legal.map(({ href, label }) => (
 									<li key={href}>
-										<Link href={href} className="text-muted-foreground transition-colors hover:text-foreground">
+										<Link href={href} className={LEGAL_LINK_CLASS}>
 											{label}
 										</Link>
 									</li>
 								))}
+								{FooterCookies && <FooterCookies className={LEGAL_LINK_CLASS} />}
 							</ul>
 						</nav>
 					)}
