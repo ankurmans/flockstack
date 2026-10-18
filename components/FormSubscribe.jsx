@@ -4,16 +4,20 @@ import { useActionState, useEffect, useRef } from "react";
 import { Check, Loader2, MailOpen } from "lucide-react";
 import { subscribe } from "@/app/archive/actions";
 import { Button } from "@/components/ui/button";
-import { captureReferralCode, storeValue, subscribedKey } from "@/lib/storage";
+import FormRecommendedSubscribe from "@/components/FormRecommendedSubscribe";
+import { captureRecommender, captureReferralCode, storeValue, subscribedKey } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
 export default function FormSubscribe({ newsletterSlug, fields = [], className }) {
 	const [state, action, isPending] = useActionState(subscribe, null);
 	const referralRef = useRef(null);
+	const recommenderRef = useRef(null);
 
-	// The form is on every page of the archive: it picks up the referral code the visitor arrived with.
+	// The form is on every page of the archive: it picks up the referral code and the recommending newsletter the visitor
+	// arrived with.
 	useEffect(() => {
 		if (referralRef.current) referralRef.current.value = captureReferralCode(newsletterSlug);
+		if (recommenderRef.current) recommenderRef.current.value = captureRecommender(newsletterSlug);
 	}, [newsletterSlug, state]);
 
 	useEffect(() => {
@@ -23,10 +27,10 @@ export default function FormSubscribe({ newsletterSlug, fields = [], className }
 	if (state?.pending) return <CardConfirmEmail email={state.email} inbox={state.inbox} className={className} />;
 
 	if (state?.ok) {
-		return (
+		const joined = (
 			<p
 				role="status"
-				className={cn("flex h-12 items-center justify-center gap-2 font-medium animate-enter", className)}
+				className={cn("flex h-12 items-center justify-center gap-2 font-medium animate-enter", !state.step && className)}
 			>
 				<span className="grid size-6 place-items-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
 					<Check className="size-3.5 animate-icon-in" />
@@ -34,12 +38,20 @@ export default function FormSubscribe({ newsletterSlug, fields = [], className }
 				You&apos;re in. The next issue lands in your inbox.
 			</p>
 		);
+		if (!state.step) return joined;
+		return (
+			<div className={cn("w-full", className)}>
+				{joined}
+				<FormRecommendedSubscribe step={state.step} className="mt-4" />
+			</div>
+		);
 	}
 
 	return (
 		<form action={action} className={cn("w-full", className)}>
 			<input type="hidden" name="newsletter" value={newsletterSlug} />
 			<input type="hidden" name="ref" ref={referralRef} defaultValue="" />
+			<input type="hidden" name="rec" ref={recommenderRef} defaultValue="" />
 			<div aria-hidden="true" className="absolute -left-[10000px] size-px overflow-hidden">
 				<input type="text" name="website" tabIndex={-1} autoComplete="off" />
 			</div>

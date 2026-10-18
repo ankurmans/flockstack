@@ -26,7 +26,7 @@ export default function RegionsPage() {
 				<p className="mt-4">
 					An account lives in exactly one region. Signing in, API keys, passkeys and connected apps work at that region&apos;s address only,
 					and FlockStack doesn&apos;t look an account up in the other region or move one between them. To use both, create an account in
-					each. API keys start with <Code>mc_</Code> in the {REGION_NAMES.us} and <Code>mc_eu_</Code> in the {REGION_NAMES.eu}.
+					each. Newsletters can recommend each other only inside a region. API keys start with <Code>mc_</Code> in the {REGION_NAMES.us} and <Code>mc_eu_</Code> in the {REGION_NAMES.eu}.
 				</p>
 			</Section>
 

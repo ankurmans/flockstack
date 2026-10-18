@@ -18,6 +18,7 @@ import {
 	Share2,
 	TextQuote,
 } from "lucide-react";
+import { RECOMMENDATIONS_TAG } from "@/lib/recommendation-tags";
 import { REFERRAL_COUNT_TAG, REFERRAL_LINK_TAG } from "@/lib/referral-tags";
 import { cn } from "@/lib/utils";
 
@@ -182,5 +183,11 @@ const SLASH_ITEMS = [
 					},
 				],
 			}),
+	},
+	{
+		title: "Recommended newsletters",
+		keywords: "recommendations recommend newsletters share",
+		icon: Share2,
+		run: (chain) => chain.insertContent({ type: "paragraph", content: [{ type: "text", text: RECOMMENDATIONS_TAG }] }),
 	},
 ];

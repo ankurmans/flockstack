@@ -6,6 +6,7 @@ import CardIssue from "@/components/CardIssue";
 import CardPaywall from "@/components/CardPaywall";
 import FrameIssue from "@/components/FrameIssue";
 import LinksShare from "@/components/LinksShare";
+import ListRecommendations from "@/components/ListRecommendations";
 import PitchSubscribe from "@/components/PitchSubscribe";
 import ScriptJsonLd from "@/components/ScriptJsonLd";
 import TrackView from "@/components/TrackView";
@@ -16,6 +17,8 @@ import { countReaders, getArchiveIssue, getArchiveNewsletter, getShopPayments, l
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getIssueDate } from "@/lib/archive-issues";
 import { getIssueSeo } from "@/lib/archive-seo";
+import { hasRecommendationsTag } from "@/lib/recommendation-tags";
+import { listLiveRecommendations } from "@/lib/recommendations";
 import { cn } from "@/lib/utils";
 
 export const revalidate = 3600;
@@ -41,14 +44,17 @@ export default async function IssuePage({ params }) {
 	if (!page) notFound();
 	const { newsletter, issue } = page;
 
-	const [more, readers, payments, signupFields] = await Promise.all([
+	const [more, readers, payments, signupFields, recommendations] = await Promise.all([
 		listArchiveIssues(newsletter, { limit: 3, excludeId: issue._id }),
 		countReaders(newsletter),
 		getShopPayments(newsletter),
 		listSignupFields(newsletter),
+		listLiveRecommendations(newsletter).catch(() => []),
 	]);
 	const urls = getArchiveUrls(newsletter);
-	const body = renderIssueBody(issue, { referralLink: `${urls.siteIndex}#subscribe` });
+	const body = renderIssueBody(issue, { referralLink: `${urls.siteIndex}#subscribe`, recommendations });
+	// An issue that places the block itself gets no second one below it.
+	const closing = hasRecommendationsTag(issue.html) || hasRecommendationsTag(issue.markdown) ? [] : recommendations;
 	const canSubscribePaid = Boolean(newsletter.paidTier?.enabled) && payments.ready;
 	const date = getIssueDate(issue);
 	const views = issue.webViews ?? 0;
@@ -109,11 +115,17 @@ export default async function IssuePage({ params }) {
 				{body.kind === "paywall" && <CardPaywall newsletterName={newsletter.name} href={canSubscribePaid ? urls.subscribe : null} />}
 			</article>
 
-			<section id="subscribe" className={cn("mx-auto max-w-2xl scroll-mt-24 px-5 pt-16", more.length === 0 && "pb-24")}>
+			<section id="subscribe" className={cn("mx-auto max-w-2xl scroll-mt-24 px-5 pt-16", more.length === 0 && closing.length === 0 && "pb-24")}>
 				<div className="rounded-2xl bg-card px-6 py-10 shadow-border sm:px-10">
 					<PitchSubscribe newsletter={pitch} readers={readers} />
 				</div>
 			</section>
+
+			<ListRecommendations
+				newsletterSlug={newsletter.slug}
+				items={closing}
+				className={cn("max-w-2xl pt-12", more.length === 0 && "pb-24")}
+			/>
 
 			{more.length > 0 && (
 				<section className="mx-auto max-w-5xl px-5 pt-20 pb-24">

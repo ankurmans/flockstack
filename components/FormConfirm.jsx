@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef } from "react";
 import { Link2Off, Loader2, MailCheck } from "lucide-react";
 import { confirmSubscription } from "@/app/confirm/actions";
 import CardNotice from "@/components/CardNotice";
+import FormRecommendedSubscribe from "@/components/FormRecommendedSubscribe";
 import { Button } from "@/components/ui/button";
 
 // Link scanners open the page without submitting forms, so only a person's browser confirms.
@@ -26,6 +27,7 @@ export default function FormConfirm({ token, newsletterName, fromName, fromEmail
 						<a href={archiveUrl}>Read past issues</a>
 					</Button>
 				)}
+				{state.step && <FormRecommendedSubscribe step={state.step} className="mt-6 border-t border-border/60 pt-5" />}
 			</CardNotice>
 		);
 	}

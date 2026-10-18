@@ -6,6 +6,7 @@ import { verifyConfirmToken } from "@/lib/confirmation";
 import { confirmContact } from "@/lib/contacts";
 import { connectDb } from "@/lib/db";
 import { findOpenNewsletter } from "@/lib/public-newsletters";
+import { countConfirmation, getReaderStep } from "@/lib/recommendations";
 import { creditReferral } from "@/lib/referrals";
 import { queueWelcomeEmail } from "@/lib/sending";
 
@@ -25,6 +26,13 @@ export async function confirmSubscription(token) {
 			creditReferral({ newsletter, contact }).catch((error) => console.error(`[confirm] Referral for ${contact._id} not credited:`, error.message))
 		);
 	}
+	if (confirmed) {
+		after(() =>
+			countConfirmation({ newsletter, contact }).catch((error) =>
+				console.error(`[confirm] Recommendation for ${contact._id} not counted:`, error.message)
+			)
+		);
+	}
 	if (confirmed && isSendingEnabled()) {
 		// Skipped while the newsletter confirms signups: the confirmation was their one email.
 		after(() =>
@@ -33,5 +41,10 @@ export async function confirmSubscription(token) {
 			)
 		);
 	}
-	return { ok: true };
+	// The newsletters this one recommends, offered once the subscriber has proved their address.
+	const step = await getReaderStep({ newsletter, contact }).catch((error) => {
+		console.error(`[confirm] Recommendations for ${newsletter.slug} not loaded:`, error.message);
+		return null;
+	});
+	return { ok: true, ...(step && { step }) };
 }

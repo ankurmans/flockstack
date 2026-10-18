@@ -3,11 +3,14 @@ import AvatarNewsletter from "@/components/AvatarNewsletter";
 import CardIssue from "@/components/CardIssue";
 import FormSubscribe from "@/components/FormSubscribe";
 import LinksSocial from "@/components/LinksSocial";
+import ListRecommendations from "@/components/ListRecommendations";
 import ScriptJsonLd from "@/components/ScriptJsonLd";
 import { countReaders, getArchiveNewsletter, listArchiveIssues, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getHomeSeo } from "@/lib/archive-seo";
 import { formatNumber } from "@/lib/format";
+import { cn } from "@/lib/utils";
+import { listLiveRecommendations } from "@/lib/recommendations";
 
 export const revalidate = 3600;
 
@@ -24,10 +27,11 @@ export default async function ArchivePage({ params }) {
 	const newsletter = await getArchiveNewsletter((await params).slug);
 	if (!newsletter) notFound();
 
-	const [issues, readers, signupFields] = await Promise.all([
+	const [issues, readers, signupFields, recommendations] = await Promise.all([
 		listArchiveIssues(newsletter),
 		countReaders(newsletter),
 		listSignupFields(newsletter),
+		listLiveRecommendations(newsletter).catch(() => []),
 	]);
 	const urls = getArchiveUrls(newsletter);
 	const pinned = issues.filter((issue) => issue.archivePinned);
@@ -106,7 +110,7 @@ export default async function ArchivePage({ params }) {
 			)}
 
 			{rest.length > 0 && (
-				<section className="mx-auto max-w-5xl px-5 pt-20 pb-24">
+				<section className={cn("mx-auto max-w-5xl px-5 pt-20", recommendations.length > 0 ? "pb-16" : "pb-24")}>
 					<h2 className="mb-6 border-b border-border/60 pb-4 text-sm font-medium text-muted-foreground">
 						All issues
 					</h2>
@@ -119,6 +123,7 @@ export default async function ArchivePage({ params }) {
 					</ol>
 				</section>
 			)}
+			<ListRecommendations newsletterSlug={newsletter.slug} items={recommendations} className="pt-12 pb-24" />
 		</>
 	);
 }
