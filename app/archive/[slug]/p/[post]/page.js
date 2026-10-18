@@ -3,6 +3,7 @@ import AvatarNewsletter from "@/components/AvatarNewsletter";
 import BadgeDate from "@/components/BadgeDate";
 import BadgeViews from "@/components/BadgeViews";
 import CardIssue from "@/components/CardIssue";
+import CardPaywall from "@/components/CardPaywall";
 import FrameIssue from "@/components/FrameIssue";
 import LinksShare from "@/components/LinksShare";
 import PitchSubscribe from "@/components/PitchSubscribe";
@@ -11,7 +12,7 @@ import TrackView from "@/components/TrackView";
 import TriggerSubscribe from "@/components/TriggerSubscribe";
 import { getArchiveAuthor } from "@/lib/archive-author";
 import { renderIssueBody } from "@/lib/archive-content";
-import { countReaders, getArchiveIssue, getArchiveNewsletter, listArchiveIssues } from "@/lib/archive-data";
+import { countReaders, getArchiveIssue, getArchiveNewsletter, getShopPayments, listArchiveIssues } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getIssueDate } from "@/lib/archive-issues";
 import { getIssueSeo } from "@/lib/archive-seo";
@@ -40,12 +41,14 @@ export default async function IssuePage({ params }) {
 	if (!page) notFound();
 	const { newsletter, issue } = page;
 
-	const [more, readers] = await Promise.all([
+	const [more, readers, payments] = await Promise.all([
 		listArchiveIssues(newsletter, { limit: 3, excludeId: issue._id }),
 		countReaders(newsletter),
+		getShopPayments(newsletter),
 	]);
 	const urls = getArchiveUrls(newsletter);
 	const body = renderIssueBody(issue);
+	const canSubscribePaid = Boolean(newsletter.paidTier?.enabled) && payments.ready;
 	const date = getIssueDate(issue);
 	const views = issue.webViews ?? 0;
 	const author = getArchiveAuthor(newsletter);
@@ -92,7 +95,7 @@ export default async function IssuePage({ params }) {
 					</div>
 				</header>
 
-				{body.kind === "article" ? (
+				{body.kind === "article" || body.kind === "paywall" ? (
 					<div
 						style={{ "--stagger": 1 }}
 						className="prose-issue mt-10 animate-enter"
@@ -101,6 +104,7 @@ export default async function IssuePage({ params }) {
 				) : (
 					<FrameIssue html={body.html} className="-mx-5 mt-10 rounded-none sm:mx-0 sm:rounded-xl" />
 				)}
+				{body.kind === "paywall" && <CardPaywall newsletterName={newsletter.name} href={canSubscribePaid ? urls.subscribe : null} />}
 			</article>
 
 			<section id="subscribe" className={cn("mx-auto max-w-2xl scroll-mt-24 px-5 pt-16", more.length === 0 && "pb-24")}>
