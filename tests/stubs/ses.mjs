@@ -11,6 +11,8 @@ export const state = {
 	identities: new Map(),
 	associations: new Map(),
 	reinstated: [],
+	pools: new Set(),
+	configurationSetPools: new Map(),
 	failNext: null,
 };
 
@@ -91,6 +93,24 @@ export async function deleteTenant(name) {
 export async function deleteConfigurationSet(name) {
 	call("deleteConfigurationSet", name);
 	state.configurationSets.delete(name);
+}
+
+export async function createDedicatedIpPool(name) {
+	call("createDedicatedIpPool", name);
+	state.pools.add(name);
+}
+
+export async function setConfigurationSetPool(configurationSet, poolName) {
+	call("setConfigurationSetPool", { configurationSet, poolName });
+	if (poolName && !state.pools.has(poolName)) throw Object.assign(new Error(`${poolName} does not exist`), { name: "NotFoundException" });
+	if (poolName) state.configurationSetPools.set(configurationSet, poolName);
+	else state.configurationSetPools.delete(configurationSet);
+}
+
+export async function deleteDedicatedIpPool(name) {
+	call("deleteDedicatedIpPool", name);
+	for (const [set, pool] of state.configurationSetPools) if (pool === name) throw new Error(`${name} is in use by ${set}`);
+	state.pools.delete(name);
 }
 
 export async function reinstateTenant(tenantArn) {

@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/auth";
 import { grantFreePlan, revokeFreePlan } from "@/lib/billing";
 import { isCloud } from "@/lib/config";
 import { getGlobalSuppression, removeGlobalSuppression } from "@/lib/global-suppressions";
+import { getEmailProvider } from "@/lib/email-provider";
 import { getPlan } from "@/lib/plans";
 import { normalizeEmail } from "@/lib/validation";
 
@@ -62,6 +63,23 @@ export async function setSpread(accountId, isOn) {
 	if (!isValidObjectId(accountId)) return { error: "Account not found" };
 	if (!(await setSendSpread(accountId, isOn === true))) return { error: "Account not found" };
 	console.info(`[admin] ${admin.email} turned ${isOn === true ? "on" : "off"} the warm-up for account ${accountId}`);
+	revalidatePath("/admin");
+	return { ok: true };
+}
+
+// Shared IPs are the default; a dedicated IP costs extra at the provider, so an admin gives it to an account that pays for it.
+export async function setDedicatedIp(accountId, isOn) {
+	const admin = await requireAdmin();
+	if (!isValidObjectId(accountId)) return { error: "Account not found" };
+	const provider = getEmailProvider();
+	if (!provider.setDedicatedIp) return { error: `${provider.name} has no dedicated IPs here` };
+	try {
+		if (!(await provider.setDedicatedIp(accountId, isOn === true))) return { error: "Account not found" };
+	} catch (error) {
+		console.error(`[admin] ${provider.name} didn't ${isOn ? "give" : "take away"} the dedicated IP of account ${accountId}:`, error);
+		return { error: error.message };
+	}
+	console.info(`[admin] ${admin.email} ${isOn === true ? "gave" : "took away"} the dedicated IP of account ${accountId}`);
 	revalidatePath("/admin");
 	return { ok: true };
 }

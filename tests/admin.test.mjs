@@ -102,3 +102,22 @@ test("the account list shows each owner, plan, status, usage and creation date, 
 		"one account's own link: it alone, with its owner and contacts"
 	);
 });
+
+test("a dedicated IP is a managed pool for the account's configuration set, and ending it goes back to shared IPs", async () => {
+	const ses = await import("./stubs/ses.mjs");
+	const id = String(customer.accountId);
+	const { configurationSet } = (await m.Account.findById(id).lean()).ses;
+	assert.deepEqual(await as(admin, () => m.actions.setDedicatedIp(id, true)), { ok: true });
+	assert.deepEqual(await as(admin, () => m.actions.setDedicatedIp(id, true)), { ok: true });
+	let account = await m.Account.findById(id).lean();
+	assert.equal(account.ses.dedicatedPool, `mc-${id}`);
+	assert.equal(ses.state.configurationSetPools.get(configurationSet), `mc-${id}`);
+
+	assert.deepEqual(await as(admin, () => m.actions.setDedicatedIp(id, false)), { ok: true });
+	assert.deepEqual(await as(admin, () => m.actions.setDedicatedIp(id, false)), { ok: true });
+	account = await m.Account.findById(id).lean();
+	assert.equal(account.ses.dedicatedPool, undefined);
+	assert.equal(ses.state.configurationSetPools.has(configurationSet), false);
+	assert.equal(ses.state.pools.has(`mc-${id}`), false);
+	assert.equal(await as(customer, () => catchNotFound(m.actions.setDedicatedIp(id, true))), true);
+});

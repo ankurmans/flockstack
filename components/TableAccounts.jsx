@@ -37,6 +37,7 @@ export default function TableAccounts({ accounts, pinnedId }) {
 						const limits = getAccountLimits(account);
 						const hasOverrides = Object.values(account.limitOverrides ?? {}).some((value) => value !== undefined && value !== null);
 						const isSpreading = getWarmup(account) !== null;
+						const tenant = provider.describeTenant(account);
 						const blockedBy = isBlocked(account) ? `Blocked by ${BLOCKED_BY[account.pausedBy] ?? "an admin"}` : null;
 						return (
 							<TableRow key={account._id} data-state={account._id === pinnedId ? "selected" : undefined} className="tabular-nums">
@@ -75,7 +76,7 @@ export default function TableAccounts({ accounts, pinnedId }) {
 									<Health health={account.health} />
 								</TableCell>
 								<TableCell className="hidden max-w-0 xl:table-cell">
-									<Tenant tenant={provider.describeTenant(account)} />
+									<Tenant tenant={tenant} />
 								</TableCell>
 								<TableCell className="hidden text-right text-muted-foreground sm:table-cell">
 									{formatDate(account.createdAt)}
@@ -90,6 +91,8 @@ export default function TableAccounts({ accounts, pinnedId }) {
 										hasLimits={hasPlans}
 										canSpread={hasPlans}
 										isSpreading={isSpreading}
+										canSetDedicatedIp={Boolean(provider.setDedicatedIp) && Boolean(tenant)}
+										hasDedicatedIp={Boolean(tenant?.dedicatedIp)}
 										canGiveFreePlan={hasPlans}
 										freePlan={freePlan}
 										overrides={account.limitOverrides ?? {}}
@@ -158,6 +161,7 @@ function Tenant({ tenant }) {
 			<span className={cn("truncate", isStopped ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
 				{TENANT_STATUSES[tenant.status] ?? tenant.status ?? "Status unknown"}
 			</span>
+			{tenant.dedicatedIp && <span className="truncate text-muted-foreground">Dedicated IP</span>}
 			{tenant.detail && <span className="truncate text-muted-foreground">{tenant.detail}</span>}
 		</span>
 	);

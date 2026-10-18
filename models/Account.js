@@ -52,6 +52,9 @@ const accountSchema = new mongoose.Schema(
 			tenantStatus: { type: String },
 			tenantStatusAt: { type: Date },
 			lastFinding: { type: String },
+			// The managed dedicated IP pool the configuration set sends from, while an admin has given the account one.
+			dedicatedPool: { type: String },
+			dedicatedPoolAt: { type: Date },
 		},
 		// The account's PostShiba tenant (slug mc-<accountId>) and SMTP credentials, created when its plan starts
 		// (lib/email-provider/postshiba.js).

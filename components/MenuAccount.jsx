@@ -1,8 +1,8 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
-import { Ban, CircleOff, Gauge, Gift, Loader2, MoreHorizontal, ShieldCheck } from "lucide-react";
-import { blockAccountAction, endFreePlan, giveFreePlan, saveLimits, setSpread, unblockAccountAction } from "@/app/admin/actions";
+import { Ban, CircleOff, Gauge, Gift, Loader2, MoreHorizontal, Network, ShieldCheck } from "lucide-react";
+import { blockAccountAction, endFreePlan, giveFreePlan, saveLimits, setDedicatedIp, setSpread, unblockAccountAction } from "@/app/admin/actions";
 import IconWarmup from "@/components/IconWarmup";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +31,8 @@ export default function MenuAccount({
 	hasLimits,
 	canSpread,
 	isSpreading,
+	canSetDedicatedIp,
+	hasDedicatedIp,
 	canGiveFreePlan,
 	freePlan,
 	overrides,
@@ -44,6 +46,14 @@ export default function MenuAccount({
 			const result = await setSpread(accountId, !isSpreading);
 			if (result?.error) toast.error(result.error);
 			else toast.success(isSpreading ? "Warm-up ended" : "Warm-up started again");
+		});
+	}
+
+	function toggleDedicatedIp() {
+		startTransition(async () => {
+			const result = await setDedicatedIp(accountId, !hasDedicatedIp);
+			if (result?.error) toast.error(result.error);
+			else toast.success(hasDedicatedIp ? "Back on shared IPs" : "Dedicated IP on");
 		});
 	}
 
@@ -66,6 +76,12 @@ export default function MenuAccount({
 						<DropdownMenuItem onSelect={toggleSpread}>
 							<IconWarmup />
 							{isSpreading ? "End warm-up" : "Start warm-up again"}
+						</DropdownMenuItem>
+					)}
+					{canSetDedicatedIp && (
+						<DropdownMenuItem onSelect={toggleDedicatedIp}>
+							<Network />
+							{hasDedicatedIp ? "Back to shared IPs" : "Give a dedicated IP"}
 						</DropdownMenuItem>
 					)}
 					{canGiveFreePlan && (
