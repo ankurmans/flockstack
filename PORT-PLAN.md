@@ -57,3 +57,18 @@ Done since the first deploy: passkey login, cloud mode with SES-only platform em
 4. Terms and Privacy pages.
 5. Bulk updates (large imports, status changes) read and write each row separately: fine for small lists, make them single statements before big ones. Archive old Event rows (D1 is 10 GB per database).
 6. wrangler.jsonc holds the owner's account and database ids and domains: move them out before publishing a reusable template.
+
+## Roadmap from what people complain about (Reddit scan, 2026-10-18)
+
+307 posts from the last year in r/Substack, r/beehiiv, r/Newsletters, r/Emailmarketing, r/Blogging, r/SaaS, r/SideProject, r/indiehackers and r/Entrepreneur, tagged with TypeSafe Jev. Directional, not a survey: the searches leaned on "beehiiv", "substack", fees and switching.
+
+By posts and engagement, the themes were: growth and discovery (the most engaged), content policy and platform trust (Substack), editor and release confusion (beehiiv's summer release), community and reader engagement, support that doesn't answer, automations and segmentation, price increases and being priced out, owning the audience, deliverability.
+
+Built or building: segments, tags and automations (`feat/segments-automations`), RSS, export and referrals (merged), selling with a 0% platform fee (merged).
+
+Next, in order:
+1. Recommendations between newsletters and a community layer (comments, reader profiles): the most engaged theme.
+2. Enforcement that explains itself: a published acceptable use policy, a warning and a way to answer before an account is blocked, the reason always shown (beehiiv's "AUP violation" blocks and unexplained ad-network cuts drew the angriest posts).
+3. A price promise: a published price ladder, 90 days' notice before any increase, existing customers keep their price.
+4. Release notes and no forced redesigns: new editor changes arrive behind a switch.
+5. Human support on every plan, with a stated reply time.
