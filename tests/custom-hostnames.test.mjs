@@ -278,3 +278,45 @@ describe("certificate validation", () => {
 		assert.equal(is("http://news.example.com/.well-known/acme-challenge/token-1", { ...env, CLOUDFLARE_SAAS_ZONE_ID: "" }), false, "only with custom hostnames");
 	});
 });
+
+describe("admin", () => {
+	function findStats(node) {
+		if (Array.isArray(node)) return node.flatMap(findStats);
+		if (!node || typeof node !== "object") return [];
+		const own = node.type?.name === "CardStat" ? [node.props] : [];
+		return [...own, ...findStats(node.props?.children)];
+	}
+
+	async function readStats(admin) {
+		const page = await as(admin, () => m.adminPage.default({ searchParams: Promise.resolve({}) }));
+		return Object.fromEntries(findStats(page).map(({ label, value, detail }) => [label, { value, detail: detail || null }]));
+	}
+
+	test("the admin page says whether custom hostnames and the shared DNS are on, with the hostnames' counts", async () => {
+		m.adminPage = await import("../app/admin/page.js");
+		const admin = await signIn("admin@example.com");
+		const user = await customer("cf-admin@example.com", "cf-admin");
+		const pending = await m.domains.addDomain({ account: user.account, domain: "cf-admin-pending.com" });
+		const active = await m.domains.addDomain({ account: user.account, domain: "cf-admin-active.com" });
+		setHostnameStatus(ZONE, "news.cf-admin-active.com", { status: "active", sslStatus: "active" });
+		await m.domains.checkDomain({ account: user.account, domainId: active._id });
+		const counts = await m.customHostnames.getCloudflareDomainsStatus();
+		assert.equal(pending.customHostname.state, "pending_validation");
+		assert.ok(counts.customHostnames.pending >= 1 && counts.customHostnames.active >= 1);
+
+		await withEnv({ CLOUDFLARE_SHARED_ZONE_ID: "zone_shared" }, async () => {
+			const stats = await readStats(admin);
+			assert.deepEqual(stats["Custom hostnames"], { value: "On", detail: "Routed to flockstack, CNAME to sites.flockstack.io" });
+			assert.equal(stats["Active custom hostnames"].value, String(counts.customHostnames.active));
+			assert.equal(stats["Pending custom hostnames"].value, String(counts.customHostnames.pending));
+			assert.deepEqual(stats["Shared addresses' DNS"], { value: "Cloudflare", detail: "Records in CLOUDFLARE_SHARED_ZONE_ID" });
+		});
+		await withEnv({ CLOUDFLARE_SAAS_ZONE_ID: "", DNS_BROKER_URL: "https://dns.example.com/api/records", DNS_BROKER_SECRET: "test-dns-secret" }, async () => {
+			const stats = await readStats(admin);
+			assert.deepEqual(stats["Custom hostnames"], { value: "Off", detail: "Archive subdomains are checked by their CNAME" });
+			assert.equal(stats["Active custom hostnames"], undefined);
+			assert.deepEqual(stats["Shared addresses' DNS"], { value: "DNS helper", detail: "Through DNS_BROKER_URL" });
+		});
+		assert.equal((await readStats(admin))["Shared addresses' DNS"].value, "Off");
+	});
+});
