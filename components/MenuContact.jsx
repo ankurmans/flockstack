@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2, MoreHorizontal, Trash2, UserCheck, UserX } from "lucide-react";
+import { Loader2, MoreHorizontal, Tags, Trash2, UserCheck, UserX } from "lucide-react";
 import { deleteContact, setContactStatus } from "@/app/(app)/contacts/actions";
+import DialogContactDetails from "@/components/DialogContactDetails";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -30,7 +31,8 @@ const AFTER_DELETE = {
 	complained: "They marked an email as spam, so adding them again won't email them.",
 };
 
-export default function MenuContact({ id, email, status }) {
+export default function MenuContact({ id, email, status, tags = [], fields = {}, definitions = [] }) {
+	const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 	const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 	const [isPending, startTransition] = useTransition();
 	const isSubscribed = SUBSCRIBED_STATUSES.includes(status);
@@ -57,6 +59,10 @@ export default function MenuContact({ id, email, status }) {
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end" className="min-w-44">
+					<DropdownMenuItem onSelect={() => setIsDetailsOpen(true)}>
+						<Tags />
+						Tags and fields
+					</DropdownMenuItem>
 					{status === "dormant" && (
 						<DropdownMenuItem onSelect={() => update("active")}>
 							<UserCheck />
@@ -78,6 +84,9 @@ export default function MenuContact({ id, email, status }) {
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
+			{isDetailsOpen && (
+				<DialogContactDetails contact={{ id, email, tags, fields }} definitions={definitions} isOpen onOpenChange={setIsDetailsOpen} />
+			)}
 			<DialogDeleteContact id={id} email={email} status={status} isOpen={isDeleteOpen} onOpenChange={setIsDeleteOpen} />
 		</>
 	);

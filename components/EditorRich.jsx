@@ -15,7 +15,7 @@ import { IMAGE_TYPES, getDisplaySize, prepareImage, uploadImage } from "@/lib/up
 
 const MIN_HEIGHT = "min-h-[560px]";
 
-export default function EditorRich({ content, onChange }) {
+export default function EditorRich({ content, onChange, fields = [] }) {
 	const [isEditingLink, setIsEditingLink] = useState(false);
 	const [isPickingImage, setIsPickingImage] = useState(false);
 	const editor = useEditor({
@@ -47,7 +47,7 @@ export default function EditorRich({ content, onChange }) {
 				onDrop: (current, files, position) => insertImages(current, files, position),
 				onPaste: (current, files) => insertImages(current, files),
 			}),
-			SlashCommand.configure({ onPickImage: () => setIsPickingImage(true) }),
+			SlashCommand.configure({ onPickImage: () => setIsPickingImage(true), fields }),
 		],
 		editorProps: {
 			attributes: { class: `prose-issue ${MIN_HEIGHT} px-5 py-5 outline-none`, "aria-label": "Content" },

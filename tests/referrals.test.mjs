@@ -483,6 +483,18 @@ describe("merge tags in issues", () => {
 		assert.match(other.text, /0 so far/);
 	});
 
+	test("work next to a reader's own merge tags, and leave the billing link of a paid reader alone", async () => {
+		const user = await program("tags-merge@example.com");
+		const campaign = { format: "markdown", subject: "Hi {{first_name|friend}}", markdown: `Hello {{first_name|there}}, share ${REFERRAL_LINK_TAG} ({{referral_count}})` };
+		const paid = { ...contact, fields: { first_name: "Ann" }, tier: "paid", paidUntil: new Date(Date.now() + 864e5), stripeCustomerId: "cus_merge" };
+		const email = render(user.newsletter, campaign, paid);
+		assert.equal(email.subject, "Hi Ann");
+		assert.match(email.text, /Hello Ann, share https:\/\/tags-merge\.flockstackmail\.com\/\?ref=\S+ \(4\)/);
+		assert.match(email.text, /Manage your subscription: https?:\/\//);
+		assert.doesNotMatch(`${email.html}${email.text}`, /\{\{|%7B%7B/);
+		assert.match(render(user.newsletter, campaign).subject, /^Hi friend$/);
+	});
+
 	test("link to the website when the program is off, and the web page shows no raw tag", async () => {
 		const user = await program("tags-off@example.com", { enabled: false });
 		const email = render(user.newsletter, { format: "rich", subject: "Hi", html: `<p>${REFERRAL_LINK_TAG}</p>` });

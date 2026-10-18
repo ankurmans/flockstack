@@ -15,7 +15,7 @@ test("an export link carries the account and filters, signed, for an hour", () =
 	const now = Date.parse("2026-10-12T10:00:00Z");
 	const { token, expiresAt } = createExportToken({ accountId: ACCOUNT, newsletterId: NEWSLETTER, status: "active", query: "jane" }, now);
 	assert.equal(expiresAt.getTime(), now + EXPORT_LINK_MS);
-	assert.deepEqual(verifyExportToken(token, now + 59 * 60_000), { accountId: ACCOUNT, newsletterId: NEWSLETTER, status: "active", query: "jane" });
+	assert.deepEqual(verifyExportToken(token, now + 59 * 60_000), { accountId: ACCOUNT, newsletterId: NEWSLETTER, status: "active", query: "jane", tag: null });
 	assert.equal(verifyExportToken(token, now + 61 * 60_000), null, "expired");
 
 	const [payload, signature] = token.split(".");
@@ -48,7 +48,7 @@ test("CSV cells are quoted when needed and never start a formula, the email incl
 		stats: { sent: 3, opens: 2, clicks: 1 },
 	};
 	const row = toCsvRow(contact, new Map([[NEWSLETTER, "weekly"]]));
-	assert.equal(row, `'=cmd|'calc'!a1@example.com,active,weekly,"'=HYPERLINK(""http://x"",""click"")",2026-01-02T03:04:05.000Z,,,,,,3,2,1\r\n`);
+	assert.equal(row, `'=cmd|'calc'!a1@example.com,active,weekly,"'=HYPERLINK(""http://x"",""click"")",2026-01-02T03:04:05.000Z,,,,,,3,2,1,\r\n`);
 	assert.ok(!/^[=+\-@\t\r]/.test(row), "the email cell doesn't open a formula");
 	// A plain address is untouched, so an export still re-imports as it was.
 	assert.equal(toCsvRow({ email: "jane@example.com", status: "active" }).split(",")[0], "jane@example.com");

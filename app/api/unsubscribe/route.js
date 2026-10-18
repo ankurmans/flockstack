@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { exitEnrollments } from "@/lib/automation-triggers";
 import { connectDb } from "@/lib/db";
 import { getClientIp, isRateLimited } from "@/lib/rate-limit";
 import { verifyUnsubscribeToken } from "@/lib/unsubscribe";
@@ -48,6 +49,9 @@ async function unsubscribe({ contactId, newsletterId }) {
 	if (!previous) return;
 
 	console.log(`[unsubscribe] Contact ${contactId} unsubscribed from newsletter ${newsletterId}`);
+	await exitEnrollments({ accountId: previous.accountId, contactIds: [previous._id], reason: "unsubscribed" }).catch((error) =>
+		console.error("[unsubscribe] Could not take the contact out of its automations:", error.message)
+	);
 	await creditLatestCampaign({ accountId: previous.accountId, contactId, newsletterId }).catch((error) =>
 		console.error("[unsubscribe] Could not credit the campaign:", error.message)
 	);

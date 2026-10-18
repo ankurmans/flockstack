@@ -4,7 +4,7 @@ import CardIssue from "@/components/CardIssue";
 import FormSubscribe from "@/components/FormSubscribe";
 import LinksSocial from "@/components/LinksSocial";
 import ScriptJsonLd from "@/components/ScriptJsonLd";
-import { countReaders, getArchiveNewsletter, listArchiveIssues } from "@/lib/archive-data";
+import { countReaders, getArchiveNewsletter, listArchiveIssues, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getHomeSeo } from "@/lib/archive-seo";
 import { formatNumber } from "@/lib/format";
@@ -24,9 +24,10 @@ export default async function ArchivePage({ params }) {
 	const newsletter = await getArchiveNewsletter((await params).slug);
 	if (!newsletter) notFound();
 
-	const [issues, readers] = await Promise.all([
+	const [issues, readers, signupFields] = await Promise.all([
 		listArchiveIssues(newsletter),
 		countReaders(newsletter),
+		listSignupFields(newsletter),
 	]);
 	const urls = getArchiveUrls(newsletter);
 	const pinned = issues.filter((issue) => issue.archivePinned);
@@ -60,7 +61,7 @@ export default async function ArchivePage({ params }) {
 						style={{ "--stagger": 3 }}
 						className="mt-8 w-full max-w-md scroll-mt-24 animate-enter"
 					>
-						<FormSubscribe newsletterSlug={newsletter.slug} />
+						<FormSubscribe newsletterSlug={newsletter.slug} fields={signupFields} />
 					</div>
 					<div style={{ "--stagger": 4 }} className="mt-4 flex flex-col items-center gap-4 animate-enter">
 						{readers >= 100 && (

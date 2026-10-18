@@ -12,7 +12,7 @@ import TrackView from "@/components/TrackView";
 import TriggerSubscribe from "@/components/TriggerSubscribe";
 import { getArchiveAuthor } from "@/lib/archive-author";
 import { renderIssueBody } from "@/lib/archive-content";
-import { countReaders, getArchiveIssue, getArchiveNewsletter, getShopPayments, listArchiveIssues } from "@/lib/archive-data";
+import { countReaders, getArchiveIssue, getArchiveNewsletter, getShopPayments, listArchiveIssues, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getIssueDate } from "@/lib/archive-issues";
 import { getIssueSeo } from "@/lib/archive-seo";
@@ -41,10 +41,11 @@ export default async function IssuePage({ params }) {
 	if (!page) notFound();
 	const { newsletter, issue } = page;
 
-	const [more, readers, payments] = await Promise.all([
+	const [more, readers, payments, signupFields] = await Promise.all([
 		listArchiveIssues(newsletter, { limit: 3, excludeId: issue._id }),
 		countReaders(newsletter),
 		getShopPayments(newsletter),
+		listSignupFields(newsletter),
 	]);
 	const urls = getArchiveUrls(newsletter);
 	const body = renderIssueBody(issue, { referralLink: `${urls.siteIndex}#subscribe` });
@@ -57,6 +58,7 @@ export default async function IssuePage({ params }) {
 		slug: newsletter.slug,
 		imageUrl: newsletter.imageUrl,
 		description: newsletter.description,
+		signupFields,
 	};
 
 	return (

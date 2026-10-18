@@ -18,8 +18,12 @@ export const MESSAGE_STATUSES = [
 const messageSchema = new mongoose.Schema(
 	{
 		// order: the email with a buyer's download link (lib/payments/orders.js).
-		kind: { type: String, enum: ["campaign", "last-chance", "welcome", "confirmation", "referral", "test", "order"], required: true },
+		kind: { type: String, enum: ["campaign", "last-chance", "welcome", "confirmation", "referral", "test", "order", "automation"], required: true },
 		campaignId: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign" },
+		// An automation's email: the automation, the contact's enrollment in it and the step it is (lib/automations.js).
+		automationId: { type: mongoose.Schema.Types.ObjectId, ref: "Automation" },
+		enrollmentId: { type: mongoose.Schema.Types.ObjectId, ref: "AutomationEnrollment" },
+		stepId: { type: String },
 		newsletterId: { type: mongoose.Schema.Types.ObjectId, ref: "Newsletter", required: true },
 		contactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact" },
 		// A referral email: the reward it announces (Newsletter.referral.rewards[].id).
@@ -53,6 +57,10 @@ messageSchema.index(
 	{ campaignId: 1, contactId: 1, kind: 1 },
 	{ unique: true, partialFilterExpression: { kind: "last-chance" } }
 );
+// And one per enrollment and step, however often the job runs.
+messageSchema.index({ enrollmentId: 1, stepId: 1 }, { unique: true, partialFilterExpression: { kind: "automation" } });
+// An automation's report reads its emails.
+messageSchema.index({ automationId: 1 }, { sparse: true });
 messageSchema.index({ providerMessageId: 1 }, { sparse: true });
 messageSchema.index({ kind: 1, createdAt: -1 });
 // The overview's emails sent per hour.

@@ -17,7 +17,7 @@ export default function PitchSubscribe({ newsletter, readers, titleAs: Title = "
 			{newsletter.description && (
 				<p className="mt-2 max-w-sm text-muted-foreground text-pretty">{newsletter.description}</p>
 			)}
-			<FormSubscribe newsletterSlug={newsletter.slug} className="mt-6 max-w-sm" />
+			<FormSubscribe newsletterSlug={newsletter.slug} fields={newsletter.signupFields} className="mt-6 max-w-sm" />
 			<p className="mt-3 text-xs text-muted-foreground">Free. Unsubscribe anytime.</p>
 		</div>
 	);

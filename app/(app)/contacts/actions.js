@@ -3,11 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { runDashboardAction, toFormError } from "@/lib/actions/dashboard";
 
-export async function importContacts({ newsletterId, rows, consent, importId, duplicates }) {
+export async function importContacts({ newsletterId, rows, consent, importId, duplicates, tags }) {
 	const { output, failure } = await runDashboardAction("import_contacts", {
 		newsletter: String(newsletterId ?? ""),
 		contacts: Array.isArray(rows) ? rows : [],
 		consent: consent === true,
+		...(Array.isArray(tags) && tags.length > 0 && { tags: tags.map(String) }),
 		...(importId && { importId: String(importId) }),
 		...(duplicates && { duplicates }),
 	});
@@ -42,11 +43,75 @@ export async function deleteContact(id) {
 }
 
 // A link to the CSV with the list's filters, valid for an hour.
-export async function exportContacts({ newsletterId, status, query } = {}) {
+export async function exportContacts({ newsletterId, status, query, tag } = {}) {
 	const { output, failure } = await runDashboardAction("export_contacts", {
 		...(newsletterId && { newsletter: String(newsletterId) }),
 		...(status && { status }),
 		...(query && { search: String(query) }),
+		...(tag && { tag: String(tag) }),
 	});
 	return failure ? toFormError(failure) : { url: output.url, count: output.count };
+}
+
+export async function addContactTag(id, tag) {
+	const { output, failure } = await runDashboardAction("add_tag", { id: String(id), tag: String(tag ?? "") });
+	if (failure) return toFormError(failure);
+	revalidatePath("/contacts");
+	return { ok: true, tags: output.tags };
+}
+
+export async function removeContactTag(id, tag) {
+	const { output, failure } = await runDashboardAction("remove_tag", { id: String(id), tag: String(tag ?? "") });
+	if (failure) return toFormError(failure);
+	revalidatePath("/contacts");
+	return { ok: true, tags: output.tags };
+}
+
+// An empty value clears the field.
+export async function setContactField(id, field, value) {
+	const { output, failure } = await runDashboardAction("set_contact_field", {
+		id: String(id),
+		field: String(field ?? ""),
+		value: value === null || value === undefined || String(value).trim() === "" ? null : String(value),
+	});
+	if (failure) return toFormError(failure);
+	revalidatePath("/contacts");
+	return { ok: true, fields: output.fields };
+}
+
+export async function deleteTag(newsletterId, tag) {
+	const { failure } = await runDashboardAction("delete_tag", { newsletter: String(newsletterId ?? ""), tag: String(tag ?? "") });
+	if (failure) return toFormError(failure);
+	revalidatePath("/contacts");
+	return { ok: true };
+}
+
+export async function createCustomField({ newsletterId, label, type, onSignupForm }) {
+	const { output, failure } = await runDashboardAction("create_custom_field", {
+		newsletter: String(newsletterId ?? ""),
+		label: String(label ?? ""),
+		type: String(type ?? ""),
+		onSignupForm: onSignupForm === true,
+	});
+	if (failure) return toFormError(failure);
+	revalidatePath("/contacts");
+	return { ok: true, field: output };
+}
+
+export async function updateCustomField({ newsletterId, key, onSignupForm }) {
+	const { failure } = await runDashboardAction("update_custom_field", {
+		newsletter: String(newsletterId ?? ""),
+		key: String(key ?? ""),
+		onSignupForm: onSignupForm === true,
+	});
+	if (failure) return toFormError(failure);
+	revalidatePath("/contacts");
+	return { ok: true };
+}
+
+export async function deleteCustomField({ newsletterId, key }) {
+	const { failure } = await runDashboardAction("delete_custom_field", { newsletter: String(newsletterId ?? ""), key: String(key ?? "") });
+	if (failure) return toFormError(failure);
+	revalidatePath("/contacts");
+	return { ok: true };
 }

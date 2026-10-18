@@ -46,6 +46,14 @@ export async function setCampaignAudience(id, audience) {
 	return { ok: true };
 }
 
+// Everyone, or one of the newsletter's saved segments (null clears it).
+export async function setCampaignSegment(id, segmentId) {
+	const { failure } = await runDashboardAction("update_campaign", { id: String(id), segment: segmentId ? String(segmentId) : null });
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	return { ok: true };
+}
+
 export async function sendTestCampaign(id) {
 	const { failure } = await runDashboardAction("send_test_email", { id: String(id) });
 	revalidatePath(`/campaigns/${id}`);

@@ -9,6 +9,7 @@ import NoticeFirstSend from "@/components/NoticeFirstSend";
 import NoticeWarmup from "@/components/NoticeWarmup";
 import PickerSendTime from "@/components/PickerSendTime";
 import RowCampaign from "@/components/RowCampaign";
+import SelectSegment from "@/components/SelectSegment";
 import TextPlanLimit from "@/components/TextPlanLimit";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +41,7 @@ export default function PanelSend({
 	pace,
 	newContacts,
 	archiveUrlBase,
+	segments = [],
 }) {
 	const isClient = useIsClient();
 	const scheduledAt = campaign.status === "scheduled" ? campaign.scheduledAt : null;
@@ -60,13 +62,18 @@ export default function PanelSend({
 					<span className="truncate text-sm">{from}</span>
 				</RowCampaign>
 				<RowCampaign label="To">
-					<span className="flex min-w-0 items-center gap-2 text-sm">
-						<AvatarNewsletter newsletter={newsletter} size={18} />
-						<span className="truncate">
-							{newsletter.name}
-							<span className="text-muted-foreground tabular-nums"> · {formatCount(audienceCount, "contact")}</span>
-							{sending.audience === "paid" && <span className="text-muted-foreground"> · web page shows a teaser</span>}
+					<span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
+						<span className="flex min-w-0 items-center gap-2">
+							<AvatarNewsletter newsletter={newsletter} size={18} />
+							<span className="truncate">
+								{newsletter.name}
+								<span className="text-muted-foreground tabular-nums"> · {formatCount(audienceCount, "contact")}</span>
+								{sending.audience === "paid" && <span className="text-muted-foreground"> · web page shows a teaser</span>}
+							</span>
 						</span>
+						{(segments.length > 0 || campaign.segmentId) && (
+							<SelectSegment campaignId={campaign._id} segmentId={campaign.segmentId ?? null} segments={segments} />
+						)}
 					</span>
 				</RowCampaign>
 				{(isPaidTierOn || sending.audience !== "all") && (

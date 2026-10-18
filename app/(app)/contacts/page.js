@@ -9,7 +9,9 @@ import ButtonExportContacts from "@/components/ButtonExportContacts";
 import CardAddContacts from "@/components/CardAddContacts";
 import DialogAddContact from "@/components/DialogAddContact";
 import DialogImportContacts from "@/components/DialogImportContacts";
+import DialogTagsFields from "@/components/DialogTagsFields";
 import FilterContacts from "@/components/FilterContacts";
+import FilterTag from "@/components/FilterTag";
 import GatePlan from "@/components/GatePlan";
 import HeaderPage from "@/components/HeaderPage";
 import MenuContact from "@/components/MenuContact";
@@ -30,12 +32,14 @@ import { scoped } from "@/lib/account-scope";
 import { isPaidContact } from "@/lib/tiers";
 import { getAppUrl } from "@/lib/config";
 import { CONTACTS_PAGE_SIZE, findContactsPage } from "@/lib/contacts";
+import { listCustomFields, toFieldOutput } from "@/lib/custom-fields";
 import { getAddContactCurl } from "@/lib/docs/reference";
 import { formatDate, formatNumber } from "@/lib/format";
 import { toNewsletterOption } from "@/lib/newsletters";
 import { getSelectedNewsletter, openNewsletter } from "@/lib/selected-newsletter";
 import { cn } from "@/lib/utils";
 import Contact, { CONTACT_STATUSES } from "@/models/Contact";
+import Tag from "@/models/Tag";
 
 export const metadata = { title: "Contacts" };
 
@@ -47,18 +51,25 @@ export default async function ContactsPage({ searchParams }) {
 	const newsletterId = selected ? String(selected._id) : null;
 	const status = CONTACT_STATUSES.includes(params.status) ? params.status : null;
 	const query = typeof params.q === "string" ? params.q.trim().toLowerCase().slice(0, 254) : "";
+	const tag = typeof params.tag === "string" ? params.tag.trim().toLowerCase().slice(0, 60) : "";
 	const page = Math.max(1, Number.parseInt(params.page, 10) || 1);
 
-	const { contacts, counts, totalAll, total } = newsletterId
-		? await findContactsPage(account, { newsletterId, status, query, page })
-		: { contacts: [], counts: {}, totalAll: 0, total: 0 };
+	const [{ contacts, counts, totalAll, total }, definitions, tagNames] = await Promise.all([
+		newsletterId
+			? findContactsPage(account, { newsletterId, status, query, tag, page })
+			: { contacts: [], counts: {}, totalAll: 0, total: 0 },
+		newsletterId ? listCustomFields(account, selected._id) : [],
+		newsletterId ? Tag.find(scoped(account, { newsletterId: selected._id })).sort({ name: 1 }).select({ name: 1 }).lean() : [],
+	]);
+	const fieldOptions = definitions.map(toFieldOutput);
+	const tags = tagNames.map(({ name }) => name);
 	const pageCount = Math.max(1, Math.ceil(total / CONTACTS_PAGE_SIZE));
 	// totalAll counts within the search.
-	const hasContacts = totalAll > 0 || Boolean(query && newsletterId && (await Contact.exists(scoped(account, { newsletterId: selected._id }))));
+	const hasContacts = totalAll > 0 || Boolean((query || tag) && newsletterId && (await Contact.exists(scoped(account, { newsletterId: selected._id }))));
 	const newsletter = selected && toNewsletterOption(selected);
 
 	function href(changes) {
-		const next = new URLSearchParams(Object.entries({ status, q: query, page }).filter(([, value]) => value));
+		const next = new URLSearchParams(Object.entries({ status, q: query, tag, page }).filter(([, value]) => value));
 		for (const [key, value] of Object.entries(changes)) {
 			if (value) next.set(key, value);
 			else next.delete(key);
@@ -73,10 +84,11 @@ export default async function ContactsPage({ searchParams }) {
 	return (
 		<>
 			<HeaderPage title="Contacts">
-				<ButtonExportContacts newsletterId={newsletterId} status={status} query={query} isDisabled={total === 0} />
+				<ButtonExportContacts newsletterId={newsletterId} status={status} query={query} tag={tag} isDisabled={total === 0} />
+				{hasContacts && <DialogTagsFields newsletter={newsletter} definitions={fieldOptions} tags={tags} />}
 				{hasContacts && <DialogAddContact newsletter={newsletter} />}
 				<GatePlan reason="import">
-					<DialogImportContacts newsletter={newsletter} />
+					<DialogImportContacts newsletter={newsletter} definitions={fieldOptions} />
 				</GatePlan>
 			</HeaderPage>
 
@@ -84,7 +96,12 @@ export default async function ContactsPage({ searchParams }) {
 				{hasContacts && (
 					<>
 						<Suspense fallback={<Skeleton className="h-9 w-full rounded-lg" />}>
-							<FilterContacts key={newsletterId} />
+							<div className="flex flex-col gap-2 sm:flex-row">
+								<div className="min-w-0 flex-1">
+									<FilterContacts key={newsletterId} />
+								</div>
+								{tags.length > 0 && <FilterTag key={newsletterId} tags={tags} />}
+							</div>
 						</Suspense>
 
 						<nav
@@ -144,7 +161,21 @@ export default async function ContactsPage({ searchParams }) {
 													gravatarHash={gravatarHash(contact.email)}
 													size={26}
 												/>
-												<span className="truncate">{contact.email}</span>
+												<span className="min-w-0">
+													<span className="block truncate">{contact.email}</span>
+													{contact.tags?.length > 0 && (
+														<span className="mt-0.5 flex flex-wrap gap-1">
+															{contact.tags.slice(0, 3).map((name) => (
+																<span key={name} className="rounded-full bg-muted px-2 text-xs font-normal text-muted-foreground">
+																	{name}
+																</span>
+															))}
+															{contact.tags.length > 3 && (
+																<span className="text-xs font-normal text-muted-foreground">+{contact.tags.length - 3}</span>
+															)}
+														</span>
+													)}
+												</span>
 											</span>
 										</TableCell>
 										<TableCell>
@@ -163,7 +194,14 @@ export default async function ContactsPage({ searchParams }) {
 											{formatDate(contact.subscribedAt) ?? <TextEmpty />}
 										</TableCell>
 										<TableCell className="pr-2 text-right">
-											<MenuContact id={contact._id.toString()} email={contact.email} status={contact.status} />
+											<MenuContact
+												id={contact._id.toString()}
+												email={contact.email}
+												status={contact.status}
+												tags={contact.tags ?? []}
+												fields={contact.fields ?? {}}
+												definitions={fieldOptions}
+											/>
 										</TableCell>
 									</TableRow>
 								))}
