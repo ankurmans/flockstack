@@ -16,10 +16,9 @@
 	"d1_databases": [{ "binding": "DB", "database_name": "flockstack", "database_id": "97615845-8aa2-413f-ad98-89821937069f", "migrations_dir": "migrations" }],
 	"r2_buckets": [
 		{ "binding": "IMAGES", "bucket_name": "flockstack-images" },
-		{ "binding": "FILES", "bucket_name": "flockstack-files" }
-		// Account exports wait here for their download (lib/export-storage.js). The bucket must stay private: create it
-		// (wrangler r2 bucket create flockstack-exports), add a lifecycle rule that deletes objects after 8 days, then add:
-		// , { "binding": "EXPORTS", "bucket_name": "flockstack-exports" }
+		{ "binding": "FILES", "bucket_name": "flockstack-files" },
+		// Account exports wait here for their download (lib/export-storage.js). Private, with a lifecycle rule that deletes objects after 8 days.
+		{ "binding": "EXPORTS", "bucket_name": "flockstack-exports" }
 	],
 	"vars": {
 		"IMAGES_STORAGE": "r2",
