@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useSubscribe } from "@/components/ProviderSubscribe";
+import { readerMarkerName } from "@/lib/reader-cookies";
 import { readStoredNumber, subscribeSnoozedKey, subscribedKey } from "@/lib/storage";
 
 // Opens once the reader is into the issue, not on arrival, and stays away for two weeks once closed.
@@ -12,7 +13,9 @@ export default function TriggerSubscribe({ newsletterSlug }) {
 	const { open } = useSubscribe();
 
 	useEffect(() => {
-		const isSubscribed = () => readStoredNumber(subscribedKey(newsletterSlug)) > 0;
+		// A reader who signed in to comment with a link from an email is a subscriber already.
+		const isSignedIn = () => document.cookie.split("; ").includes(`${readerMarkerName(newsletterSlug)}=1`);
+		const isSubscribed = () => readStoredNumber(subscribedKey(newsletterSlug)) > 0 || isSignedIn();
 		const isSnoozed = () => Date.now() - readStoredNumber(subscribeSnoozedKey(newsletterSlug)) < SNOOZE_MS;
 		if (isSubscribed() || isSnoozed()) return;
 

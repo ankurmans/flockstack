@@ -160,7 +160,9 @@ describe("the pieces", () => {
 	test("the migrations in the repository are numbered in order and each ends with a semicolon, so a record can follow it", () => {
 		const files = listMigrations();
 		assert.ok(files.length >= 6);
-		files.forEach((name, index) => assert.equal(name.slice(0, 4), String(index + 1).padStart(4, "0"), name));
+		// A number can be held by a branch that hasn't merged yet, so numbers go up without repeating; none is skipped once all are in.
+		const numbers = files.map((name) => Number(name.slice(0, 4)));
+		numbers.forEach((number, index) => assert.ok(Number.isInteger(number) && number > (numbers[index - 1] ?? 0), files[index]));
 		for (const name of files) assert.doesNotThrow(() => buildMigrationSql(name, readFileSync(join(ROOT, "migrations", name), "utf8")), name);
 	});
 

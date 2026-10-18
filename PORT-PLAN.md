@@ -29,7 +29,7 @@ Tags, custom fields, segments and automations (migration `0005_segments_automati
 
 ## Status
 
-- Test suite: 1164 tests, all passing on SQLite (`node scripts/test-all.mjs <logdir>`).
+- Test suite: 1243 tests, all passing on SQLite (`node scripts/test-all.mjs <logdir>`).
 - `opennextjs-cloudflare build` works (needs network for next/font; behind a proxy set `NODE_USE_ENV_PROXY=1`).
 - Worker runs under `wrangler dev` on local D1/R2 and serves pages.
 - Provisioned in the KMF Ventures account: D1 `flockstack` (97615845-8aa2-413f-ad98-89821937069f, migration applied), R2 bucket `flockstack-images`.
@@ -80,6 +80,17 @@ Newsletter-to-newsletter recommendations, migration `0007_recommendations.sql` (
 - **Regions.** Two stacks, two databases: a slug from the other region isn't found, and the refusal says which region this is (read per request, never at module load, because a Worker has no env then). The docs, the Regions page and the action descriptions state the rule.
 - **Not done.** The account export doesn't include recommendations. Recommendations don't follow a newsletter's slug change in the links of already-sent emails (the links name the recommender's slug at send time; an old slug stops counting). No per-recommendation scheduling or A/B testing.
 
+## Comments and community (branch feat/community)
+
+Comments on the web issues, with readers who prove they subscribe by email instead of having an account. Migration `0008_community.sql`.
+
+- **Identity.** `lib/reader-links.js`: four kinds of signed link (HMAC with a key of its own each, `lib/contact-token.js`): in the newsletter's emails (`{{comment_link}}` and the footer's "Discuss this issue", 45 days), the sign-in email (30 minutes, good once: the contact keeps the time of the last one used, and its page asks for a click so a mail scanner doesn't spend it), the browser's session (30 days, a cookie per newsletter, plus a readable marker so a visitor with none costs no request) and the reply emails' opt-out. A session is checked against the contact each time: unsubscribed, bounced, complained, pending and dormant contacts count as nobody. "Sign in with your email" answers every address alike, rate limited per address and per network whether or not it is subscribed, and sends after the response. `Contact.community` holds the display name (set once, with the first comment; the default is the part of the address before the @), the block with its reason, the reply-emails switch.
+- **Comments.** `Comment`, `CommentReport`. Plain text with http(s) links, parsed to parts and printed as React text, never HTML (`lib/comment-body.js`). Status published, held, hidden or removed, with a reason and who decided it. Newsletter setting `comments.{enabled, who, moderation, notifyOwner}`; an issue's `comments` (on or off) wins; a paid-only issue's teaser page has none. Limits: 6 comments per reader per 10 minutes and 40 a day, 20 per network an hour, 3 links, 4,000 characters, a hidden field, the same words once per issue, 15 minutes to edit (an edit is judged by the rules again). `lib/comments.js` is what readers do; `lib/comment-moderation.js` what the owner does.
+- **The page.** `SectionComments` is rendered on the server for everyone and renewed (`revalidatePath` on the issue) when a comment shows or goes; `ProviderComments` and the tools wait for a session marker, then ask `getViewer` once. No third-party scripts.
+- **Owner.** `/comments` in the dashboard and seven actions (`lib/actions/comments.js`). Hiding and removing need a reason; the author sees it on the page and by email. `lib/comment-notify.js`: the digest is claimed per newsletter (`comments.digestSentAt`) so it is at most hourly however it is called (after a comment, and the hourly cron); a reply email goes to the parent's author once per reply, 3 a day per reader and 30 an hour per newsletter, with a link that turns them off; a hide or remove email goes to the author.
+- **Data.** `comments/<slug>.csv` in the export (newsletters with comments only); purged with the account; deleting a contact leaves their comments as "Deleted reader" with the link to them gone (`anonymizeComments`).
+- **Not done.** The owner replying as the newsletter (a creator who is also a subscriber can comment as a reader), @mentions, reactions and likes (left out on purpose), comments on a paid-only issue for paid readers (its web page is a teaser, so there is nowhere to put them), notifications when a held comment is approved, email-only replies, a public reader profile page, pagination past the latest 100 comments on a page.
+
 ## Still to do
 
 Done since the first deploy: passkey login, cloud mode with SES-only platform email, Polar billing next to Stripe (needs the owner's Polar token, products and webhook), the landing page at `/` for signed-out visitors, database-backed rate limits, R2 images at img.flockstack.io, the gull-stack logo, README and AGENTS.md for the new setup.
@@ -101,7 +112,7 @@ By posts and engagement, the themes were: growth and discovery (the most engaged
 Built or building: segments, tags and automations (`feat/segments-automations`), RSS, export and referrals (merged), selling with a 0% platform fee (merged), recommendations between newsletters (`feat/recommendations`).
 
 Next, in order:
-1. Recommendations between newsletters (built, `feat/recommendations`) and a community layer (comments, reader profiles): the most engaged theme.
+1. Recommendations between newsletters (built, `feat/recommendations`) and a community layer: comments are built (`feat/community`); reader profiles are next.
 2. Enforcement that explains itself: a published acceptable use policy, a warning and a way to answer before an account is blocked, the reason always shown (beehiiv's "AUP violation" blocks and unexplained ad-network cuts drew the angriest posts).
 3. A price promise: a published price ladder, 90 days' notice before any increase, existing customers keep their price.
 4. Release notes and no forced redesigns: new editor changes arrive behind a switch.

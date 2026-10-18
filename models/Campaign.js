@@ -56,6 +56,8 @@ const campaignSchema = new mongoose.Schema(
 		thumbnailUrl: { type: String, trim: true },
 		// Unlisted issues keep their /p/slug page but stay off the archive index.
 		archiveListed: { type: Boolean, default: true },
+		// This issue's own word on comments, over the newsletter's setting: on or off. Without one it follows the newsletter.
+		comments: { type: String, enum: ["on", "off"] },
 		// Pinned issues sit in the Featured row at the top of the archive.
 		archivePinned: { type: Boolean, default: false },
 		// Archive page views, once per browser and day.

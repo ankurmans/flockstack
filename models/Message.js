@@ -17,8 +17,9 @@ export const MESSAGE_STATUSES = [
 
 const messageSchema = new mongoose.Schema(
 	{
-		// order: the email with a buyer's download link (lib/payments/orders.js).
-		kind: { type: String, enum: ["campaign", "last-chance", "welcome", "confirmation", "referral", "test", "order", "automation"], required: true },
+		// order: the email with a buyer's download link (lib/payments/orders.js). comment: a reader's sign-in link, a reply
+		// or a moderation notice (lib/comment-notify.js).
+		kind: { type: String, enum: ["campaign", "last-chance", "welcome", "confirmation", "referral", "test", "order", "automation", "comment"], required: true },
 		campaignId: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign" },
 		// An automation's email: the automation, the contact's enrollment in it and the step it is (lib/automations.js).
 		automationId: { type: mongoose.Schema.Types.ObjectId, ref: "Automation" },

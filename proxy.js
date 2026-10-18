@@ -29,6 +29,7 @@ const PUBLIC_PATHS = [
 	/^\/confirm$/,
 	/^\/keep$/,
 	/^\/referral$/,
+	/^\/reader\/(in|signin|replies)$/,
 	/^\/o\//,
 	/^\/c\//,
 	/^\/p\//,
@@ -54,6 +55,7 @@ const ARCHIVE_HOST_PATHS = [
 	/^\/confirm$/,
 	/^\/keep$/,
 	/^\/referral$/,
+	/^\/reader\/(in|signin|replies)$/,
 	/^\/o\//,
 	/^\/c\//,
 ];

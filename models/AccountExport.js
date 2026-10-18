@@ -19,6 +19,7 @@ const accountExportSchema = new mongoose.Schema(
 		counts: {
 			newsletters: { type: Number, default: 0 },
 			contacts: { type: Number, default: 0 },
+			comments: { type: Number, default: 0 },
 			campaigns: { type: Number, default: 0 },
 			images: { type: Number, default: 0 },
 			missingImages: { type: Number, default: 0 },

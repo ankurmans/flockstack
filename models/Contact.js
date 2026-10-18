@@ -57,6 +57,19 @@ const contactSchema = new mongoose.Schema(
 			referredAt: { type: Date },
 		},
 		signupIpHash: { type: String },
+		// Comments on the newsletter's web issues (lib/comments.js). displayName is what other readers see, never the email;
+		// it is set once, on the first comment (nameLocked). blocked turns commenting off for this reader, who stays
+		// subscribed, with the reason the owner gave. repliesOff: no emails about replies. lastSignInT: the issue time of the
+		// last one-time sign-in link used, so a link works once (lib/reader-links.js).
+		community: {
+			displayName: { type: String },
+			nameLocked: { type: Boolean },
+			blocked: { type: Boolean },
+			blockedReason: { type: String },
+			blockedAt: { type: Date },
+			repliesOff: { type: Boolean },
+			lastSignInT: { type: Number },
+		},
 		// From a CSV import: engagement on the previous platform, so sends reach the most engaged first.
 		imported: {
 			emailsReceived: { type: Number },

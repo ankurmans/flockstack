@@ -117,6 +117,7 @@ before(async () => {
 		Account: (await import("../models/Account.js")).default,
 		AccountExport: (await import("../models/AccountExport.js")).default,
 		Campaign: (await import("../models/Campaign.js")).default,
+		Comment: (await import("../models/Comment.js")).default,
 		Contact: (await import("../models/Contact.js")).default,
 		ExportFile: (await import("../models/ExportFile.js")).default,
 		Newsletter: (await import("../models/Newsletter.js")).default,
@@ -216,7 +217,7 @@ describe("an export", () => {
 		assert.equal(latest.body.downloadUrls.length, 1);
 		assert.deepEqual(
 			{ ...latest.body.counts, bytes: undefined },
-			{ newsletters: 2, contacts: 4, campaigns: 4, images: 1, missingImages: 1, bytes: undefined }
+			{ newsletters: 2, contacts: 4, comments: 0, campaigns: 4, images: 1, missingImages: 1, bytes: undefined }
 		);
 		assert.deepEqual(fetched.filter((url) => url.includes("theirs")), [], "another account's upload is never fetched");
 
@@ -266,7 +267,7 @@ describe("an export", () => {
 		const manifest = JSON.parse(text("manifest.json"));
 		assert.equal(manifest.format, "flockstack-export");
 		assert.equal(manifest.version, 1);
-		assert.deepEqual(manifest.counts, { newsletters: 2, contacts: 4, campaigns: 4, images: 1, missingImages: 1 });
+		assert.deepEqual(manifest.counts, { newsletters: 2, contacts: 4, comments: 0, campaigns: 4, images: 1, missingImages: 1 });
 		assert.deepEqual(manifest.newsletters.map(({ slug, contactCount, contactsFile }) => [slug, contactCount, contactsFile]), [["field-notes", 3, "contacts/field-notes.csv"], ["second", 1, "contacts/second.csv"]]);
 		assert.equal(manifest.newsletters[0].welcome.enabled, false);
 		assert.equal(manifest.newsletters[0].archiveUrl, "https://field-notes.flockstackmail.com/");
@@ -438,6 +439,39 @@ describe("an export", () => {
 		assert.deepEqual([...first.keys(), ...second.keys()], files.map(({ path }) => path));
 		assert.deepEqual([...first.keys()].some((path) => path.startsWith("contacts/")), false);
 		assert.match((await download(urls[1])).headers.get("content-disposition"), /-part-2-of-2\.zip/);
+	});
+});
+
+describe("comments in an export", () => {
+	test("come as one CSV per newsletter that has any, with reasons and authors, and are counted", async () => {
+		const user = await customer("export-comments@example.com");
+		const [ann] = await addContacts(user, [{ email: "ann@example.org", status: "active" }]);
+		const issue = await addIssue(user, { subject: "Talked about", archiveSlug: "talked-about", html: "<p>Hi</p>" });
+		const second = await m.Newsletter.create({ accountId: user.accountId, name: "Quiet notes", slug: "quiet-notes", fromEmail: "hello@quiet-notes.flockstackmail.com" });
+		const base = { accountId: user.accountId, newsletterId: user.newsletter._id, campaignId: issue._id };
+		const root = await m.Comment.create({ ...base, authorId: ann._id, authorName: "Ann", body: "=SUM(A1) and a comma, and a \"quote\"", status: "published" });
+		await m.Comment.create({ ...base, parentId: root._id, authorId: ann._id, authorName: "Ann", body: "A held reply", status: "held", reason: "It has a link, and this newsletter reviews comments with links before they show.", decidedBy: "rules" });
+		await m.Comment.create({ ...base, authorName: "Deleted reader", body: "From someone who left", status: "published" });
+
+		const { latest } = await exportAndWait(user);
+		assert.equal(latest.body.status, "ready");
+		assert.equal(latest.body.counts.comments, 3);
+		const zip = readZip(await readResponseBytes(await download(latest.body.downloadUrls[0])));
+		assert.ok(zip.has(`comments/${user.newsletter.slug}.csv`));
+		assert.ok(!zip.has(`comments/${second.slug}.csv`), "no file for a newsletter without comments");
+		const csv = zip.get(`comments/${user.newsletter.slug}.csv`).toString();
+		assert.equal(csv.split("\r\n")[0], "id,issue_id,parent_id,status,reason,decided_by,author_name,author_email,body,open_reports,edited,created_at");
+		assert.ok(csv.includes(String(issue._id)));
+		assert.ok(csv.includes("ann@example.org"), "the owner has the author's address");
+		assert.ok(csv.includes("It has a link, and this newsletter reviews comments with links before they show."), "and the reason a comment was held");
+		assert.ok(csv.includes('"\'=SUM(A1) and a comma, and a ""quote"""'), "a spreadsheet formula is kept as text");
+		assert.ok(csv.includes("Deleted reader"));
+
+		const manifest = JSON.parse(zip.get("manifest.json").toString());
+		const entry = manifest.newsletters.find(({ slug }) => slug === user.newsletter.slug);
+		assert.deepEqual([entry.commentsFile, entry.commentCount], [`comments/${user.newsletter.slug}.csv`, 3]);
+		assert.equal(manifest.newsletters.find(({ slug }) => slug === second.slug).commentsFile, null);
+		assert.match(zip.get("README.txt").toString(), /comments\/ {7}One CSV per newsletter that has comments/);
 	});
 });
 
