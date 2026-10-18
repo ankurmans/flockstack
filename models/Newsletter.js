@@ -65,6 +65,16 @@ const newsletterSchema = new mongoose.Schema(
 				},
 			],
 		},
+		// Comments on the web issues (lib/comment-rules.js). who: everyone subscribed or paid subscribers only. moderation:
+		// none, hold comments with links, or hold every comment for the owner's review. digestSentAt: the owner's last digest
+		// of new comments (lib/comment-notify.js), at most one an hour.
+		comments: {
+			enabled: { type: Boolean, default: false },
+			who: { type: String, enum: ["everyone", "paid"] },
+			moderation: { type: String, enum: ["none", "hold_links", "hold_all"] },
+			notifyOwner: { type: Boolean },
+			digestSentAt: { type: Date },
+		},
 		// The paid tier (lib/payments/subscriptions.js): readers subscribe through Stripe Checkout on the creator's own Stripe
 		// account. Prices are in cents of `currency`; a price of 0 means that interval isn't offered. Set by set_paid_tier,
 		// never by the settings form.

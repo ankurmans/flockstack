@@ -19,6 +19,7 @@ const PRIVATE_PATHS = [
 	"/payments",
 	"/products",
 	"/oauth/",
+	"/reader/",
 	"/referrals",
 	"/restore",
 	"/segments",
