@@ -276,10 +276,10 @@ describe("copy", () => {
 });
 
 describe("search engines", () => {
-	test("the sitemap lists the marketing site's pages, then the docs", () => {
+	test("the sitemap lists the marketing site's pages, the directory, then the docs", () => {
 		const urls = withSiteUrl(() => m.sitemap()).map(({ url }) => url);
 		const docs = m.docs.DOC_PAGES.map(({ href }) => `${SITE_URL}${href}`);
-		assert.deepEqual(urls, [...m.siteExtensions.publicPages.map((path) => (path === "/" ? SITE_URL : `${SITE_URL}${path}`)), ...docs]);
+		assert.deepEqual(urls, [...m.siteExtensions.publicPages.map((path) => (path === "/" ? SITE_URL : `${SITE_URL}${path}`)), `${SITE_URL}/recommendations`, ...docs]);
 	});
 
 	test("robots.txt keeps crawlers out of every dashboard page, the admin and the APIs, and points at the sitemap", async () => {

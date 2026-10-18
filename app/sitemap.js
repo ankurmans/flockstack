@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export default function sitemap() {
 	const appUrl = getAppUrl();
-	return [...(isCloud() ? siteExtensions.publicPages : []), ...DOC_PAGES.map(({ href }) => href)].map((path) => ({
+	return [...(isCloud() ? siteExtensions.publicPages : []), "/recommendations", ...DOC_PAGES.map(({ href }) => href)].map((path) => ({
 		url: path === "/" ? appUrl : `${appUrl}${path}`,
 	}));
 }
