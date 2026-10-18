@@ -1,3 +1,6 @@
+// The real module can't load on a Worker (tests/worker-runtime.test.mjs), so a test can see whether anything imported it.
+globalThis.vercelBlobLoaded = true;
+
 export const stored = [];
 export const deleted = [];
 
