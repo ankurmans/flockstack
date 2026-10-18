@@ -79,6 +79,44 @@ FlockStack Cloud is this repository with `FLOCKSTACK_CLOUD=true`, which adds ope
 
 With your own sending account, you pay your provider for the emails you send: 10,000 readers and 4 issues a month is 40,000 emails, about $4 to $6 on Amazon SES.
 
+## Regions
+
+FlockStack Cloud is this same code deployed as two Workers, each with its own database and buckets: the US one (`flockstack`, [flockstack.io](https://flockstack.io)) and the EU one (`flockstack-eu`, eu.flockstack.io). The top level of `wrangler.jsonc` is the US deployment and `env.eu` is the EU one (Wrangler environments inherit nothing, so it repeats the bindings).
+
+| | United States | European Union |
+| --- | --- | --- |
+| Worker and address | `flockstack`, flockstack.io | `flockstack-eu`, eu.flockstack.io |
+| `FLOCKSTACK_REGION` | `us` (the default when unset) | `eu` |
+| D1 database | `flockstack` | `flockstack-eu`, jurisdiction `eu` |
+| R2 buckets | `flockstack-images`, `-files`, `-exports` | `flockstack-images-eu`, `-files-eu`, `-exports-eu`, jurisdiction `eu` |
+| Amazon SES | `SES_REGION`, `us-east-1` unless set | `eu-west-1` |
+| QStash | the default (US) region | the EU region: its own `QSTASH_URL`, token and signing keys |
+| Session cookie | `better-auth.session_token`, as before regions | `flockstack-eu.session_token` |
+| API keys | `mc_` + 43 characters | `mc_eu_` + 43 characters |
+
+An account lives in exactly one region. Nothing looks across: the sign-in page asks "Where should your data live?" (starting on the visitor's country, from Cloudflare's `cf-ipcountry`: EU and EEA countries, the UK and Switzerland start on the EU), sends the person to the other Worker's sign-in when they pick it, and says "Already have an account in the other region? Sign in there." Passkeys belong to the Worker's host (the `rpID` is `APP_URL`'s host), API keys work at their region's address only, and the account page and the admin header say which region they are in. A browser signed in to both regions keeps two sets of cookies. Accounts can't move between regions yet.
+
+What is stored where, and what leaves the region, is on the docs page `/docs/regions` (`lib/docs/regions.js`). **Wording:** say "data stored in the EU" or "EU-deployable", never "EU-resident", until every subprocessor in that list is verified.
+
+### Deploying both
+
+`node scripts/deploy-all.mjs` builds once (`npx opennextjs-cloudflare build`), applies the migrations each database is missing, then deploys `flockstack` and `flockstack-eu`. `--only us|eu` does one region, `--dry-run` prints every command and runs none, `--skip-build` deploys `.open-next` as it is. Everything the app reads from `APP_URL` is read when a page is served, not at build, so the one build serves both.
+
+Migrations: the SQL in `migrations/` is applied with `wrangler d1 execute <db> --remote --file`, not Wrangler's migrations tracker. Each database keeps the names of the files it has had in a table of its own, `_flockstack_migrations`, and a run applies only the files that aren't in it, each in one command with its record, so running again does nothing. Files `0001` to `0006` were applied by hand: the first run on a database without the table records them without running them (`--baseline 0006`, the default). For a database that has none of them, pass `--baseline 0`. Every migration is applied before the first deploy.
+
+### What the EU Worker needs
+
+The EU Worker starts from nothing: `wrangler secret put <NAME> --env eu` for each secret, or a `vars` entry under `env.eu` for the others. The database and buckets are bound in `wrangler.jsonc`, and `FLOCKSTACK_CLOUD`, `FLOCKSTACK_REGION`, `IMAGES_STORAGE` and `SES_REGION` are already set there.
+
+- **Its own:** `BETTER_AUTH_SECRET` (never the US Worker's: a session must only be valid in its region), `SUPPRESSION_HASH_KEY`, `APP_URL` (`https://eu.flockstack.io`), `ADMIN_EMAILS`, `EMAIL_FROM`, `SENDING_ENABLED`, `CRON_SECRET`.
+- **Amazon SES in `eu-west-1`:** `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`, `SES_AWS_ACCOUNT_ID`, `SES_SNS_TOPIC_ARN` and `SES_TENANT_SNS_TOPIC_ARN`, with the sending identities, the configuration set and the SNS topics created in that region, subscribed to `https://eu.flockstack.io/api/webhooks/ses` and `/ses-tenants`. The same SES or SNS setup can deliver to both Workers: each acknowledges events for accounts that live in the other region (see below).
+- **QStash, EU region:** `QSTASH_URL`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`, and the 5-minute schedule for `https://eu.flockstack.io/api/jobs/run-automations`.
+- **Images and newsletter sites:** `IMAGES_CDN_URL` (a domain on `flockstack-images-eu`), `SHARED_DOMAIN`, `ARCHIVE_CNAME_TARGET` and `ARCHIVE_TRUSTED_HOSTS` for the EU region's own newsletter addresses. The exports bucket needs its 8-day lifecycle rule.
+- **Billing:** `POLAR_ACCESS_TOKEN` and `POLAR_WEBHOOK_SECRET` (or `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`), and for selling, `STRIPE_CONNECT_SECRET_KEY` and `STRIPE_PAYMENTS_WEBHOOK_SECRET`. One Polar or Stripe webhook can feed both Workers, or the EU Worker can have its own endpoint.
+- **Optional:** `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (add `https://eu.flockstack.io/api/auth/callback/google` to the client), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `REGION_URL_US` and `REGION_URL_EU` (default to the two addresses above).
+
+**Webhooks and the other region.** A provider configured once can deliver to both Workers, so each gets events for accounts it doesn't have. Signatures are checked exactly as before. An event for a subscription, customer, connected account, tenant or message with no account in this region is acknowledged with a 2xx and logged at info level (`no such account in this region`), with no alert and no retry. A real failure, such as Polar being unreachable, still answers 5xx and alerts.
+
 ## Self-hosting
 
 FlockStack runs on Cloudflare Workers, with D1 for data and R2 for images, so the running cost is mostly what your email provider charges. Plan for about an hour, most of it waiting for DNS and for your provider to approve production sending. Self-hosting comes without support: issues are off and setup questions go unanswered.
