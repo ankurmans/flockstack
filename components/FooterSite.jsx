@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 // FlockStack Cloud the marketing site's columns, credit and company take its place.
 export default function FooterSite() {
 	const cloudFooter = isCloud() ? siteExtensions.footer : null;
-	const { tagline, columns, company } = cloudFooter ?? SELF_HOSTED_FOOTER;
+	const { tagline, columns, company, legal = [] } = cloudFooter ?? SELF_HOSTED_FOOTER;
 	return (
 		<footer className="border-t border-border/60">
 			<div className="mx-auto max-w-(--site-width) px-4 pt-12 pb-8 sm:px-6 lg:px-8">
@@ -46,11 +46,24 @@ export default function FooterSite() {
 						))}
 					</nav>
 				</div>
-				<div className={cn("mt-12 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-border/60 pt-6", company ? "justify-between" : "justify-end")}>
+				<div className={cn("mt-12 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-border/60 pt-6", company || legal.length > 0 ? "justify-between" : "justify-end")}>
 					{company && (
 						<p className="text-xs text-pretty text-muted-foreground tabular-nums">
 							© {currentYear()} {company.name}, {company.address}
 						</p>
+					)}
+					{legal.length > 0 && (
+						<nav aria-label="Legal">
+							<ul className="flex flex-wrap gap-x-5 gap-y-2 text-xs">
+								{legal.map(({ href, label }) => (
+									<li key={href}>
+										<Link href={href} className="text-muted-foreground transition-colors hover:text-foreground">
+											{label}
+										</Link>
+									</li>
+								))}
+							</ul>
+						</nav>
 					)}
 					<ButtonThemeToggle />
 				</div>

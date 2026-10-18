@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import ButtonSigninGoogle from "@/components/ButtonSigninGoogle";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { DELETION_GRACE_DAYS } from "@/lib/account-deletion";
 import { getSession, getSignupError, isGoogleEnabled } from "@/lib/auth";
 import { isCloud } from "@/lib/config";
+import { LEGAL_PAGES } from "@/lib/legal";
 import { readOAuthRequest } from "@/lib/oauth";
 import { REGION_PLACES, getOtherRegion, getRegion, getRegionOptions, getSigninUrl } from "@/lib/region";
 import { readRegionChoice } from "@/lib/region-choice";
@@ -84,10 +86,43 @@ export default async function SigninPage({ searchParams }) {
 							</a>
 						</p>
 					)}
+					{isCloud() && <LegalNotice />}
 				</div>
 			</div>
 			{SiteAnalytics && <SiteAnalytics />}
 		</LayoutSplit>
+	);
+}
+
+const LINK_CLASS = "underline decoration-foreground/30 underline-offset-4 hover:text-foreground hover:decoration-foreground";
+
+// A code creates an account at its first sign-in, so this is also the sign-up step.
+function LegalNotice() {
+	return (
+		<div className="mt-8 flex flex-col gap-3 text-xs text-pretty text-muted-foreground">
+			<p>
+				By continuing you agree to the{" "}
+				<Link href="/terms" className={LINK_CLASS}>
+					Terms
+				</Link>{" "}
+				and{" "}
+				<Link href="/privacy" className={LINK_CLASS}>
+					Privacy Policy
+				</Link>
+				.
+			</p>
+			<nav aria-label="Legal">
+				<ul className="flex flex-wrap gap-x-4 gap-y-1">
+					{LEGAL_PAGES.map(({ href, label }) => (
+						<li key={href}>
+							<Link href={href} className={LINK_CLASS}>
+								{label}
+							</Link>
+						</li>
+					))}
+				</ul>
+			</nav>
+		</div>
 	);
 }
 
