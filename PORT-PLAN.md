@@ -27,17 +27,11 @@ How lib/docdb works: one table per collection (`c_<name>`: `_id`, `accountId`, `
 
 ## Still to do
 
-1. `wrangler login` (the stored token expired), then `npx wrangler deploy`.
-2. Secrets: BETTER_AUTH_SECRET, SUPPRESSION_HASH_KEY, ADMIN_EMAILS, EMAIL_FROM, APP_URL, SES_* (region, keys, account id, SNS topic), QSTASH_* (token + signing keys), SENDING_ENABLED=true when ready.
-3. SES: verify the sending domain, request production access, SNS topic -> `/api/webhooks/ses`.
-4. R2 public address for `IMAGES_CDN_URL`.
-5. Domain: newsletter.ankur.works -> the Worker (custom domain route).
-6. Rewrite hot paths that read-modify-write per row (bulk contact updates) as single SQL statements if lists get large; archive old Event rows (D1 is 10 GB per database).
-7. Replace the README's Mongo/Vercel setup steps with the D1/Workers ones.
-8. Keep the fork public (AGPL) and point `SOURCE_URL` in lib/site.js at it.
+Done since the first deploy: passkey login, cloud mode with SES-only platform email, Polar billing next to Stripe (needs the owner's Polar token, products and webhook), the landing page at `/` for signed-out visitors, database-backed rate limits, R2 images at img.flockstack.io, the gull-stack logo, README and AGENTS.md for the new setup.
 
-## Billing
-
-Cloud mode bills through one of two providers, chosen in `lib/billing-provider.js`: Polar when `POLAR_ACCESS_TOKEN` is set, else Stripe when `STRIPE_SECRET_KEY` is, else none (the billing pages say plans can't be bought yet). Both write the same account fields (plan, interval, subscriptionStatus, current period, cancelAt, usage period); only the ids differ (`polarCustomerId`/`polarSubscriptionId` next to `stripeCustomerId`/`stripeSubscriptionId`, migration `0002_polar.sql`).
-
-Polar (`lib/polar.js`, `lib/billing-polar.js`, `app/api/webhooks/polar`): 10 products (5 plans x month/year) found by metadata `flockstack_plan` and `interval`, offered only at `lib/plans.js` amounts in USD cents. Checkout carries the account id as external customer id and metadata. Webhooks (`lib/polar-webhook.js`, WebCrypto) are verified, then the subscription is read fresh from Polar, so event order doesn't matter. Changing plan and cancelling happen in Polar's customer portal. `scripts/polar-setup.mjs` creates the products (`--dry-run` first); the sandbox is `POLAR_SERVER=sandbox` with its own token and secret. Setup steps for the owner: create an organization access token, run the script, add a webhook endpoint `<APP_URL>/api/webhooks/polar` for `subscription.*` and `order.paid`, set the three variables, apply `migrations/0002_polar.sql`.
+1. Polar: create the org token, run `scripts/polar-setup.mjs`, add the webhook, set `POLAR_ACCESS_TOKEN` / `POLAR_WEBHOOK_SECRET` (see README, billing).
+2. A dedicated AWS account for SES: reputation and limits are per account, and this one is shared with other products.
+3. Push the fork to a public repository (AGPL), then point `SOURCE_URL` in `lib/site.js` at it and add a source link to the site footer.
+4. Terms and Privacy pages.
+5. Bulk updates (large imports, status changes) read and write each row separately: fine for small lists, make them single statements before big ones. Archive old Event rows (D1 is 10 GB per database).
+6. wrangler.jsonc holds the owner's account and database ids and domains: move them out before publishing a reusable template.
