@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import LayoutLegal from "@/components/LayoutLegal";
 import LinkInline from "@/components/LinkInline";
 import SectionLegal from "@/components/SectionLegal";
@@ -16,6 +17,7 @@ import {
 	TAX_NOTE,
 	TERMS_CHANGE_NOTICE,
 	YEARLY_REFUND_DAYS,
+	isLegalPublished,
 } from "@/lib/legal";
 import { getRegionUrls } from "@/lib/region";
 import { getPageMetadata } from "@/lib/site";
@@ -27,6 +29,7 @@ export const metadata = getPageMetadata({ title, description, path: href });
 const percent = (rate) => `${Number((rate * 100).toFixed(2))}%`;
 
 export default function TermsPage() {
+	if (!isLegalPublished()) notFound();
 	const urls = getRegionUrls();
 	const { pause, block } = LIMITS;
 

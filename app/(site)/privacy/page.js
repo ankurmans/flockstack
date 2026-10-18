@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import LayoutLegal from "@/components/LayoutLegal";
 import LinkInline from "@/components/LinkInline";
 import SectionLegal from "@/components/SectionLegal";
@@ -19,6 +20,7 @@ import {
 	SUPPORT_CHAT_STORED,
 	TERMS_CHANGE_NOTICE,
 	TRANSFER_SAFEGUARDS,
+	isLegalPublished,
 } from "@/lib/legal";
 import { REGION_NAMES } from "@/lib/region";
 import { getPageMetadata } from "@/lib/site";
@@ -29,6 +31,7 @@ export const metadata = getPageMetadata({ title, description, path: href });
 const Strong = ({ children }) => <strong className="font-medium text-foreground">{children}</strong>;
 
 export default function PrivacyPage() {
+	if (!isLegalPublished()) notFound();
 	const mail = <LinkInline href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</LinkInline>;
 
 	return (

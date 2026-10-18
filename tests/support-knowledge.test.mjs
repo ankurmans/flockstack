@@ -20,7 +20,8 @@ before(async () => {
 	};
 });
 
-const cloud = (run) => withEnv({ FLOCKSTACK_CLOUD: "true", APP_URL }, run);
+// LEGAL_PREVIEW: the legal pages are in the corpus only once published (tests/legal.test.mjs has them hidden).
+const cloud = (run) => withEnv({ FLOCKSTACK_CLOUD: "true", APP_URL, LEGAL_PREVIEW: "true" }, run);
 const top = async (question, limit = 3) => {
 	const index = await cloud(() => m.corpus.getSupportIndex(APP_URL));
 	return m.search.search(index, question, { limit }).map(({ chunk }) => chunk);
@@ -61,7 +62,7 @@ describe("the corpus", () => {
 	});
 
 	test("a self-hosted server has no legal pages, prices or FAQ to answer from", async () => {
-		const chunks = await withEnv({ FLOCKSTACK_CLOUD: "", APP_URL }, () => m.corpus.buildChunks(APP_URL));
+		const chunks = await withEnv({ FLOCKSTACK_CLOUD: "", APP_URL, LEGAL_PREVIEW: "true" }, () => m.corpus.buildChunks(APP_URL));
 		const pages = new Set(chunks.map(({ href }) => href.split("#")[0]));
 		for (const href of [...m.legal.LEGAL_PATHS, "/"]) assert.ok(!pages.has(href), href);
 	});

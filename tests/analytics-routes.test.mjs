@@ -252,9 +252,15 @@ describe("what a request gets", () => {
 	});
 
 	test("a visitor outside the EU gets it on by default, with the US cloud's host and recording off", async () => {
-		const element = await analyticsFor({ headers: { "cf-ipcountry": "US" } });
+		const element = await analyticsFor({ env: { LEGAL_PREVIEW: "true" }, headers: { "cf-ipcountry": "US" } });
 		assert.equal(element.type, m.provider.default);
-		assert.deepEqual(element.props, { token: KEY, host: "https://us.i.posthog.com", replay: false, region: "us", requiresConsent: false, consent: null, identity: null });
+		assert.deepEqual(element.props, { token: KEY, host: "https://us.i.posthog.com", replay: false, region: "us", requiresConsent: false, consent: null, identity: null, privacyHref: "/privacy" });
+	});
+
+	test("the banner links the privacy policy only once the legal pages are published", async () => {
+		const { getLegalTodos } = await import("../lib/legal.js");
+		const element = await analyticsFor({ env: { LEGAL_PREVIEW: "" }, headers: { "cf-ipcountry": "US" } });
+		assert.equal(element.props.privacyHref, getLegalTodos().length > 0 ? null : "/privacy");
 	});
 
 	test("a visitor in the EU, the UK or Switzerland, or on the EU deployment, is asked first", async () => {
@@ -311,8 +317,9 @@ describe("the consent banner", () => {
 	const buttons = (markup) => [...markup.matchAll(/<button\b([^>]*)>([^<]*)<\/button>/g)].map(([, attributes, label]) => ({ attributes, label }));
 	const attribute = (attributes, name) => new RegExp(`\\b${name}="([^"]*)"`).exec(attributes)?.[1];
 
-	test("is a labelled region with short sentence-case text and a link to the privacy policy", () => {
-		const markup = render();
+	test("is a labelled region with short sentence-case text and a link to the privacy policy once it is published", () => {
+		assert.doesNotMatch(render(), /href=/);
+		const markup = render({ privacyHref: "/privacy" });
 		const labelledBy = attribute(markup, "aria-labelledby");
 		const describedBy = attribute(markup, "aria-describedby");
 		assert.match(markup, /<section\b[^>]*role="region"/);

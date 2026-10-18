@@ -212,13 +212,13 @@ A "Help" button on FlockStack's own pages opens a chat that answers from FlockSt
 
 ## Legal pages
 
-FlockStack Cloud's terms of service (`/terms`), privacy policy (`/privacy`) and sub-processors (`/sub-processors`) are first drafts written from what the code and the infrastructure do. They are not legal advice: have a lawyer read them. They are linked from the landing page's footer and the sign-in page (whose "By continuing you agree" line is the sign-up step), listed in the sitemap and `llms.txt`, and 404 on a self-hosted server. Everything about the company that the code can't know lives in `lib/legal.js` as constants whose placeholders start with `TODO:`, and the pages read from it. Before shipping, run
+FlockStack Cloud's terms of service (`/terms`), privacy policy (`/privacy`) and sub-processors (`/sub-processors`) are first drafts written from what the code and the infrastructure do. They are not legal advice: have a lawyer read them. They are linked from the landing page's footer and the sign-in page (whose "By continuing you agree" line is the sign-up step), listed in the sitemap and `llms.txt`, and 404 on a self-hosted server. Everything about the company that the code can't know lives in `lib/legal.js` as constants whose placeholders start with `TODO:`, and the pages read from it. While any placeholder is left the pages are hidden: they answer 404, and the footer, the sign-in page, the consent banner, the sitemap, `llms.txt` and the support assistant leave them out (`isLegalPublished()` in `lib/legal.js`). `LEGAL_PREVIEW=true` shows them anyway, for tests and local review only: never set it in production. To see what is left, run
 
 ```bash
 node scripts/check-legal.mjs
 ```
 
-which lists the placeholders still left and exits 1 until there are none. `scripts/deploy-all.mjs` runs it first and stops while any are left (`--allow-legal-todos` goes on anyway). `SERVICES_LIVE_CONFIRMED` is the gate for what the pages describe before it exists (Google sign-in, PostHog with the EU consent banner, the support assistant): the owner sets it once they are live. When the product changes what it stores, sends or shares (a new service, a new kind of data, a new cookie), change `lib/subprocessors.js` and the pages with it.
+which lists the placeholders still left and exits 1 until there are none. `scripts/deploy-all.mjs` lists them too and deploys anyway, since some can only be filled once a deploy is live. `SERVICES_LIVE_CONFIRMED` is the gate for what the pages describe before it exists (Google sign-in, PostHog with the EU consent banner, the support assistant): the owner sets it once they are live, and the next deploy publishes the pages. When the product changes what it stores, sends or shares (a new service, a new kind of data, a new cookie), change `lib/subprocessors.js` and the pages with it.
 
 ## Self-hosting
 

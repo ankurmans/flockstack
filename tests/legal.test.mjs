@@ -7,12 +7,14 @@ import { fileURLToPath } from "node:url";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { TooltipProvider } from "../components/ui/tooltip.jsx";
+import { getLegalTodos } from "../lib/legal.js";
 import { startTestApp, withEnv } from "./helpers/app.mjs";
 import { runWithRequest } from "./stubs/next-headers.mjs";
 
 // /terms, /privacy and /sub-processors: that they render, link to each other, read the company's choices from
 // lib/legal.js, say what the code does (the limits, the retention, the regions), are registered like other public pages,
-// and are linked from the footer and the sign-in page, on FlockStack Cloud only.
+// and are linked from the footer and the sign-in page, on FlockStack Cloud only. Their content is read with
+// LEGAL_PREVIEW=true; without it, a placeholder left in lib/legal.js hides them everywhere.
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PAGES = ["terms", "privacy", "sub-processors"];
 
@@ -40,6 +42,7 @@ function visit(path) {
 }
 
 before(async () => {
+	process.env.LEGAL_PREVIEW = "true";
 	app = await startTestApp();
 	m = {
 		legal: await import("../lib/legal.js"),
@@ -52,12 +55,17 @@ before(async () => {
 		NextRequest: (await import("next/server")).NextRequest,
 		siteExtensions: (await import("@/lib/site-extensions")).siteExtensions,
 		signin: await import("../app/signin/page.js"),
+		corpus: await import("../lib/marketing/support-corpus.js"),
+		banner: await import("../components/marketing/BannerConsent.jsx"),
 		footer: await import("../components/FooterSite.jsx"),
 		pages: Object.fromEntries(await Promise.all(PAGES.map(async (name) => [name, await import(`../app/(site)/${name}/page.js`)]))),
 	};
 });
 
-after(() => app?.stop());
+after(() => {
+	delete process.env.LEGAL_PREVIEW;
+	return app?.stop();
+});
 
 describe("the legal pages", () => {
 	test("render, with their title, the effective date and the links between the three", async () => {
@@ -243,11 +251,25 @@ describe("lib/legal.js and the check", () => {
 		assert.ok(!("EU_REPRESENTATIVE" in m.legal) && !("DPO_CONTACT" in m.legal));
 	});
 
-	test("the deploy script runs the check and stops, unless it is told to deploy with TODOs", async () => {
+	test("isLegalPublished: once nothing is left, or with LEGAL_PREVIEW=true, read when called", async () => {
+		const hasTodos = m.legal.getLegalTodos().length > 0;
+		await withEnv({ LEGAL_PREVIEW: "" }, () => {
+			assert.equal(m.legal.isLegalPublished(), !hasTodos);
+			assert.deepEqual(m.legal.getPublishedLegalPages(), hasTodos ? [] : m.legal.LEGAL_PAGES);
+		});
+		await withEnv({ LEGAL_PREVIEW: "true" }, () => {
+			assert.equal(m.legal.isLegalPublished(), true);
+			assert.deepEqual(m.legal.getPublishedLegalPages(), m.legal.LEGAL_PAGES);
+		});
+	});
+
+	test("the deploy script lists what is left and deploys anyway; the README says so", async () => {
 		const script = await readFile(join(ROOT, "scripts/deploy-all.mjs"), "utf8");
-		assert.match(script, /check-legal/);
-		assert.match(script, /--allow-legal-todos/);
-		assert.match(await readFile(join(ROOT, "README.md"), "utf8"), /node scripts\/check-legal\.mjs/);
+		assert.match(script, /getLegalTodos/);
+		assert.doesNotMatch(script, /allow-legal-todos/);
+		const readme = await readFile(join(ROOT, "README.md"), "utf8");
+		assert.match(readme, /node scripts\/check-legal\.mjs/);
+		assert.doesNotMatch(readme, /allow-legal-todos/);
 	});
 });
 
@@ -298,5 +320,44 @@ describe("a self-hosted server", () => {
 		const markup = await renderSignin({ FLOCKSTACK_CLOUD: "" });
 		assert.doesNotMatch(markup, /By continuing you agree/);
 		assert.ok(!hrefsOf(markup).includes("/terms"));
+	});
+});
+
+describe("while lib/legal.js has a placeholder left", () => {
+	const hasTodos = getLegalTodos().length > 0;
+	const hidden = (run) => withEnv({ LEGAL_PREVIEW: "" }, run);
+
+	test("the pages answer 404, signed out or in", { skip: !hasTodos && "no placeholder left" }, async () => {
+		await hidden(async () => {
+			const { NotFoundError } = await import("./stubs/next-navigation.mjs");
+			for (const name of PAGES) assert.throws(() => m.pages[name].default(), NotFoundError, name);
+			for (const path of m.legal.LEGAL_PATHS) {
+				const response = await visit(path);
+				assert.ok(response.headers.get("x-middleware-next"), `${path} reaches the page, not the sign-in`);
+			}
+		});
+	});
+
+	test("nothing links to them: footer, sitemap, llms.txt, sign-in, the consent banner and the support assistant", { skip: !hasTodos && "no placeholder left" }, async () => {
+		await hidden(async () => {
+			const isLegal = (href) => m.legal.LEGAL_PATHS.includes(new URL(href, "https://flockstack.io").pathname);
+			for (const path of m.legal.LEGAL_PATHS) assert.ok(!m.siteExtensions.publicPages.includes(path), path);
+			assert.deepEqual(m.siteExtensions.footer.legal, []);
+			const footer = render(m.footer.default());
+			assert.ok(!hrefsOf(footer).some(isLegal), "footer");
+			const urls = await withEnv({ APP_URL: "https://flockstack.io" }, () => m.sitemap().map(({ url }) => url));
+			assert.ok(!urls.some(isLegal), "sitemap");
+			const index = m.docs.getLlmsIndex("https://flockstack.io");
+			assert.doesNotMatch(index, /## Legal/);
+			for (const path of m.legal.LEGAL_PATHS) assert.ok(!index.includes(`https://flockstack.io${path})`), path);
+			const signin = await renderSignin();
+			assert.doesNotMatch(signin, /By continuing you agree/);
+			assert.ok(!hrefsOf(signin).some(isLegal), "sign-in");
+			assert.ok(!hrefsOf(renderToStaticMarkup(createElement(m.banner.default, { onChoose() {}, onClose() {} }))).some(isLegal), "consent banner");
+			const chunks = await withEnv({ APP_URL: "http://localhost:3000" }, () => m.corpus.buildChunks("http://localhost:3000"));
+			assert.ok(chunks.length > 0);
+			assert.ok(!chunks.some(({ href }) => isLegal(href)), "support corpus");
+			assert.ok(!chunks.some(({ text }) => /TODO:/.test(text)), "no placeholder text for the assistant");
+		});
 	});
 });

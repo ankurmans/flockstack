@@ -15,6 +15,8 @@ const LEGAL_LINK_CLASS = "text-muted-foreground transition-colors hover:text-for
 export default function FooterSite() {
 	const cloudFooter = isCloud() ? siteExtensions.footer : null;
 	const { tagline, columns, company, legal = [] } = cloudFooter ?? SELF_HOSTED_FOOTER;
+	// Cookie settings stays while the legal pages are hidden (lib/legal.js).
+	const hasLegalNav = legal.length > 0 || Boolean(cloudFooter && FooterCookies);
 	return (
 		<footer className="border-t border-border/60">
 			<div className="mx-auto max-w-(--site-width) px-4 pt-12 pb-8 sm:px-6 lg:px-8">
@@ -48,13 +50,13 @@ export default function FooterSite() {
 						))}
 					</nav>
 				</div>
-				<div className={cn("mt-12 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-border/60 pt-6", company || legal.length > 0 ? "justify-between" : "justify-end")}>
+				<div className={cn("mt-12 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-border/60 pt-6", company || hasLegalNav ? "justify-between" : "justify-end")}>
 					{company && (
 						<p className="text-xs text-pretty text-muted-foreground tabular-nums">
 							© {currentYear()} {company.name}, {company.address}
 						</p>
 					)}
-					{legal.length > 0 && (
+					{hasLegalNav && (
 						<nav aria-label="Legal">
 							<ul className="flex flex-wrap gap-x-5 gap-y-2 text-xs">
 								{legal.map(({ href, label }) => (

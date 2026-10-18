@@ -1,7 +1,8 @@
+import { notFound } from "next/navigation";
 import LayoutLegal from "@/components/LayoutLegal";
 import LinkInline from "@/components/LinkInline";
 import SectionLegal from "@/components/SectionLegal";
-import { LEGAL_PAGES, OPERATOR_DESCRIPTION, OPTIONAL_SERVICES_IN_USE, PRIVACY_EMAIL, SUBPROCESSOR_CHANGE_NOTICE } from "@/lib/legal";
+import { LEGAL_PAGES, OPERATOR_DESCRIPTION, OPTIONAL_SERVICES_IN_USE, PRIVACY_EMAIL, SUBPROCESSOR_CHANGE_NOTICE, isLegalPublished } from "@/lib/legal";
 import { REGION_NAMES } from "@/lib/region";
 import { getPageMetadata } from "@/lib/site";
 import { OPTIONAL_SUBPROCESSORS, SUBPROCESSORS } from "@/lib/subprocessors";
@@ -10,6 +11,7 @@ const { title, description, href } = LEGAL_PAGES.find((page) => page.href === "/
 export const metadata = getPageMetadata({ title, description, path: href });
 
 export default function SubProcessorsPage() {
+	if (!isLegalPublished()) notFound();
 	return (
 		<LayoutLegal
 			title="Sub-processors"

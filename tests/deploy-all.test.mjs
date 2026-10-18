@@ -86,12 +86,12 @@ function recordedIn(name) {
 	}
 }
 
-async function run(argv) {
+async function run(argv, { legalTodos = [] } = {}) {
 	const lines = [];
 	const log = console.log;
 	console.log = (...parts) => lines.push(parts.join(" "));
 	try {
-		main(["--allow-legal-todos", ...argv], { migrationsDir: migrations });
+		main(argv, { migrationsDir: migrations, legalTodos });
 	} finally {
 		console.log = log;
 	}
@@ -130,9 +130,10 @@ beforeEach(() => {
 });
 
 describe("the pieces", () => {
-	test("--only, --dry-run, --skip-build, --allow-legal-todos and --baseline, and nothing else", () => {
-		assert.deepEqual(parseArgs([]), { only: null, isDryRun: false, skipBuild: false, allowLegalTodos: false, baseline: 6 });
-		assert.deepEqual(parseArgs(["--only", "eu", "--dry-run", "--skip-build", "--allow-legal-todos", "--baseline", "0004"]), { only: "eu", isDryRun: true, skipBuild: true, allowLegalTodos: true, baseline: 4 });
+	test("--only, --dry-run, --skip-build and --baseline, and nothing else", () => {
+		assert.deepEqual(parseArgs([]), { only: null, isDryRun: false, skipBuild: false, baseline: 6 });
+		assert.deepEqual(parseArgs(["--only", "eu", "--dry-run", "--skip-build", "--baseline", "0004"]), { only: "eu", isDryRun: true, skipBuild: true, baseline: 4 });
+		assert.throws(() => parseArgs(["--allow-legal-todos"]), /Unknown option --allow-legal-todos/);
 		assert.throws(() => parseArgs(["--only", "asia"]), /--only takes us or eu/);
 		assert.throws(() => parseArgs(["--only"]), /--only takes us or eu/);
 		assert.throws(() => parseArgs(["--baseline", "soon"]), /--baseline takes a migration number/);
@@ -265,5 +266,29 @@ describe("a run", () => {
 		assert.match(output, /\$ npx wrangler deploy\n/);
 		assert.match(output, /\$ npx wrangler deploy --env eu/);
 		assert.match(output, /Dry run done\./);
+	});
+
+	test("placeholders left in lib/legal.js don't stop it: it names them, says the legal pages stay hidden and deploys", async () => {
+		const output = await run(["--baseline", "0"], { legalTodos: [["EFFECTIVE_DATE", "TODO: a date"], ["SERVICES_LIVE_CONFIRMED", "TODO: once live"]] });
+		assert.match(output, /Legal pages stay hidden until these are filled in lib\/legal\.js: EFFECTIVE_DATE, SERVICES_LIVE_CONFIRMED\./);
+		assert.equal(readLog().filter((call) => call.deploy).length, 2);
+		assert.match(output, /Deployed flockstack and flockstack-eu\./);
+		writeFileSync(join(folder, "calls.log"), "");
+		assert.doesNotMatch(await run(["--skip-build"]), /Legal pages/);
+	});
+
+	test("by default it reads lib/legal.js itself", async () => {
+		const { getLegalTodos } = await import("../lib/legal.js");
+		const lines = [];
+		const log = console.log;
+		console.log = (...parts) => lines.push(parts.join(" "));
+		try {
+			main(["--dry-run"], { migrationsDir: migrations });
+		} finally {
+			console.log = log;
+		}
+		const todos = getLegalTodos();
+		if (todos.length > 0) assert.ok(lines.join("\n").includes(todos.map(([name]) => name).join(", ")));
+		else assert.doesNotMatch(lines.join("\n"), /Legal pages/);
 	});
 });

@@ -1,6 +1,7 @@
 import ProviderAnalytics from "@/components/marketing/ProviderAnalytics";
 import { hasActiveSubscription } from "@/lib/account-state";
 import { isCloud } from "@/lib/config";
+import { isLegalPublished } from "@/lib/legal";
 import { getAccountPlan } from "@/lib/plans";
 import { readAnalyticsEnv } from "@/lib/marketing/analytics-config";
 import { readAnalyticsRequest } from "@/lib/marketing/analytics-request";
@@ -21,5 +22,5 @@ async function AnalyticsForRequest({ user, account }) {
 	if (!request) return null;
 	const { token, host, replay, requiresConsent, consent } = request;
 	const identity = user && account ? { id: String(user.id), email: user.email, plan: hasActiveSubscription(account) ? (getAccountPlan(account)?.id ?? "none") : "none" } : null;
-	return <ProviderAnalytics token={token} host={host} replay={replay} region={getRegion()} requiresConsent={requiresConsent} consent={consent} identity={identity} />;
+	return <ProviderAnalytics token={token} host={host} replay={replay} region={getRegion()} requiresConsent={requiresConsent} consent={consent} identity={identity} privacyHref={isLegalPublished() ? "/privacy" : null} />;
 }

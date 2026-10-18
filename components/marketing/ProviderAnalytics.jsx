@@ -13,7 +13,7 @@ import { useIsClient } from "@/lib/use-is-client";
 // and passes what it read from the request). The browser applies the rules again: a privacy signal means nothing is
 // loaded, sent or stored, a visitor who must consent sees the banner first, and posthog-js is imported only once
 // they may be tracked. It renders the marker below for the server-rendered page and the banner once it is needed.
-export default function ProviderAnalytics({ token, host, replay, region, requiresConsent, consent: serverConsent, identity }) {
+export default function ProviderAnalytics({ token, host, replay, region, requiresConsent, consent: serverConsent, identity, privacyHref = null }) {
 	const isClient = useIsClient();
 	const [choice, setChoice] = useState(null);
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -86,7 +86,7 @@ export default function ProviderAnalytics({ token, host, replay, region, require
 		<>
 			<span hidden data-analytics-provider />
 			{canAsk && (isAsking || isSettingsOpen) && (
-				<BannerConsent isSettings={isSettingsOpen} consent={consent} requiresConsent={requiresConsent} onChoose={choose} onClose={closeSettings} />
+				<BannerConsent isSettings={isSettingsOpen} consent={consent} requiresConsent={requiresConsent} privacyHref={privacyHref} onChoose={choose} onClose={closeSettings} />
 			)}
 		</>
 	);

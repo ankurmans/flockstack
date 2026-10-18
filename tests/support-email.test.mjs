@@ -117,7 +117,7 @@ describe("email a human", () => {
 describe("the legal pages", () => {
 	const textOf = (markup) => markup.replace(/<[^>]+>/g, "").replaceAll("&#x27;", "'").replaceAll("&quot;", '"').replaceAll("&amp;", "&").replace(/\s+/g, " ");
 
-	test("say what the assistant keeps: nothing on the server, Workers AI for the answer, the support inbox only on request", () => {
+	test("say what the assistant keeps: nothing on the server, Workers AI for the answer, the support inbox only on request", async () => {
 		const { SUPPORT_CHAT_STORED, SUPPORT_CHAT_RETENTION, SUPPORT_AI_PROVIDER_NOTE, getLegalTodos } = m.legal;
 		const todos = getLegalTodos().map(([name]) => name);
 		assert.ok(!todos.includes("SUPPORT_CHAT_STORED") && !todos.includes("SUPPORT_CHAT_RETENTION"));
@@ -130,7 +130,7 @@ describe("the legal pages", () => {
 		assert.match(SUPPORT_CHAT_RETENTION, /support inbox as long as we need it to answer you/);
 		assert.match(SUPPORT_AI_PROVIDER_NOTE, /does not use Customer Content processed by Workers AI to train AI models/);
 
-		const privacy = textOf(renderToStaticMarkup(m.privacy.default()));
+		const privacy = await withEnv({ LEGAL_PREVIEW: "true" }, () => textOf(renderToStaticMarkup(m.privacy.default())));
 		assert.ok(privacy.includes(`Stored: ${SUPPORT_CHAT_STORED}. How long: ${SUPPORT_CHAT_RETENTION} ${SUPPORT_AI_PROVIDER_NOTE}`));
 		assert.ok(privacy.includes("questions to the support assistant by IP address and user ID"));
 		assert.ok(privacy.includes("the support assistant's conversation in that tab's session storage"));

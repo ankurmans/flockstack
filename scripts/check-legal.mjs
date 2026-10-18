@@ -1,5 +1,5 @@
-// Lists the placeholders left in lib/legal.js and exits 1 while there are any: run it before shipping the legal pages.
-// It is not part of the deploy script. node scripts/check-legal.mjs
+// Lists the placeholders left in lib/legal.js and exits 1 while there are any: the legal pages stay hidden until it passes.
+// scripts/deploy-all.mjs lists the same and deploys anyway. node scripts/check-legal.mjs
 import { getLegalTodos } from "../lib/legal.js";
 
 const todos = getLegalTodos();
