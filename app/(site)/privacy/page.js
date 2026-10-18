@@ -5,6 +5,8 @@ import { DELETION_GRACE_DAYS } from "@/lib/account-deletion";
 import { EXPORT_LINK_DAYS } from "@/lib/account-export-files";
 import { REGION_LEAVES } from "@/lib/docs/regions";
 import {
+	ANALYTICS_RETENTION,
+	ANALYTICS_RULE,
 	BACKUP_RETENTION,
 	LEGAL_PAGES,
 	LOG_RETENTION,
@@ -12,7 +14,8 @@ import {
 	OPERATOR_DESCRIPTION,
 	PRIVACY_EMAIL,
 	PRIVACY_REQUEST_RESPONSE,
-	SITE_EXTENSIONS_NOTE,
+	SUPPORT_CHAT_RETENTION,
+	SUPPORT_CHAT_STORED,
 	TERMS_CHANGE_NOTICE,
 	TRANSFER_SAFEGUARDS,
 } from "@/lib/legal";
@@ -77,6 +80,16 @@ export default function PrivacyPage() {
 						<Strong>Alerts and messages:</Strong> the emails we send you about your account, and your messages if you write to us.
 					</li>
 					<li>
+						<Strong>How you use FlockStack&apos;s own pages:</Strong> we use PostHog, our product analytics, to see page views, clicks and
+						actions, your device and browser, your approximate location and, when you are signed in, your user ID and email address.
+						{" "}{ANALYTICS_RULE} Retention: {ANALYTICS_RETENTION}
+					</li>
+					<li>
+						<Strong>The support assistant:</Strong> FlockStack&apos;s own assistant answers from our docs and from what you type to it. It runs
+						on Cloudflare Workers AI, which runs on Cloudflare&apos;s global network, so what you type may be processed outside your region.
+						Stored: {SUPPORT_CHAT_STORED}. How long: {SUPPORT_CHAT_RETENTION}
+					</li>
+					<li>
 						<Strong>Rate-limit counters:</Strong> to stop abuse, we count requests to sign-in, signup and similar forms by IP address. The
 						counters last minutes to a day and are cleaned up.
 					</li>
@@ -109,6 +122,20 @@ export default function PrivacyPage() {
 						buyer&apos;s email and name, the product, the amount and the download count.
 					</li>
 					<li>
+						<Strong>Comments:</Strong> if the creator turns comments on, a subscriber signs in to a newsletter&apos;s website with a link
+						emailed to them (no password) and a cookie keeps them signed in for that newsletter for 30 days. A comment is stored with a display
+						name that starts as the part of the email address before the @ and is never shown with the address, its text and its status, the
+						reason it was held, hidden or removed, and two keyed hashes: one of the IP address (to limit spam) and one of the text (to catch a
+						repeat). Reports of a comment, with the reason if given, are kept too. A reader gets an email when someone replies, and can turn
+						those off.
+					</li>
+					<li>
+						<Strong>Recommendations:</Strong> a newsletter can recommend others to its readers. Nothing is ticked beforehand. A reader&apos;s
+						email address reaches another newsletter only when that reader ticks it and subscribes, as a normal signup with that newsletter&apos;s
+						own confirmation email. That newsletter&apos;s owner then sees where the subscriber came from. Pages that showed a recommendation
+						are counted without personal data.
+					</li>
+					<li>
 						<Strong>Web pages:</Strong> a newsletter&apos;s website counts a view per issue, browser and day, with no personal data.
 					</li>
 				</ul>
@@ -122,14 +149,18 @@ export default function PrivacyPage() {
 
 			<SectionLegal id="not-doing" title="What we don't do">
 				<ul>
-					<li>No advertising, no ad trackers and no selling or renting of personal data.</li>
+					<li>No advertising and no selling or renting of personal data.</li>
 					<li>
-						No sharing of one creator&apos;s subscribers with another creator or anyone else, apart from the hashed never-email list above and
-						the sub-processors we need to run the service.
+						No sharing of one creator&apos;s subscribers with another creator or anyone else, apart from the hashed never-email list above,
+						a reader ticking a recommendation, and the sub-processors we need to run the service.
 					</li>
 					<li>
-						We don&apos;t use subscribers&apos; data for anything but running the creator&apos;s newsletter. FlockStack&apos;s code sends your
-						content to no AI service. If you connect an AI assistant to your account, that is your choice, and its provider&apos;s terms apply.
+						We don&apos;t use subscribers&apos; data for anything but running the creator&apos;s newsletter, and we don&apos;t track readers
+						with analytics: PostHog is not loaded on newsletters&apos; pages or on the pages readers use.
+					</li>
+					<li>
+						FlockStack sends your newsletters and subscribers to no AI service. The one AI feature is the support assistant, which sees what you
+						type to it. If you connect your own AI assistant to your account, that is your choice, and its provider&apos;s terms apply.
 					</li>
 				</ul>
 			</SectionLegal>
@@ -142,14 +173,16 @@ export default function PrivacyPage() {
 					</li>
 					<li>
 						<Strong>Legitimate interests:</Strong> keeping the service secure and free of abuse (sign-in records, rate limits, the
-						never-email list, the record we keep of deleted accounts), and protecting the sending reputation every customer shares.
+						never-email list, the record we keep of deleted accounts), protecting the sending reputation every customer shares, and, on
+						flockstack.io, which has no banner, understanding how people use FlockStack&apos;s pages.
 					</li>
 					<li>
 						<Strong>Legal obligation:</Strong> records our billing provider and we must keep for tax and accounting.
 					</li>
 					<li>
-						<Strong>Consent:</Strong> where we ask for it, and you can withdraw it. For a creator&apos;s subscribers, the creator chooses the
-						basis (usually consent) and we process on their instructions.
+						<Strong>Consent:</Strong> where we ask for it, and you can withdraw it. On eu.flockstack.io, FlockStack&apos;s analytics runs only
+						after you accept it. For a creator&apos;s subscribers, the creator chooses the basis (usually consent) and we process on their
+						instructions.
 					</li>
 				</ul>
 			</SectionLegal>
@@ -174,7 +207,9 @@ export default function PrivacyPage() {
 					<li>
 						<Strong>Deleting a subscriber.</Strong> A creator deleting a contact removes the contact and its fields. For a subscriber who
 						unsubscribed, bounced or complained, a keyed hash of the address and the status are kept so the newsletter never emails them again.
-						The records of emails already sent to the address, and of its bounces and complaints, stay until the account is deleted.
+						The records of emails already sent to the address, and of its bounces and complaints, stay until the account is deleted. The
+						subscriber&apos;s comments stay, shown as written by &quot;Deleted reader&quot;, with the link to the person and the two
+						hashes removed; the text of a comment stays as it was written. The reports they made are deleted.
 					</li>
 					<li>
 						<Strong>Exports</Strong> are private files, deleted when their links expire after {EXPORT_LINK_DAYS} days.
@@ -208,10 +243,18 @@ export default function PrivacyPage() {
 			<SectionLegal id="transfers" title="Transfers outside your country">
 				<p>
 					Our services are run by companies based in the United States, and some data crosses borders however you choose: the code runs in the
-					Cloudflare data center closest to a visitor, emails travel to wherever the reader&apos;s mailbox is, and billing is one account for
-					both regions. When data goes to a country without the same protection as yours, we rely on legal safeguards with that service.{" "}
-					{TRANSFER_SAFEGUARDS}
+					Cloudflare data center closest to a visitor, emails travel to wherever the reader&apos;s mailbox is, billing is one account for both
+					regions, and the support assistant runs on Cloudflare&apos;s global network. When data goes to a country without the same protection as
+					yours, we rely on the safeguards in the provider&apos;s own data processing terms. This is what each one says on the page we link, no
+					more:
 				</p>
+				<ul>
+					{TRANSFER_SAFEGUARDS.map(({ name, text, source }) => (
+						<li key={name}>
+							<Strong>{name}.</Strong> {text} (<LinkInline href={source}>source</LinkInline>)
+						</li>
+					))}
+				</ul>
 			</SectionLegal>
 
 			<SectionLegal id="rights" title="Your rights">
@@ -232,7 +275,7 @@ export default function PrivacyPage() {
 			</SectionLegal>
 
 			<SectionLegal id="cookies" title="Cookies and local storage">
-				<p>FlockStack sets these, and nothing for advertising or analytics:</p>
+				<p>FlockStack itself sets these, all needed for the service:</p>
 				<ul>
 					<li>
 						<Strong>A session cookie</Strong> (<code>better-auth.session_token</code> in the United States, <code>flockstack-eu.session_token</code>{" "}
@@ -245,11 +288,21 @@ export default function PrivacyPage() {
 						<Strong><code>tz</code></Strong> and <Strong><code>newsletter</code></Strong>, for a year, in the dashboard: your time zone, and the newsletter
 						you have open.
 					</li>
+					<li>
+						<Strong><code>fs_reader_&lt;newsletter&gt;</code></Strong> and a marker, <Strong><code>fs_reader_&lt;newsletter&gt;_on</code></Strong>, for 30 days, on a
+						newsletter&apos;s website: they keep a subscriber signed in to comment on that newsletter, and only exist after the subscriber used a
+						sign-in link.
+					</li>
 				</ul>
 				<p>
+					<Strong>Analytics.</Strong> FlockStack&apos;s own pages load PostHog, which sets its own cookies or local storage to tell visits apart.
+					{" "}{ANALYTICS_RULE} Those cookies are not on this list because they are not needed for the service, and you can decline them on
+					eu.flockstack.io.
+				</p>
+				<p>
 					Your browser&apos;s own storage keeps your light or dark theme, and on a newsletter&apos;s website, whether you subscribed, whether
-					you snoozed the signup prompt, a referral code for 30 days and a marker that you viewed an issue today. None of it is sent as a
-					cookie. {SITE_EXTENSIONS_NOTE}
+					you snoozed the signup prompt, a referral code for 30 days, the newsletter that sent you there through a recommendation for 7 days, and a
+					marker that you viewed an issue today. None of it is sent as a cookie.
 				</p>
 			</SectionLegal>
 

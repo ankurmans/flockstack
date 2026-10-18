@@ -47,6 +47,7 @@ FlockStack Cloud's marketing site, analytics and support chat aren't part of the
 - The code is public: never commit secrets, keys, tokens or personal data (emails, phone numbers, addresses, customers' data), in code, tests, fixtures or commit messages. Tests use `example.com` and made-up values.
 - Write "FlockStack" in display text: copy, titles, emails, docs, comments. Lowercase in identifiers and machine names: `flockstack.io`, `FLOCKSTACK_CLOUD`, `LogoFlockstack`, package and file names.
 - Copy is plain and short, in sentence case: only the first word of a title or a button is capitalized.
+- Legal pages (`/terms`, `/privacy`, `/sub-processors`): what the company decides lives in `lib/legal.js`, and a value starting with `TODO:` is a placeholder (`node scripts/check-legal.mjs` lists them; `scripts/deploy-all.mjs` stops on them). A change to what the product stores, sends, shares or sets as a cookie changes the pages (`lib/subprocessors.js`, `lib/docs/regions.js`) in the same commit, and says only what the code does.
 - Regions: say "data stored in the EU" or "EU-deployable", never "EU-resident", until every subprocessor in `lib/docs/regions.js` is verified.
 
 ## Code style

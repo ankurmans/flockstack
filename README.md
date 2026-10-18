@@ -127,7 +127,7 @@ FlockStack Cloud's terms of service (`/terms`), privacy policy (`/privacy`) and 
 node scripts/check-legal.mjs
 ```
 
-which lists the placeholders still left and exits 1 until there are none. It is not part of `scripts/deploy-all.mjs`, so a deploy never waits for it: run it yourself. When the product changes what it stores, sends or shares (a new service, a new kind of data, a new cookie), change `lib/subprocessors.js` and the pages with it.
+which lists the placeholders still left and exits 1 until there are none. `scripts/deploy-all.mjs` runs it first and stops while any are left (`--allow-legal-todos` goes on anyway). `SERVICES_LIVE_CONFIRMED` is the gate for what the pages describe before it exists (Google sign-in, PostHog with the EU consent banner, the support assistant): the owner sets it once they are live. When the product changes what it stores, sends or shares (a new service, a new kind of data, a new cookie), change `lib/subprocessors.js` and the pages with it.
 
 ## Self-hosting
 

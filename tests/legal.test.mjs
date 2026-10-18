@@ -73,15 +73,17 @@ describe("the legal pages", () => {
 
 	test("read the company's choices from lib/legal.js and have no placeholders of their own", async () => {
 		const terms = textOf(renderPage("terms"));
-		for (const value of [m.legal.OPERATOR_DESCRIPTION, m.legal.GOVERNING_LAW, m.legal.LIABILITY_CAP, m.legal.TERMS_CHANGE_NOTICE, m.legal.MINIMUM_AGE, m.legal.TAX_NOTE]) {
+		for (const value of [m.legal.OPERATOR_DESCRIPTION, m.legal.GOVERNING_LAW, m.legal.LIABILITY_CAP, m.legal.TERMS_CHANGE_NOTICE, String(m.legal.MINIMUM_AGE), m.legal.TAX_NOTE]) {
 			assert.ok(terms.includes(value), value);
 		}
 		assert.ok(terms.includes(`${m.legal.PRICE_INCREASE_NOTICE_DAYS} days`));
 		assert.ok(terms.includes(`within ${m.legal.YEARLY_REFUND_DAYS} days of buying`));
 		const privacy = textOf(renderPage("privacy"));
-		for (const value of [m.legal.PRIVACY_EMAIL, m.legal.LOG_RETENTION, m.legal.BACKUP_RETENTION, m.legal.PRIVACY_REQUEST_RESPONSE, m.legal.TRANSFER_SAFEGUARDS, m.legal.SITE_EXTENSIONS_NOTE]) {
+		for (const value of [m.legal.PRIVACY_EMAIL, m.legal.LOG_RETENTION, m.legal.BACKUP_RETENTION, m.legal.PRIVACY_REQUEST_RESPONSE, m.legal.ANALYTICS_RULE, m.legal.ANALYTICS_RETENTION, m.legal.SUPPORT_CHAT_STORED, m.legal.SUPPORT_CHAT_RETENTION, m.legal.TERMS_CHANGE_NOTICE]) {
 			assert.ok(privacy.includes(value), value);
 		}
+		for (const { name, text, source } of m.legal.TRANSFER_SAFEGUARDS) assert.ok(privacy.includes(text) && privacy.includes(name), name);
+		assert.ok(!privacy.includes(m.legal.SERVICES_LIVE_CONFIRMED), "the publish gate is not page text");
 		const processors = textOf(renderPage("sub-processors"));
 		for (const value of [m.legal.PRIVACY_EMAIL, m.legal.OPTIONAL_SERVICES_IN_USE, m.legal.SUBPROCESSOR_CHANGE_NOTICE]) assert.ok(processors.includes(value), value);
 
@@ -99,6 +101,50 @@ describe("the legal pages", () => {
 		assert.equal(m.legal.YEARLY_REFUND_DAYS, 30);
 		assert.equal(m.legal.PRICE_INCREASE_NOTICE_DAYS, 90);
 		assert.equal(m.legal.OPERATOR_DESCRIPTION, "KMF Ventures LLC, a Wyoming limited liability company");
+		assert.equal(m.legal.MINIMUM_AGE, 16);
+		assert.equal(m.legal.CHANGE_NOTICE_DAYS, 30);
+		assert.match(m.legal.TERMS_CHANGE_NOTICE, /at least 30 days/);
+		assert.match(m.legal.SUBPROCESSOR_CHANGE_NOTICE, /at least 30 days/);
+		assert.match(m.legal.TAX_NOTE, /Polar is the merchant of record/);
+		assert.match(m.legal.TAX_NOTE, /you are responsible for the tax on what you sell/);
+		assert.match(m.legal.PRIVACY_REQUEST_RESPONSE, /within 30 days/);
+		assert.match(m.legal.LOG_RETENTION, /7 days/);
+		assert.match(m.legal.BACKUP_RETENTION, /30 days/);
+	});
+
+	test("every provider with a transfer safeguard is a sub-processor, and each safeguard names its source", () => {
+		const names = [...m.subprocessors.SUBPROCESSORS, ...m.subprocessors.OPTIONAL_SUBPROCESSORS].map(({ name }) => name).join(" | ");
+		for (const { name, text, source } of m.legal.TRANSFER_SAFEGUARDS) {
+			assert.ok(names.includes(name === "Amazon Web Services" ? "Amazon SES" : name), name);
+			assert.match(source, /^https:\/\//, name);
+			assert.ok(text.length > 40, name);
+			assert.doesNotMatch(text, /^TODO/);
+		}
+		assert.deepEqual(m.legal.TRANSFER_SAFEGUARDS.map(({ name }) => name), ["Cloudflare", "Amazon Web Services", "Upstash", "Polar", "Stripe", "PostHog", "Google"]);
+	});
+
+	test("the pages describe the analytics, the support assistant and Google sign-in as they will be live", () => {
+		const privacy = textOf(renderPage("privacy"));
+		const processors = textOf(renderPage("sub-processors"));
+		for (const phrase of [
+			"PostHog",
+			"never on a newsletter's public pages or on the pages readers use",
+			"for visitors to eu.flockstack.io it runs only after they accept",
+			"user ID and email address",
+			"Cloudflare Workers AI",
+			"may be processed outside your region",
+			"fs_reader_<newsletter>",
+			"Recommendations:",
+			"Comments:",
+			"Deleted reader",
+		]) {
+			assert.ok(privacy.includes(phrase), phrase);
+		}
+		assert.doesNotMatch(privacy, /nothing for advertising or analytics/);
+		for (const phrase of ["PostHog US Cloud", "PostHog EU Cloud", "runs only after the visitor accepts", "Workers AI runs on Cloudflare's global network", "Google (sign-in)", "Google receives the sign-in request and the person's choice to sign in", m.legal.OPTIONAL_SERVICES_IN_USE]) {
+			assert.ok(processors.includes(phrase), phrase);
+		}
+		assert.doesNotMatch(processors + privacy, /EU-only|only in the EU/i);
 	});
 
 	test("the terms give the limits the code uses, the refund rules and the promises", () => {
@@ -138,7 +184,6 @@ describe("the legal pages", () => {
 			"flockstack-eu.session_token",
 			"region",
 			"tz",
-			"nothing for advertising or analytics",
 			"Data stored in the EU is the most we say",
 		]) {
 			assert.ok(text.includes(phrase), phrase);
@@ -149,7 +194,7 @@ describe("the legal pages", () => {
 	test("the sub-processors table lists every service with its regions, optional ones apart", () => {
 		const text = textOf(renderPage("sub-processors"));
 		const names = [...m.subprocessors.SUBPROCESSORS, ...m.subprocessors.OPTIONAL_SUBPROCESSORS].map(({ name }) => name);
-		assert.deepEqual(names, ["Cloudflare", "Amazon SES (Amazon Web Services)", "Upstash QStash", "Polar", "Stripe", "Google", "Telegram", "Upstash Redis", "Vercel"]);
+		assert.deepEqual(names, ["Cloudflare", "Amazon SES (Amazon Web Services)", "Upstash QStash", "Polar", "Stripe", "PostHog", "Google (sign-in)", "Google Postmaster Tools", "Telegram", "Upstash Redis", "Vercel"]);
 		for (const { name, purpose, us, eu, link } of [...m.subprocessors.SUBPROCESSORS, ...m.subprocessors.OPTIONAL_SUBPROCESSORS]) {
 			assert.ok(text.includes(name) && text.includes(purpose) && text.includes(us) && text.includes(eu), name);
 			assert.match(link, /^https:\/\//, name);
@@ -183,9 +228,11 @@ describe("lib/legal.js and the check", () => {
 		assert.ok(todos.some(([name]) => name === "EFFECTIVE_DATE") || todos.length === 0);
 	});
 
-	test("the owner's answered questions are no longer placeholders", () => {
+	test("the owner's answered questions are no longer placeholders, and what is open is exactly this", () => {
 		const names = m.legal.getLegalTodos().map(([name]) => name);
-		for (const name of ["GOVERNING_LAW", "OPERATOR_DESCRIPTION", "PRIVACY_EMAIL"]) assert.ok(!names.includes(name), name);
+		for (const name of ["GOVERNING_LAW", "OPERATOR_DESCRIPTION", "PRIVACY_EMAIL", "TERMS_CHANGE_NOTICE", "MINIMUM_AGE", "TAX_NOTE", "PRIVACY_REQUEST_RESPONSE", "LOG_RETENTION", "BACKUP_RETENTION", "SUBPROCESSOR_CHANGE_NOTICE", "OPTIONAL_SERVICES_IN_USE", "LIABILITY_CAP"]) assert.ok(!names.includes(name), name);
+		// Not asserting equality once the owner fills them: each is a placeholder or has been filled in.
+		for (const name of ["EFFECTIVE_DATE", "SUPPORT_CHAT_STORED", "SUPPORT_CHAT_RETENTION", "ANALYTICS_RETENTION", "SERVICES_LIVE_CONFIRMED"]) assert.ok(name in m.legal, name);
 		assert.ok(!("OPERATOR_ADDRESS" in m.legal));
 		assert.ok(!("EU_REPRESENTATIVE" in m.legal) && !("DPO_CONTACT" in m.legal));
 	});

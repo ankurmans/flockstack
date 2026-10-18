@@ -52,7 +52,7 @@ export default function TermsPage() {
 
 			<SectionLegal id="accounts" title="Your account">
 				<p>
-					You sign in with a code we email you, with a passkey, or with Google where it is offered. Use an inbox you control. We allow one
+					You sign in with a code we email you, with a passkey, or with Google. Use an inbox you control. We allow one
 					account for each inbox, and we don&apos;t accept throwaway inboxes. You must be at least {MINIMUM_AGE}.
 				</p>
 				<p>
@@ -166,6 +166,10 @@ export default function TermsPage() {
 				<p>
 					Your newsletters, issues, images, lists and settings are yours. You give us the right to store, process, send and display them as
 					needed to run the service for you, and nothing more. We don&apos;t use them for advertising and we don&apos;t sell them.
+				</p>
+				<p>
+					If you turn on comments on your newsletter&apos;s website, they are your site&apos;s: you decide what stays, and whatever you hold, hide or
+					remove has a reason its author reads.
 				</p>
 				<p>
 					You are the controller of your subscribers&apos; personal data, and FlockStack is your processor: we handle it on your behalf and on
