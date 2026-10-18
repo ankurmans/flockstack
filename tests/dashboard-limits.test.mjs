@@ -63,14 +63,17 @@ test("the dashboard counts the hourly limits of what costs something each call",
 			"check_domain",
 			"check_newsletter_slug",
 			"export_account_data",
+			"connect_payments",
 			"import_contacts",
 			"open_billing_portal",
+			"resend_order_email",
 			"resume_campaign",
 			"schedule_campaign",
 			"send_campaign",
 			"send_campaign_to_more",
 			"send_test_email",
 			"send_welcome_test_email",
+			"set_product_file",
 			"upload_image",
 		]
 	);
@@ -79,7 +82,7 @@ test("the dashboard counts the hourly limits of what costs something each call",
 			.filter(({ limitDashboard }) => !limitDashboard)
 			.map(({ name }) => name)
 			.sort(),
-		["create_api_key", "create_campaign", "delete_contact", "duplicate_campaign", "export_contacts", "preview_campaign_cleanup"],
+		["create_api_key", "create_campaign", "create_product", "delete_contact", "duplicate_campaign", "export_contacts", "preview_campaign_cleanup"],
 		"drafts, keys, deletes, exports and counts stay inside FlockStack"
 	);
 	const imports = m.registry.getAction("import_contacts");

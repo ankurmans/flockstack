@@ -112,6 +112,19 @@ const accountSchema = new mongoose.Schema(
 			until: { type: Date },
 			by: { type: String, trim: true },
 		},
+		// Where the creator's sales are paid (lib/payments): on FlockStack Cloud their own Stripe account, connected through
+		// Stripe Connect (Standard). The flags are what Stripe last said (account.updated, or a status check); a self-hosted
+		// server charges with its own key and has none of this.
+		payments: {
+			stripeAccountId: { type: String },
+			chargesEnabled: { type: Boolean },
+			payoutsEnabled: { type: Boolean },
+			detailsSubmitted: { type: Boolean },
+			country: { type: String },
+			connectedAt: { type: Date },
+			checkedAt: { type: Date },
+			deauthorizedAt: { type: Date },
+		},
 		// The owner deleted the account (lib/account-deletion.js): it stopped at once, and its data goes for good at
 		// purgeAt unless they sign in and restore it before. Once the purge has started, it can't be restored.
 		deletion: {
@@ -130,6 +143,7 @@ accountSchema.index(
 accountSchema.index({ stripeSubscriptionId: 1 }, { partialFilterExpression: { stripeSubscriptionId: { $type: "string" } } });
 accountSchema.index({ polarCustomerId: 1 }, { unique: true, partialFilterExpression: { polarCustomerId: { $type: "string" } } });
 accountSchema.index({ polarSubscriptionId: 1 }, { partialFilterExpression: { polarSubscriptionId: { $type: "string" } } });
+accountSchema.index({ "payments.stripeAccountId": 1 }, { unique: true, partialFilterExpression: { "payments.stripeAccountId": { $type: "string" } } });
 accountSchema.index({ createdAt: -1 });
 accountSchema.index({ "ses.tenantName": 1 }, { unique: true, partialFilterExpression: { "ses.tenantName": { $type: "string" } } });
 accountSchema.index({ "postshiba.tenantSlug": 1 }, { unique: true, partialFilterExpression: { "postshiba.tenantSlug": { $type: "string" } } });

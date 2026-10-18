@@ -35,6 +35,7 @@ import { formatCount, formatDate, formatNumber, formatRate } from "@/lib/format"
 import { rateTone } from "@/lib/health";
 import { PROVIDER_DOMAINS, PROVIDER_LABELS } from "@/lib/providers";
 import { UNSUBSCRIBE_PLACEHOLDER, renderEmail, withResponsiveImages } from "@/lib/render-email";
+import { getAudienceLabel } from "@/lib/tiers";
 
 export default function CampaignReport({
 	campaign,
@@ -66,7 +67,12 @@ export default function CampaignReport({
 				title={campaign.subject || "Untitled"}
 				backHref="/campaigns"
 				icon={<AvatarNewsletter newsletter={newsletter} size={28} />}
-				meta={<BadgeStatus status={campaign.status} />}
+				meta={
+					<>
+						<BadgeStatus status={campaign.status} />
+						{campaign.audience && campaign.audience !== "all" && <BadgeStatus status="audience" label={getAudienceLabel(campaign.audience)} />}
+					</>
+				}
 			>
 				{campaign.status === "sent" && remainingCount > 0 && isSendingEnabled() && !isBlocked && (
 					<GatePlan reason="send">

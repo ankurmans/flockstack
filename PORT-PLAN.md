@@ -20,7 +20,7 @@ How lib/docdb works: one table per collection (`c_<name>`: `_id`, `accountId`, `
 
 ## Status
 
-- Test suite: 782 tests, all passing on SQLite (`node scripts/test-all.mjs <logdir>`).
+- Test suite: 943 tests, all passing on SQLite (`node scripts/test-all.mjs <logdir>`).
 - `opennextjs-cloudflare build` works (needs network for next/font; behind a proxy set `NODE_USE_ENV_PROXY=1`).
 - Worker runs under `wrangler dev` on local D1/R2 and serves pages.
 - Provisioned in the KMF Ventures account: D1 `flockstack` (97615845-8aa2-413f-ad98-89821937069f, migration applied), R2 bucket `flockstack-images`.
@@ -33,6 +33,18 @@ Branch `feat/growth`, migration `0006_growth.sql`.
 - **Export**: `export_account_data` / `get_account_export`, allowed while blocked, paused or without a plan. Background steps (`app/api/jobs/export-account`, `lib/account-export.js`) of at most ~20 s each write every file to the private R2 bucket `EXPORTS` and chain through QStash; `AccountExport` holds the cursor, `ExportFile` one document per file with its size and CRC-32. The download (`app/api/v1/account/export.zip`) streams a stored ZIP built on the fly from those objects (`lib/zip.js`), split into several ZIPs past 3.5 GB or 60,000 files. Links are signed and last 7 days; the hourly cron deletes expired exports. Images are fetched from the account's own uploads only.
 - **Referrals**: `Newsletter.referral`, `Contact.referral`, `Referral`, `ReferralReward`; code = contact ID + signature (nothing stored). A signup through `?ref=` is pending until the new contact confirms (`lib/referrals.js`); needs confirmed opt-in and the website. Reward emails are `Message` kind `referral`, through `sendMessageBatch` like welcome emails (suppression, plan accounting, unsubscribe link).
 - Not done: referral credit for newsletters without confirmed opt-in, a referral leaderboard page for subscribers, paid-tier aware feeds (the filter is there), ZIP64.
+
+## Selling (branch feat/commerce)
+
+Products, orders and paid subscriptions, paid to the creator's own Stripe account with no application fee (the 0% platform fee is a product decision; `lib/payments/stripe-api.js` refuses any `application_fee*` parameter).
+
+- `lib/payments/`: `config.js` (mode: connect on Cloud with Stripe Connect Standard accounts and direct charges, direct on a self-hosted server with its own key), `stripe-api.js` (fetch against Stripe's REST API, Workers-safe), `signature.js` (WebCrypto webhook check), `connect.js` (onboarding link, status), `checkout.js`, `orders.js` (fulfillment, refunds, chargebacks), `subscriptions.js` (tier sync), `events.js` (account resolution, once-per-event ids in `PaymentEvent`). Route: `app/api/webhooks/payments`.
+- Files are in a private R2 bucket (`FILES`, `lib/private-files.js`) and leave it only through `app/api/shop/download` behind a signed, expiring link (`lib/download-link.js`); a refund or dispute revokes it.
+- Contacts have `tier` and `paidUntil`; campaigns have `audience` (all, free, paid). The audience query (`lib/audience.js`, `lib/tiers.js`) feeds the existing send pipeline, so warm-up, first-send steps, plan limits, the list cleanup (paid readers are exempt) and suppression apply as before. Paid issues are a teaser on the archive (`lib/paywall.js`).
+- Order emails go through `sendTransactionalEmail` (`lib/sending.js`): the newsletter's own sender and the account's tenant, no unsubscribe link, still blocked for a blocked account or a bounced address.
+- D1: `migrations/0004_commerce.sql`.
+
+Left out for now: file uploads over 15 MB (they pass through the Worker's memory; a direct-to-R2 upload would lift it), tax and VAT (Stripe Tax is not turned on), coupons beyond Stripe's promotion codes, bundles and variants, a reader-facing order history, pruning old `PaymentEvent` rows.
 
 ## Still to do
 

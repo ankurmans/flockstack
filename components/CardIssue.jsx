@@ -1,6 +1,7 @@
 import Image from "next/image";
 import BadgeDate from "@/components/BadgeDate";
 import BadgeViews from "@/components/BadgeViews";
+import { Badge } from "@/components/ui/badge";
 import { getIssueDate } from "@/lib/archive-issues";
 import { getShareCardUrl } from "@/lib/archive-seo";
 import { isOptimizableImage } from "@/lib/thumbnail";
@@ -73,6 +74,7 @@ function MetaIssue({ issue }) {
 		<p className="flex items-center gap-3 text-sm text-muted-foreground tabular-nums">
 			{date && <BadgeDate date={date} />}
 			{views > 0 && <BadgeViews views={views} isCompact />}
+			{issue.audience === "paid" && <Badge variant="secondary">Paid</Badge>}
 		</p>
 	);
 }

@@ -214,3 +214,12 @@ describe("the feed route", () => {
 		assert.match(rewritten.headers.get("x-middleware-rewrite"), /\/archive\/weekly\/feed$/);
 	});
 });
+
+test("an issue for paid readers never appears in the feed", () => {
+	const free = issue({ subject: "Free issue", archiveSlug: "free-issue", _id: "6650f1c2e9b1d4a012345679" });
+	const paid = issue({ subject: "Paid issue", archiveSlug: "paid-issue", audience: "paid", html: "<p>Members only secret</p>" });
+	assert.equal(isFreeIssue(paid), false);
+	const { xml } = buildFeed({ newsletter, issues: [free, paid] });
+	assert.match(xml, /Free issue/);
+	assert.doesNotMatch(xml, /Paid issue|Members only secret/);
+});

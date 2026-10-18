@@ -1,5 +1,6 @@
 import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
+import { AUDIENCES } from "../lib/tiers.js";
 
 export const CAMPAIGN_STATUSES = ["draft", "scheduled", "sending", "paused", "sent", "canceled"];
 
@@ -22,6 +23,9 @@ const campaignSchema = new mongoose.Schema(
 		// Its owner resumed it from a pause for its bounce or complaint rates: from then on, only the block level
 		// stops it (lib/rate-levels.js).
 		ratesAcceptedAt: { type: Date },
+		// Who the issue is for: every active contact, only free readers, or only paid readers (lib/tiers.js). A paid issue
+		// shows a teaser on the web archive; its full text is only in the email.
+		audience: { type: String, enum: AUDIENCES, default: "all" },
 		// Warm-up: send to the most engaged contacts first, capped at audienceLimit.
 		audienceLimit: { type: Number, min: 1 },
 		// Contacts never mailed before go out in steps: a first slice, a check, then the rest (lib/first-send.js), over

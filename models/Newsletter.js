@@ -65,6 +65,17 @@ const newsletterSchema = new mongoose.Schema(
 				},
 			],
 		},
+		// The paid tier (lib/payments/subscriptions.js): readers subscribe through Stripe Checkout on the creator's own Stripe
+		// account. Prices are in cents of `currency`; a price of 0 means that interval isn't offered. Set by set_paid_tier,
+		// never by the settings form.
+		paidTier: {
+			enabled: { type: Boolean, default: false },
+			currency: { type: String, lowercase: true, trim: true },
+			monthlyCents: { type: Number, min: 0 },
+			yearlyCents: { type: Number, min: 0 },
+			trialDays: { type: Number, min: 0 },
+			pitch: { type: String, trim: true },
+		},
 		// The newsletter's own confirmation email; the built-in one goes out until it has one.
 		confirmation: {
 			subject: { type: String, trim: true },

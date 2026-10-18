@@ -1,5 +1,5 @@
 import { getArchiveAuthor } from "@/lib/archive-author";
-import { getArchiveNewsletter, listArchiveIssues } from "@/lib/archive-data";
+import { getArchiveNewsletter, getShopPayments, listArchiveIssues, listShopProducts } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getIssueDate } from "@/lib/archive-issues";
 
@@ -19,14 +19,16 @@ export async function GET(_request, { params }) {
 	if (!newsletter) return new Response("Not found", { status: 404 });
 
 	const urls = getArchiveUrls(newsletter);
-	const issues = await listArchiveIssues(newsletter);
+	const [issues, products, payments] = await Promise.all([listArchiveIssues(newsletter), listShopProducts(newsletter), getShopPayments(newsletter)]);
 	const latestDate = getIssueDate(issues[0]);
+	const shopped = payments.ready ? products : [];
 	const xml = [
 		'<?xml version="1.0" encoding="UTF-8"?>',
 		'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
 		entry(urls.siteIndex, latestDate),
 		entry(urls.absoluteAuthor(getArchiveAuthor(newsletter).slug), latestDate),
 		...issues.map((issue) => entry(urls.absolutePost(issue.archiveSlug), getIssueDate(issue))),
+		...(shopped.length > 0 ? [entry(urls.absoluteShop), ...shopped.map((product) => entry(urls.absoluteProduct(product.slug)))] : []),
 		"</urlset>",
 	].join("\n");
 

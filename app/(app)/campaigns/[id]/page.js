@@ -14,6 +14,7 @@ import { getPace } from "@/lib/send-spread";
 import { serialize } from "@/lib/serialize";
 import { loadSender } from "@/lib/sender";
 import { siteExtensions } from "@/lib/site-extensions";
+import { audienceTierFilter } from "@/lib/tiers";
 import { countEmailsInFlight, getUsage } from "@/lib/usage";
 import Campaign from "@/models/Campaign";
 import Contact from "@/models/Contact";
@@ -58,8 +59,9 @@ export default async function CampaignPage({ params }) {
 		);
 	}
 
-	const [audienceCount, sender, sendTimes, volumes, newContacts] = await Promise.all([
+	const [audienceCount, paidCount, sender, sendTimes, volumes, newContacts] = await Promise.all([
 		Contact.countDocuments(scoped(account, { newsletterId: newsletter._id, status: "active" })),
+		Contact.countDocuments(scoped(account, { newsletterId: newsletter._id, status: "active", ...audienceTierFilter("paid") })),
 		loadSender(account, newsletter),
 		getSendTimes(campaign),
 		getSendVolumes(account),
@@ -71,6 +73,7 @@ export default async function CampaignPage({ params }) {
 			campaign={serialize(campaign)}
 			newsletter={serialize(newsletter)}
 			audienceCount={audienceCount}
+			paidCount={paidCount}
 			senderProblem={sender.problem ?? null}
 			isSendingEnabled={isSendingEnabled()}
 			testEmail={user.email}

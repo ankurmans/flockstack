@@ -32,7 +32,7 @@ function installFetch() {
 			if (!stripeHandler) throw new Error(`Unexpected Stripe request: ${init.method ?? "GET"} ${url}`);
 			const { pathname, searchParams } = new URL(url);
 			const body = new URLSearchParams(typeof init.body === "string" ? init.body : "");
-			const result = await stripeHandler({ method: init.method ?? "GET", path: pathname, query: searchParams, body });
+			const result = await stripeHandler({ method: init.method ?? "GET", path: pathname, query: searchParams, body, headers: new Headers(init.headers) });
 			return Response.json(result?.error ? { error: result.error } : result, {
 				status: result?.error ? (result.status ?? 400) : 200,
 				headers: { "request-id": "req_test" },
