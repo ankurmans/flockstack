@@ -1,11 +1,13 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "flockstack",
-	"main": ".open-next/worker.js",
+	"main": "worker-entry.mjs",
 	"compatibility_date": "2026-09-01",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
 	"assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
 	"workers_dev": true,
+	// Hourly: PostShiba status, Telegram, expired exports, comment digests. Daily: Gmail spam rates (worker-entry.mjs).
+	"triggers": { "crons": ["0 * * * *", "30 6 * * *"] },
 	"preview_urls": false,
 	"observability": { "enabled": true },
 	"routes": [
@@ -31,7 +33,7 @@
 	"env": {
 		"eu": {
 			"name": "flockstack-eu",
-			"main": ".open-next/worker.js",
+			"main": "worker-entry.mjs",
 			"compatibility_date": "2026-09-01",
 			"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
 			"assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
@@ -40,6 +42,7 @@
 			"preview_urls": false,
 			"observability": { "enabled": true },
 			"routes": [{ "pattern": "eu.flockstack.io", "custom_domain": true }],
+			"triggers": { "crons": ["0 * * * *", "30 6 * * *"] },
 			"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
 			"d1_databases": [{ "binding": "DB", "database_name": "flockstack-eu", "database_id": "3ffda07e-c73f-46ee-a933-1eb4feb18f70", "migrations_dir": "migrations" }],
 			"r2_buckets": [
