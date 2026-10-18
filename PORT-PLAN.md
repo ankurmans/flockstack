@@ -91,6 +91,16 @@ Comments on the web issues, with readers who prove they subscribe by email inste
 - **Data.** `comments/<slug>.csv` in the export (newsletters with comments only); purged with the account; deleting a contact leaves their comments as "Deleted reader" with the link to them gone (`anonymizeComments`).
 - **Not done.** The owner replying as the newsletter (a creator who is also a subscriber can comment as a reader), @mentions, reactions and likes (left out on purpose), comments on a paid-only issue for paid readers (its web page is a teaser, so there is nowhere to put them), notifications when a held comment is approved, email-only replies, a public reader profile page, pagination past the latest 100 comments on a page.
 
+## Product analytics (branch feat/posthog)
+
+PostHog on FlockStack's own pages, FlockStack Cloud only (README, Product analytics). One project on PostHog US Cloud serves flockstack.io and eu.flockstack.io; `POSTHOG_KEY` (runtime env, per Worker), `POSTHOG_HOST` and `POSTHOG_SESSION_REPLAY` configure it, and with no key nothing loads.
+
+- **Where.** `SiteAnalytics` (site extension) is rendered by a `layout.js` in each of `app/(site)/{home,docs,privacy,terms,sub-processors}`, `app/signin`, `app/welcome` and `components/LayoutDashboard.jsx`. Not by `app/(site)/layout.js`, which also holds the recommendations directory readers use, and no longer by `app/admin` or the OAuth consent page. `tests/analytics-routes.test.mjs` scans the routes.
+- **Rules.** `lib/marketing/analytics-consent.js`: EU/EEA/UK/Switzerland and the EU deployment accept first, everyone else is on by default, GPC and DNT mean none and no banner, the choice is the `fs_consent` cookie, a decline deletes `ph_*`. The banner is `components/marketing/BannerConsent.jsx`; "Cookie settings" is `FooterCookies` in the footer and on the sign-in page.
+- **Privacy.** `lib/marketing/analytics-privacy.js` fixes the events and property names and scrubs what PostHog collects itself (query strings, and on the dashboard all text and titles).
+- **Steps.** Client code reports with `reportGoal` (`lib/goals.js`); the server leaves `fs_goal` through `siteExtensions.sendGoalOnNextPage`. Never a call to PostHog from the server.
+- **Not done.** Delivery to the real PostHog project, checked there; the retention (`ANALYTICS_RETENTION`); a "Cookie settings" entry inside the dashboard (the link is in the footer of the public pages and on sign-in); PostHog feature flags and experiments (off).
+
 ## Still to do
 
 Done since the first deploy: passkey login, cloud mode with SES-only platform email, Polar billing next to Stripe (needs the owner's Polar token, products and webhook), the landing page at `/` for signed-out visitors, database-backed rate limits, R2 images at img.flockstack.io, the gull-stack logo, README and AGENTS.md for the new setup.
@@ -99,7 +109,7 @@ Done since the first deploy: passkey login, cloud mode with SES-only platform em
 1. Polar: create the org token, run `scripts/polar-setup.mjs`, add the webhook, set `POLAR_ACCESS_TOKEN` / `POLAR_WEBHOOK_SECRET` (see README, billing).
 2. SES stays on the owner's existing AWS account (decided, shared with other products). Each customer is its own SES tenant with its own suppression list, and the app pauses senders on bounce and complaint rates, which limits the blast radius; revisit if a customer ever hurts the account's reputation.
 3. Push the fork to a public repository (AGPL), then point `SOURCE_URL` in `lib/site.js` at it and add a source link to the site footer.
-4. Terms, Privacy and Sub-processors pages are written (`/terms`, `/privacy`, `/sub-processors`, `lib/legal.js`). Not legal advice: have them checked. Still open in `lib/legal.js` (`node scripts/check-legal.mjs`): the effective date, what the support assistant stores and for how long, how long PostHog keeps events, and `SERVICES_LIVE_CONFIRMED`, which the owner sets once Google sign-in, PostHog with the EU consent banner and the support assistant are live. Update the pages whenever the product changes what it stores or shares.
+4. Terms, Privacy and Sub-processors pages are written (`/terms`, `/privacy`, `/sub-processors`, `lib/legal.js`). Not legal advice: have them checked. Still open in `lib/legal.js` (`node scripts/check-legal.mjs`): the effective date, what the support assistant stores and for how long, how long PostHog keeps events (`ANALYTICS_RETENTION`), and `SERVICES_LIVE_CONFIRMED`, which the owner sets once Google sign-in, PostHog with the consent banner (built, set `POSTHOG_KEY`) and the support assistant are live. Update the pages whenever the product changes what it stores or shares.
 5. Bulk updates (large imports, status changes) read and write each row separately: fine for small lists, make them single statements before big ones. Archive old Event rows (D1 is 10 GB per database).
 6. wrangler.jsonc holds the owner's account and database ids and domains: move them out before publishing a reusable template.
 

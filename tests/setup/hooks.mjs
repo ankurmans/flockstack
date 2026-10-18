@@ -31,9 +31,12 @@ const STUBS = {
 	"@/lib/remote-image": stub("remote-image.mjs"),
 };
 
-// FlockStack Cloud's marketing site extends the shared pages through this module where its file exists, as in
-// next.config.mjs. The open source has none, so the default stays.
-const SITE_EXTENSIONS = { "@/lib/site-extensions": "lib/marketing/site-extensions.js" };
+// FlockStack Cloud's marketing site extends the shared pages through these modules where their files exist, as in
+// next.config.mjs. The open source has none, so the defaults stay.
+const SITE_EXTENSIONS = {
+	"@/lib/site-extensions": "lib/marketing/site-extensions.js",
+	"@/components/SiteExtensions": "components/marketing/SiteExtensions.jsx",
+};
 
 const EXTENSIONS = ["", ".js", ".jsx", ".mjs", "/index.js"];
 

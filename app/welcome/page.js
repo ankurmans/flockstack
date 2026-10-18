@@ -27,7 +27,7 @@ export default async function WelcomePage() {
 					<SupportChat user={user} account={account} />
 				</Suspense>
 			)}
-			{SiteAnalytics && <SiteAnalytics goal="onboarding_started" />}
+			{SiteAnalytics && <SiteAnalytics user={user} account={account} />}
 		</>
 	);
 }

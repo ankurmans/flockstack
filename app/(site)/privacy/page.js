@@ -81,7 +81,7 @@ export default function PrivacyPage() {
 					</li>
 					<li>
 						<Strong>How you use FlockStack&apos;s own pages:</Strong> we use PostHog, our product analytics, to see page views, clicks and
-						actions, your device and browser, your approximate location and, when you are signed in, your user ID and email address.
+						actions, your device and browser, your approximate location and, when you are signed in, your user ID, email address and plan.
 						{" "}{ANALYTICS_RULE} Retention: {ANALYTICS_RETENTION}
 					</li>
 					<li>
@@ -174,14 +174,15 @@ export default function PrivacyPage() {
 					<li>
 						<Strong>Legitimate interests:</Strong> keeping the service secure and free of abuse (sign-in records, rate limits, the
 						never-email list, the record we keep of deleted accounts), protecting the sending reputation every customer shares, and, on
-						flockstack.io, which has no banner, understanding how people use FlockStack&apos;s pages.
+						visitors outside the EU, the EEA, the UK and Switzerland, who see no banner and can switch it off in Cookie settings, understanding how people
+						use FlockStack&apos;s pages.
 					</li>
 					<li>
 						<Strong>Legal obligation:</Strong> records our billing provider and we must keep for tax and accounting.
 					</li>
 					<li>
-						<Strong>Consent:</Strong> where we ask for it, and you can withdraw it. On eu.flockstack.io, FlockStack&apos;s analytics runs only
-						after you accept it. For a creator&apos;s subscribers, the creator chooses the basis (usually consent) and we process on their
+						<Strong>Consent:</Strong> where we ask for it, and you can withdraw it. On eu.flockstack.io and for visitors in the EU, the EEA, the UK
+						and Switzerland, FlockStack&apos;s analytics runs only after you accept it. For a creator&apos;s subscribers, the creator chooses the basis (usually consent) and we process on their
 						instructions.
 					</li>
 				</ul>
@@ -285,6 +286,9 @@ export default function PrivacyPage() {
 						<Strong><code>region</code></Strong>, for a year: the region you picked on the home page or sign-in page.
 					</li>
 					<li>
+						<Strong><code>fs_consent</code></Strong>, for a year: whether you accepted or declined analytics, so we don&apos;t ask again.
+					</li>
+					<li>
 						<Strong><code>tz</code></Strong> and <Strong><code>newsletter</code></Strong>, for a year, in the dashboard: your time zone, and the newsletter
 						you have open.
 					</li>
@@ -295,9 +299,12 @@ export default function PrivacyPage() {
 					</li>
 				</ul>
 				<p>
-					<Strong>Analytics.</Strong> FlockStack&apos;s own pages load PostHog, which sets its own cookies or local storage to tell visits apart.
-					{" "}{ANALYTICS_RULE} Those cookies are not on this list because they are not needed for the service, and you can decline them on
-					eu.flockstack.io.
+					<Strong>Analytics.</Strong> FlockStack&apos;s own pages load PostHog, which sets its own cookies or local storage (their names start with{" "}
+					<code>ph_</code>) to tell visits apart. {ANALYTICS_RULE} Those are not on this list because they are not needed for the service. When you
+					sign up, set up your first newsletter or start a plan, FlockStack also sets <code>fs_goal</code> for ten minutes, which the next page reads
+					once to count that step and removes. It is set only while analytics is on. Change your choice any time with <Strong>Cookie settings</Strong>{" "}
+					in the footer of the home page, the docs and the legal pages, and on the sign-in page. Declining deletes the PostHog cookies and local
+					storage.
 				</p>
 				<p>
 					Your browser&apos;s own storage keeps your light or dark theme, and on a newsletter&apos;s website, whether you subscribed, whether

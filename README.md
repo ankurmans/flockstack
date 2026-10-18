@@ -116,8 +116,37 @@ The EU Worker starts from nothing: `wrangler secret put <NAME> --env eu` for eac
 - **Images and newsletter sites:** `IMAGES_CDN_URL` (a domain on `flockstack-images-eu`), `SHARED_DOMAIN`, `ARCHIVE_CNAME_TARGET` and `ARCHIVE_TRUSTED_HOSTS` for the EU region's own newsletter addresses. The exports bucket needs its 8-day lifecycle rule.
 - **Billing:** `POLAR_ACCESS_TOKEN` and `POLAR_WEBHOOK_SECRET` (or `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`), and for selling, `STRIPE_CONNECT_SECRET_KEY` and `STRIPE_PAYMENTS_WEBHOOK_SECRET`. One Polar or Stripe webhook can feed both Workers, or the EU Worker can have its own endpoint.
 - **Optional:** `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (add `https://eu.flockstack.io/api/auth/callback/google` to the client), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `REGION_URL_US` and `REGION_URL_EU` (default to the two addresses above).
+- **Analytics:** `POSTHOG_KEY`, the same project key as on the US Worker (see Product analytics below).
 
 **Webhooks and the other region.** A provider configured once can deliver to both Workers, so each gets events for accounts it doesn't have. Signatures are checked exactly as before. An event for a subscription, customer, connected account, tenant or message with no account in this region is acknowledged with a 2xx and logged at info level (`no such account in this region`), with no alert and no retry. A real failure, such as Polar being unreachable, still answers 5xx and alerts.
+
+## Product analytics (FlockStack Cloud)
+
+FlockStack Cloud counts how people use its own pages with PostHog: one project on PostHog US Cloud for both flockstack.io and eu.flockstack.io. It is not part of the open source. It reaches the shared pages only through the site extensions (`components/marketing/SiteExtensions.jsx` and `lib/marketing/site-extensions.js`, whose defaults add nothing), so a self-hosted server has no analytics code in its way. It is configured on each Worker (the key only writes events and is public, so a `vars` entry is fine):
+
+| Variable | |
+| --- | --- |
+| `POSTHOG_KEY` | The project's public key (`phc_…`). Unset or malformed: nothing loads and nothing renders. Read when a request renders. |
+| `POSTHOG_HOST` | Optional, an https address. Default `https://us.i.posthog.com`. |
+| `POSTHOG_SESSION_REPLAY` | `true` turns session recording on, with every input and all text masked. Default off. The Privacy page says it is off, so change `ANALYTICS_RULE` in `lib/legal.js` before turning it on. |
+
+**Where it loads.** Only in the layouts of FlockStack's own pages: the home page, the docs and the legal pages (a `layout.js` in each folder of `app/(site)`), sign-in, `/welcome` and the signed-in dashboard (`components/LayoutDashboard.jsx`, used by `app/(app)` and `app/(account)`). Never in the root layout, a newsletter's pages and archive (also on their own hosts), unsubscribe, confirm, keep and referral pages, the reader and comment pages, shop and subscribe pages, the recommendations directory, the OAuth consent page or the admin. `tests/analytics-routes.test.mjs` scans every route and fails when a page carries it that shouldn't, or the scrubber's list of untracked paths (`lib/marketing/analytics-privacy.js`) disagrees with the layouts. That list is a second lock: PostHog drops any event from such a page, even if the browser navigates there without a reload.
+
+**Who is asked** (`lib/marketing/analytics-consent.js`):
+
+| Visitor | PostHog |
+| --- | --- |
+| In the EU, the EEA, the UK or Switzerland (`cf-ipcountry`, the country list in `lib/region.js`), anywhere on eu.flockstack.io, or in a country Cloudflare can't place (`XX`, `T1`) | Only after they accept the banner |
+| Anywhere else | On by default; "Cookie settings" in the footer (and on the sign-in page) lets them decline |
+| `Sec-GPC: 1`, `DNT: 1`, `navigator.globalPrivacyControl` or `navigator.doNotTrack` | Never, and no banner |
+
+The choice is the first-party cookie `fs_consent` (`accepted` or `declined`, 12 months, `SameSite=Lax`, `Secure`). Before it, nothing is sent and no `ph_` cookie or local storage is written; posthog-js is not even downloaded. Declining deletes them. `fs_goal` is a ten-minute cookie holding the name of a step only the server sees (a new account, a first newsletter, a plan started: `siteExtensions.sendGoalOnNextPage`); the next page reports it and removes it. It is set only while analytics is on. FlockStack never calls PostHog from the server.
+
+**What it collects.** Page views (including route changes), autocapture, device, browser and approximate location from PostHog; for a signed-in person, their user ID as the distinct ID with `email` and `plan` as the person's properties (`person_profiles: "identified_only"`); and four events, `signup_completed`, `newsletter_created`, `campaign_sent` (with `when`: `now` or `scheduled`) and `plan_started`, reported through `reportGoal` (`lib/goals.js`) from client code or the `fs_goal` cookie. Steps in shared markup with a `data-goal` attribute are kept on the autocaptured clicks. Every event goes through `sanitizeEvent` first: query strings and hashes are cut from addresses (a contacts search can hold an email address), and on the dashboard no element text, page title or label leaves, because a link there can be a subscriber's address or an issue's subject. `tests/analytics-privacy.test.mjs` fixes the property names. Session recording, surveys, heatmaps, dead clicks, error tracking and request timing are off.
+
+**Headers.** `next.config.mjs` sets a Content-Security-Policy without `script-src`, `connect-src` or `img-src`, so PostHog's host needs no entry and is allowed on no page in particular. If those directives are ever added, allow `https://us.i.posthog.com` and `https://us-assets.i.posthog.com` only for the routes that carry the analytics.
+
+**Checked in a browser** on a production build with a made-up key: the banner at phone width, nothing downloaded, sent or stored before Accept, the `ph_` cookie and local storage written after it, a decline deleting them, no marker, banner or link on `/recommendations`. **Not checked:** that events reach the real project and show up in it, Global Privacy Control in a browser that sends it (the header and navigator checks are tested), and the project's own settings (retention, autocapture on, GeoIP). The owner sets the retention; `ANALYTICS_RETENTION` in `lib/legal.js` stays a placeholder until then.
 
 ## Legal pages
 
