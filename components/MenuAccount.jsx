@@ -149,12 +149,12 @@ function FormBlock({ accountId, email, providerName, onDone }) {
 					cancel. Its {providerName} tenant is suspended.
 				</DialogDescription>
 			</DialogHeader>
-			<Input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Reason, shown to them" maxLength={200} />
+			<Input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Reason, shown to them" maxLength={200} required />
 			<DialogFooter>
 				<DialogClose asChild>
 					<Button variant="outline">Cancel</Button>
 				</DialogClose>
-				<Button type="submit" variant="destructive" disabled={isPending} className="min-w-20">
+				<Button type="submit" variant="destructive" disabled={isPending || !reason.trim()} className="min-w-20">
 					{isPending ? <Loader2 className="animate-spin" /> : "Block"}
 				</Button>
 			</DialogFooter>

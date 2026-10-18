@@ -37,6 +37,8 @@ export async function blockAccountAction(accountId, reason) {
 	const admin = await requireAdmin();
 	if (!isValidObjectId(accountId)) return { error: "Account not found" };
 	const text = String(reason ?? "").trim().slice(0, MAX_REASON_LENGTH);
+	// The terms promise the owner a reason with every block.
+	if (!text) return { error: "Give a reason: the account's owner reads it" };
 	const isBlocked = await blockAccount(accountId, { reason: text, by: "admin", detail: `Blocked by ${admin.email}` });
 	console.info(`[admin] ${admin.email} blocked account ${accountId}`);
 	revalidatePath("/admin");

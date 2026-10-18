@@ -121,3 +121,9 @@ test("a dedicated IP is a managed pool for the account's configuration set, and 
 	assert.equal(ses.state.pools.has(`mc-${id}`), false);
 	assert.equal(await as(customer, () => catchNotFound(m.actions.setDedicatedIp(id, true))), true);
 });
+
+test("an admin block needs a reason, because its owner always reads one", async () => {
+	const id = String(customer.accountId);
+	assert.deepEqual(await as(admin, () => m.actions.blockAccountAction(id, "   ")), { error: "Give a reason: the account's owner reads it" });
+	assert.equal((await m.Account.findById(id).lean()).status, "active");
+});
