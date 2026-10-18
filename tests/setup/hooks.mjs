@@ -28,6 +28,7 @@ const STUBS = {
 	"@/lib/dns-check": stub("dns-check.mjs"),
 	"@/lib/mail-domains": stub("mail-domains.mjs"),
 	"@/lib/dns-broker": stub("dns-broker.mjs"),
+	"@/lib/cloudflare-api": stub("cloudflare-api.mjs"),
 	"@/lib/remote-image": stub("remote-image.mjs"),
 };
 
