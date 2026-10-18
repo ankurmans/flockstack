@@ -10,7 +10,7 @@ export default async function ArchiveLayout({ children, params }) {
 	if (!newsletter) notFound();
 
 	const readers = await countReaders(newsletter);
-	const { index } = getArchiveUrls(newsletter);
+	const { index, feed } = getArchiveUrls(newsletter);
 	const pitch = {
 		name: newsletter.name,
 		slug: newsletter.slug,
@@ -23,7 +23,7 @@ export default async function ArchiveLayout({ children, params }) {
 			<div className="flex min-h-dvh flex-col">
 				<HeaderArchive newsletter={newsletter} indexHref={index} />
 				<main className="flex-1">{children}</main>
-				<FooterArchive newsletter={newsletter} indexHref={index} />
+				<FooterArchive newsletter={newsletter} indexHref={index} feedHref={feed} />
 			</div>
 		</ProviderSubscribe>
 	);
