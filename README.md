@@ -320,7 +320,7 @@ Every subscription event re-reads the subscription from Stripe, so events arrivi
 
 ## AI agents, REST API and MCP
 
-Create a key on the **API keys** page and send it as `Authorization: Bearer <key>`. A full access key can do everything the dashboard can; a signups only key can only add contacts, for keys that sit in a website's code. Every key gets 300 requests a minute.
+Create a key on the **API keys** page and send it as `Authorization: Bearer <key>`. Keys start with `mc_`, or `mc_eu_` on an EU region's Worker (see [Regions](#regions)), followed by 43 characters; to find them in code or logs, match `(?<![A-Za-z0-9_-])mc_(?:eu_)?[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])`. A full access key can do everything the dashboard can; a signups only key can only add contacts, for keys that sit in a website's code. Every key gets 300 requests a minute.
 
 **Add a contact**: `POST /api/v1/contacts`
 

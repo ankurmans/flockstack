@@ -119,6 +119,10 @@ export default function McpPage() {
 						clients that want an /api path.
 					</p>
 					<p className="mt-3 text-[15px] leading-7 text-pretty text-foreground/80">
+						Keys start with <code className="font-mono text-[13px]">mc_</code>, or <code className="font-mono text-[13px]">mc_eu_</code>{" "}
+						for an account in the European Union, and only work at their own region&apos;s address.
+					</p>
+					<p className="mt-3 text-[15px] leading-7 text-pretty text-foreground/80">
 						OAuth follows the MCP authorization spec. A request without credentials gets a 401 pointing at{" "}
 						<code className="font-mono text-[13px]">/.well-known/oauth-protected-resource/mcp</code>, whose authorization server is{" "}
 						<code className="font-mono text-[13px]">{appUrl}</code>. Apps identify themselves with a client metadata document (Grok Bot,
