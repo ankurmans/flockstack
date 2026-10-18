@@ -22,6 +22,37 @@
 	],
 	"vars": {
 		"IMAGES_STORAGE": "r2",
-		"FLOCKSTACK_CLOUD": "true"
+		"FLOCKSTACK_CLOUD": "true",
+		"FLOCKSTACK_REGION": "us"
+	},
+	// The EU deployment: the same code as a second Worker with its own EU-jurisdiction database and buckets
+	// (README, Regions). Wrangler environments inherit no bindings, vars or routes, so everything it needs is here.
+	// Deploy it with `npx wrangler deploy --env eu`, or both with `node scripts/deploy-all.mjs`.
+	"env": {
+		"eu": {
+			"name": "flockstack-eu",
+			"main": ".open-next/worker.js",
+			"compatibility_date": "2026-09-01",
+			"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+			"assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+			// No workers.dev address: sessions, passkeys and links belong to eu.flockstack.io.
+			"workers_dev": false,
+			"preview_urls": false,
+			"observability": { "enabled": true },
+			"routes": [{ "pattern": "eu.flockstack.io", "custom_domain": true }],
+			"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
+			"d1_databases": [{ "binding": "DB", "database_name": "flockstack-eu", "database_id": "3ffda07e-c73f-46ee-a933-1eb4feb18f70", "migrations_dir": "migrations" }],
+			"r2_buckets": [
+				{ "binding": "IMAGES", "bucket_name": "flockstack-images-eu", "jurisdiction": "eu" },
+				{ "binding": "FILES", "bucket_name": "flockstack-files-eu", "jurisdiction": "eu" },
+				{ "binding": "EXPORTS", "bucket_name": "flockstack-exports-eu", "jurisdiction": "eu" }
+			],
+			"vars": {
+				"IMAGES_STORAGE": "r2",
+				"FLOCKSTACK_CLOUD": "true",
+				"FLOCKSTACK_REGION": "eu",
+				"SES_REGION": "eu-west-1"
+			}
+		}
 	}
 }
