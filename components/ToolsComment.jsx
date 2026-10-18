@@ -25,7 +25,7 @@ export default function ToolsComment({ id, canReply }) {
 	return (
 		<div className="mt-1 -ml-2">
 			<div className="flex flex-wrap items-center gap-x-1">
-				{canReply && canComment && !own && (
+				{canReply && canComment && (
 					<button type="button" className={LINK} aria-expanded={mode === "reply"} onClick={() => setMode(mode === "reply" ? null : "reply")}>
 						Reply
 					</button>

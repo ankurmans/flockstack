@@ -29,7 +29,7 @@ Tags, custom fields, segments and automations (migration `0005_segments_automati
 
 ## Status
 
-- Test suite: 1128 tests, all passing on SQLite (`node scripts/test-all.mjs <logdir>`).
+- Test suite: 1206 tests, all passing on SQLite (`node scripts/test-all.mjs <logdir>`).
 - `opennextjs-cloudflare build` works (needs network for next/font; behind a proxy set `NODE_USE_ENV_PROXY=1`).
 - Worker runs under `wrangler dev` on local D1/R2 and serves pages.
 - Provisioned in the KMF Ventures account: D1 `flockstack` (97615845-8aa2-413f-ad98-89821937069f, migration applied), R2 bucket `flockstack-images`.

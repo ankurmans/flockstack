@@ -12,9 +12,10 @@ import { parseCommentBody } from "@/lib/comment-body";
 // What the reader sees above the discussion: the sign-in, or the box for a new comment, and any of their own comments
 // that aren't on the page, each with the reason.
 export default function PanelComments() {
-	const { slug, viewer, isLoaded, linkProblem, restriction, refresh } = useComments();
+	const { slug, viewer, isLoaded, hasSession, linkProblem, restriction, refresh } = useComments();
 	const aside = (viewer.own ?? []).filter(({ status }) => status !== "published");
 
+	if (hasSession && !isLoaded) return <div aria-hidden="true" className="h-56 rounded-2xl bg-card shadow-border" />;
 	return (
 		<div className="flex flex-col gap-6">
 			{!viewer.signedIn ? (

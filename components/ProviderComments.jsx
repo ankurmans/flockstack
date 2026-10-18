@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { getViewer } from "@/app/archive/comment-actions";
 import { readerMarkerName } from "@/lib/reader-cookies";
 
@@ -11,6 +11,7 @@ export function useComments() {
 }
 
 const ANONYMOUS = { signedIn: false };
+const subscribeToNothing = () => () => {};
 
 function hasSessionMarker(slug) {
 	try {
@@ -27,6 +28,8 @@ export default function ProviderComments({ slug, post, restriction = "", childre
 	const [viewer, setViewer] = useState(ANONYMOUS);
 	const [isLoaded, setIsLoaded] = useState(false);
 	const [linkProblem, setLinkProblem] = useState(false);
+	// The server's page shows the sign-in; a browser with a session sees a placeholder until it knows who is reading.
+	const hasSession = useSyncExternalStore(subscribeToNothing, () => hasSessionMarker(slug), () => false);
 
 	const refresh = useCallback(async () => {
 		if (!hasSessionMarker(slug)) {
@@ -56,6 +59,9 @@ export default function ProviderComments({ slug, post, restriction = "", childre
 		};
 	}, [slug, post]);
 
-	const value = useMemo(() => ({ slug, post, restriction, viewer, isLoaded, linkProblem, refresh }), [slug, post, restriction, viewer, isLoaded, linkProblem, refresh]);
+	const value = useMemo(
+		() => ({ slug, post, restriction, viewer, isLoaded, hasSession, linkProblem, refresh }),
+		[slug, post, restriction, viewer, isLoaded, hasSession, linkProblem, refresh]
+	);
 	return <CommentsContext value={value}>{children}</CommentsContext>;
 }
