@@ -8,6 +8,7 @@ const PRIVATE_PATHS = [
 	"/admin",
 	"/api/",
 	"/api-keys",
+	"/automations",
 	"/billing",
 	"/campaigns",
 	"/contacts",

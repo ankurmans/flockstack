@@ -37,6 +37,9 @@ FlockStack is a newsletter app: write an issue, send it to your list, publish it
 - **AI agents and the dashboard.** Everything the dashboard does also works from an AI agent through the MCP server, and from code through the REST API, with the same checks and limits. ChatGPT, Claude and Grok Bot connect with OAuth; Claude Code, Codex and Cursor with an API key. MCP marks sending as an action that can't be undone, so agents ask you first.
 - **Write, review, send.** Write in an editor with slash commands, images and boxes, or send Markdown or a complete HTML email through the API and MCP. Review shows what to fix before sending: subject, preview text, unsubscribe link, Gmail's 100 KB clip, postal address, sender. Then send it, schedule it, or start with your most engaged readers and send to more later.
 - **Imports from beehiiv, Substack and Mailchimp.** Their CSV exports import as they are, with each reader's status and signup date, and so do Kit's, MailerLite's, Buttondown's, Ghost's and EmailOctopus's.
+- **Tags, custom fields and merge tags.** Label contacts with free-form tags and give a newsletter custom fields (text, number, date) for a first name, a plan, a renewal date. Set them from the dashboard, imports (a tags column and columns named like the fields), the signup form and API, and REST and MCP. Write `{{first_name|there}}` in a subject or body and each reader's email has their own value.
+- **Segments.** Save an audience as rules: status, tags, custom fields, signup dates, source, whether they opened or clicked lately, never opened, dormant, imported, joined with and/or groups. Live counts, a builder in the dashboard, and campaigns that send to a segment through the same suppression, warm-up and list cleanup as any send.
+- **Automations.** A welcome series when someone subscribes, a follow-up when they get a tag or join a segment, a note before a renewal date: emails, waits and tag changes that run on their own. Every email goes through the sending path of a campaign (unsubscribe links, suppression, the plan's emails, the send rate), contacts who unsubscribe or bounce leave, and a report shows who is where.
 - **A website for each newsletter**, on a free subdomain on FlockStack Cloud (`<slug>.flockstack.io`), or on your server: every issue gets a page search engines can find, with a signup form, an author page, share images and a sitemap.
 - **Sending from your own domain**, with the DKIM, return path and DMARC records to add and a check for each. On FlockStack Cloud, a newsletter without a domain sends from its own shared address, `hello@<slug>.flockstack.io`.
 - **Deliverability protections**, built in:
@@ -197,6 +200,16 @@ Sign-in codes and alerts go through a tenant of their own, `mc-platform`, on the
 2. Add them and redeploy.
 
 QStash calls `APP_URL/api/jobs/...` to send each batch, so the app has to be reachable on the internet. FlockStack checks QStash's signature on every job.
+
+Automations need one schedule, which QStash doesn't create by itself: a cron that calls `APP_URL/api/jobs/run-automations` every 5 minutes. In the Upstash console, open QStash, Schedules, create one with that destination and the cron `*/5 * * * *`, or from a terminal:
+
+```bash
+curl -X POST "https://qstash.upstash.io/v2/schedules/$APP_URL/api/jobs/run-automations" \
+  -H "Authorization: Bearer $QSTASH_TOKEN" \
+  -H "Upstash-Cron: */5 * * * *"
+```
+
+Each run starts contacts from segments and date fields, then moves the contacts whose next step is due, a batch at a time, and asks QStash for another run right away while more are due. Without the schedule, automations that start from signups and tags still enroll contacts, but nothing is sent.
 
 ### 6. Turn sending on
 

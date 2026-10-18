@@ -18,6 +18,9 @@ before(async () => {
 		newSegmentPage: await import("../app/(app)/segments/new/page.js"),
 		segmentPage: await import("../app/(app)/segments/[id]/page.js"),
 		campaignPage: await import("../app/(app)/campaigns/[id]/page.js"),
+		automationsPage: await import("../app/(app)/automations/page.js"),
+		automationPage: await import("../app/(app)/automations/[id]/page.js"),
+		automationActions: await import("../app/(app)/automations/actions.js"),
 	};
 });
 
@@ -77,5 +80,51 @@ describe("a campaign's send step", () => {
 		const html = await render(user, m.campaignPage, { params: Promise.resolve({ id }) });
 		assert.match(html, /aria-label="Audience"/);
 		assert.match(html, /1 contact/);
+	});
+});
+
+describe("automations", () => {
+	test("are listed with what starts them and how many contacts they hold", async () => {
+		const user = await t.customer("pages-automations@example.com");
+		assert.match(await render(user, m.automationsPage), /No automations yet/);
+		const created = await t.api(user.key, "POST", "/automations", {
+			name: "Welcome series",
+			trigger: { type: "subscribed" },
+			steps: [
+				{ type: "email", subject: "Welcome", content: "Hello." },
+				{ type: "wait", amount: 2, unit: "days" },
+				{ type: "email", subject: "Next", content: "More." },
+			],
+		});
+		const html = await render(user, m.automationsPage);
+		assert.match(html, /Welcome series/);
+		assert.match(html, /A contact subscribes/);
+		assert.match(html, /Draft/);
+		assert.match(html, new RegExp(`/automations/${created.body.id}`));
+	});
+
+	test("open in an editor with the trigger, the steps and the counts, and are made from the dashboard", async () => {
+		const user = await t.customer("pages-automation-editor@example.com");
+		const created = await t.api(user.key, "POST", "/automations", {
+			name: "Welcome series",
+			trigger: { type: "tag_added", tag: "vip" },
+			steps: [{ type: "email", subject: "Welcome", content: "Hello." }, { type: "add_tag", tag: "welcomed" }],
+		});
+		const html = await render(user, m.automationPage, { params: Promise.resolve({ id: created.body.id }) });
+		assert.match(html, /value="Welcome series"/);
+		assert.match(html, /Starts when/);
+		assert.match(html, /Welcome/);
+		assert.match(html, /Add a tag/);
+		assert.match(html, />Contacts</);
+		assert.match(html, />Activate</);
+
+		await t.api(user.key, "POST", `/automations/${created.body.id}/activate`);
+		const active = await render(user, m.automationPage, { params: Promise.resolve({ id: created.body.id }) });
+		assert.match(active, /Pause it to change its trigger or steps/);
+		assert.match(active, />Pause</);
+
+		const redirected = await as(user, () => m.automationActions.createAutomation(user.newsletterId).catch((error) => error));
+		assert.match(redirected.url, /^\/automations\/[a-f0-9]{24}$/);
+		assert.equal((await t.api(user.key, "GET", "/automations")).body.automations.length, 2);
 	});
 });
