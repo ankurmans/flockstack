@@ -30,7 +30,7 @@ How lib/docdb works: one table per collection (`c_<name>`: `_id`, `accountId`, `
 Done since the first deploy: passkey login, cloud mode with SES-only platform email, Polar billing next to Stripe (needs the owner's Polar token, products and webhook), the landing page at `/` for signed-out visitors, database-backed rate limits, R2 images at img.flockstack.io, the gull-stack logo, README and AGENTS.md for the new setup.
 
 1. Polar: create the org token, run `scripts/polar-setup.mjs`, add the webhook, set `POLAR_ACCESS_TOKEN` / `POLAR_WEBHOOK_SECRET` (see README, billing).
-2. A dedicated AWS account for SES: reputation and limits are per account, and this one is shared with other products.
+2. SES stays on the owner's existing AWS account (decided, shared with other products). Each customer is its own SES tenant with its own suppression list, and the app pauses senders on bounce and complaint rates, which limits the blast radius; revisit if a customer ever hurts the account's reputation.
 3. Push the fork to a public repository (AGPL), then point `SOURCE_URL` in `lib/site.js` at it and add a source link to the site footer.
 4. Terms and Privacy pages.
 5. Bulk updates (large imports, status changes) read and write each row separately: fine for small lists, make them single statements before big ones. Archive old Event rows (D1 is 10 GB per database).
