@@ -14,6 +14,7 @@ import {
 	OPERATOR_DESCRIPTION,
 	PRIVACY_EMAIL,
 	PRIVACY_REQUEST_RESPONSE,
+	SUPPORT_AI_PROVIDER_NOTE,
 	SUPPORT_CHAT_RETENTION,
 	SUPPORT_CHAT_STORED,
 	TERMS_CHANGE_NOTICE,
@@ -87,11 +88,11 @@ export default function PrivacyPage() {
 					<li>
 						<Strong>The support assistant:</Strong> FlockStack&apos;s own assistant answers from our docs and from what you type to it. It runs
 						on Cloudflare Workers AI, which runs on Cloudflare&apos;s global network, so what you type may be processed outside your region.
-						Stored: {SUPPORT_CHAT_STORED}. How long: {SUPPORT_CHAT_RETENTION}
+						Stored: {SUPPORT_CHAT_STORED}. How long: {SUPPORT_CHAT_RETENTION} {SUPPORT_AI_PROVIDER_NOTE}
 					</li>
 					<li>
-						<Strong>Rate-limit counters:</Strong> to stop abuse, we count requests to sign-in, signup and similar forms by IP address. The
-						counters last minutes to a day and are cleaned up.
+						<Strong>Rate-limit counters:</Strong> to stop abuse, we count requests to sign-in, signup and similar forms by IP address, and
+						questions to the support assistant by IP address and user ID. The counters last minutes to two days and are cleaned up.
 					</li>
 				</ul>
 			</SectionLegal>
@@ -307,7 +308,8 @@ export default function PrivacyPage() {
 					storage.
 				</p>
 				<p>
-					Your browser&apos;s own storage keeps your light or dark theme, and on a newsletter&apos;s website, whether you subscribed, whether
+					Your browser&apos;s own storage keeps your light or dark theme, the support assistant&apos;s conversation in that tab&apos;s session storage until you
+					close the tab or sign out, and on a newsletter&apos;s website, whether you subscribed, whether
 					you snoozed the signup prompt, a referral code for 30 days, the newsletter that sent you there through a recommendation for 7 days, and a
 					marker that you viewed an issue today. None of it is sent as a cookie.
 				</p>

@@ -34,7 +34,7 @@ const pageview = (url, extra = {}) => ({ event: "$pageview", properties: { $curr
 
 describe("the property names", () => {
 	test("an event carries at most a few fixed properties, none of them named for content or contacts", () => {
-		assert.deepEqual(Object.keys(EVENTS), ["signup_completed", "newsletter_created", "campaign_sent", "plan_started"]);
+		assert.deepEqual(Object.keys(EVENTS), ["signup_completed", "newsletter_created", "campaign_sent", "plan_started", "support_opened", "support_answered"]);
 		for (const [event, properties] of Object.entries(EVENTS)) {
 			for (const [name, values] of Object.entries(properties)) {
 				assert.doesNotMatch(name, FORBIDDEN_PROPERTY_PATTERN, `${event}.${name}`);

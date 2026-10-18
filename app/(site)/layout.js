@@ -22,8 +22,8 @@ export const metadata = {
 };
 
 // The docs need a wider page than the rest; the header and footer follow whichever page is open. The analytics
-// (SiteAnalytics) is not here: this layout also holds the directory readers use (recommendations), so each of
-// FlockStack's own pages gets it from the layout of its folder.
+// (SiteAnalytics) and the help chat (SupportChat) are not here: this layout also holds the directory readers use
+// (recommendations), so each of FlockStack's own pages gets them from the layout of its folder.
 export default function SiteLayout({ children }) {
 	return (
 		<div
