@@ -74,6 +74,17 @@ describe("asking", () => {
 		assert.ok(input.max_tokens <= 1000);
 	});
 
+	test("a follow-up's own words choose the excerpts first, and the question before fills in for one that names little", async () => {
+		const { getSupportIndex } = await import("../lib/marketing/support-corpus.js");
+		const index = await getSupportIndex("http://localhost:3000");
+		const earlier = [{ role: "user", content: "Can readers comment without an account?" }, { role: "assistant", content: "Yes [1]." }];
+		const pricing = m.assistant.findExcerpts(index, [...earlier, { role: "user", content: "And how much is the Pro plan?" }]);
+		assert.ok(pricing.slice(0, 3).some(({ href }) => href === "/#pricing"), pricing.map(({ href }) => href).join(", "));
+		const vague = m.assistant.findExcerpts(index, [...earlier, { role: "user", content: "And then?" }]);
+		assert.ok(vague.some(({ href }) => href.startsWith("/docs/comments")));
+		assert.deepEqual(vague.map(({ number }) => number), [1, 2, 3, 4]);
+	});
+
 	test("an assistant turn with no content goes to Workers AI as an empty string, never null", async () => {
 		const ai = stubAi();
 		const messages = [

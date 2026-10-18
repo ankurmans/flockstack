@@ -31,6 +31,12 @@ describe("where it renders", () => {
 		assert.equal(m.siteExtensions.supportChatPath, "/?support");
 	});
 
+	test("both Workers bind Workers AI as AI", async () => {
+		const config = JSON.parse((await read("wrangler.jsonc")).replace(/^\s*\/\/.*$/gm, ""));
+		assert.deepEqual(config.ai, { binding: "AI" });
+		assert.deepEqual(config.env.eu.ai, { binding: "AI" });
+	});
+
 	test("without the AI binding nothing renders, so a server that can't answer shows no button", async () => {
 		assert.equal(await withEnv(CLOUD, () => m.chat.default({})), null);
 	});
