@@ -38,23 +38,36 @@ export async function saveCampaign(id, values) {
 	return { ok: true };
 }
 
+// Who the issue goes to, saved before the send so the list cleanup's count follows it.
+export async function setCampaignAudience(id, audience) {
+	const { failure } = await runDashboardAction("update_campaign", { id: String(id), audience: readAudience(audience) });
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	return { ok: true };
+}
+
 export async function sendTestCampaign(id) {
 	const { failure } = await runDashboardAction("send_test_email", { id: String(id) });
 	revalidatePath(`/campaigns/${id}`);
 	return failure ? toFormError(failure) : { ok: true };
 }
 
-export async function sendCampaign(id, { audienceLimit } = {}) {
-	const { failure } = await runDashboardAction("send_campaign", { id: String(id), audienceLimit: readCount(audienceLimit) });
+function readAudience(value) {
+	return ["free", "paid"].includes(value) ? value : "all";
+}
+
+export async function sendCampaign(id, { audienceLimit, audience } = {}) {
+	const { failure } = await runDashboardAction("send_campaign", { id: String(id), audienceLimit: readCount(audienceLimit), audience: readAudience(audience) });
 	refresh(id);
 	return failure ? toFormError(failure) : { ok: true };
 }
 
-export async function scheduleCampaign(id, { scheduledAt, audienceLimit } = {}) {
+export async function scheduleCampaign(id, { scheduledAt, audienceLimit, audience } = {}) {
 	const { failure } = await runDashboardAction("schedule_campaign", {
 		id: String(id),
 		scheduledAt: String(scheduledAt ?? ""),
 		audienceLimit: readCount(audienceLimit),
+		audience: readAudience(audience),
 	});
 	if (failure) return toFormError(failure);
 	refresh(id);

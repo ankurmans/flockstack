@@ -58,6 +58,7 @@ export default function FormCampaign({
 	campaign,
 	newsletter,
 	audienceCount,
+	paidCount,
 	senderProblem,
 	isSendingEnabled,
 	testEmail,
@@ -133,7 +134,9 @@ export default function FormCampaign({
 	const warmupCheck = getWarmupCheck(pace, { emails: audienceCount, newContacts });
 	const sending = useSendCampaign({
 		campaignId: campaign._id,
-		audienceCount,
+		allCount: audienceCount,
+		paidCount,
+		audience: campaign.audience ?? "all",
 		audienceLimit: campaign.audienceLimit,
 		emailsLeft,
 		scheduledAt,
@@ -371,7 +374,8 @@ export default function FormCampaign({
 						campaign={campaign}
 						newsletter={newsletter}
 						subject={values.subject}
-						audienceCount={audienceCount}
+						audienceCount={sending.audienceCount}
+						isPaidTierOn={Boolean(newsletter.paidTier?.enabled)}
 						emailsLeft={emailsLeft}
 						pace={pace}
 						newContacts={newContacts}

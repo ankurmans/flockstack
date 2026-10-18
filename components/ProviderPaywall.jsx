@@ -44,4 +44,5 @@ const TITLES = {
 	apiKey: "Pick a plan to use the API",
 	upload: "Pick a plan to upload more images",
 	website: "Pick a plan to put your website online",
+	sell: "Pick a plan to sell to your readers",
 };

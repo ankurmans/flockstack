@@ -15,6 +15,7 @@ import HeaderPage from "@/components/HeaderPage";
 import MenuContact from "@/components/MenuContact";
 import StateEmpty from "@/components/StateEmpty";
 import TextEmpty from "@/components/TextEmpty";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -26,6 +27,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { scoped } from "@/lib/account-scope";
+import { isPaidContact } from "@/lib/tiers";
 import { getAppUrl } from "@/lib/config";
 import { CONTACTS_PAGE_SIZE, findContactsPage } from "@/lib/contacts";
 import { getAddContactCurl } from "@/lib/docs/reference";
@@ -146,7 +148,10 @@ export default async function ContactsPage({ searchParams }) {
 											</span>
 										</TableCell>
 										<TableCell>
-											<BadgeStatus status={contact.status} label={contact.undeliverableAt && "Undeliverable"} />
+											<span className="flex items-center gap-1.5">
+												<BadgeStatus status={contact.status} label={contact.undeliverableAt && "Undeliverable"} />
+												{isPaidContact(contact) && <Badge variant="secondary">Paid</Badge>}
+											</span>
 										</TableCell>
 										<TableCell className="hidden text-right lg:table-cell">
 											{engagement(contact, "opens", "openRate")}

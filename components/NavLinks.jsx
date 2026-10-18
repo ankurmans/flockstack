@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Globe, KeyRound, LayoutGrid, Send, Settings, Shield, Users } from "lucide-react";
+import { CreditCard, Globe, KeyRound, LayoutGrid, Receipt, Send, Settings, Shield, ShoppingBag, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // The open newsletter's pages, then the account's, which every newsletter shares.
@@ -45,10 +45,13 @@ const NEWSLETTER_ITEMS = [
 	{ href: "/", label: "Overview", icon: LayoutGrid },
 	{ href: "/campaigns", label: "Campaigns", icon: Send },
 	{ href: "/contacts", label: "Contacts", icon: Users },
+	{ href: "/products", label: "Products", icon: ShoppingBag },
 	{ href: "/newsletters", label: "Settings", icon: Settings },
 ];
 
 const ACCOUNT_ITEMS = [
+	{ href: "/orders", label: "Orders", icon: Receipt },
+	{ href: "/payments", label: "Payments", icon: CreditCard },
 	{ href: "/domains", label: "Domains", icon: Globe },
 	{ href: "/api-keys", label: "API keys", icon: KeyRound },
 ];

@@ -35,6 +35,7 @@ export default function PanelSend({
 	newsletter,
 	subject,
 	audienceCount,
+	isPaidTierOn,
 	emailsLeft,
 	pace,
 	newContacts,
@@ -64,9 +65,32 @@ export default function PanelSend({
 						<span className="truncate">
 							{newsletter.name}
 							<span className="text-muted-foreground tabular-nums"> · {formatCount(audienceCount, "contact")}</span>
+							{sending.audience === "paid" && <span className="text-muted-foreground"> · web page shows a teaser</span>}
 						</span>
 					</span>
 				</RowCampaign>
+				{(isPaidTierOn || sending.audience !== "all") && (
+					<RowCampaign label="Audience">
+						<div role="radiogroup" aria-label="Audience" className="flex min-w-0 flex-wrap gap-1.5 py-2">
+							{AUDIENCE_CHOICES.map(({ value, label }) => (
+								<button
+									key={value}
+									type="button"
+									role="radio"
+									aria-checked={sending.audience === value}
+									disabled={sending.isPending}
+									onClick={() => sending.audience !== value && sending.setAudience(value)}
+									className={cn(
+										"h-7 rounded-full px-3 text-xs font-medium outline-none transition-[background-color,box-shadow] duration-150 focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60",
+										sending.audience === value ? "bg-foreground text-background" : "text-muted-foreground shadow-border hover:bg-muted/60 hover:text-foreground"
+									)}
+								>
+									{label}
+								</button>
+							))}
+						</div>
+					</RowCampaign>
+				)}
 				<RowCampaign label="Limit">
 					<span className="flex min-w-0 items-center gap-3">
 						<input
@@ -174,6 +198,12 @@ export default function PanelSend({
 		</div>
 	);
 }
+
+const AUDIENCE_CHOICES = [
+	{ value: "all", label: "Everyone" },
+	{ value: "free", label: "Free readers" },
+	{ value: "paid", label: "Paid readers" },
+];
 
 function CardChoice({ icon: Icon, title, description, isSelected, onSelect }) {
 	return (
