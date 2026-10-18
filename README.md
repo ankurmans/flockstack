@@ -113,12 +113,45 @@ The EU Worker starts from nothing: `wrangler secret put <NAME> --env eu` for eac
 - **Its own:** `BETTER_AUTH_SECRET` (never the US Worker's: a session must only be valid in its region), `SUPPRESSION_HASH_KEY`, `APP_URL` (`https://eu.flockstack.io`), `ADMIN_EMAILS`, `EMAIL_FROM`, `SENDING_ENABLED`, `CRON_SECRET`.
 - **Amazon SES in `eu-west-1`:** `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`, `SES_AWS_ACCOUNT_ID`, `SES_SNS_TOPIC_ARN` and `SES_TENANT_SNS_TOPIC_ARN`, with the sending identities, the configuration set and the SNS topics created in that region, subscribed to `https://eu.flockstack.io/api/webhooks/ses` and `/ses-tenants`. The same SES or SNS setup can deliver to both Workers: each acknowledges events for accounts that live in the other region (see below).
 - **QStash, EU region:** `QSTASH_URL`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`, and the 5-minute schedule for `https://eu.flockstack.io/api/jobs/run-automations`.
-- **Images and newsletter sites:** `IMAGES_CDN_URL` (a domain on `flockstack-images-eu`), `SHARED_DOMAIN`, `ARCHIVE_CNAME_TARGET` and `ARCHIVE_TRUSTED_HOSTS` for the EU region's own newsletter addresses. The exports bucket needs its 8-day lifecycle rule.
+- **Images and newsletter sites:** `IMAGES_CDN_URL` (a domain on `flockstack-images-eu`), `SHARED_DOMAIN`, `ARCHIVE_CNAME_TARGET` (`sites-eu.flockstack.io`, never the US Worker's) and `ARCHIVE_TRUSTED_HOSTS` for the EU region's own newsletter addresses, and the Cloudflare variables in [Domains on Cloudflare](#domains-on-cloudflare-flockstack-cloud). The exports bucket needs its 8-day lifecycle rule.
 - **Billing:** `POLAR_ACCESS_TOKEN` and `POLAR_WEBHOOK_SECRET` (or `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`), and for selling, `STRIPE_CONNECT_SECRET_KEY` and `STRIPE_PAYMENTS_WEBHOOK_SECRET`. One Polar or Stripe webhook can feed both Workers, or the EU Worker can have its own endpoint.
 - **Optional:** `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (add `https://eu.flockstack.io/api/auth/callback/google` to the client), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `REGION_URL_US` and `REGION_URL_EU` (default to the two addresses above).
 - **Analytics:** `POSTHOG_KEY`, the same project key as on the US Worker (see Product analytics below).
 
 **Webhooks and the other region.** A provider configured once can deliver to both Workers, so each gets events for accounts it doesn't have. Signatures are checked exactly as before. An event for a subscription, customer, connected account, tenant or message with no account in this region is acknowledged with a 2xx and logged at info level (`no such account in this region`), with no alert and no retry. A real failure, such as Polar being unreachable, still answers 5xx and alerts.
+
+## Domains on Cloudflare (FlockStack Cloud)
+
+On Cloudflare, a customer's archive subdomain (`news.example.com`) CNAMEd to FlockStack is refused by Cloudflare's cross-account CNAME block unless it is a [Cloudflare for SaaS](https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/) custom hostname on the `flockstack.io` zone. With the variables below, FlockStack Cloud creates one for each archive subdomain when the domain is added and each time it's checked (`lib/custom-hostnames.js`, through `lib/cloudflare-api.js`, the only module that calls Cloudflare's API):
+
+- a **custom hostname** on the SaaS zone, with certificate validation over HTTP (Cloudflare completes it on its own once the customer's CNAME is in);
+- a **Worker route** `<hostname>/*` on that zone to this region's Worker, so a US account's hostnames are served by `flockstack` and an EU account's by `flockstack-eu`. A single `*/*` route couldn't send each hostname to its own region. A route to the other Worker marks a hostname as the other region's: the domain shows "Used by another FlockStack account" and nothing is created or removed;
+- the hostname's id, route and statuses on the Domain. **Check now** reads them: the archive step shows the CNAME to `ARCHIVE_CNAME_TARGET` plus any TXT records Cloudflare asks for, and the archive moves there only once Cloudflare reports the hostname active **and** its certificate active. A moved hostname or a validation that timed out is asked to validate again. Removing the domain, or the account's purge, deletes the route and the custom hostname; if Cloudflare fails, the domain stays until it's removed again.
+
+`ARCHIVE_TRUSTED_HOSTS` (Worker custom domains in the owner's own account, like newsletter.ankur.works) never reach Cloudflare's API and are verified as before. A self-hosted server, or FlockStack Cloud without these variables, keeps checking the customer's CNAME.
+
+| Variable | US Worker (`flockstack`) | EU Worker (`flockstack-eu`) |
+| --- | --- | --- |
+| `CLOUDFLARE_API_TOKEN` (secret) | the token below | the same token, or one of its own with the same permissions |
+| `CLOUDFLARE_SAAS_ZONE_ID` | the `flockstack.io` zone's ID | the same zone's ID |
+| `ARCHIVE_CNAME_TARGET` | `sites.flockstack.io` | `sites-eu.flockstack.io` |
+| `FLOCKSTACK_WORKER_NAME` | optional, `flockstack` from `FLOCKSTACK_REGION=us` | optional, `flockstack-eu` from `FLOCKSTACK_REGION=eu` |
+
+Each Worker sets its own `ARCHIVE_CNAME_TARGET`, so customers of each region CNAME to that region's name; the route, not the target, decides which Worker serves a hostname.
+
+**One-time setup, by the owner:**
+
+1. In the `flockstack.io` zone, add a proxied DNS record for each CNAME target, with no origin behind it: `sites` AAAA `100::` (proxied) and `sites-eu` AAAA `100::` (proxied).
+2. Under SSL/TLS, Custom Hostnames, set the zone's **fallback origin** to one of them, `sites.flockstack.io`, and wait until it shows Active. Cloudflare for SaaS (SSL for SaaS, Basic) is already on for the zone.
+3. Create an API token (My Profile, API Tokens, Create custom token) with exactly these permissions, each limited to the zones listed:
+   - Zone, **SSL and Certificates**, Edit: `flockstack.io` (custom hostnames).
+   - Zone, **Workers Routes**, Edit: `flockstack.io` (each hostname's route).
+   - Zone, **DNS**, Edit: the zone of each Worker's `SHARED_DOMAIN` (shared addresses' records, below).
+   - Zone, **Zone**, Read: `flockstack.io` and the `SHARED_DOMAIN` zones.
+4. Set `CLOUDFLARE_API_TOKEN` as a secret on both Workers (`wrangler secret put CLOUDFLARE_API_TOKEN`, and again with `--env eu`), and the other variables in the table as `vars`.
+5. Existing customer domains are set up at their next **Check now**.
+
+Limits to know: a zone takes 1,000 Worker routes, one per custom hostname here (more needs Workers for Platforms or a `*/*` route with the region decided inside the Worker), and Cloudflare for SaaS bills custom hostnames past the plan's included ones. A customer whose own DNS is on Cloudflare must leave the CNAME DNS-only (grey cloud): a proxied one skips custom hostname routes. Certificate validation goes through the Worker's route, so `worker-entry.mjs` passes `/.well-known/acme-challenge/*` and `/.well-known/pki-validation/*` on customers' hostnames back to Cloudflare untouched.
 
 ## Product analytics (FlockStack Cloud)
 

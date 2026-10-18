@@ -1,6 +1,7 @@
 // The Worker's entry: OpenNext's handler for requests, plus Cloudflare Cron Triggers for the jobs that used to need an
 // outside scheduler (app/api/cron). A trigger calls the route through the same handler with CRON_SECRET.
 import openNext from "./.open-next/worker.js";
+import { isCertificateValidationRequest } from "./lib/certificate-validation.js";
 
 export { BucketCachePurge, DOQueueHandler, DOShardedTagCache } from "./.open-next/worker.js";
 
@@ -11,7 +12,7 @@ export const CRON_JOBS = {
 };
 
 export default {
-	fetch: (request, env, ctx) => openNext.fetch(request, env, ctx),
+	fetch: (request, env, ctx) => (isCertificateValidationRequest(request, env) ? fetch(request) : openNext.fetch(request, env, ctx)),
 
 	async scheduled(event, env, ctx) {
 		const path = CRON_JOBS[event.cron];
