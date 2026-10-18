@@ -129,8 +129,13 @@ describe("the legal pages", () => {
 		for (const phrase of [
 			"PostHog",
 			"never on a newsletter's public pages or on the pages readers use",
-			"for visitors to eu.flockstack.io it runs only after they accept",
-			"user ID and email address",
+			"One PostHog project, on PostHog US Cloud, serves both flockstack.io and eu.flockstack.io",
+			"it runs only after you accept if you are in the EU, the EEA, the UK or Switzerland, or on eu.flockstack.io",
+			"A Global Privacy Control or Do Not Track signal from your browser turns it off",
+			"Session recording is off",
+			"user ID, email address and plan",
+			"fs_consent",
+			"Cookie settings",
 			"Cloudflare Workers AI",
 			"may be processed outside your region",
 			"fs_reader_<newsletter>",
@@ -141,10 +146,11 @@ describe("the legal pages", () => {
 			assert.ok(privacy.includes(phrase), phrase);
 		}
 		assert.doesNotMatch(privacy, /nothing for advertising or analytics/);
-		for (const phrase of ["PostHog US Cloud", "PostHog EU Cloud", "runs only after the visitor accepts", "Workers AI runs on Cloudflare's global network", "Google (sign-in)", "Google receives the sign-in request and the person's choice to sign in", m.legal.OPTIONAL_SERVICES_IN_USE]) {
+		for (const phrase of ["PostHog US Cloud", "One PostHog project serves both flockstack.io and eu.flockstack.io", "events from eu.flockstack.io are processed in the United States", "runs only after the visitor accepts", "Workers AI runs on Cloudflare's global network", "Google (sign-in)", "Google receives the sign-in request and the person's choice to sign in", m.legal.OPTIONAL_SERVICES_IN_USE]) {
 			assert.ok(processors.includes(phrase), phrase);
 		}
 		assert.doesNotMatch(processors + privacy, /EU-only|only in the EU/i);
+		assert.doesNotMatch(processors + privacy, /PostHog EU Cloud/);
 	});
 
 	test("the terms give the limits the code uses, the refund rules and the promises", () => {

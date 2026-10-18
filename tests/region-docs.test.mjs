@@ -64,6 +64,8 @@ describe("/docs/regions", () => {
 			"Polar or Stripe",
 			"Your own Stripe account",
 			"Cloudflare's Workers logs",
+			"The same PostHog project on PostHog US Cloud, so the events are processed in the United States",
+			"One PostHog project on PostHog US Cloud serves both regions",
 			"What isn't kept in the region",
 			"Where the code runs",
 			"https://flockstack.io",
@@ -72,6 +74,7 @@ describe("/docs/regions", () => {
 			assert.ok(text.includes(phrase), phrase);
 		}
 		for (const item of m.regions.REGION_LEAVES) assert.ok(text.includes(item), item);
+		assert.doesNotMatch(text, /PostHog EU Cloud/);
 		assert.match(text, /This server stores its data in the United States/);
 		await withEnv({ FLOCKSTACK_REGION: "eu" }, async () => assert.match(textOf(await render(m.page)), /This server stores its data in the European Union/));
 		await withEnv({ FLOCKSTACK_CLOUD: "" }, async () => assert.match(textOf(await render(m.page)), /A server you host yourself has one place for its data/));
