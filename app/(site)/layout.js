@@ -9,6 +9,10 @@ import { cn } from "@/lib/utils";
 
 const TWITTER_CREATOR = isCloud() ? siteExtensions.twitterCreator : null;
 
+// Read per request, not at build: one build serves every region's Worker, each with its own APP_URL (wrangler.jsonc, env.eu).
+// The docs and the landing page show the app's address, which is each region's own.
+export const dynamic = "force-dynamic";
+
 export const metadata = {
 	metadataBase: new URL(getAppUrl()),
 	robots: { index: true, follow: true },

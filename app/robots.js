@@ -27,6 +27,9 @@ const PRIVATE_PATHS = [
 	"/o/",
 ];
 
+// Read per request, not at build: one build serves every region's Worker, each with its own APP_URL (wrangler.jsonc, env.eu).
+export const dynamic = "force-dynamic";
+
 export default function robots() {
 	return {
 		rules: { userAgent: "*", allow: "/", disallow: PRIVATE_PATHS },

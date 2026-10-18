@@ -5,14 +5,17 @@ import { MAX_ACTIVE_API_KEYS } from "@/lib/actions/api-keys";
 import { SLUG_CHANGES } from "@/lib/newsletters";
 import { ACTIONS } from "@/lib/actions/registry";
 import { API_BASE_PATH, REQUESTS_PER_KEY } from "@/lib/api/rest";
+import { API_KEY_SCAN_REGEX } from "@/lib/api-key-tokens";
 import { getAppUrl, isCloud } from "@/lib/config";
 import { getDocsPageMetadata } from "@/lib/docs/llms";
 import { formatWindow } from "@/lib/format";
+import { getRegionUrls } from "@/lib/region";
 
 export const metadata = getDocsPageMetadata("/docs/authentication");
 
 export default function AuthenticationPage() {
 	const appUrl = getAppUrl();
+	const regionUrls = getRegionUrls();
 	const limited = ACTIONS.filter(({ rateLimit }) => rateLimit);
 	const signupsOnly = ACTIONS.filter(({ permission }) => permission === "signups");
 
@@ -29,11 +32,33 @@ export default function AuthenticationPage() {
 
 			<Section title="Send the key" stagger={1}>
 				<p>
-					Create keys on the dashboard&apos;s API keys page. They start with <Code>mc_</Code> and are shown once: FlockStack only keeps
-					their hash, their first characters and when they were last used. The REST API and the MCP server take the same header. An
-					account has up to {MAX_ACTIVE_API_KEYS} active keys.
+					Create keys on the dashboard&apos;s API keys page. They start with <Code>mc_</Code>, or <Code>mc_eu_</Code> for an account in
+					the European Union, and are shown once: FlockStack only keeps their hash, their first characters and when they were last used.
+					The REST API and the MCP server take the same header. An account has up to {MAX_ACTIVE_API_KEYS} active keys.
 				</p>
 				<BlockCode title="Header" className="mt-4" code="Authorization: Bearer mc_…" />
+			</Section>
+
+			{isCloud() && (
+				<Section title="Regions" stagger={2}>
+					<p>
+						An account lives in one region, and its keys only work there: <Code>{regionUrls.us}</Code> for the United States,{" "}
+						<Code>{regionUrls.eu}</Code> for the European Union. A key from the other region answers <Code>401 unauthorized</Code>. The
+						prefix tells them apart: <Code>mc_</Code> and 43 more characters in the United States, <Code>mc_eu_</Code> and 43 in the
+						European Union. See{" "}
+						<Link href="/docs/regions" className="text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
+							where your data is stored
+						</Link>
+						.
+					</p>
+				</Section>
+			)}
+
+			<Section title="Secret scanning" stagger={2}>
+				<p>
+					To find FlockStack keys in code, logs or a secret scanner&apos;s custom patterns, match both formats with this regular expression.
+				</p>
+				<BlockCode title="Regular expression" className="mt-4" code={API_KEY_SCAN_REGEX} />
 			</Section>
 
 			<Section title="Two levels" stagger={2}>

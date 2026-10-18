@@ -1,14 +1,19 @@
 import { redirect } from "next/navigation";
+import { ArrowRight } from "lucide-react";
 import ButtonSigninGoogle from "@/components/ButtonSigninGoogle";
 import ButtonSigninPasskey from "@/components/ButtonSigninPasskey";
 import FormSignin from "@/components/FormSignin";
 import LayoutSplit from "@/components/LayoutSplit";
 import LogoWordmark from "@/components/LogoWordmark";
+import RegionPicker from "@/components/RegionPicker";
 import { SigninAside, SiteAnalytics } from "@/components/SiteExtensions";
+import { Button } from "@/components/ui/button";
 import { DELETION_GRACE_DAYS } from "@/lib/account-deletion";
 import { getSession, getSignupError, isGoogleEnabled } from "@/lib/auth";
 import { isCloud } from "@/lib/config";
 import { readOAuthRequest } from "@/lib/oauth";
+import { REGION_PLACES, getOtherRegion, getRegion, getRegionOptions, getSigninUrl } from "@/lib/region";
+import { readRegionChoice } from "@/lib/region-choice";
 import { toSafeNextPath } from "@/lib/validation";
 
 export const metadata = { title: "Sign in" };
@@ -23,6 +28,8 @@ export default async function SigninPage({ searchParams }) {
 	if (!oauthRequest && (await getSession())) redirect(nextPath);
 	const oauthQuery = oauthRequest && !oauthRequest.isExpired ? oauthRequest.query : null;
 	const intro = getIntro(oauthRequest, deleted !== undefined);
+	// FlockStack Cloud has one Worker per region. An app connecting with OAuth chose its region with the server's address.
+	const regions = isCloud() && !oauthRequest ? await getRegions(params.region, nextPath) : null;
 
 	return (
 		<LayoutSplit aside={SigninAside && <SigninAside />}>
@@ -33,8 +40,19 @@ export default async function SigninPage({ searchParams }) {
 				<div className="w-full max-w-[22rem] animate-enter">
 					<h1 className="font-display text-[2.5rem] leading-[1.05] font-[480] tracking-[-0.03em] text-balance">Sign in to FlockStack</h1>
 					{intro && <p className="mt-3 text-[15px] leading-6 text-pretty text-muted-foreground">{intro}</p>}
-					{oauthRequest?.isExpired ? null : (
-						<div className="mt-8">
+					{regions && <RegionPicker {...regions.picker} className="mt-8" />}
+					{oauthRequest?.isExpired ? null : regions?.isElsewhere ? (
+						<div className="mt-6 flex flex-col gap-3">
+							<p className="text-sm text-pretty text-muted-foreground">Your account and everything in it will be stored in {regions.place}.</p>
+							<Button asChild size="lg" className="h-11">
+								<a href={regions.href}>
+									Continue in {regions.place}
+									<ArrowRight data-icon="inline-end" />
+								</a>
+							</Button>
+						</div>
+					) : (
+						<div className={regions ? "mt-6" : "mt-8"}>
 							{isGoogleEnabled() && (
 								<>
 									<ButtonSigninGoogle next={nextPath} oauthQuery={oauthQuery} />
@@ -58,11 +76,33 @@ export default async function SigninPage({ searchParams }) {
 							)}
 						</div>
 					)}
+					{regions && (
+						<p className="mt-6 text-sm text-pretty text-muted-foreground">
+							Already have an account in the other region?{" "}
+							<a href={regions.otherHref} className="font-medium whitespace-nowrap text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
+								Sign in there.
+							</a>
+						</p>
+					)}
 				</div>
 			</div>
 			{SiteAnalytics && <SiteAnalytics />}
 		</LayoutSplit>
 	);
+}
+
+// The picker's props, and whether the choice is the other region's, which has its own sign-in page: an account lives in
+// exactly one region, so there is no way to look it up from here.
+async function getRegions(queryRegion, next) {
+	const choice = await readRegionChoice(typeof queryRegion === "string" ? queryRegion : undefined);
+	const current = getRegion();
+	return {
+		picker: { options: getRegionOptions({ next }), selected: choice.region, current, remember: choice.source === "query" && choice.region === current },
+		isElsewhere: choice.region !== current,
+		place: REGION_PLACES[choice.region],
+		href: getSigninUrl(choice.region, { next }),
+		otherHref: getSigninUrl(getOtherRegion(current), { next }),
+	};
 }
 
 // Only what changes what to do: an app connecting, an expired link, an account just deleted, or a server that lets

@@ -490,13 +490,13 @@ describe("subscription changes", () => {
 		const other = await signIn("other-claim@example.com");
 		subscriptions.set("sub_two", subscription({ id: "sub_two", accountId: user.accountId, customer: "cus_two", metadata: { accountId: String(other.accountId) } }));
 		subscriptions.set("sub_none", subscription({ id: "sub_none", customer: "cus_none" }));
-		const error = console.error;
-		console.error = () => {};
+		const info = console.info;
+		console.info = () => {};
 		try {
 			assert.equal((await deliver("subscription.created", { id: "sub_two" })).body.ignored, "no account");
 			assert.equal((await deliver("subscription.created", { id: "sub_none" })).body.ignored, "no account");
 		} finally {
-			console.error = error;
+			console.info = info;
 		}
 		assert.equal((await account(other)).subscriptionStatus, undefined);
 	});

@@ -29,7 +29,7 @@ Tags, custom fields, segments and automations (migration `0005_segments_automati
 
 ## Status
 
-- Test suite: 1062 tests, all passing on SQLite (`node scripts/test-all.mjs <logdir>`).
+- Test suite: 1128 tests, all passing on SQLite (`node scripts/test-all.mjs <logdir>`).
 - `opennextjs-cloudflare build` works (needs network for next/font; behind a proxy set `NODE_USE_ENV_PROXY=1`).
 - Worker runs under `wrangler dev` on local D1/R2 and serves pages.
 - Provisioned in the KMF Ventures account: D1 `flockstack` (97615845-8aa2-413f-ad98-89821937069f, migration applied), R2 bucket `flockstack-images`.
@@ -54,6 +54,18 @@ Products, orders and paid subscriptions, paid to the creator's own Stripe accoun
 - D1: `migrations/0004_commerce.sql`.
 
 Left out for now: file uploads over 15 MB (they pass through the Worker's memory; a direct-to-R2 upload would lift it), tax and VAT (Stripe Tax is not turned on), coupons beyond Stripe's promotion codes, bundles and variants, a reader-facing order history, pruning old `PaymentEvent` rows.
+
+## Regions (branch feat/eu-region)
+
+The same code as two Workers: `flockstack` (US, flockstack.io) and `flockstack-eu` (EU, eu.flockstack.io), each with its own database and buckets. README, Regions, has the table, the deploy steps and the EU Worker's secrets.
+
+- **Config.** The top level of `wrangler.jsonc` is the US deployment (`FLOCKSTACK_REGION=us`); `env.eu` repeats everything it needs (Wrangler environments inherit no bindings, vars or routes): the D1 database `flockstack-eu` and R2 buckets `flockstack-images-eu`, `-files-eu`, `-exports-eu`, all in the `eu` jurisdiction, `SES_REGION=eu-west-1`, the route `eu.flockstack.io`, no workers.dev address.
+- **Code.** `lib/region.js`: the region, `advanced.cookiePrefix` for Better Auth (the US keeps `better-auth`, so today's sessions stay valid; the EU is `flockstack-eu`), the API key prefix (`mc_` for the US, `mc_eu_` for the EU: 46 and 49 characters, so a US key never reads as an EU one), each region's address (`REGION_URL_US`, `REGION_URL_EU`) and the picker's choice (`?region=`, the `region` cookie, the visitor's country, the Worker's own region; the country only counts on the US Worker). The sign-in page and the landing page ask "Where should your data live?"; choosing the other region leads to that Worker's sign-in with `next` kept. The account page and the admin header say which region they are in. Passkeys already belong to the host (`rpID` is `APP_URL`'s host), so one made in the other region isn't offered; `tests/region-eu.test.mjs` checks the EU's is `eu.flockstack.io`.
+- **One build.** The docs, `/llms.txt`, `/llms-full.txt`, the OpenAPI document, `robots.txt` and `sitemap.xml` used to be prerendered at build with the build's `APP_URL`; they are `force-dynamic` now, so the EU Worker shows its own address.
+- **Webhooks.** A Polar, Stripe, Stripe Connect, SES/SNS or PostShiba configuration can deliver to both Workers. An event for an account, customer, subscription, tenant or message this region doesn't have is acknowledged with a 2xx and logged at info level (`noteOtherRegion`), with no alert and no retry; signatures and the SNS topic check stay strict (`tests/region-webhooks.test.mjs`).
+- **Operations.** `scripts/deploy-all.mjs`: one build, the missing migrations on each database (tracked in `_flockstack_migrations`; `0001` to `0006` count as applied by hand), then both deploys. `--only us|eu`, `--dry-run`, `--skip-build`, `--baseline`.
+- **Wording.** "Data stored in the EU" or "EU-deployable", not "EU-resident", until every subprocessor in `lib/docs/regions.js` (which `/docs/regions` shows) is verified. Cloudflare's Workers logs hold a line per sign-in with the email address and IP address and aren't limited to the EU; the Worker runs in the data center nearest the visitor; Polar, Stripe and Telegram (admin alerts) are one account each for both regions.
+- **Not done.** Moving an account between regions. A region-aware Polar or Stripe checkout (both Workers share the one billing account). Deleting an account in one region does not look for the same email in the other. The EU Worker's secrets, SES identities and topics, QStash schedule and webhooks are the owner's to create (README, What the EU Worker needs).
 
 ## Still to do
 

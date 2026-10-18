@@ -22,6 +22,7 @@ import { isCloud } from "@/lib/config";
 import { formatDate } from "@/lib/format";
 import { getAccountPlan } from "@/lib/plans";
 import { MAX_NAME_LENGTH } from "@/lib/profile";
+import { REGION_PLACES, getRegion } from "@/lib/region";
 
 export const metadata = { title: "Account" };
 
@@ -47,12 +48,23 @@ export default async function AccountPage() {
 						</span>
 					</RowSettings>
 				</CardSettings>
+				{isCloud() && <CardRegion />}
 				<CardPasskeys />
 				{isCloud() && <CardBilling account={account} />}
 				<CardExport initial={latestExport ?? null} />
 				<CardDelete email={user.email} blockers={blockers} cancelAt={account.cancelAt} />
 			</div>
 		</LayoutNarrow>
+	);
+}
+
+function CardRegion() {
+	return (
+		<CardSettings title="Data location" stagger={1}>
+			<RowSettings label="Region" hint="An account lives in one region. To use the other, create an account there.">
+				<span className="flex min-h-9 items-center text-sm">Your data is stored in {REGION_PLACES[getRegion()]}.</span>
+			</RowSettings>
+		</CardSettings>
 	);
 }
 
