@@ -29,7 +29,7 @@ Tags, custom fields, segments and automations (migration `0005_segments_automati
 
 ## Status
 
-- Test suite: 1128 tests, all passing on SQLite (`node scripts/test-all.mjs <logdir>`).
+- Test suite: 1164 tests, all passing on SQLite (`node scripts/test-all.mjs <logdir>`).
 - `opennextjs-cloudflare build` works (needs network for next/font; behind a proxy set `NODE_USE_ENV_PROXY=1`).
 - Worker runs under `wrangler dev` on local D1/R2 and serves pages.
 - Provisioned in the KMF Ventures account: D1 `flockstack` (97615845-8aa2-413f-ad98-89821937069f, migration applied), R2 bucket `flockstack-images`.
@@ -67,11 +67,24 @@ The same code as two Workers: `flockstack` (US, flockstack.io) and `flockstack-e
 - **Wording.** "Data stored in the EU" or "EU-deployable", not "EU-resident", until every subprocessor in `lib/docs/regions.js` (which `/docs/regions` shows) is verified. Cloudflare's Workers logs hold a line per sign-in with the email address and IP address and aren't limited to the EU; the Worker runs in the data center nearest the visitor; Polar, Stripe and Telegram (admin alerts) are one account each for both regions.
 - **Not done.** Moving an account between regions. A region-aware Polar or Stripe checkout (both Workers share the one billing account). Deleting an account in one region does not look for the same email in the other. The EU Worker's secrets, SES identities and topics, QStash schedule and webhooks are the owner's to create (README, What the EU Worker needs).
 
+## Recommendations (branch feat/recommendations)
+
+Newsletter-to-newsletter recommendations, migration `0007_recommendations.sql` (`deploy-all` applies it). Free, with no paid placement and no cut of anyone's revenue.
+
+- **Data.** `Recommendation` (accountId is the recommender's; `recommenderId`, `recommendedId`, `recommendedAccountId`, `pitch`, `position`, `status` active or removed, `reason`, `removedBy`, and counters `stats.impressions/signups/confirmed`); `Newsletter.recommendations.allowIncoming` (default true) and `.listed` (default false). Up to 10 active per newsletter, a unique pair, and a removed pair keeps its counts and comes back if it is added again. A recommendation to a newsletter in the same account is refused. What is shown to readers is computed, never stored: `getRecommendationState` (`lib/recommendation-rules.js`) says active, pending (stored as active but the other newsletter can't take it now: opted out, no confirmed signups, website off or no first issue, blocked or unpaid account, unverified sending address) or removed, always with a reason. A blocked account is not named: the recommender reads "can't take new subscribers right now".
+- **Where it shows.** (a) The step after a signup: `subscribe` and `confirmSubscription` return `step` (unticked cards plus a signed token for the contact, 2 hours, its own HKDF key); `subscribeToRecommendations` (app/archive/actions.js) runs `upsertContact` on each ticked newsletter with source `recommendation:<recommender slug>`, then queues that newsletter's own confirmation email, so its suppression and consent rules apply. Recommended newsletters must confirm signups, which is why a tick can't add anyone without their own click on a confirmation link. (b) A section on the archive home and issue pages (`ListRecommendations`). (c) `{{recommendations}}`: filled in the email before links are tracked, in the web version and in the feed; an issue that places it gets no second section under it. The email build reads recommendations once per newsletter per 30 seconds (`getEmailRecommendations`).
+- **Attribution.** A link carries `?rec=<slug>`; the signup form keeps it 7 days and the server counts it only for an active recommendation between the two newsletters. `Contact.source` is `recommendation:<slug>`. Signups count for a new contact that can receive email; confirmed counts on the first confirmation. Impressions come from a beacon (`/api/recommendations/impression`, once per browser, place and day, rate-limited in memory) that names the newsletters shown; nothing about the reader is stored.
+- **Abuse limits.** 10 per newsletter, 30 additions a day and 30 an hour per account (`add_recommendation`), 300 signups a day per recommender and recommended pair, 6 step submissions per 10 minutes per network, 10 impressions an hour per network and newsletter. Every removal carries its reason: the recommended newsletter's owner can decline one recommendation (`update_recommendation` with `decision`), the recommender can't add it again until it is brought back, and a purged account's incoming recommendations are removed with the reason "This newsletter no longer exists."
+- **Discovery.** `/recommendations` in the app's own host (`app/(site)/recommendations`): listed newsletters only (`recommendations.listed`, off by default, needs the website on), eligible now, by name, 12 a page, a range of subscribers ("1,000 to 5,000") and never an exact number; in the sitemap, a search or page is noindex. `search_recommendable_newsletters` returns the same without your own newsletters. The directory reads up to 2,000 listed newsletters and filters by words in memory; a SQL-side search is the next step if the directory grows.
+- **Dashboard.** `/recommending` (the name `/recommendations` belongs to the public directory), actions `list_recommendations`, `add_recommendation`, `update_recommendation`, `remove_recommendation`, `get_recommendation_stats`, `set_recommendation_settings`, `search_recommendable_newsletters`; docs at `/docs/recommendations`.
+- **Regions.** Two stacks, two databases: a slug from the other region isn't found, and the refusal says which region this is (read per request, never at module load, because a Worker has no env then). The docs, the Regions page and the action descriptions state the rule.
+- **Not done.** The account export doesn't include recommendations. Recommendations don't follow a newsletter's slug change in the links of already-sent emails (the links name the recommender's slug at send time; an old slug stops counting). No per-recommendation scheduling or A/B testing.
+
 ## Still to do
 
 Done since the first deploy: passkey login, cloud mode with SES-only platform email, Polar billing next to Stripe (needs the owner's Polar token, products and webhook), the landing page at `/` for signed-out visitors, database-backed rate limits, R2 images at img.flockstack.io, the gull-stack logo, README and AGENTS.md for the new setup.
 
-0. Growth: create the private R2 bucket `flockstack-exports` with an 8-day lifecycle rule and bind it as `EXPORTS` (commented line in `wrangler.jsonc`); apply `migrations/0006_growth.sql`. Segments and automations: apply `migrations/0005_segments_automations.sql` and create the QStash schedule that calls `/api/jobs/run-automations` every 5 minutes (README, QStash).
+0. Growth: create the private R2 bucket `flockstack-exports` with an 8-day lifecycle rule and bind it as `EXPORTS` (commented line in `wrangler.jsonc`); apply `migrations/0006_growth.sql` and `migrations/0007_recommendations.sql` (`deploy-all` applies the numbered files it hasn't recorded). Segments and automations: apply `migrations/0005_segments_automations.sql` and create the QStash schedule that calls `/api/jobs/run-automations` every 5 minutes (README, QStash).
 1. Polar: create the org token, run `scripts/polar-setup.mjs`, add the webhook, set `POLAR_ACCESS_TOKEN` / `POLAR_WEBHOOK_SECRET` (see README, billing).
 2. SES stays on the owner's existing AWS account (decided, shared with other products). Each customer is its own SES tenant with its own suppression list, and the app pauses senders on bounce and complaint rates, which limits the blast radius; revisit if a customer ever hurts the account's reputation.
 3. Push the fork to a public repository (AGPL), then point `SOURCE_URL` in `lib/site.js` at it and add a source link to the site footer.
@@ -85,10 +98,10 @@ Done since the first deploy: passkey login, cloud mode with SES-only platform em
 
 By posts and engagement, the themes were: growth and discovery (the most engaged), content policy and platform trust (Substack), editor and release confusion (beehiiv's summer release), community and reader engagement, support that doesn't answer, automations and segmentation, price increases and being priced out, owning the audience, deliverability.
 
-Built or building: segments, tags and automations (`feat/segments-automations`), RSS, export and referrals (merged), selling with a 0% platform fee (merged).
+Built or building: segments, tags and automations (`feat/segments-automations`), RSS, export and referrals (merged), selling with a 0% platform fee (merged), recommendations between newsletters (`feat/recommendations`).
 
 Next, in order:
-1. Recommendations between newsletters and a community layer (comments, reader profiles): the most engaged theme.
+1. Recommendations between newsletters (built, `feat/recommendations`) and a community layer (comments, reader profiles): the most engaged theme.
 2. Enforcement that explains itself: a published acceptable use policy, a warning and a way to answer before an account is blocked, the reason always shown (beehiiv's "AUP violation" blocks and unexplained ad-network cuts drew the angriest posts).
 3. A price promise: a published price ladder, 90 days' notice before any increase, existing customers keep their price.
 4. Release notes and no forced redesigns: new editor changes arrive behind a switch.

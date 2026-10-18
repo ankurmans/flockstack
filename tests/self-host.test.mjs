@@ -341,8 +341,8 @@ describe("public pages", () => {
 		}
 	});
 
-	test("the sitemap lists only the docs", () => {
+	test("the sitemap lists only the directory and the docs", () => {
 		const urls = m.sitemap().map(({ url }) => url);
-		assert.deepEqual(urls, m.docs.DOC_PAGES.map(({ href }) => `http://localhost:3000${href}`));
+		assert.deepEqual(urls, ["/recommendations", ...m.docs.DOC_PAGES.map(({ href }) => href)].map((href) => `http://localhost:3000${href}`));
 	});
 });
