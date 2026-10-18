@@ -101,6 +101,16 @@ PostHog on FlockStack's own pages, FlockStack Cloud only (README, Product analyt
 - **Steps.** Client code reports with `reportGoal` (`lib/goals.js`); the server leaves `fs_goal` through `siteExtensions.sendGoalOnNextPage`. Never a call to PostHog from the server.
 - **Not done.** Delivery to the real PostHog project, checked there; the retention (`ANALYTICS_RETENTION`); a "Cookie settings" entry inside the dashboard (the link is in the footer of the public pages and on sign-in); PostHog feature flags and experiments (off).
 
+## Domains on Cloudflare (branch feat/cloudflare-domains)
+
+Customers' own archive domains and shared addresses' DNS, native on Cloudflare. README, Domains on Cloudflare, has the owner's one-time setup and each Worker's variables.
+
+- **API.** `lib/cloudflare-api.js` is the only caller of `https://api.cloudflare.com/client/v4`: custom hostnames, Worker routes and DNS records, with Cloudflare's error codes kept (`isAuth`, `isRateLimited`, `isUnavailable`, `isConflict`), a 15 s timeout, two retries on no answer or a 5xx, and creates that return what exists already. Tests replace it with `tests/stubs/cloudflare-api.mjs`.
+- **Custom hostnames.** With `FLOCKSTACK_CLOUD`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_SAAS_ZONE_ID` and `ARCHIVE_CNAME_TARGET`, adding or checking a domain creates a Worker route `<host>/*` to this region's Worker (`FLOCKSTACK_WORKER_NAME`, or `flockstack` / `flockstack-eu`), then the custom hostname (HTTP validation), and stores both on `Domain.customHostname`. The route goes first and marks the hostname as this region's; one routed to the other Worker is a conflict and is never touched. `archiveHostVerified` needs the hostname and its certificate active. Removal and the purge delete both, found by pattern when no ids were saved. `worker-entry.mjs` passes Cloudflare's HTTP validation paths through on customers' hosts.
+- **Shared DNS.** `lib/shared-dns.js` writes a shared address's records to `CLOUDFLARE_SHARED_ZONE_ID` (SES's DNS only, the website CNAME proxied, each with a comment naming the slug), or through the DNS helper without it; `sharedSender.dnsDriver` remembers which. A daily cap per zone (`CLOUDFLARE_DNS_DAILY_CAP`, 150) and Cloudflare's 429 report `cap`, a bad token or Cloudflare failing `down`, as the helper did.
+- **Admin.** `/admin` shows whether custom hostnames and the shared DNS are on, and counts of active, pending and refused hostnames.
+- **Not verified against the real API.** Every call ran against the stub only: the duplicate-route error code, routes for custom hostnames created through the API (the docs show the dashboard), the HTTP validation passing through a Worker route, and the shared zone's wildcard route. Past 1,000 Worker routes per zone this needs Workers for Platforms or a `*/*` route that picks the region inside the Worker.
+
 ## Still to do
 
 Done since the first deploy: passkey login, cloud mode with SES-only platform email, Polar billing next to Stripe (needs the owner's Polar token, products and webhook), the landing page at `/` for signed-out visitors, database-backed rate limits, R2 images at img.flockstack.io, the gull-stack logo, README and AGENTS.md for the new setup.

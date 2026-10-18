@@ -17,6 +17,19 @@ const domainSchema = new mongoose.Schema(
 		dkimStatus: { type: String, default: "PENDING" },
 		mailFromStatus: { type: String, default: "PENDING" },
 		archiveHostVerified: { type: Boolean, default: false },
+		// FlockStack Cloud on Cloudflare: the archive subdomain as a Cloudflare for SaaS custom hostname, with the Worker
+		// route that serves it, as the last check found them (lib/custom-hostnames.js).
+		customHostname: {
+			id: { type: String },
+			routeId: { type: String },
+			worker: { type: String },
+			status: { type: String },
+			sslStatus: { type: String },
+			state: { type: String },
+			records: [{ _id: false, type: { type: String }, name: String, value: String }],
+			errors: { type: [String], default: undefined },
+			checkedAt: { type: Date },
+		},
 		records: [{ _id: false, purpose: String, type: { type: String }, name: String, value: String }],
 		// The DMARC record found on the domain, or on the closest parent with one (lib/dmarc-rules.js).
 		dmarc: { status: { type: String }, host: { type: String } },

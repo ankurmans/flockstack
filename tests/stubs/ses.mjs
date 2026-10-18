@@ -148,7 +148,7 @@ export async function getDomainIdentity(domain) {
 		mailFromStatus: identity.mailFromStatus,
 		records: [
 			...tokens.map((token) => ({ purpose: "dkim", type: "CNAME", name: `${token}._domainkey.${domain}`, value: `${token}.dkim.amazonses.com` })),
-			{ purpose: "mail-from", type: "MX", name: identity.mailFromDomain, value: "10 feedback-smtp.us-east-1.amazonses.com" },
+			{ purpose: "mail-from", type: "MX", name: identity.mailFromDomain, value: `10 feedback-smtp.${process.env.SES_REGION || "us-east-1"}.amazonses.com` },
 			{ purpose: "mail-from", type: "TXT", name: identity.mailFromDomain, value: "v=spf1 include:amazonses.com ~all" },
 		],
 	};

@@ -1,3 +1,5 @@
+import { findCloudflareRecord } from "./cloudflare-api.mjs";
+
 // The DNS helper in memory: records FlockStack asked for, by slug, as the helper keeps them on flockstack.io.
 export const dnsRecords = new Map();
 let nextId = 0;
@@ -33,7 +35,8 @@ export async function removeSharedRecords(slug, ids = []) {
 	return { deleted: ids };
 }
 
-// What a resolver would find at a name, for the provider stubs deciding whether a domain verifies.
+// What a resolver would find at a name, here or on Cloudflare's stub, for the provider stubs deciding whether a domain
+// verifies.
 export function findDnsRecord(name, type) {
-	return [...dnsRecords.values()].find((record) => record.name === name && record.type === type) ?? null;
+	return [...dnsRecords.values()].find((record) => record.name === name && record.type === type) ?? findCloudflareRecord(name, type);
 }
