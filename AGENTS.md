@@ -40,7 +40,7 @@ Next.js App Router in JavaScript, Tailwind CSS with shadcn/ui, Cloudflare D1 thr
 
 `isCloud()` in `lib/config.js` is `FLOCKSTACK_CLOUD === "true"`, what flockstack.io runs with: open sign-up, plans and Stripe billing. Anything else is a self-hosted server: only the allowlist (`ADMIN_EMAILS`, `ALLOWED_EMAILS`) signs in, there's no billing and no limits. Both run from the same files, so a change has to work in both modes.
 
-FlockStack Cloud's marketing site, analytics and support chat aren't part of the open source. Shared code reaches them only through the site extensions, `lib/site-extensions.js` and `components/SiteExtensions.jsx`, whose defaults add nothing: never import cloud-only code anywhere else.
+FlockStack Cloud's marketing site, analytics and support chat aren't part of the open source. Shared code reaches them only through the site extensions, `lib/site-extensions.js` and `components/SiteExtensions.jsx`, whose defaults add nothing: never import cloud-only code anywhere else. Shared client code reports a step worth counting with `reportGoal` (`lib/goals.js`, a window event, like `lib/sign-out.js`), and the server with `siteExtensions.sendGoalOnNextPage`; the analytics (PostHog, `lib/marketing`, `components/marketing`) carries only FlockStack's own pages, never a newsletter's or a reader's, and `tests/analytics-routes.test.mjs` lists where.
 
 ## Rules
 
