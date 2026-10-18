@@ -65,10 +65,10 @@ describe("sign-in page", () => {
 			const picker = readPicker(markup);
 			assert.equal(picker.selected, "eu", country);
 			assert.doesNotMatch(markup, /name="email"/, "the form belongs to the region the account will be in");
-			assert.match(markup, /will be stored in European Union/);
+			assert.match(markup, /will be stored in the European Union/);
 			const continueHref = `${EU_SIGNIN}?region=eu&next=%2Fcampaigns%2Fabc`;
 			assert.ok(hrefsOf(markup).includes(continueHref), country);
-			assert.match(markup, /Continue in European Union/);
+			assert.match(markup, /Continue in the European Union/);
 			assert.match(markup, HINT);
 			assert.equal(picker.us.href, "/signin?region=us&next=%2Fcampaigns%2Fabc");
 		}
@@ -118,7 +118,7 @@ describe("sign-in page", () => {
 			const markup = await visit(m.signin, { region: "us", next: "/billing" });
 			assert.equal(readPicker(markup).selected, "us");
 			assert.doesNotMatch(markup, /name="email"/);
-			assert.match(markup, /Continue in United States/);
+			assert.match(markup, /Continue in the United States/);
 			assert.ok(hrefsOf(markup).includes(`${US_SIGNIN}?region=us&next=%2Fbilling`));
 		});
 	});

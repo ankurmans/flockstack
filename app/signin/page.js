@@ -12,7 +12,7 @@ import { DELETION_GRACE_DAYS } from "@/lib/account-deletion";
 import { getSession, getSignupError, isGoogleEnabled } from "@/lib/auth";
 import { isCloud } from "@/lib/config";
 import { readOAuthRequest } from "@/lib/oauth";
-import { REGION_NAMES, getOtherRegion, getRegion, getRegionOptions, getSigninUrl } from "@/lib/region";
+import { REGION_PLACES, getOtherRegion, getRegion, getRegionOptions, getSigninUrl } from "@/lib/region";
 import { readRegionChoice } from "@/lib/region-choice";
 import { toSafeNextPath } from "@/lib/validation";
 
@@ -43,10 +43,10 @@ export default async function SigninPage({ searchParams }) {
 					{regions && <RegionPicker {...regions.picker} className="mt-8" />}
 					{oauthRequest?.isExpired ? null : regions?.isElsewhere ? (
 						<div className="mt-6 flex flex-col gap-3">
-							<p className="text-sm text-pretty text-muted-foreground">Your account and everything in it will be stored in {regions.name}.</p>
+							<p className="text-sm text-pretty text-muted-foreground">Your account and everything in it will be stored in {regions.place}.</p>
 							<Button asChild size="lg" className="h-11">
 								<a href={regions.href}>
-									Continue in {regions.name}
+									Continue in {regions.place}
 									<ArrowRight data-icon="inline-end" />
 								</a>
 							</Button>
@@ -79,7 +79,7 @@ export default async function SigninPage({ searchParams }) {
 					{regions && (
 						<p className="mt-6 text-sm text-pretty text-muted-foreground">
 							Already have an account in the other region?{" "}
-							<a href={regions.otherHref} className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
+							<a href={regions.otherHref} className="font-medium whitespace-nowrap text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
 								Sign in there.
 							</a>
 						</p>
@@ -99,7 +99,7 @@ async function getRegions(queryRegion, next) {
 	return {
 		picker: { options: getRegionOptions({ next }), selected: choice.region, current, remember: choice.source === "query" && choice.region === current },
 		isElsewhere: choice.region !== current,
-		name: REGION_NAMES[choice.region],
+		place: REGION_PLACES[choice.region],
 		href: getSigninUrl(choice.region, { next }),
 		otherHref: getSigninUrl(getOtherRegion(current), { next }),
 	};
