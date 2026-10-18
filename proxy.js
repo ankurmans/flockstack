@@ -33,6 +33,7 @@ const PUBLIC_PATHS = [
 	/^\/archive\//,
 	/^\/api\/unsubscribe$/,
 	/^\/api\/views$/,
+	/^\/api\/shop\/(download|portal)$/,
 	/^\/api\/v1\//,
 	/^\/api\/webhooks\//,
 	/^\/api\/jobs\//,
@@ -44,12 +45,14 @@ const ARCHIVE_HOST_PATHS = [
 	/^\/unsubscribe$/,
 	/^\/api\/unsubscribe$/,
 	/^\/api\/views$/,
+	/^\/api\/shop\/(download|portal)$/,
 	/^\/confirm$/,
 	/^\/keep$/,
 	/^\/o\//,
 	/^\/c\//,
 ];
 const ISSUE_PATH_PATTERN = /^\/p\/([a-z0-9][a-z0-9-]{0,119})\/?$/;
+const PRODUCT_PATH_PATTERN = /^\/shop\/([a-z0-9][a-z0-9-]{0,78}[a-z0-9]|[a-z0-9])\/?$/;
 const AUTHOR_PATH_PATTERN = /^\/authors\/([a-z0-9][a-z0-9-]{0,59})\/?$/;
 // Generated share images stay on the app domain, where social cards point: they're only PNGs.
 const ARCHIVE_IMAGE_PATH_PATTERN = /^\/archive\/[^/]+\/og$/;
@@ -70,6 +73,10 @@ export async function proxy(request) {
 		if (pathname === "/") return rewriteTo(request, `/archive/${archiveSlug}`);
 		if (pathname === "/sitemap.xml") return rewriteTo(request, `/archive/${archiveSlug}/sitemap`);
 		if (pathname === "/robots.txt") return rewriteTo(request, `/archive/${archiveSlug}/robots`);
+		if (pathname === "/shop" || pathname === "/shop/") return rewriteTo(request, `/archive/${archiveSlug}/shop`);
+		if (pathname === "/subscribe" || pathname === "/subscribe/") return rewriteTo(request, `/archive/${archiveSlug}/subscribe`);
+		const productSlug = PRODUCT_PATH_PATTERN.exec(pathname)?.[1];
+		if (productSlug) return rewriteTo(request, `/archive/${archiveSlug}/shop/${productSlug}`);
 		const issueSlug = ISSUE_PATH_PATTERN.exec(pathname)?.[1];
 		if (issueSlug) return rewriteTo(request, `/archive/${archiveSlug}/p/${issueSlug}`);
 		const authorSlug = AUTHOR_PATH_PATTERN.exec(pathname)?.[1];

@@ -14,7 +14,10 @@
 	],
 	"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
 	"d1_databases": [{ "binding": "DB", "database_name": "flockstack", "database_id": "97615845-8aa2-413f-ad98-89821937069f", "migrations_dir": "migrations" }],
-	"r2_buckets": [{ "binding": "IMAGES", "bucket_name": "flockstack-images" }],
+	"r2_buckets": [
+		{ "binding": "IMAGES", "bucket_name": "flockstack-images" },
+		{ "binding": "FILES", "bucket_name": "flockstack-files" }
+	],
 	"vars": {
 		"IMAGES_STORAGE": "r2",
 		"FLOCKSTACK_CLOUD": "true"

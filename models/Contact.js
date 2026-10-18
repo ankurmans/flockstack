@@ -1,5 +1,6 @@
 import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
+import { CONTACT_TIERS } from "../lib/tiers.js";
 
 // pending: signed up to a newsletter that asks new subscribers to confirm, and hasn't yet.
 export const CONTACT_STATUSES = ["active", "pending", "unsubscribed", "bounced", "complained", "dormant"];
@@ -16,6 +17,16 @@ const contactSchema = new mongoose.Schema(
 			userId: { type: mongoose.Schema.Types.ObjectId },
 			at: { type: Date },
 		},
+		// A reader of a newsletter with a paid tier is paid while Stripe says their subscription is active or in its trial
+		// (lib/payments/subscriptions.js); paidUntil is the end of the period they paid for. A contact with no tier is free.
+		tier: { type: String, enum: CONTACT_TIERS, default: "free" },
+		paidUntil: { type: Date },
+		paidSince: { type: Date },
+		paidInterval: { type: String, enum: ["month", "year"] },
+		stripeCustomerId: { type: String },
+		stripeSubscriptionId: { type: String },
+		// Stripe's status for the subscription: active, trialing, past_due, canceled…
+		subscriptionStatus: { type: String },
 		subscribedAt: { type: Date, default: Date.now },
 		confirmedAt: { type: Date },
 		unsubscribedAt: { type: Date },
@@ -55,6 +66,11 @@ contactSchema.index({ accountId: 1, subscribedAt: -1, _id: -1 });
 contactSchema.index({ accountId: 1, status: 1, subscribedAt: -1, _id: -1 });
 contactSchema.index({ newsletterId: 1, subscribedAt: -1, _id: -1 });
 contactSchema.index({ newsletterId: 1, status: 1, subscribedAt: -1, _id: -1 });
+// Stripe's subscription events find their contact by subscription or customer.
+contactSchema.index({ stripeSubscriptionId: 1 }, { partialFilterExpression: { stripeSubscriptionId: { $type: "string" } } });
+contactSchema.index({ newsletterId: 1, stripeCustomerId: 1 }, { partialFilterExpression: { stripeCustomerId: { $type: "string" } } });
+// Counting and sending to a newsletter's paid readers.
+contactSchema.index({ newsletterId: 1, tier: 1, status: 1 });
 // The list cleanup totals in newsletter settings.
 contactSchema.index({ newsletterId: 1, lastChanceAt: 1 }, { partialFilterExpression: { lastChanceAt: { $exists: true } } });
 // An admin taking an address off the never-email list finds the contacts it stopped, in every account.
