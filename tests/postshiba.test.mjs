@@ -70,13 +70,13 @@ test("PostShiba domains show their two CNAMEs, with statuses in the Domains page
 });
 
 const email = {
-	from: '"Field Notes" <hello@field-notes.mailcheapmail.com>',
+	from: '"Field Notes" <hello@field-notes.flockstackmail.com>',
 	to: "reader@example.org",
 	replyTo: "jane@example.com",
 	subject: "Issue 12",
 	html: "<p>Use {{ name }} in Jinja</p>",
 	text: "Use {{ name }} in Jinja",
-	headers: { "List-Unsubscribe": "<https://field-notes.mailcheapmail.com/api/unsubscribe?token=t>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+	headers: { "List-Unsubscribe": "<https://field-notes.flockstackmail.com/api/unsubscribe?token=t>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
 };
 const message = { _id: "74f1a2b3c4d5e6f7a8b9c0d2", accountId: "64f1a2b3c4d5e6f7a8b9c0d1", kind: "campaign", campaignId: "84f1a2b3c4d5e6f7a8b9c0d3" };
 
@@ -86,7 +86,7 @@ test("campaigns are injected with the account and message in unique args, our un
 	assert.deepEqual(getUniqueArgs({ ...message, kind: "welcome", campaignId: undefined }), { account_id: message.accountId, message_id: message._id, kind: "welcome" });
 
 	const injected = buildInjectMessage({ email, uniqueArgs });
-	assert.equal(injected.envelope_sender, "hello@field-notes.mailcheapmail.com");
+	assert.equal(injected.envelope_sender, "hello@field-notes.flockstackmail.com");
 	assert.deepEqual(injected.recipients, [{ email: "reader@example.org" }]);
 	assert.equal(injected.template_dialect, "Static", "{{ in an issue stays as written");
 	assert.equal(injected.content.html_body, email.html);

@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { getDnsHost, getDomainSetup } from "../lib/domain-records.js";
 import { rootDomain } from "../lib/root-domain.js";
 
-const CNAME_TARGET = "cname.mailcheap.ai";
+const CNAME_TARGET = "cname.flockstack.io";
 
 // A PostShiba domain as lib/domains.js stores it.
 function postshibaDomain(domain, archiveHost = `news.${domain}`) {

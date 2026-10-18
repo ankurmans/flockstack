@@ -4,9 +4,9 @@ import { createElement } from "react";
 import { prerenderToNodeStream } from "react-dom/static";
 import { activate, as, callApi, catchRedirect, form, listPlanPrices, mockStripe, readLookupKeys, signIn, startTestApp } from "./helpers/app.mjs";
 
-// Which plans MailCheap offers comes from Stripe: a plan shows on the pricing pages, the paywall and billing, and can be
+// Which plans FlockStack offers comes from Stripe: a plan shows on the pricing pages, the paywall and billing, and can be
 // picked, only once Stripe has both of its prices at lib/plans.js's amounts. This Stripe starts with the four plans
-// MailCheap launched with, then Max's prices arrive. The tests run in order: lib/stripe.js keeps what it read.
+// FlockStack launched with, then Max's prices arrive. The tests run in order: lib/stripe.js keeps what it read.
 let app;
 let m;
 let calls;
@@ -17,7 +17,7 @@ async function stripeApi({ method, path, query, body }) {
 	if (stripeState === "down") return { status: 400, error: { type: "invalid_request_error", message: "Stripe is having a bad day" } };
 	if (method === "GET" && path === "/v1/prices") {
 		const list = await listPlanPrices(query);
-		return { ...list, data: list.data.filter(({ lookup_key }) => stripeState === "with max" || !lookup_key.startsWith("mailcheap_max_")) };
+		return { ...list, data: list.data.filter(({ lookup_key }) => stripeState === "with max" || !lookup_key.startsWith("flockstack_max_")) };
 	}
 	if (method === "POST" && path === "/v1/checkout/sessions") return { id: "cs_sale", object: "checkout.session", url: "https://checkout.stripe.com/c/pay/cs_sale" };
 	return { status: 404, error: { type: "invalid_request_error", message: `No mock for ${method} ${path}` } };
@@ -81,7 +81,7 @@ describe("Max without its prices in Stripe", () => {
 		assert.deepEqual(plans.map(({ id }) => id), ["starter", "growth", "pro", "scale"]);
 		assert.deepEqual(
 			priceLists().flatMap(({ query }) => readLookupKeys(query)),
-			m.plans.PLANS.flatMap(({ id }) => [`mailcheap_${id}_monthly`, `mailcheap_${id}_yearly`]),
+			m.plans.PLANS.flatMap(({ id }) => [`flockstack_${id}_monthly`, `flockstack_${id}_yearly`]),
 			"one request for all ten"
 		);
 
@@ -89,13 +89,13 @@ describe("Max without its prices in Stripe", () => {
 		assert.deepEqual(pricing.plans.map(({ id }) => id), ["starter", "growth", "pro", "scale"]);
 		assert.equal(pricing.initialIndex, 0, "a plan that isn't on sale doesn't start the slider");
 		const slider = await render(m.ListPricing, {});
-		assert.ok(slider.includes("$149") && slider.includes('aria-label="500,000 emails a month"'), "Scale is the last step");
-		assert.ok(!slider.includes("$349") && !slider.includes('aria-label="2,000,000 emails a month"'), "Max isn't a step");
+		assert.ok(slider.includes("$109") && slider.includes('aria-label="500,000 emails a month"'), "Scale is the last step");
+		assert.ok(!slider.includes("$299") && !slider.includes('aria-label="2,000,000 emails a month"'), "Max isn't a step");
 		assert.equal(slider.includes("More than 500,000 emails?"), Boolean(m.siteExtensions.supportChatPath), "past Scale, the support chat");
 
 		const bigList = { onboarding: { listSize: "more" } };
 		assert.equal(m.onboarding.getRecommendedPlanId(bigList, plans), "scale", "Over 100,000 gets the largest plan on sale");
-		assert.match(await render(m.BannerPlan, { account: bigList, plans }), /Scale fits your list, at \$149 a month/);
+		assert.match(await render(m.BannerPlan, { account: bigList, plans }), /Scale fits your list, at \$109 a month/);
 
 		const buyer = await signIn("no-max@example.com");
 		assert.equal(await checkout(buyer, "max"), "/billing?interval=year", "the plan buttons lead to billing");
@@ -153,11 +153,11 @@ describe("Max with its prices in Stripe", () => {
 				["Max", "2,000,000", "2M", "1,000,000"],
 			]
 		);
-		assert.deepEqual(stops.map(({ prices }) => prices.month.price), ["$19", "$39", "$79", "$149", "$349"]);
-		assert.deepEqual(stops.map(({ prices }) => prices.year.price), ["$190", "$390", "$790", "$1,490", "$3,490"]);
+		assert.deepEqual(stops.map(({ prices }) => prices.month.price), ["$12", "$27", "$55", "$109", "$299"]);
+		assert.deepEqual(stops.map(({ prices }) => prices.year.price), ["$120", "$270", "$550", "$1,090", "$2,990"]);
 		assert.deepEqual(
 			[stops[4].prices.month.perThousand, stops[4].prices.year.perThousand, stops[4].prices.year.monthly],
-			["$0.17", "$0.15", "$290.83"]
+			["$0.15", "$0.12", "$249.17"]
 		);
 		assert.equal(stops[4].prices.year.href, "/billing/checkout?plan=max&interval=year");
 		const bars = stops.map(({ bar }) => bar);
@@ -166,14 +166,14 @@ describe("Max with its prices in Stripe", () => {
 		assert.ok(bars[1] > 0.28, "Growth stands above the shortest bar SliderPricing draws");
 
 		const slider = await render(m.ListPricing, {});
-		assert.ok(slider.includes("$349") && slider.includes('aria-label="2,000,000 emails a month"'));
+		assert.ok(slider.includes("$299") && slider.includes('aria-label="2,000,000 emails a month"'));
 		assert.equal(slider.includes("More than 2,000,000 emails?"), Boolean(m.siteExtensions.supportChatPath), "past Max, the support chat");
 		const bigList = { onboarding: { listSize: "more" } };
 		assert.equal(m.onboarding.getRecommendedPlanId(bigList, plans), "max");
-		assert.match(await render(m.BannerPlan, { account: bigList, plans }), /Max fits your list, at \$349 a month/);
+		assert.match(await render(m.BannerPlan, { account: bigList, plans }), /Max fits your list, at \$299 a month/);
 
 		const buyer = await signIn("max-buyer@example.com");
 		assert.equal(await checkout(buyer, "max"), "https://checkout.stripe.com/c/pay/cs_sale");
-		assert.equal(calls.findLast(({ path }) => path === "/v1/checkout/sessions").body.get("line_items[0][price]"), "price_mailcheap_max_yearly");
+		assert.equal(calls.findLast(({ path }) => path === "/v1/checkout/sessions").body.get("line_items[0][price]"), "price_flockstack_max_yearly");
 	});
 });

@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from "../lib/docdb/index.js";
 import { INTERVALS, PLAN_IDS } from "../lib/plans.js";
 
 export const ACCOUNT_STATUSES = ["active", "paused"];
@@ -8,11 +8,14 @@ const accountSchema = new mongoose.Schema(
 	{
 		// The Better Auth user who signed up. One user per account at launch.
 		ownerId: { type: mongoose.Schema.Types.ObjectId, required: true, unique: true },
-		// Written by the Stripe webhook (lib/billing.js) and the checkout return, never from a form.
+		// Written by the Stripe or Polar webhook (lib/billing.js, lib/billing-polar.js) and the checkout return, never from
+		// a form. Which provider bills is lib/billing-provider.js's choice; the other pair stays empty.
 		plan: { type: String, enum: PLAN_IDS },
 		interval: { type: String, enum: INTERVALS },
 		stripeCustomerId: { type: String },
 		stripeSubscriptionId: { type: String },
+		polarCustomerId: { type: String },
+		polarSubscriptionId: { type: String },
 		subscriptionStatus: { type: String },
 		currentPeriodStart: { type: Date },
 		currentPeriodEnd: { type: Date },
@@ -122,6 +125,8 @@ accountSchema.index(
 	{ unique: true, partialFilterExpression: { stripeCustomerId: { $type: "string" } } }
 );
 accountSchema.index({ stripeSubscriptionId: 1 }, { partialFilterExpression: { stripeSubscriptionId: { $type: "string" } } });
+accountSchema.index({ polarCustomerId: 1 }, { unique: true, partialFilterExpression: { polarCustomerId: { $type: "string" } } });
+accountSchema.index({ polarSubscriptionId: 1 }, { partialFilterExpression: { polarSubscriptionId: { $type: "string" } } });
 accountSchema.index({ createdAt: -1 });
 accountSchema.index({ "ses.tenantName": 1 }, { unique: true, partialFilterExpression: { "ses.tenantName": { $type: "string" } } });
 accountSchema.index({ "postshiba.tenantSlug": 1 }, { unique: true, partialFilterExpression: { "postshiba.tenantSlug": { $type: "string" } } });

@@ -17,9 +17,9 @@ import { activate, as, catchRedirect, form, jsonRequest, platformEmails, proveVo
 import { published } from "./stubs/qstash.mjs";
 
 const HOUR_MS = 3_600_000;
-const CLOUD = { MAILCHEAP_CLOUD: "true" };
+const CLOUD = { FLOCKSTACK_CLOUD: "true" };
 
-test("the warm-up runs 30 days from the first campaign, on MailCheap Cloud only", () => {
+test("the warm-up runs 30 days from the first campaign, on FlockStack Cloud only", () => {
 	const now = new Date("2026-10-13T12:00:00Z");
 	assert.equal(getWarmupDay({}, now), 0, "before the first campaign");
 	assert.equal(getWarmupDay({ spreadUntil: getSpreadEnd(now) }, now), 1, "the first campaign was just now");
@@ -33,8 +33,8 @@ test("the warm-up runs 30 days from the first campaign, on MailCheap Cloud only"
 	assert.deepEqual([started.day, started.hasStarted, started.endsAt], [3, true, "2026-11-10T00:00:00.000Z"]);
 	assert.ok(Math.abs(started.progress - 2.5 / 30) < 1e-9);
 	assert.equal(getWarmup({ spreadUntil: now }, { now, env: CLOUD }), null);
-	assert.equal(getWarmup({}, { now, env: { MAILCHEAP_CLOUD: "" } }), null, "no warm-up on a self-hosted server");
-	assert.equal(getPace({}, { proven: 0, now, env: { MAILCHEAP_CLOUD: "" } }), null, "which sends at full speed");
+	assert.equal(getWarmup({}, { now, env: { FLOCKSTACK_CLOUD: "" } }), null, "no warm-up on a self-hosted server");
+	assert.equal(getPace({}, { proven: 0, now, env: { FLOCKSTACK_CLOUD: "" } }), null, "which sends at full speed");
 });
 
 test("a send can be 2 times its proven volume on the warm-up's first day, 5 times by its last day and after it, 200 emails at least", () => {
@@ -292,7 +292,7 @@ describe("sends earn their pace", () => {
 		assert.deepEqual([paused.status, paused.pauseCode], ["paused", "high_rates"], "5% bounces");
 		assert.deepEqual(
 			platformEmails.slice(emailsBefore).map(({ subject }) => subject),
-			["[MailCheap] Campaign paused"]
+			["[FlockStack] Campaign paused"]
 		);
 
 		const from = published.length;

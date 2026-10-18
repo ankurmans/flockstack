@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from "../lib/docdb/index.js";
 
 // The Google account that lets the server read Google Postmaster Tools (lib/postmaster.js): one document, _id
 // "postmaster". Google shows the refresh token once; it's stored AES-256-GCM encrypted (lib/credentials.js), left out of

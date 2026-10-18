@@ -16,7 +16,7 @@ const USER_ACTION_FILES = new Set(["app/(account)/account/actions.js"]);
 const ALLOWED_IMPORTS = new Set(["next/cache", "next/navigation", "@/lib/actions/dashboard", "@/lib/selected-newsletter"]);
 const VIEW_ACTIONS = new Set(["selectNewsletter"]);
 const SEND_TOOLS = ["schedule_campaign", "send_campaign", "send_campaign_to_more", "resume_campaign"];
-const APP_URL = "https://mailcheap.ai";
+const APP_URL = "https://flockstack.io";
 const SAMPLE_ID = "6650f1c2e9b1d4a012345678";
 
 let app;

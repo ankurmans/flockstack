@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import mongoose from "mongoose";
+import mongoose from "@/lib/docdb";
 import { anonymous, as, catchNotFound, catchRedirect, form, platformEmails, signIn, startTestApp } from "./helpers/app.mjs";
 
 let app;
@@ -44,7 +44,7 @@ test("sign-in codes go out through Resend and are stored hashed", async () => {
 	await as(user, () => actions.sendSigninCode(null, form({ email: user.email })));
 	const email = platformEmails.at(-1);
 	assert.deepEqual(email.to, [user.email]);
-	assert.match(email.subject, /^\d{6} is your MailCheap code$/);
+	assert.match(email.subject, /^\d{6} is your FlockStack code$/);
 	const code = email.subject.slice(0, 6);
 	const stored = await mongoose.connection.db.collection("verifications").findOne({ identifier: `sign-in-otp-${user.email}` });
 	assert.ok(stored, "the code is waiting to be used");
@@ -75,12 +75,13 @@ test("a wrong code doesn't sign in and doesn't set a session", async () => {
 });
 
 test("without a Resend key the code only shows in the console, and only in development", async () => {
-	const previous = { key: process.env.RESEND_API_KEY, env: process.env.NODE_ENV };
+	const previous = { key: process.env.RESEND_API_KEY, ses: process.env.SES_ACCESS_KEY_ID, env: process.env.NODE_ENV };
 	const logged = [];
 	const info = console.info;
 	console.info = (...args) => logged.push(args.join(" "));
 	try {
 		delete process.env.RESEND_API_KEY;
+		delete process.env.SES_ACCESS_KEY_ID;
 		process.env.NODE_ENV = "development";
 		const user = { email: "dev@example.com", jar: new Map(), ip: "198.51.100.202" };
 		assert.deepEqual(await as(user, () => actions.sendSigninCode(null, form({ email: user.email }))), { email: user.email });
@@ -94,6 +95,7 @@ test("without a Resend key the code only shows in the console, and only in devel
 	} finally {
 		console.info = info;
 		process.env.RESEND_API_KEY = previous.key;
+		process.env.SES_ACCESS_KEY_ID = previous.ses;
 		process.env.NODE_ENV = previous.env;
 	}
 });

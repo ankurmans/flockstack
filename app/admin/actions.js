@@ -1,6 +1,6 @@
 "use server";
 
-import { isValidObjectId } from "mongoose";
+import { isValidObjectId } from "@/lib/docdb";
 import { revalidatePath } from "next/cache";
 import { blockAccount, unblockAccount } from "@/lib/account-blocks";
 import { setLimitOverrides, setSendSpread } from "@/lib/accounts";

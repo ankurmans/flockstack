@@ -12,7 +12,7 @@ const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", { modulusLen
 const publicKeyPem = publicKey.export({ type: "spki", format: "pem" });
 const CERT_URL =
 	"https://sns.us-east-1.amazonaws.com/SimpleNotificationService-9c6465fa7f48f5cacd23014631ec1136.pem";
-const TOPIC_ARN = "arn:aws:sns:us-east-1:123456789012:mailcheap-ses-events";
+const TOPIC_ARN = "arn:aws:sns:us-east-1:123456789012:flockstack-ses-events";
 
 const notification = {
 	Type: "Notification",

@@ -33,7 +33,7 @@ async function setup(email, { emails, subscribers, contacts, welcome = false }) 
 				form({
 					name: `${slug} news`,
 					slug,
-					fromEmail: `hello@${slug}.mailcheapmail.com`,
+					fromEmail: `hello@${slug}.flockstackmail.com`,
 					postalAddress: "1 Main St, Paris",
 					archiveEnabled: "on",
 					...(welcome && { welcomeEnabled: "on", welcomeSubject: "Welcome", welcomeMarkdown: "Thanks for joining." }),
@@ -109,7 +109,7 @@ describe("counting", () => {
 		const [batch] = await runJobs();
 		assert.equal(batch.sent, 3);
 		assert.equal(sesEmails.length - before, 3);
-		assert.deepEqual([...new Set(sesEmails.slice(before).map(({ headers }) => headers["Feedback-ID"]))], [`${id}:mc-${user.accountId}:campaign:mailcheap`]);
+		assert.deepEqual([...new Set(sesEmails.slice(before).map(({ headers }) => headers["Feedback-ID"]))], [`${id}:mc-${user.accountId}:campaign:flockstack`]);
 		assert.equal((await usage(user)).emailsSent, 4);
 		assert.equal((await m.Campaign.findOne({ accountId: user.accountId, _id: id }).lean()).status, "sent");
 	});

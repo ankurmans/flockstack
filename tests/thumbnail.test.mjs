@@ -7,7 +7,7 @@ test("only local and Blob pictures go through Next's resizer", () => {
 	assert.equal(isOptimizableImage("/authors/jane.jpg"), true);
 	assert.equal(isOptimizableImage("https://abc123.public.blob.vercel-storage.com/uploads/a-x.webp"), true);
 	assert.equal(isOptimizableImage("https://images.example.com/uploads/a.png"), false);
-	assert.equal(isOptimizableImage("https://mailcheap.example.com/archive/weekly/og?p=x"), false);
+	assert.equal(isOptimizableImage("https://flockstack.example.com/archive/weekly/og?p=x"), false);
 	assert.equal(isOptimizableImage("https://evil.test/x.public.blob.vercel-storage.com/a.png"), false);
 });
 

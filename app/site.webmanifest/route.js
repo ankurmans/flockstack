@@ -3,8 +3,8 @@ import { APP_NAME } from "@/lib/config";
 export const dynamic = "force-static";
 
 // The public pages link it (app/(site)/layout.js). It isn't app/manifest.js, which every page would link, a
-// newsletter's archive included. The icons are app/apple-icon.png's plane on white at 192 and 512 pixels; none is
-// maskable, since the plane's tip reaches past the circle a launcher may cut a maskable icon to.
+// newsletter's archive included. The icons are app/apple-icon.png's gulls on white at 192 and 512 pixels; none is
+// maskable, since the wings reach past the circle a launcher may cut a maskable icon to.
 export function GET() {
 	return Response.json(
 		{

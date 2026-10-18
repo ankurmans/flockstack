@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
 
 // What stays of a contact deleted after it unsubscribed, bounced or complained (lib/contacts.js): its email as a keyed

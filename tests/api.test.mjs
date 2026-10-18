@@ -17,7 +17,7 @@ let processed = 0;
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
 const S3_ENV = {
-	IMAGES_S3_BUCKET: "mailcheap-images-test",
+	IMAGES_S3_BUCKET: "flockstack-images-test",
 	IMAGES_S3_ACCESS_KEY_ID: "images-key-id",
 	IMAGES_S3_SECRET_ACCESS_KEY: "images-secret",
 	IMAGES_CDN_URL: "https://cdn.example.com",
@@ -311,7 +311,7 @@ describe("sending through the API", () => {
 		assert.equal((await api(user.key, "POST", "/domains", { domain: "checks-api.dev" })).status, 201);
 		assert.equal((await api(user.key, "PATCH", `/newsletters/${user.slug}`, { fromEmail: "hi@checks-api.dev" })).status, 200, "a domain it added");
 		assert.match(assertError(await api(user.key, "POST", `/campaigns/${id}/send`), 422, "sender_not_allowed"), /isn't verified yet/);
-		await api(user.key, "PATCH", `/newsletters/${user.slug}`, { fromEmail: `hello@${user.slug}.mailcheapmail.com` });
+		await api(user.key, "PATCH", `/newsletters/${user.slug}`, { fromEmail: `hello@${user.slug}.flockstackmail.com` });
 
 		assert.match(assertError(await api(user.key, "POST", `/campaigns/${id}/send`), 402, "plan_limit_emails"), /needs 3 emails/);
 		await m.accounts.setLimitOverrides(user.accountId, { emailsPerMonth: 100, subscribers: 2 });
@@ -510,7 +510,7 @@ describe("newsletters and images", () => {
 		assert.deepEqual(updated.body.welcome, { enabled: true, subject: "Hello there", previewText: "", markdown: "Hello.", paused: false });
 		assert.equal(updated.body.replyTo, "me@example.org");
 		assert.equal(updated.body.postalAddress, "1 Main St, Paris");
-		assert.equal(updated.body.fromEmail, `hello@${user.slug}.mailcheapmail.com`);
+		assert.equal(updated.body.fromEmail, `hello@${user.slug}.flockstackmail.com`);
 		assertError(await api(user.key, "PATCH", `/newsletters/${user.slug}`, { cleanup: { issues: 1 } }), 400, "validation_failed");
 		for (const name of ["Second", "Third"]) assert.equal((await api(user.key, "POST", "/newsletters", { name })).status, 201, name);
 		const fourth = assertError(await api(user.key, "POST", "/newsletters", { name: "Fourth" }), 409, "conflict");
@@ -535,7 +535,7 @@ describe("newsletters and images", () => {
 			accountId: user.accountId,
 			name: "No cleanup field",
 			slug: "no-cleanup-field",
-			fromEmail: "hello@no-cleanup-field.mailcheapmail.com",
+			fromEmail: "hello@no-cleanup-field.flockstackmail.com",
 			createdAt: now,
 			updatedAt: now,
 		});
@@ -669,7 +669,7 @@ describe("newsletters and images", () => {
 		const upload = () => api(user.key, "POST", "/images", { base64: Buffer.from(PNG).toString("base64") });
 		const off = await withEnv({ BLOB_READ_WRITE_TOKEN: "" }, upload);
 		assert.match(assertError(off, 503, "unavailable"), /IMAGES_S3_BUCKET.*BLOB_READ_WRITE_TOKEN/);
-		const half = await withEnv({ IMAGES_S3_BUCKET: "mailcheap-images-test" }, upload);
+		const half = await withEnv({ IMAGES_S3_BUCKET: "flockstack-images-test" }, upload);
 		assert.match(assertError(half, 503, "unavailable"), /IMAGES_S3_ACCESS_KEY_ID, IMAGES_S3_SECRET_ACCESS_KEY, IMAGES_CDN_URL/);
 		assert.equal(await m.Upload.countDocuments({ accountId: user.accountId }), 0);
 	});

@@ -13,7 +13,7 @@ import { flushAfter } from "./stubs/next-server.mjs";
 // Until the first issue goes out nothing of it is public: its host answers as for a website that's off, while signups
 // and the confirm and unsubscribe links keep working there. The first send puts it online. Newsletters saved before
 // keep their setting.
-const SHARED_DOMAIN = "mailcheapmail.com";
+const SHARED_DOMAIN = "flockstackmail.com";
 const HIDDEN = { home: false, issue: false, sitemap: 404, robots: 404 };
 const LIVE = { home: true, issue: true, sitemap: 200, robots: 200 };
 let app;

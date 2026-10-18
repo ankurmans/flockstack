@@ -17,7 +17,7 @@ const CODES_PER_EMAIL = { name: "signin-code-email", limit: 5, window: "15 m" };
 // Each code also dies after 3 wrong tries (Better Auth's emailOTP).
 const CHECKS_PER_IP = { name: "signin-check-ip", limit: 30, window: "15 m" };
 const CODE_PATTERN = /^\d{6}$/;
-const OAUTH_EXPIRED_MESSAGE = "This sign-in link expired. Go back to the app and connect MailCheap again.";
+const OAUTH_EXPIRED_MESSAGE = "This sign-in link expired. Go back to the app and connect FlockStack again.";
 
 // The allowlist is checked after the rate limits, so the form can't be used to test addresses quickly.
 export async function sendSigninCode(_state, formData) {

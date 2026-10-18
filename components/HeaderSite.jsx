@@ -15,7 +15,7 @@ export default function HeaderSite() {
 	return (
 		<header className="sticky top-0 z-30 border-b border-border/60 bg-site/80 backdrop-blur-md">
 			<div className="mx-auto flex h-14 max-w-(--site-width) items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-				<LogoWordmark href="/" canFly className="-ml-1 rounded-lg px-1 py-1" />
+				<LogoWordmark href="/" className="-ml-1 rounded-lg px-1 py-1" />
 				<nav aria-label="Main" className="flex items-center gap-1">
 					<span className="hidden items-center gap-1 sm:flex">
 						{links.map(({ href, label }) => (

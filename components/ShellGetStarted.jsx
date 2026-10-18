@@ -126,7 +126,7 @@ function getStartView(pathname) {
 	return isCovering || readStoredNumber(MINIMIZED_KEY) === 1 ? "minimized" : "open";
 }
 
-const MINIMIZED_KEY = "mailcheap:get-started-minimized";
+const MINIMIZED_KEY = "flockstack:get-started-minimized";
 const EDITOR_PATH = /^\/campaigns\/[^/]+/;
 const SMALL_SCREEN = "(max-width: 767px)";
 // Opens and folds from the bottom right corner, where the pill sits. Hidden, it's inert rather than invisible:

@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
 
 // pending: signed up to a newsletter that asks new subscribers to confirm, and hasn't yet.

@@ -1,18 +1,19 @@
 import assert from "node:assert/strict";
-import mongoose from "mongoose";
+import mongoose from "@/lib/docdb";
 import { runWithRequest } from "../stubs/next-headers.mjs";
 import { NotFoundError, RedirectError } from "../stubs/next-navigation.mjs";
-import { startMongo } from "./mongo.mjs";
 
 // Platform emails sent through Resend's API, newest last.
 export const platformEmails = [];
 // Messages to Telegram's Bot API, newest last, with the token their URL carried.
 export const telegramMessages = [];
 let stripeHandler = null;
+let polarHandler = null;
 let telegramAnswer = null;
 let visitor = 0;
 
-// No test talks to the network: Resend and Telegram are recorded and Stripe answers from mockStripe's handler.
+// No test talks to the network: Resend and Telegram are recorded, Stripe answers from mockStripe's handler and Polar from
+// mockPolar's.
 function installFetch() {
 	globalThis.fetch = async (input, init = {}) => {
 		const url = String(input?.url ?? input);
@@ -37,12 +38,24 @@ function installFetch() {
 				headers: { "request-id": "req_test" },
 			});
 		}
+		if (url.startsWith("https://api.polar.sh/") || url.startsWith("https://sandbox-api.polar.sh/")) {
+			if (!polarHandler) throw new Error(`Unexpected Polar request: ${init.method ?? "GET"} ${url}`);
+			const { origin, pathname, searchParams } = new URL(url);
+			const body = typeof init.body === "string" ? JSON.parse(init.body) : null;
+			const result = await polarHandler({ method: init.method ?? "GET", origin, path: pathname, query: searchParams, body, headers: new Headers(init.headers) });
+			return Response.json(result?.error ? { error: result.error } : result, { status: result?.error ? (result.status ?? 400) : 200 });
+		}
 		throw new Error(`Unexpected request to ${url}`);
 	};
 }
 
 export function mockStripe(handler) {
 	stripeHandler = handler;
+}
+
+// Polar's API (production or sandbox) is answered by this handler: { method, origin, path, query, body (parsed JSON), headers }.
+export function mockPolar(handler) {
+	polarHandler = handler;
 }
 
 // The lookup keys a prices.list asks for, as Stripe gets them: lookup_keys[0], lookup_keys[1]…
@@ -67,13 +80,14 @@ export function answerTelegram(answer) {
 	telegramAnswer = answer;
 }
 
-// MailCheap Cloud by default; a self-hosted server with { MAILCHEAP_CLOUD: "" }.
+// FlockStack Cloud by default; a self-hosted server with { FLOCKSTACK_CLOUD: "" }.
 export async function startTestApp(env = {}) {
-	const mongo = await startMongo();
+	const { setDriver, sqliteDriver } = await import("../../lib/docdb/driver.js");
+	const driver = await sqliteDriver(":memory:");
+	setDriver(driver);
 	Object.assign(process.env, {
 		NODE_ENV: "test",
-		MAILCHEAP_CLOUD: "true",
-		MONGODB_URI: mongo.uri,
+		FLOCKSTACK_CLOUD: "true",
 		BETTER_AUTH_SECRET: "test-secret-for-integration-tests-0123456789",
 		SUPPRESSION_HASH_KEY: "test-suppression-hash-key-0123456789abcdef",
 		APP_URL: "http://localhost:3000",
@@ -81,12 +95,12 @@ export async function startTestApp(env = {}) {
 		SENDING_ENABLED: "true",
 		QSTASH_TOKEN: "qstash-test",
 		SEND_RATE_PER_SECOND: "14",
-		STRIPE_SECRET_KEY: "sk_test_mailcheap",
-		STRIPE_WEBHOOK_SECRET: "whsec_test_mailcheap",
+		STRIPE_SECRET_KEY: "sk_test_flockstack",
+		STRIPE_WEBHOOK_SECRET: "whsec_test_flockstack",
 		ADMIN_EMAILS: "admin@example.com",
 		BLOB_READ_WRITE_TOKEN: "blob-test",
-		SHARED_DOMAIN: "mailcheapmail.com",
-		ARCHIVE_CNAME_TARGET: "cname.mailcheap.ai",
+		SHARED_DOMAIN: "flockstackmail.com",
+		ARCHIVE_CNAME_TARGET: "cname.flockstack.io",
 		SES_AWS_ACCOUNT_ID: "111122223333",
 		SES_ACCESS_KEY_ID: "test-ses-key-id",
 		SES_SECRET_ACCESS_KEY: "test-ses-secret",
@@ -94,8 +108,7 @@ export async function startTestApp(env = {}) {
 	});
 	installFetch();
 	const stop = async () => {
-		await mongoose.disconnect();
-		await mongo.stop();
+		driver.close();
 	};
 	try {
 		const { connectDb } = await import("../../lib/db.js");
@@ -235,7 +248,7 @@ export async function addVerifiedDomain(user, domain, { archiveHost = `news.${do
 	const account = await Account.findById(user.accountId).lean();
 	const added = await addDomain({ account, domain, archiveHost });
 	verifyIdentity(domain);
-	if (isArchiveLive) cnames.set(archiveHost, ["cname.mailcheap.ai"]);
+	if (isArchiveLive) cnames.set(archiveHost, ["cname.flockstack.io"]);
 	user.account = await Account.findById(user.accountId).lean();
 	return checkDomain({ account: user.account, domainId: added._id });
 }

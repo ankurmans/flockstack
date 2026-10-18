@@ -8,7 +8,7 @@ import { withQStashSignature } from "../lib/qstash-route.js";
 // job, anything else answers 403 without running it.
 const { verifySignatureAppRouter } = await import(new URL("../node_modules/@upstash/qstash/nextjs.mjs", import.meta.url).href);
 
-const JOB_URL = "https://mailcheap.ai/api/jobs/send-batch";
+const JOB_URL = "https://flockstack.io/api/jobs/send-batch";
 const KEYS = { QSTASH_CURRENT_SIGNING_KEY: "test-current-signing-key-0123456789", QSTASH_NEXT_SIGNING_KEY: "test-next-signing-key-0123456789" };
 const BODY = JSON.stringify({ accountId: "6a0000000000000000000001", messageIds: ["6a0000000000000000000002"] });
 const saved = {};

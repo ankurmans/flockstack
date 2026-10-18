@@ -87,7 +87,7 @@ export async function proxy(request) {
 
 	// Only whether a session cookie is there: pages, actions and routes check the session itself.
 	const hasSession = Boolean(getSessionCookie(request));
-	// MailCheap Cloud's marketing site (site extensions): its landing page shows at / to signed-out visitors, rendered
+	// FlockStack Cloud's marketing site (site extensions): its landing page shows at / to signed-out visitors, rendered
 	// at landingPath, which never shows in the address bar. A self-hosted server has none of its pages.
 	const { landingPath, publicPages, isPublicPath } = siteExtensions;
 	if (isCloud()) {

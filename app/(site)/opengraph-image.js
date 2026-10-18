@@ -1,12 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
-import { LOGO_FACETS, LOGO_SHADE, LOGO_VIEWBOX } from "@/components/LogoMailcheap";
+import { LOGO_SHAPES, LOGO_VIEWBOX } from "@/components/LogoFlockstack";
 import { getAppHost } from "@/lib/config";
 
-// The docs' card on every server: what they cover and the server's own address. MailCheap Cloud's marketing pages
+// The docs' card on every server: what they cover and the server's own address. FlockStack Cloud's marketing pages
 // have their own card.
-export const alt = "MailCheap docs: the REST API and the MCP server";
+export const alt = "FlockStack docs: the REST API and the MCP server";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -15,8 +15,9 @@ const COLORS = { site: "#fafafa", ink: "#0a0a0a", muted: "#6b6b6b" };
 function Logo() {
 	return (
 		<svg width="48" height="48" viewBox={LOGO_VIEWBOX}>
-			<path d={LOGO_FACETS.upper} fill={COLORS.ink} />
-			<path d={LOGO_FACETS.lower} fill={COLORS.ink} fillOpacity={LOGO_SHADE} />
+			{LOGO_SHAPES.map(({ d, opacity }) => (
+				<path key={d} d={d} fill={COLORS.ink} fillOpacity={opacity} />
+			))}
 		</svg>
 	);
 }
@@ -43,7 +44,7 @@ export default async function Image() {
 			<div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: 1056, height: "100%", padding: "64px 0 60px 72px" }}>
 				<div style={{ display: "flex", alignItems: "center", gap: 16 }}>
 					<Logo />
-					<span style={{ fontSize: 32, fontWeight: 600, letterSpacing: -1 }}>MailCheap</span>
+					<span style={{ fontSize: 32, fontWeight: 600, letterSpacing: -1 }}>FlockStack</span>
 				</div>
 				<div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
 					<span style={{ fontSize: 64, fontWeight: 600, lineHeight: 1.06, letterSpacing: -2.4 }}>Everything the dashboard does, from code or an AI agent</span>

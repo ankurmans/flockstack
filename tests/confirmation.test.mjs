@@ -9,7 +9,7 @@ import { createUnsubscribeToken, verifyUnsubscribeToken } from "../lib/unsubscri
 import { prefillWelcome } from "../lib/welcome-content.js";
 
 process.env.BETTER_AUTH_SECRET ||= "test-secret-for-confirmation-links";
-process.env.APP_URL ||= "https://mailcheap.test";
+process.env.APP_URL ||= "https://flockstack.test";
 
 const REFERENCE = { contactId: "64f1a2b3c4d5e6f7a8b9c0a1", newsletterId: "64f1a2b3c4d5e6f7a8b9c0b1" };
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -42,10 +42,10 @@ test("the confirmation email carries a clean link in both versions", () => {
 		newsletter: { _id: REFERENCE.newsletterId, name: "Field notes", fromEmail: "hi@news.example.org" },
 		contact: { _id: REFERENCE.contactId, email: "reader@example.com" },
 		messageId: null,
-		confirmUrl: "https://mailcheap.test/confirm?token=abc",
+		confirmUrl: "https://flockstack.test/confirm?token=abc",
 	});
-	assert.ok(email.html.includes('href="https://mailcheap.test/confirm?token=abc"'));
-	assert.ok(email.text.includes("Confirm my subscription (https://mailcheap.test/confirm?token=abc)"));
+	assert.ok(email.html.includes('href="https://flockstack.test/confirm?token=abc"'));
+	assert.ok(email.text.includes("Confirm my subscription (https://flockstack.test/confirm?token=abc)"));
 	assert.ok(!email.html.includes("/c/") && !email.html.includes("/o/"), "no tracking redirect or pixel");
 	assert.ok(renderEmail(content).html.includes(CONFIRM_URL_PLACEHOLDER), "the link is filled per recipient");
 });
@@ -54,7 +54,7 @@ test("a newsletter's own confirmation email goes out with each subscriber's link
 	const confirmation = {
 		subject: " [Action Required] Confirm your Field notes subscription ",
 		previewText: "One click and you're in.",
-		markdown: `<p style="text-align:center"><img src="https://mailcheap.test/email/banner.png" alt="Field notes" width="600" height="200"></p>
+		markdown: `<p style="text-align:center"><img src="https://flockstack.test/email/banner.png" alt="Field notes" width="600" height="200"></p>
 
 Confirm your email to get the next issue:
 
@@ -73,12 +73,12 @@ Every Sunday, you'll get:
 		newsletter: { _id: REFERENCE.newsletterId, name: "Field notes", fromEmail: "hi@news.example.org" },
 		contact: { _id: REFERENCE.contactId, email: "reader@example.com" },
 		messageId: null,
-		confirmUrl: "https://mailcheap.test/confirm?token=xyz",
+		confirmUrl: "https://flockstack.test/confirm?token=xyz",
 	});
-	assert.ok(email.html.includes('href="https://mailcheap.test/confirm?token=xyz"'));
-	assert.ok(email.html.includes('src="https://mailcheap.test/email/banner.png"'));
+	assert.ok(email.html.includes('href="https://flockstack.test/confirm?token=xyz"'));
+	assert.ok(email.html.includes('src="https://flockstack.test/email/banner.png"'));
 	assert.ok(email.html.includes("<li>One idea about building things</li>"));
-	assert.ok(email.text.includes("Confirm my subscription (https://mailcheap.test/confirm?token=xyz)"));
+	assert.ok(email.text.includes("Confirm my subscription (https://flockstack.test/confirm?token=xyz)"));
 	assert.ok(!email.html.includes(CONFIRM_URL_PLACEHOLDER) && !email.text.includes(CONFIRM_URL_PLACEHOLDER));
 	assert.ok(!email.html.includes("/c/") && !email.html.includes("/o/"), "no tracking redirect or pixel");
 	assert.ok(email.headers["List-Unsubscribe"].includes("/api/unsubscribe?token="));

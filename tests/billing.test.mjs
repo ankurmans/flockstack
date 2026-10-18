@@ -16,19 +16,19 @@ function price(lookupKey, unitAmount, interval) {
 	return { id: `price_${lookupKey}`, object: "price", lookup_key: lookupKey, unit_amount: unitAmount, currency: "usd", recurring: { interval } };
 }
 
-// Scale has no prices in this Stripe, and Pro's monthly one is $99 instead of $79: neither is on sale.
+// Scale has no prices in this Stripe, and Pro's monthly one is $99 instead of $55: neither is on sale.
 const PRICES = {
-	mailcheap_starter_monthly: price("mailcheap_starter_monthly", 1900, "month"),
-	mailcheap_starter_yearly: price("mailcheap_starter_yearly", 19_000, "year"),
-	mailcheap_growth_monthly: price("mailcheap_growth_monthly", 3900, "month"),
-	mailcheap_growth_yearly: price("mailcheap_growth_yearly", 39_000, "year"),
-	mailcheap_pro_monthly: price("mailcheap_pro_monthly", 9900, "month"),
-	mailcheap_pro_yearly: price("mailcheap_pro_yearly", 79_000, "year"),
-	mailcheap_max_monthly: price("mailcheap_max_monthly", 34_900, "month"),
-	mailcheap_max_yearly: price("mailcheap_max_yearly", 349_000, "year"),
+	flockstack_starter_monthly: price("flockstack_starter_monthly", 1200, "month"),
+	flockstack_starter_yearly: price("flockstack_starter_yearly", 12_000, "year"),
+	flockstack_growth_monthly: price("flockstack_growth_monthly", 2700, "month"),
+	flockstack_growth_yearly: price("flockstack_growth_yearly", 27_000, "year"),
+	flockstack_pro_monthly: price("flockstack_pro_monthly", 9900, "month"),
+	flockstack_pro_yearly: price("flockstack_pro_yearly", 55_000, "year"),
+	flockstack_max_monthly: price("flockstack_max_monthly", 29_900, "month"),
+	flockstack_max_yearly: price("flockstack_max_yearly", 299_000, "year"),
 };
 
-function subscription({ id, accountId, customer, status = "active", lookupKey = "mailcheap_starter_monthly", start = NOW, end = NOW + 30 * DAY, ...rest }) {
+function subscription({ id, accountId, customer, status = "active", lookupKey = "flockstack_starter_monthly", start = NOW, end = NOW + 30 * DAY, ...rest }) {
 	return {
 		id,
 		object: "subscription",
@@ -150,7 +150,7 @@ describe("checkout", () => {
 
 		const created = calls.find(({ path }) => path === "/v1/checkout/sessions").body;
 		assert.equal(created.get("mode"), "subscription");
-		assert.equal(created.get("line_items[0][price]"), "price_mailcheap_growth_yearly");
+		assert.equal(created.get("line_items[0][price]"), "price_flockstack_growth_yearly");
 		assert.equal(created.get("client_reference_id"), String(user.accountId));
 		assert.equal(created.get("subscription_data[metadata][accountId]"), String(user.accountId));
 		assert.equal(created.get("customer_email"), "checkout@example.com");
@@ -181,8 +181,8 @@ describe("checkout", () => {
 
 	test("a Stripe price that doesn't match the plan file, or a plan without its prices, is never offered nor reaches Checkout", async () => {
 		const user = await signIn("mismatch@example.com");
-		const real = PRICES.mailcheap_pro_monthly;
-		assert.equal(real.unit_amount, 9900, "Stripe says $99, the plan says $79");
+		const real = PRICES.flockstack_pro_monthly;
+		assert.equal(real.unit_amount, 9900, "Stripe says $99, the plan says $55");
 		for (const plan of ["pro", "scale"]) {
 			const url = await as(user, () => catchRedirect(m.billing.choosePlan(form({ plan, interval: "year" }))));
 			assert.equal(url, "/billing", `${plan}: the billing page, which shows the plans on sale`);
@@ -199,8 +199,8 @@ describe("checkout", () => {
 	test("Max opens Checkout with its own prices, like any plan on sale", async () => {
 		const user = await signIn("max-checkout@example.com");
 		for (const [interval, lookupKey] of [
-			["year", "mailcheap_max_yearly"],
-			["month", "mailcheap_max_monthly"],
+			["year", "flockstack_max_yearly"],
+			["month", "flockstack_max_monthly"],
 		]) {
 			assert.equal(await as(user, () => catchRedirect(m.billing.choosePlan(form({ plan: "max", interval })))), "https://checkout.stripe.com/c/pay/cs_test_1");
 			assert.equal(calls.findLast(({ path }) => path === "/v1/checkout/sessions").body.get("line_items[0][price]"), `price_${lookupKey}`);
@@ -209,7 +209,7 @@ describe("checkout", () => {
 
 	test("checkout.session.completed turns the plan on and starts the month", async () => {
 		const user = await signIn("paid@example.com");
-		subscriptions.set("sub_paid", subscription({ id: "sub_paid", accountId: user.accountId, customer: "cus_paid", lookupKey: "mailcheap_growth_monthly" }));
+		subscriptions.set("sub_paid", subscription({ id: "sub_paid", accountId: user.accountId, customer: "cus_paid", lookupKey: "flockstack_growth_monthly" }));
 		const result = await deliver("checkout.session.completed", {
 			id: "cs_paid",
 			object: "checkout.session",
@@ -264,7 +264,7 @@ describe("subscription changes", () => {
 	});
 
 	test("an upgrade changes the plan; a scheduled cancel is shown, and undone", async () => {
-		subscriptions.set("sub_life", subscription({ id: "sub_life", accountId: user.accountId, customer: "cus_life", lookupKey: "mailcheap_growth_yearly", end: NOW + 365 * DAY }));
+		subscriptions.set("sub_life", subscription({ id: "sub_life", accountId: user.accountId, customer: "cus_life", lookupKey: "flockstack_growth_yearly", end: NOW + 365 * DAY }));
 		await deliver("customer.subscription.updated", { id: "sub_life" });
 		let current = await account(user);
 		assert.equal(current.plan, "growth");
@@ -281,7 +281,7 @@ describe("subscription changes", () => {
 	});
 
 	test("the event's own copy is never trusted: the subscription is read from Stripe", async () => {
-		subscriptions.set("sub_life", subscription({ id: "sub_life", accountId: user.accountId, customer: "cus_life", lookupKey: "mailcheap_growth_yearly", end: NOW + 365 * DAY }));
+		subscriptions.set("sub_life", subscription({ id: "sub_life", accountId: user.accountId, customer: "cus_life", lookupKey: "flockstack_growth_yearly", end: NOW + 365 * DAY }));
 		const result = await deliver("customer.subscription.updated", { id: "sub_life", status: "canceled", items: { data: [] } });
 		assert.deepEqual(result, { status: 200, body: { received: true, updated: true, status: "active" } });
 		assert.equal((await account(user)).subscriptionStatus, "active");
@@ -298,7 +298,7 @@ describe("subscription changes", () => {
 			console.error = error;
 		}
 		const [alert] = platformEmails.slice(emailsBefore);
-		assert.deepEqual([alert.to, alert.subject], [["admin@example.com"], "[MailCheap] Stripe event not handled"]);
+		assert.deepEqual([alert.to, alert.subject], [["admin@example.com"], "[FlockStack] Stripe event not handled"]);
 		assert.match(alert.text, new RegExp(`customer\\.subscription\\.updated evt_${eventCount}: No such subscription\\.\\nStripe retries it for 3 days`));
 		assert.match(alert.text, /\nhttps:\/\/dashboard\.stripe\.com\/webhooks$/);
 	});
@@ -326,7 +326,7 @@ describe("subscription changes", () => {
 
 	test("deletion ends access: what needs a plan opens the paywall on the dashboard, and the API answers 402", async () => {
 		const { key } = await createKey(user, "Site");
-		subscriptions.set("sub_life", subscription({ id: "sub_life", accountId: user.accountId, customer: "cus_life", status: "canceled", lookupKey: "mailcheap_growth_yearly" }));
+		subscriptions.set("sub_life", subscription({ id: "sub_life", accountId: user.accountId, customer: "cus_life", status: "canceled", lookupKey: "flockstack_growth_yearly" }));
 		await deliver("customer.subscription.deleted", { id: "sub_life" });
 
 		const ended = await account(user);
@@ -342,7 +342,7 @@ describe("subscription changes", () => {
 describe("Max", () => {
 	test("a subscription to Max's prices gives the account Max and its limits, and get_billing says so", async () => {
 		const user = await signIn("max-webhook@example.com");
-		subscriptions.set("sub_max", subscription({ id: "sub_max", accountId: user.accountId, customer: "cus_max", lookupKey: "mailcheap_max_yearly", end: NOW + 365 * DAY }));
+		subscriptions.set("sub_max", subscription({ id: "sub_max", accountId: user.accountId, customer: "cus_max", lookupKey: "flockstack_max_yearly", end: NOW + 365 * DAY }));
 		assert.deepEqual(await deliver("customer.subscription.created", { id: "sub_max" }), { status: 200, body: { received: true, updated: true, status: "active" } });
 
 		const paid = await account(user);
@@ -350,10 +350,10 @@ describe("Max", () => {
 		assert.deepEqual(m.plans.getAccountLimits(paid), { emails: 2_000_000, subscribers: 1_000_000 });
 		const { key } = await createKey(user, "Max");
 		const billing = await callApi("GET", "/api/v1/billing", { key });
-		assert.deepEqual(billing.body.plan, { id: "max", name: "Max", interval: "year", price: 3490 });
+		assert.deepEqual(billing.body.plan, { id: "max", name: "Max", interval: "year", price: 2990 });
 		assert.deepEqual([billing.body.usage.emailsLimit, billing.body.usage.subscribersLimit], [2_000_000, 1_000_000]);
 
-		subscriptions.set("sub_max", subscription({ id: "sub_max", accountId: user.accountId, customer: "cus_max", lookupKey: "mailcheap_growth_monthly" }));
+		subscriptions.set("sub_max", subscription({ id: "sub_max", accountId: user.accountId, customer: "cus_max", lookupKey: "flockstack_growth_monthly" }));
 		await deliver("customer.subscription.updated", { id: "sub_max" });
 		assert.equal((await account(user)).plan, "growth", "and a change away from it too");
 	});
@@ -404,7 +404,7 @@ describe("customer portal", () => {
 		const change = calls.findLast(({ path }) => path === "/v1/billing_portal/sessions").body;
 		assert.equal(change.get("flow_data[type]"), "subscription_update_confirm");
 		assert.equal(change.get("flow_data[subscription_update_confirm][subscription]"), "sub_portal");
-		assert.equal(change.get("flow_data[subscription_update_confirm][items][0][price]"), "price_mailcheap_growth_monthly");
+		assert.equal(change.get("flow_data[subscription_update_confirm][items][0][price]"), "price_flockstack_growth_monthly");
 		assert.equal(calls.some(({ path }) => path === "/v1/checkout/sessions"), false, "a paying account never gets a second subscription");
 	});
 

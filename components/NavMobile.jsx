@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Menu } from "lucide-react";
-import LogoMailcheap from "@/components/LogoMailcheap";
+import LogoFlockstack from "@/components/LogoFlockstack";
 import NavLinks from "@/components/NavLinks";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -20,8 +20,8 @@ export default function NavMobile({ isAdmin, switcher, footer }) {
 	return (
 		<header className="sticky top-(--plan-bar-height) z-30 flex h-14 items-center justify-between gap-2 border-b border-border/60 bg-background/80 px-2 backdrop-blur-md md:hidden">
 			<div className="flex min-w-0 items-center">
-				<Link href="/" aria-label="MailCheap" className="grid size-10 shrink-0 place-items-center rounded-lg">
-					<LogoMailcheap />
+				<Link href="/" aria-label="FlockStack" className="grid size-10 shrink-0 place-items-center rounded-lg">
+					<LogoFlockstack />
 				</Link>
 				<span aria-hidden="true" className="mr-1 text-xl font-light text-foreground/15">
 					/

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { after, before, describe, test } from "node:test";
-import mongoose from "mongoose";
+import mongoose from "@/lib/docdb";
 import { getAccountRateProblem } from "../lib/sending-rules.js";
 import { getSesEventPlan } from "../lib/ses-event-mapping.js";
 import { buildSigningString } from "../lib/sns.js";
@@ -59,7 +59,7 @@ describe("per-account events", () => {
 	let bob;
 	const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
 	const CERT_URL = "https://sns.us-east-1.amazonaws.com/SimpleNotificationService-0123456789abcdef0123456789abcdef.pem";
-	const TOPIC = "arn:aws:sns:us-east-1:111122223333:mailcheap-ses-tenants";
+	const TOPIC = "arn:aws:sns:us-east-1:111122223333:flockstack-ses-tenants";
 
 	function signed(message) {
 		const unsigned = { SigningCertURL: CERT_URL, SignatureVersion: "2", ...message };
@@ -164,7 +164,7 @@ describe("per-account events", () => {
 		assert.equal(warned.health.sent, 600);
 		assert.ok(Math.abs(warned.health.bounceRate - 13 / 600) < 1e-9);
 		const emails = platformEmails.slice(emailsBefore);
-		const warning = emails.find(({ subject }) => subject === "[MailCheap] Bounces or complaints are high");
+		const warning = emails.find(({ subject }) => subject === "[FlockStack] Bounces or complaints are high");
 		assert.deepEqual(warning.to, ["bouncy@example.com"]);
 		assert.match(warning.text, /Bounce rate of 2.17% over the last 7 days \(limit 2.00%\)\. Nothing is paused, but at 5.00% with 10 bounces the account is blocked/);
 		assert.equal(emails.some(({ to }) => to.includes("admin@example.com")), false, "the admins only hear of blocks");

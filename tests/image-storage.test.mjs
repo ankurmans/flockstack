@@ -7,7 +7,7 @@ import { stored as blobs } from "./stubs/vercel-blob.mjs";
 const { getImageStorage, getImageStorageProblem, putImage } = await import("../lib/image-storage.js");
 
 const S3 = {
-	IMAGES_S3_BUCKET: "mailcheap-images-test",
+	IMAGES_S3_BUCKET: "flockstack-images-test",
 	IMAGES_S3_ACCESS_KEY_ID: "images-key-id",
 	IMAGES_S3_SECRET_ACCESS_KEY: "images-secret",
 	IMAGES_CDN_URL: "https://cdn.example.com/",
@@ -25,14 +25,14 @@ test("new images go to S3 when its bucket is set, else to Vercel Blob, else uplo
 
 test("a bucket without its keys or CDN says what's missing, instead of quietly using Blob", () => {
 	assert.equal(
-		getImageStorageProblem({ IMAGES_S3_BUCKET: "mailcheap-images-test", BLOB_READ_WRITE_TOKEN: "blob" }),
+		getImageStorageProblem({ IMAGES_S3_BUCKET: "flockstack-images-test", BLOB_READ_WRITE_TOKEN: "blob" }),
 		"IMAGES_S3_BUCKET is set, so IMAGES_S3_ACCESS_KEY_ID, IMAGES_S3_SECRET_ACCESS_KEY, IMAGES_CDN_URL have to be set too"
 	);
 	assert.equal(getImageStorageProblem({ ...S3, IMAGES_CDN_URL: "" }), "IMAGES_S3_BUCKET is set, so IMAGES_CDN_URL has to be set too");
 	assert.equal(getImageStorageProblem({ ...S3, IMAGES_CDN_URL: "http://cdn.example.com" }), "IMAGES_CDN_URL must be an https:// URL");
 });
 
-test("S3 uploads get a name of their own in the folder, a year of cache, and the CDN's URL, with MailCheap's keys only", async () => {
+test("S3 uploads get a name of their own in the folder, a year of cache, and the CDN's URL, with FlockStack's keys only", async () => {
 	const env = { ...S3, AWS_ACCESS_KEY_ID: "machine-key", AWS_SECRET_ACCESS_KEY: "machine-secret", AWS_PROFILE: "main" };
 	const first = await withEnv(env, () => putImage("accounts/abc/images/cover.png", PNG, "image/png"));
 	const second = await withEnv(env, () => putImage("accounts/abc/images/cover.png", PNG, "image/png"));
@@ -43,7 +43,7 @@ test("S3 uploads get a name of their own in the folder, a year of cache, and the
 	assert.deepEqual(
 		objects.map(({ Bucket, Key, ContentType, CacheControl, bytes }) => ({ Bucket, Key, ContentType, CacheControl, bytes })),
 		[first, second].map(({ pathname }) => ({
-			Bucket: "mailcheap-images-test",
+			Bucket: "flockstack-images-test",
 			Key: pathname,
 			ContentType: "image/png",
 			CacheControl: "public, max-age=31536000, immutable",

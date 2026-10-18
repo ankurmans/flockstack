@@ -18,7 +18,7 @@ let admin;
 let nextId = 0;
 let visitor = 0;
 
-const isWelcomeNotice = ({ subject }) => subject.startsWith("[MailCheap] Welcome emails paused");
+const isWelcomeNotice = ({ subject }) => subject.startsWith("[FlockStack] Welcome emails paused");
 
 async function callTool(key, name, args = {}) {
 	const request = new Request("http://localhost:3000/mcp", {
@@ -52,7 +52,7 @@ async function addNewsletter(user, { requireConfirmation = false } = {}) {
 				form({
 					name: `${user.slug} news`,
 					slug: user.slug,
-					fromEmail: `hello@${user.slug}.mailcheapmail.com`,
+					fromEmail: `hello@${user.slug}.flockstackmail.com`,
 					postalAddress: "1 Main St, Paris",
 					archiveEnabled: "on",
 					welcomeEnabled: "on",
@@ -147,7 +147,7 @@ describe("when welcome emails pause", () => {
 		assert.equal(areWelcomeEmailsPaused({ ...account, limitOverrides: { emailsPerMonth: 30_000 } }, now), false, "an admin's numbers win");
 		assert.equal(areWelcomeEmailsPaused(account, addMonths(start, 1)), false, "the next month starts over before it's stored");
 		assert.equal(areWelcomeEmailsPaused({ ...account, subscriptionStatus: "canceled" }, now), false, "without a plan nothing sends anyway");
-		assert.equal(await withEnv({ MAILCHEAP_CLOUD: "" }, () => areWelcomeEmailsPaused(account, now)), false);
+		assert.equal(await withEnv({ FLOCKSTACK_CLOUD: "" }, () => areWelcomeEmailsPaused(account, now)), false);
 
 		assert.deepEqual(getWelcomePauseNotice({ emailsLimit: 20_000, periodEnd: new Date("2026-11-03T12:00:00Z") }), {
 			title: "Welcome emails paused: you've used this month's 20,000 emails",
@@ -236,7 +236,7 @@ describe("the owner", () => {
 		const [notice] = notices;
 		const current = await usage(user);
 		assert.deepEqual(notice.to, ["notice@example.com"]);
-		assert.equal(notice.subject, "[MailCheap] Welcome emails paused: you've used this month's 2 emails");
+		assert.equal(notice.subject, "[FlockStack] Welcome emails paused: you've used this month's 2 emails");
 		const { supportChatPath } = m.siteExtensions;
 		assert.equal(
 			notice.text,

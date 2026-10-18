@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { getAuthorSeo, getHomeSeo, getIssueSeo, getShareImage } from "../lib/archive-seo.js";
 
-const APP = "https://mailcheap.test";
+const APP = "https://flockstack.test";
 const newsletter = {
 	name: "Field notes",
 	slug: "field-notes",
@@ -45,10 +45,10 @@ test("share images are the issue's own picture, or a generated card", () => {
 	});
 	assert.equal(
 		getShareImage(newsletter, { ...issue, thumbnailUrl: undefined }, APP).url,
-		"https://mailcheap.test/archive/field-notes/og?p=how-to-price-a-side-project"
+		"https://flockstack.test/archive/field-notes/og?p=how-to-price-a-side-project"
 	);
 	assert.deepEqual(getShareImage(newsletter, { ...issue, thumbnailUrl: "/email/x.png" }, APP), {
-		url: "https://mailcheap.test/email/x.png",
+		url: "https://flockstack.test/email/x.png",
 		alt: "How to price a side project",
 	});
 });
@@ -62,11 +62,11 @@ test("issues describe themselves as blog posts for search engines", () => {
 	assert.deepEqual(jsonLd.author, {
 		"@type": "Person",
 		name: "Jane Doe",
-		url: "https://mailcheap.test/archive/field-notes/authors/jane-doe",
-		image: "https://mailcheap.test/logos/field-notes.webp",
+		url: "https://flockstack.test/archive/field-notes/authors/jane-doe",
+		image: "https://flockstack.test/logos/field-notes.webp",
 		sameAs: newsletter.socialLinks,
 	});
-	assert.equal(jsonLd.publisher.logo.url, "https://mailcheap.test/logos/field-notes.webp");
+	assert.equal(jsonLd.publisher.logo.url, "https://flockstack.test/logos/field-notes.webp");
 });
 
 test("the author page is a profile with the photo, bio and social profiles", () => {
@@ -76,20 +76,20 @@ test("the author page is a profile with the photo, bio and social profiles", () 
 	assert.deepEqual(metadata.title, { absolute: "Jane Doe" });
 	assert.equal(metadata.description, "I write about building small software companies.");
 	assert.equal(metadata.openGraph.type, "profile");
-	assert.deepEqual(metadata.openGraph.images, [{ url: "https://mailcheap.test/authors/jane.jpg", alt: "Jane Doe" }]);
+	assert.deepEqual(metadata.openGraph.images, [{ url: "https://flockstack.test/authors/jane.jpg", alt: "Jane Doe" }]);
 	assert.equal(metadata.twitter.card, "summary");
 	assert.equal(jsonLd["@type"], "ProfilePage");
 	assert.deepEqual(jsonLd.mainEntity, {
 		"@type": "Person",
 		name: "Jane Doe",
 		url: "https://news.example.com/authors/jane-doe",
-		image: "https://mailcheap.test/authors/jane.jpg",
+		image: "https://flockstack.test/authors/jane.jpg",
 		description: "I write about building small software companies.",
 		sameAs: newsletter.socialLinks,
 	});
 
 	const { metadata: withoutPhoto } = getAuthorSeo({ ...newsletter, imageUrl: undefined }, APP);
-	assert.equal(withoutPhoto.openGraph.images[0].url, "https://mailcheap.test/archive/field-notes/og");
+	assert.equal(withoutPhoto.openGraph.images[0].url, "https://flockstack.test/archive/field-notes/og");
 	assert.equal(
 		withoutPhoto.description,
 		"One idea about building things, every Sunday.",
@@ -98,16 +98,16 @@ test("the author page is a profile with the photo, bio and social profiles", () 
 });
 
 test("the archive home shares a generated card and canonicalizes to its domain's root", () => {
-	process.env.SHARED_DOMAIN = "mailcheapmail.com";
+	process.env.SHARED_DOMAIN = "flockstackmail.com";
 	const { metadata: shared } = getHomeSeo(newsletter, APP);
-	assert.equal(shared.alternates.canonical, "https://field-notes.mailcheapmail.com/", "without a subdomain of its own, the shared one");
+	assert.equal(shared.alternates.canonical, "https://field-notes.flockstackmail.com/", "without a subdomain of its own, the shared one");
 	const { metadata, jsonLd } = getHomeSeo({ ...newsletter, archiveHost: "news.example.com" }, APP);
 	assert.equal(metadata.alternates.canonical, "https://news.example.com/");
-	assert.equal(metadata.openGraph.images[0].url, "https://mailcheap.test/archive/field-notes/og");
+	assert.equal(metadata.openGraph.images[0].url, "https://flockstack.test/archive/field-notes/og");
 	assert.equal(jsonLd["@type"], "Blog");
 
 	delete process.env.SHARED_DOMAIN;
 	const { metadata: withoutDomain } = getHomeSeo({ ...newsletter, socialLinks: [] }, APP);
-	assert.equal(withoutDomain.alternates.canonical, "https://mailcheap.test/archive/field-notes");
+	assert.equal(withoutDomain.alternates.canonical, "https://flockstack.test/archive/field-notes");
 	assert.equal(withoutDomain.twitter.creator, undefined);
 });

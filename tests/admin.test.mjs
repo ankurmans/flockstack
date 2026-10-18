@@ -79,7 +79,7 @@ test("the account list shows each owner, plan, status, usage and creation date, 
 	const url = await as(customer, async () => {
 		const { catchRedirect } = await import("./helpers/app.mjs");
 		return catchRedirect(
-			m.newsletters.saveNewsletter(null, form({ name: "News", slug: "customer-news", fromEmail: "hello@customer-news.mailcheapmail.com", postalAddress: "1 Main St" }))
+			m.newsletters.saveNewsletter(null, form({ name: "News", slug: "customer-news", fromEmail: "hello@customer-news.flockstackmail.com", postalAddress: "1 Main St" }))
 		);
 	});
 	await as(customer, () =>

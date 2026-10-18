@@ -9,7 +9,7 @@ import { siteExtensions } from "@/lib/site-extensions";
 import { cn } from "@/lib/utils";
 
 // A self-hosted server keeps the link to the source: the AGPL asks it to offer its users the code it runs. On
-// MailCheap Cloud the marketing site's columns, credit and company take its place.
+// FlockStack Cloud the marketing site's columns, credit and company take its place.
 export default function FooterSite() {
 	const cloudFooter = isCloud() ? siteExtensions.footer : null;
 	const { tagline, columns, company } = cloudFooter ?? SELF_HOSTED_FOOTER;
@@ -63,7 +63,7 @@ const SELF_HOSTED_FOOTER = {
 	tagline: "Newsletters sent from your own server.",
 	columns: [
 		{
-			title: "MailCheap",
+			title: "FlockStack",
 			links: [
 				{ href: "/docs", label: "Docs" },
 				{ href: SOURCE_URL, label: "Source code", isExternal: true },

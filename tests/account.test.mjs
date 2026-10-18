@@ -3,7 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { after, before, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import mongoose from "mongoose";
+import mongoose from "@/lib/docdb";
 import { activate, as, form, signIn, startTestApp, withEnv } from "./helpers/app.mjs";
 
 // The account page's profile, and the account menu at the bottom of the sidebar.
@@ -130,7 +130,7 @@ describe("the account menu", () => {
 			assert.deepEqual(events, [], "a no tells nobody");
 			answer = true;
 			assert.equal(m.signOut.askToSignOut(), true);
-			assert.deepEqual(asked, ["Sign out of MailCheap?", "Sign out of MailCheap?"]);
+			assert.deepEqual(asked, ["Sign out of FlockStack?", "Sign out of FlockStack?"]);
 			assert.deepEqual(events, [m.signOut.SIGN_OUT_EVENT], "a yes tells the page, for the support chat");
 		} finally {
 			delete globalThis.window;

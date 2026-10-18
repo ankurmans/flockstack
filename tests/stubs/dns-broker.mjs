@@ -1,4 +1,4 @@
-// The DNS helper in memory: records MailCheap asked for, by slug, as the helper keeps them on mailcheap.ai.
+// The DNS helper in memory: records FlockStack asked for, by slug, as the helper keeps them on flockstack.io.
 export const dnsRecords = new Map();
 let nextId = 0;
 let nextFailure = null;

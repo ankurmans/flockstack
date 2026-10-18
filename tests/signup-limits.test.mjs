@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
-import mongoose from "mongoose";
+import mongoose from "@/lib/docdb";
 import { getAliasPattern, getCanonicalEmail } from "../lib/email-aliases.js";
 import { as, catchRedirect, form, platformEmails, signIn, startTestApp, withEnv } from "./helpers/app.mjs";
 
@@ -25,7 +25,7 @@ test("an address's inbox: Gmail ignores dots and +tags, these providers +tags, Y
 	assert.doesNotMatch("aaab@outlook.com", getAliasPattern("a*b@outlook.com"), "the address is escaped");
 });
 
-describe("sign-ups on MailCheap Cloud", () => {
+describe("sign-ups on FlockStack Cloud", () => {
 	let app;
 	let m;
 	let nextIp = 0;
@@ -135,7 +135,7 @@ describe("sign-ups on MailCheap Cloud", () => {
 	});
 
 	test("self-hosted servers decide with their allowlist alone", async () => {
-		await withEnv({ MAILCHEAP_CLOUD: "", ALLOWED_EMAILS: "@gmail.com", EMAIL_FROM: "MailCheap <login@mail.example.com>" }, async () => {
+		await withEnv({ FLOCKSTACK_CLOUD: "", ALLOWED_EMAILS: "@gmail.com", EMAIL_FROM: "FlockStack <login@mail.example.com>" }, async () => {
 			assert.ok(await signIn("jane.doe+selfhosted@gmail.com"));
 		});
 	});

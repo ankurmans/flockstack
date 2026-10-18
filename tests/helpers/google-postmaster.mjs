@@ -5,7 +5,7 @@ import crypto from "node:crypto";
 export const GOOGLE_ENV = {
 	GOOGLE_CLIENT_ID: "123-test.apps.googleusercontent.com",
 	GOOGLE_CLIENT_SECRET: "test-google-client-secret",
-	POSTMASTER_DOMAIN: "mailcheap.example",
+	POSTMASTER_DOMAIN: "flockstack.example",
 	CREDENTIALS_ENCRYPTION_KEY: crypto.randomBytes(32).toString("base64"),
 };
 
@@ -66,7 +66,7 @@ export function createFakeGoogle() {
 		return state.domains.get(name);
 	}
 
-	// What Google's consent screen gives back for the URL MailCheap sent the admin to: a code bound to its PKCE challenge.
+	// What Google's consent screen gives back for the URL FlockStack sent the admin to: a code bound to its PKCE challenge.
 	function approve(authorizationUrl, { email = "postmaster-owner@example.com", scopes = ["openid", "email", SCOPE] } = {}) {
 		const params = new URL(authorizationUrl).searchParams;
 		const code = `code-${crypto.randomBytes(8).toString("hex")}`;

@@ -2,7 +2,7 @@ import { findDnsRecord } from "./dns-broker.mjs";
 
 // An in-memory SES: emails, tenants, identities and associations are kept here instead of going to AWS.
 export const sent = [];
-// MailCheap's own emails, sent outside every tenant (a self-hosted server without Resend).
+// FlockStack's own emails, sent outside every tenant (a self-hosted server without Resend).
 export const platformSent = [];
 export const calls = [];
 export const state = {
@@ -112,7 +112,7 @@ export async function deleteDomainIdentity(domain) {
 
 const tokens = ["tok1", "tok2", "tok3"];
 
-// Records MailCheap published itself, on a Vercel-hosted zone: SES finds them like it would in DNS.
+// Records FlockStack published itself, on a Vercel-hosted zone: SES finds them like it would in DNS.
 function isPublished(domain) {
 	return tokens.every((token) => findDnsRecord(`${token}._domainkey.${domain}`, "CNAME")?.value === `${token}.dkim.amazonses.com`);
 }

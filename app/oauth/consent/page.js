@@ -4,7 +4,7 @@ import { AppWindow, ArrowLeftRight, Check } from "lucide-react";
 import { switchAccount } from "@/app/oauth/consent/actions";
 import ButtonSignout from "@/components/ButtonSignout";
 import FormConsent from "@/components/FormConsent";
-import LogoMailcheap from "@/components/LogoMailcheap";
+import LogoFlockstack from "@/components/LogoFlockstack";
 import { SiteAnalytics } from "@/components/SiteExtensions";
 import { hasActiveSubscription, isDeletionPending } from "@/lib/account-state";
 import { getCurrentAccount } from "@/lib/auth";
@@ -43,10 +43,10 @@ export default async function ConsentPage({ searchParams }) {
 							<AppWindow className="size-5" />
 						</span>
 						<ArrowLeftRight className="size-4" />
-						<LogoMailcheap className="size-10" />
+						<LogoFlockstack className="size-10" />
 					</div>
 					<div className="flex flex-col gap-1">
-						<h1 className="text-lg font-semibold tracking-tight text-balance">Connect {client.name} to MailCheap</h1>
+						<h1 className="text-lg font-semibold tracking-tight text-balance">Connect {client.name} to FlockStack</h1>
 						{client.host && client.host !== client.name && <p className="font-mono text-xs text-muted-foreground">{client.host}</p>}
 					</div>
 				</div>
@@ -109,9 +109,9 @@ function Expired() {
 	return (
 		<main className="flex min-h-dvh items-center justify-center px-4 py-16">
 			<div className="flex w-full max-w-xs flex-col items-center gap-3 text-center animate-enter">
-				<LogoMailcheap className="size-10" />
+				<LogoFlockstack className="size-10" />
 				<h1 className="text-lg font-semibold tracking-tight">This request expired</h1>
-				<p className="text-sm text-pretty text-muted-foreground">Go back to the app and connect MailCheap again.</p>
+				<p className="text-sm text-pretty text-muted-foreground">Go back to the app and connect FlockStack again.</p>
 			</div>
 			{SiteAnalytics && <SiteAnalytics />}
 		</main>

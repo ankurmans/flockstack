@@ -4,7 +4,8 @@ import { isObjectIdString } from "@/lib/validation";
 import Campaign from "@/models/Campaign";
 
 const BOT_PATTERN = /bot|crawl|spider|slurp|preview|facebookexternalhit|headless|lighthouse|curl|wget|python|axios|go-http/i;
-const RATE_LIMIT = { name: "views", limit: 30, window: "10 m" };
+// In memory: counting a view in the database would double what each one already costs.
+const RATE_LIMIT = { name: "views", limit: 30, window: "10 m", store: "memory" };
 
 function noContent() {
 	return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });

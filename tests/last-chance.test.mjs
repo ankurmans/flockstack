@@ -7,7 +7,7 @@ import { buildRecipientEmail, getCampaignRateProblem, getCampaignStatsPath } fro
 import { createUnsubscribeToken, verifyUnsubscribeToken } from "../lib/unsubscribe.js";
 
 process.env.BETTER_AUTH_SECRET ||= "test-secret-for-last-chance-links";
-process.env.APP_URL ||= "https://mailcheap.test";
+process.env.APP_URL ||= "https://flockstack.test";
 
 const REFERENCE = { contactId: "64f1a2b3c4d5e6f7a8b9c0a1", newsletterId: "64f1a2b3c4d5e6f7a8b9c0b1" };
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -31,7 +31,7 @@ test("a keep link names one contact and works for 90 days", () => {
 	assert.equal(verifyKeepToken(`${forged}.${signature}`), null, "another contact can't reuse the signature");
 	assert.equal(verifyKeepToken(`${payload}.${signature.slice(1)}x`), null);
 	assert.equal(verifyKeepToken(undefined), null);
-	assert.ok(getKeepUrl(REFERENCE).startsWith("https://mailcheap.test/keep?token="));
+	assert.ok(getKeepUrl(REFERENCE).startsWith("https://flockstack.test/keep?token="));
 });
 
 test("keep, confirmation and unsubscribe links can't stand in for each other", () => {
@@ -60,7 +60,7 @@ test("the last-chance email asks one question, with a clean button", () => {
 	assert.ok(email.text.includes(`Yes, keep sending it (${keepUrl})`));
 	assert.ok(!email.html.includes(KEEP_URL_PLACEHOLDER) && !email.text.includes(KEEP_URL_PLACEHOLDER));
 	assert.ok(!email.html.includes("/c/") && !email.html.includes("/o/"), "no tracking redirect or pixel");
-	assert.ok(email.headers["List-Unsubscribe"].startsWith("<https://mailcheap.test/api/unsubscribe?token="));
+	assert.ok(email.headers["List-Unsubscribe"].startsWith("<https://flockstack.test/api/unsubscribe?token="));
 	assert.equal(email.headers["List-Unsubscribe-Post"], "List-Unsubscribe=One-Click");
 	assert.ok(email.html.includes(email.unsubscribeUrl), "footer unsubscribe link");
 });

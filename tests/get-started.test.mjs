@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
-import mongoose from "mongoose";
+import mongoose from "@/lib/docdb";
 import { activate, addVerifiedDomain, anonymous, as, catchRedirect, form, signIn, startTestApp, withEnv } from "./helpers/app.mjs";
 
 // The dashboard's get-started panel: each step is done from what the account has, nothing another account has
@@ -35,7 +35,7 @@ async function customer(email, { hasPlan = false } = {}) {
 		catchRedirect(
 			m.newsletters.saveNewsletter(
 				null,
-				form({ name: `${slug} news`, slug, fromEmail: `hello@${slug}.mailcheapmail.com`, postalAddress: "1 Main St, Paris" })
+				form({ name: `${slug} news`, slug, fromEmail: `hello@${slug}.flockstackmail.com`, postalAddress: "1 Main St, Paris" })
 			)
 		)
 	);
@@ -65,7 +65,7 @@ function connectApp(user) {
 	const now = new Date();
 	return mongoose.connection.db
 		.collection("oauthConsent")
-		.insertOne({ clientId: "https://chatgpt.com/connector/mailcheap", userId: user.userId, scopes: ["openid", "mcp"], createdAt: now, updatedAt: now });
+		.insertOne({ clientId: "https://chatgpt.com/connector/flockstack", userId: user.userId, scopes: ["openid", "mcp"], createdAt: now, updatedAt: now });
 }
 
 function tomorrow() {

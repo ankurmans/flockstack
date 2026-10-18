@@ -29,7 +29,7 @@ export default function AuthenticationPage() {
 
 			<Section title="Send the key" stagger={1}>
 				<p>
-					Create keys on the dashboard&apos;s API keys page. They start with <Code>mc_</Code> and are shown once: MailCheap only keeps
+					Create keys on the dashboard&apos;s API keys page. They start with <Code>mc_</Code> and are shown once: FlockStack only keeps
 					their hash, their first characters and when they were last used. The REST API and the MCP server take the same header. An
 					account has up to {MAX_ACTIVE_API_KEYS} active keys.
 				</p>

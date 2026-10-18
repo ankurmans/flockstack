@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
 
 // Per account: an address that bounced or complained is never emailed again from any of its newsletters.

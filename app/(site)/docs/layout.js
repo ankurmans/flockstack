@@ -4,8 +4,8 @@ import { DOC_PAGES } from "@/lib/docs/llms";
 import { getEndpointGroups } from "@/lib/docs/reference";
 
 export const metadata = {
-	title: { default: "Docs", template: "%s · MailCheap docs" },
-	description: "The MailCheap REST API and MCP server: every action of the dashboard, from code or an AI assistant.",
+	title: { default: "Docs", template: "%s · FlockStack docs" },
+	description: "The FlockStack REST API and MCP server: every action of the dashboard, from code or an AI assistant.",
 };
 
 export default function DocsLayout({ children }) {

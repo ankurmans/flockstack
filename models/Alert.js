@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from "../lib/docdb/index.js";
 
 // One document per alert kind and account: lastSentAt enforces the cooldown between repeated alerts, and
 // telegramSentAt Telegram's. Platform alerts (the rate limiter) have no account.

@@ -10,15 +10,15 @@ import {
 } from "../lib/account-state.js";
 import { PLANS, getAccountLimits, getAccountPlan, getLookupKey, getPlan, getPrice, isOnFreePlan, parseLookupKey, readInterval } from "../lib/plans.js";
 
-// Plans and the paywall are MailCheap Cloud's; the last test is a self-hosted server.
-process.env.MAILCHEAP_CLOUD = "true";
+// Plans and the paywall are FlockStack Cloud's; the last test is a self-hosted server.
+process.env.FLOCKSTACK_CLOUD = "true";
 
 function selfHosted(run) {
-	process.env.MAILCHEAP_CLOUD = "";
+	process.env.FLOCKSTACK_CLOUD = "";
 	try {
 		return run();
 	} finally {
-		process.env.MAILCHEAP_CLOUD = "true";
+		process.env.FLOCKSTACK_CLOUD = "true";
 	}
 }
 
@@ -26,27 +26,27 @@ test("the five plans match the spec: prices, emails a month and subscribers, yea
 	assert.deepEqual(
 		PLANS.map((plan) => [plan.id, plan.name, getPrice(plan, "month"), getPrice(plan, "year"), plan.emailsPerMonth, plan.subscribers]),
 		[
-			["starter", "Starter", 19, 190, 20_000, 10_000],
-			["growth", "Growth", 39, 390, 75_000, 40_000],
-			["pro", "Pro", 79, 790, 200_000, 100_000],
-			["scale", "Scale", 149, 1_490, 500_000, 250_000],
-			["max", "Max", 349, 3_490, 2_000_000, 1_000_000],
+			["starter", "Starter", 12, 120, 20_000, 10_000],
+			["growth", "Growth", 27, 270, 75_000, 40_000],
+			["pro", "Pro", 55, 550, 200_000, 100_000],
+			["scale", "Scale", 109, 1_090, 500_000, 250_000],
+			["max", "Max", 299, 2_990, 2_000_000, 1_000_000],
 		]
 	);
 	assert.equal(getPlan("max").name, "Max");
 });
 
 test("Stripe lookup keys name the plan and the interval, both ways", () => {
-	assert.equal(getLookupKey("growth", "month"), "mailcheap_growth_monthly");
-	assert.equal(getLookupKey("scale", "year"), "mailcheap_scale_yearly");
-	assert.equal(getLookupKey("max", "month"), "mailcheap_max_monthly");
-	assert.deepEqual(parseLookupKey("mailcheap_max_yearly"), { plan: "max", interval: "year" });
+	assert.equal(getLookupKey("growth", "month"), "flockstack_growth_monthly");
+	assert.equal(getLookupKey("scale", "year"), "flockstack_scale_yearly");
+	assert.equal(getLookupKey("max", "month"), "flockstack_max_monthly");
+	assert.deepEqual(parseLookupKey("flockstack_max_yearly"), { plan: "max", interval: "year" });
 	for (const plan of PLANS) {
 		for (const interval of ["month", "year"]) {
 			assert.deepEqual(parseLookupKey(getLookupKey(plan.id, interval)), { plan: plan.id, interval });
 		}
 	}
-	for (const key of [null, "", "growth_monthly", "mailcheap_enterprise_monthly", "mailcheap_pro_weekly", "mailcheap_pro_monthly_v2"]) {
+	for (const key of [null, "", "growth_monthly", "flockstack_enterprise_monthly", "flockstack_pro_weekly", "flockstack_pro_monthly_v2"]) {
 		assert.equal(parseLookupKey(key), null, String(key));
 	}
 	assert.equal(readInterval("year"), "year");
@@ -150,13 +150,13 @@ test("Max sends 2,000,000 emails a month to up to 1,000,000 subscribers: a weekl
 	assert.ok(Math.ceil(470_000 * 4.33) > getAccountLimits(account).emails, "not to 470,000");
 });
 
-test("self-hosted, without MAILCHEAP_CLOUD: no paywall, no plan limits, every account active unless blocked", () => {
+test("self-hosted, without FLOCKSTACK_CLOUD: no paywall, no plan limits, every account active unless blocked", () => {
 	for (const value of [undefined, "", "false", "1", "TRUE"]) {
-		if (value === undefined) delete process.env.MAILCHEAP_CLOUD;
-		else process.env.MAILCHEAP_CLOUD = value;
-		assert.equal(hasActiveSubscription({}), true, `MAILCHEAP_CLOUD=${value}`);
+		if (value === undefined) delete process.env.FLOCKSTACK_CLOUD;
+		else process.env.FLOCKSTACK_CLOUD = value;
+		assert.equal(hasActiveSubscription({}), true, `FLOCKSTACK_CLOUD=${value}`);
 	}
-	process.env.MAILCHEAP_CLOUD = "true";
+	process.env.FLOCKSTACK_CLOUD = "true";
 
 	selfHosted(() => {
 		for (const status of [undefined, "canceled", "unpaid"]) assert.equal(hasActiveSubscription({ subscriptionStatus: status }), true, String(status));
@@ -171,5 +171,5 @@ test("self-hosted, without MAILCHEAP_CLOUD: no paywall, no plan limits, every ac
 		const huge = { account: {}, emailsSent: 50_000_000, queued: 1_000_000, recipients: 2_000_000, activeContacts: 3_000_000 };
 		assert.equal(getPlanLimitProblem(huge), null);
 	});
-	assert.equal(getAccountSendProblem({}).code, ERROR_CODES.subscriptionRequired, "back on MailCheap Cloud");
+	assert.equal(getAccountSendProblem({}).code, ERROR_CODES.subscriptionRequired, "back on FlockStack Cloud");
 });

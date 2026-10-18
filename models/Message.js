@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
 
 // held: a first send's never-mailed contacts past the first slice, queued once that slice checks out. skipped: a

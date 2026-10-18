@@ -77,29 +77,29 @@ test("newsletter changes land on the saved settings, and the shared address foll
 	const saved = toNewsletterSettings({
 		name: "Weekly",
 		slug: "weekly",
-		fromEmail: "weekly@mailcheapmail.com",
+		fromEmail: "weekly@flockstackmail.com",
 		welcome: { enabled: true, subject: "Hi", markdown: "Hello" },
 	});
 	const merged = mergeNewsletterSettings(saved, { slug: "letters", welcome: { subject: "Welcome" } });
 	assert.deepEqual(merged.welcome, { enabled: true, subject: "Welcome", previewText: "", markdown: "Hello" });
-	assert.equal(applySharedAddress(merged, "mailcheapmail.com").fromEmail, "hello@letters.mailcheapmail.com");
-	assert.equal(applySharedAddress({ ...merged, fromEmail: "hello@weekly.mailcheapmail.com" }, "mailcheapmail.com").fromEmail, "hello@letters.mailcheapmail.com");
-	assert.equal(applySharedAddress({ ...merged, fromEmail: "hi@own.dev" }, "mailcheapmail.com").fromEmail, "hi@own.dev");
-	assert.equal(getNewsletterProblem(applySharedAddress(merged, "mailcheapmail.com")), null);
+	assert.equal(applySharedAddress(merged, "flockstackmail.com").fromEmail, "hello@letters.flockstackmail.com");
+	assert.equal(applySharedAddress({ ...merged, fromEmail: "hello@weekly.flockstackmail.com" }, "flockstackmail.com").fromEmail, "hello@letters.flockstackmail.com");
+	assert.equal(applySharedAddress({ ...merged, fromEmail: "hi@own.dev" }, "flockstackmail.com").fromEmail, "hi@own.dev");
+	assert.equal(getNewsletterProblem(applySharedAddress(merged, "flockstackmail.com")), null);
 	assert.equal(getNewsletterProblem({ ...merged, cleanup: { issues: 1 } }), "Ignored issues should be a whole number from 2 to 100");
 	assert.equal(getNewsletterProblem({ ...merged, socialLinks: ["http://x.com/me"] }), "http://x.com/me is not an https:// link");
 });
 
-test("a slug can't be a subdomain MailCheap uses or keeps", () => {
-	const settings = (slug) => applySharedAddress(mergeNewsletterSettings(toNewsletterSettings(null), { name: "Mine", slug }), "mailcheap.ai");
+test("a slug can't be a subdomain FlockStack uses or keeps", () => {
+	const settings = (slug) => applySharedAddress(mergeNewsletterSettings(toNewsletterSettings(null), { name: "Mine", slug }), "flockstack.io");
 	for (const slug of ["www", "r", "rp", "send", "rsend", "cdn", "api", "app", "mail", "docs", "admin", "status", "blog", "help", "support", "bounce", "mcp"]) {
-		assert.equal(getNewsletterProblem(settings(slug)), `${slug} is reserved for MailCheap, pick another slug`, slug);
+		assert.equal(getNewsletterProblem(settings(slug)), `${slug} is reserved for FlockStack, pick another slug`, slug);
 	}
 	for (const slug of ["weekly", "the-hens", "www2", "api-notes", "r2"]) assert.equal(getNewsletterProblem(settings(slug)), null, slug);
 });
 
 test("new newsletters start with confirmed opt-in and the built-in confirmation email", () => {
-	const created = applySharedAddress(mergeNewsletterSettings(toNewsletterSettings(null), { name: "Fresh", slug: "fresh" }), "mailcheapmail.com");
+	const created = applySharedAddress(mergeNewsletterSettings(toNewsletterSettings(null), { name: "Fresh", slug: "fresh" }), "flockstackmail.com");
 	assert.equal(created.requireConfirmation, true);
 	assert.equal(getNewsletterProblem(created), null, "no confirmation email of its own: the built-in one");
 	assert.equal(toNewsletterSettings({ name: "Old", slug: "old" }).requireConfirmation, false, "saved newsletters keep theirs");

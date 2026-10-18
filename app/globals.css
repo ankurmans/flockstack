@@ -204,7 +204,7 @@ html:has([data-campaign-steps]) {
 }
 
 /* The dashboard's bottom right corner. Where SupportChat (components/SiteExtensions.jsx) renders [data-support-chat],
-   MailCheap Cloud's support chat keeps its button there, 54px wide: 14px from the edges under 480px wide, 24px from the
+   FlockStack Cloud's support chat keeps its button there, 54px wide: 14px from the edges under 480px wide, 24px from the
    right and 20px from the bottom above. The get-started pill, 40px high, and a save bar, 56px high, sit on its center
    line; the pill ends 12px to its left, --chat-clearance from the edge, and so does a save bar that would reach that
    far. Without the chat, the pill takes the corner. */
@@ -309,75 +309,6 @@ html:has([data-support-chat]) {
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
-  }
-}
-
-/* The public header's wordmark (LogoWordmark canFly): its plane flies around a loop and back to its spot, leaving a
-   dashed line that fades, while LogoFlight's box has data-flying (lib/wordmark-flight.js says when). */
-.wordmark-flight {
-  --wordmark-flight-time: 1.4s;
-}
-
-.wordmark-trail {
-  opacity: 0;
-}
-
-.wordmark-trail-dash {
-  offset-path: var(--wordmark-loop);
-  offset-distance: var(--distance);
-}
-
-@keyframes wordmark-loop {
-  to {
-    offset-distance: 100%;
-  }
-}
-
-/* Smaller at the top of the loop, where the header ends. */
-@keyframes wordmark-lift {
-  50% {
-    transform: scale(0.75);
-  }
-}
-
-@keyframes wordmark-dash-in {
-  from {
-    opacity: 0;
-  }
-}
-
-@keyframes wordmark-trail-fade {
-  to {
-    opacity: 0;
-  }
-}
-
-@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  /* The loop leaves and comes back along the plane's nose, 42° above the horizon: it takes off and lands unturned. */
-  [data-flying] > .wordmark-plane {
-    offset-path: var(--wordmark-loop);
-    offset-rotate: auto 42deg;
-    animation: var(--wordmark-flight-time) cubic-bezier(0.37, 0, 0.63, 1) both;
-    animation-name: wordmark-loop, wordmark-lift;
-  }
-  /* Each dash shows under the plane, when it passes (--at, a part of the flight). */
-  [data-flying] .wordmark-trail-dash {
-    animation: wordmark-dash-in 200ms cubic-bezier(0.23, 1, 0.32, 1) calc(var(--at) * var(--wordmark-flight-time)) both;
-  }
-  /* The fade's end is the flight's: lib/wordmark-flight.js waits for it by name. */
-  [data-flying] > .wordmark-trail {
-    opacity: 1;
-    animation: wordmark-trail-fade 700ms cubic-bezier(0, 0, 0.2, 1) 2.1s forwards;
-  }
-}
-
-/* Without motion, the plane only leans toward its nose. */
-@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: reduce) {
-  .wordmark-plane {
-    transition: translate 200ms ease;
-  }
-  .wordmark-flight:hover .wordmark-plane {
-    translate: 1px -1px;
   }
 }
 

@@ -8,7 +8,7 @@ const mail = {
 	messageId: "0100019000000abc-11112222-3333-4444-5555-666677778888-000000",
 	destination: ["Reader@Example.com"],
 	headers: [{ name: "List-Unsubscribe", value: "<https://mail.example.com/api/unsubscribe>" }],
-	tags: { message_id: [messageId], kind: ["campaign"], "ses:configuration-set": ["mailcheap"] },
+	tags: { message_id: [messageId], kind: ["campaign"], "ses:configuration-set": ["flockstack"] },
 };
 
 function sesEvent(eventType, detail = {}, overrides = {}) {

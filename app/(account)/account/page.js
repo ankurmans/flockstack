@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowUpRight, CreditCard, Lock, Send } from "lucide-react";
 import { openBillingPortal } from "@/app/(account)/billing/actions";
 import AvatarUser from "@/components/AvatarUser";
+import CardPasskeys from "@/components/CardPasskeys";
 import BadgeStatus from "@/components/BadgeStatus";
 import CardSettings, { RowSettings } from "@/components/CardSettings";
 import { getPlanDetails } from "@/components/CardSubscription";
@@ -14,6 +15,7 @@ import { DELETION_GRACE_DAYS, getDeletionBlockers } from "@/lib/account-deletion
 import { getAccountStatus, hasActiveSubscription } from "@/lib/account-state";
 import { hasGoogleSignIn } from "@/lib/accounts";
 import { requireAccount } from "@/lib/auth";
+import { getBillingProviderName } from "@/lib/billing-provider";
 import { isCloud } from "@/lib/config";
 import { formatDate } from "@/lib/format";
 import { getAccountPlan } from "@/lib/plans";
@@ -39,6 +41,7 @@ export default async function AccountPage() {
 						</span>
 					</RowSettings>
 				</CardSettings>
+				<CardPasskeys />
 				{isCloud() && <CardBilling account={account} />}
 				<CardDelete email={user.email} blockers={blockers} cancelAt={account.cancelAt} />
 			</div>
@@ -85,7 +88,7 @@ function CardDelete({ email, blockers, cancelAt }) {
 					text={
 						cancelAt
 							? "You can delete your account once it has ended."
-							: "Deleting your account doesn't stop Stripe from billing it. Cancel it in the billing portal."
+							: `Deleting your account doesn't stop ${getBillingProviderName()} from billing it. Cancel it in the billing portal.`
 					}
 				>
 					<form action={openBillingPortal}>

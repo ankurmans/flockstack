@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from "../lib/docdb/index.js";
 
 // The never-email list every account shares (lib/global-suppressions.js): addresses an email provider said don't exist,
 // and spam traps. An address is only ever its keyed hash, and nothing names the account or the newsletter it came from.

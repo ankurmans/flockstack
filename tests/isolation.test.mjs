@@ -19,7 +19,7 @@ async function createNewsletter(user, { name, slug }) {
 		catchRedirect(
 			m.newsletters.saveNewsletter(
 				null,
-				form({ name, slug, fromName: name, fromEmail: `hello@${slug}.mailcheapmail.com`, postalAddress: "1 Main St, Paris" })
+				form({ name, slug, fromName: name, fromEmail: `hello@${slug}.flockstackmail.com`, postalAddress: "1 Main St, Paris" })
 			)
 		)
 	);

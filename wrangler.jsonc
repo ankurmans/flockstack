@@ -1,0 +1,22 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "flockstack",
+	"main": ".open-next/worker.js",
+	"compatibility_date": "2026-09-01",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+	"workers_dev": true,
+	"preview_urls": false,
+	"observability": { "enabled": true },
+	"routes": [
+		{ "pattern": "flockstack.io", "custom_domain": true },
+		{ "pattern": "newsletter.ankur.works", "custom_domain": true }
+	],
+	"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
+	"d1_databases": [{ "binding": "DB", "database_name": "flockstack", "database_id": "97615845-8aa2-413f-ad98-89821937069f", "migrations_dir": "migrations" }],
+	"r2_buckets": [{ "binding": "IMAGES", "bucket_name": "flockstack-images" }],
+	"vars": {
+		"IMAGES_STORAGE": "r2",
+		"FLOCKSTACK_CLOUD": "true"
+	}
+}

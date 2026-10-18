@@ -213,7 +213,7 @@ describe("the never-email list", () => {
 
 	// The list's own scheme: an HMAC of the address as delivered, with a key derived from SUPPRESSION_HASH_KEY only.
 	function expectedHash(email) {
-		const key = crypto.hkdfSync("sha256", process.env.SUPPRESSION_HASH_KEY, "", "mailcheap-global-suppression-v1", 32);
+		const key = crypto.hkdfSync("sha256", process.env.SUPPRESSION_HASH_KEY, "", "flockstack-global-suppression-v1", 32);
 		return crypto.createHmac("sha256", Buffer.from(key)).update(getDeliveryEmail(email)).digest("base64url");
 	}
 
@@ -229,7 +229,7 @@ describe("the never-email list", () => {
 		for (const entry of entries) {
 			assert.deepEqual([entry.reason, entry.detail], ["bounce", "bounce/5.1.1"]);
 			assert.ok(Math.abs(entry.expiresAt - Date.now() - 180 * DAY_MS) < 60_000, "180 days after the bounce");
-			assert.deepEqual(Object.keys(entry).sort(), ["__v", "_id", "createdAt", "detail", "emailHash", "expiresAt", "reason", "updatedAt"], "nothing names an account");
+			assert.deepEqual(Object.keys(entry).sort(), ["_id", "createdAt", "detail", "emailHash", "expiresAt", "reason", "updatedAt"], "nothing names an account");
 			assert.doesNotMatch(JSON.stringify(entry), /@|example|gmail/);
 		}
 		assert.equal((await findContact(alice, "dead@example.org")).status, "bounced", "Alice's own handling stays as it was");

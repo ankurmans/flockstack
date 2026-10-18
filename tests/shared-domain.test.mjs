@@ -4,9 +4,9 @@ import { activate, anonymous, as, callApi, catchRedirect, form, platformEmails, 
 import { sent, state } from "./stubs/ses.mjs";
 import { dnsRecords } from "./stubs/dns-broker.mjs";
 
-// MailCheap Cloud shares its own domain: the dashboard on mailcheap.ai, MailCheap's subdomains next to it (www, r,
-// cdn...), and each newsletter's archive and shared address on <slug>.mailcheap.ai, the same site.
-const APP_URL = "https://mailcheap.ai";
+// FlockStack Cloud shares its own domain: the dashboard on flockstack.io, FlockStack's subdomains next to it (www, r,
+// cdn...), and each newsletter's archive and shared address on <slug>.flockstack.io, the same site.
+const APP_URL = "https://flockstack.io";
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
 let app;
 let m;
@@ -66,7 +66,7 @@ function slugsOf(user) {
 }
 
 before(async () => {
-	app = await startTestApp({ APP_URL, SHARED_DOMAIN: "mailcheap.ai" });
+	app = await startTestApp({ APP_URL, SHARED_DOMAIN: "flockstack.io" });
 	m = {
 		proxy: (await import("../proxy.js")).proxy,
 		NextRequest: (await import("next/server")).NextRequest,
@@ -89,49 +89,49 @@ before(async () => {
 after(() => app?.stop());
 
 describe("hosts", () => {
-	test("mailcheap.ai, www and MailCheap's other subdomains are the app; <slug>.mailcheap.ai is the newsletter's archive", async () => {
+	test("flockstack.io, www and FlockStack's other subdomains are the app; <slug>.flockstack.io is the newsletter's archive", async () => {
 		const resolve = m.hostRouting.resolveArchiveHost;
 		const appHosts = [
-			"mailcheap.ai",
-			"MailCheap.ai:443",
-			"www.mailcheap.ai",
-			"r.mailcheap.ai",
-			"send.r.mailcheap.ai",
-			"cdn.mailcheap.ai",
-			"api.mailcheap.ai",
-			"mcp.mailcheap.ai",
-			"admin.mailcheap.ai",
+			"flockstack.io",
+			"FlockStack.io:443",
+			"www.flockstack.io",
+			"r.flockstack.io",
+			"send.r.flockstack.io",
+			"cdn.flockstack.io",
+			"api.flockstack.io",
+			"mcp.flockstack.io",
+			"admin.flockstack.io",
 			"localhost:3000",
-			"mailcheap-git-main-marc-lou.vercel.app",
+			"flockstack-git-main-marc-lou.vercel.app",
 		];
 		for (const host of appHosts) assert.deepEqual(await resolve(host), { isArchiveHost: false, slug: null }, host);
-		assert.deepEqual(await resolve("weekly.mailcheap.ai"), { isArchiveHost: true, slug: "weekly" });
-		assert.deepEqual(await resolve("Field-Notes.MailCheap.ai:443"), { isArchiveHost: true, slug: "field-notes" });
-		assert.deepEqual(await resolve("a.weekly.mailcheap.ai"), { isArchiveHost: true, slug: null }, "one label deep");
+		assert.deepEqual(await resolve("weekly.flockstack.io"), { isArchiveHost: true, slug: "weekly" });
+		assert.deepEqual(await resolve("Field-Notes.FlockStack.io:443"), { isArchiveHost: true, slug: "field-notes" });
+		assert.deepEqual(await resolve("a.weekly.flockstack.io"), { isArchiveHost: true, slug: null }, "one label deep");
 	});
 
 	test("the app answers on its own hosts, and an archive host only opens the archive and its links", async () => {
-		// Signed out, / is the marketing site's landing page where MailCheap Cloud has one, else sign-in.
+		// Signed out, / is the marketing site's landing page where FlockStack Cloud has one, else sign-in.
 		const { landingPath } = m.siteExtensions;
-		for (const url of [`${APP_URL}/`, "https://www.mailcheap.ai/", "https://api.mailcheap.ai/"]) {
+		for (const url of [`${APP_URL}/`, "https://www.flockstack.io/", "https://api.flockstack.io/"]) {
 			assert.deepEqual(outcome(await visit(url)), landingPath ? { rewrite: landingPath } : { status: 307 }, url);
 		}
 		assert.deepEqual(outcome(await visit(`${APP_URL}/signin`)), { next: true });
 
-		assert.deepEqual(outcome(await visit("https://weekly.mailcheap.ai/")), { rewrite: "/archive/weekly" });
-		assert.deepEqual(outcome(await visit("https://weekly.mailcheap.ai/p/first-issue")), { rewrite: "/archive/weekly/p/first-issue" });
-		assert.deepEqual(outcome(await visit("https://weekly.mailcheap.ai/unsubscribe?token=t")), { next: true });
+		assert.deepEqual(outcome(await visit("https://weekly.flockstack.io/")), { rewrite: "/archive/weekly" });
+		assert.deepEqual(outcome(await visit("https://weekly.flockstack.io/p/first-issue")), { rewrite: "/archive/weekly/p/first-issue" });
+		assert.deepEqual(outcome(await visit("https://weekly.flockstack.io/unsubscribe?token=t")), { next: true });
 		for (const path of ["/signin", "/api/auth/get-session", "/api/uploads", "/campaigns", "/mcp", "/api/v1/newsletters"]) {
-			assert.deepEqual(outcome(await visit(`https://weekly.mailcheap.ai${path}`)), { status: 404 }, path);
+			assert.deepEqual(outcome(await visit(`https://weekly.flockstack.io${path}`)), { status: 404 }, path);
 		}
-		assert.equal(m.archiveHosts.getArchiveHostUrl("/archive/weekly/p/first-issue", ""), "https://weekly.mailcheap.ai/p/first-issue");
+		assert.equal(m.archiveHosts.getArchiveHostUrl("/archive/weekly/p/first-issue", ""), "https://weekly.flockstack.io/p/first-issue");
 	});
 });
 
 describe("reserved slugs", () => {
-	test("the dashboard, the REST API and MCP refuse a slug MailCheap keeps, on create and on update", async () => {
+	test("the dashboard, the REST API and MCP refuse a slug FlockStack keeps, on create and on update", async () => {
 		const user = await customer("reserved@example.com", "reserved-news");
-		const refused = (slug) => ({ code: "validation_failed", message: `${slug} is reserved for MailCheap, pick another slug` });
+		const refused = (slug) => ({ code: "validation_failed", message: `${slug} is reserved for FlockStack, pick another slug` });
 		const save = (fields) => as(user, () => m.newsletters.saveNewsletter(null, form({ name: "Notes", postalAddress: "1 Main St, Paris", ...fields })));
 
 		assert.deepEqual(await save({ slug: "www" }), { error: refused("www").message });
@@ -147,10 +147,10 @@ describe("reserved slugs", () => {
 		assert.deepEqual(JSON.parse(viaMcp.content[0].text).error, refused("mail"));
 
 		assert.deepEqual(await slugsOf(user), ["reserved-news"]);
-		for (const slug of ["www", "cdn", "r", "api", "mail"]) assert.equal(hasRecordsFor(`${slug}.mailcheap.ai`), false, slug);
+		for (const slug of ["www", "cdn", "r", "api", "mail"]) assert.equal(hasRecordsFor(`${slug}.flockstack.io`), false, slug);
 	});
 
-	test("a slug made from the name skips the ones MailCheap keeps", async () => {
+	test("a slug made from the name skips the ones FlockStack keeps", async () => {
 		const user = await signIn("blog@example.com");
 		assert.equal(await as(user, () => catchRedirect(m.welcome.completeOnboarding(null, form({ name: "Blog" })))), "/");
 		await activate(user);
@@ -162,41 +162,41 @@ describe("reserved slugs", () => {
 });
 
 describe("shared addresses", () => {
-	test("hello@<slug>.mailcheap.ai, with its records from the DNS helper and its links on the newsletter's host", async () => {
+	test("hello@<slug>.flockstack.io, with its records from the DNS helper and its links on the newsletter's host", async () => {
 		const user = await customer("weekly@example.com", "weekly");
 		const newsletter = await m.Newsletter.findOne({ accountId: user.accountId }).lean();
-		assert.equal(newsletter.fromEmail, "hello@weekly.mailcheap.ai");
+		assert.equal(newsletter.fromEmail, "hello@weekly.flockstack.io");
 		const records = newsletter.sharedSender.dnsRecordIds.map((id) => dnsRecords.get(id));
 		assert.deepEqual(
 			records.map(({ slug, type, name }) => [slug, type, name]),
 			[
-				["weekly", "CNAME", "tok1._domainkey.weekly.mailcheap.ai"],
-				["weekly", "CNAME", "tok2._domainkey.weekly.mailcheap.ai"],
-				["weekly", "CNAME", "tok3._domainkey.weekly.mailcheap.ai"],
-				["weekly", "MX", "bounce.weekly.mailcheap.ai"],
-				["weekly", "TXT", "bounce.weekly.mailcheap.ai"],
-				["weekly", "CNAME", "weekly.mailcheap.ai"],
+				["weekly", "CNAME", "tok1._domainkey.weekly.flockstack.io"],
+				["weekly", "CNAME", "tok2._domainkey.weekly.flockstack.io"],
+				["weekly", "CNAME", "tok3._domainkey.weekly.flockstack.io"],
+				["weekly", "MX", "bounce.weekly.flockstack.io"],
+				["weekly", "TXT", "bounce.weekly.flockstack.io"],
+				["weekly", "CNAME", "weekly.flockstack.io"],
 			]
 		);
 
 		const id = await draft(user);
 		assert.deepEqual(await as(user, () => m.campaigns.sendTestCampaign(id)), { ok: true });
 		const email = sent.at(-1);
-		assert.equal(email.from, "hello@weekly.mailcheap.ai");
-		assert.match(email.html, /https:\/\/weekly\.mailcheap\.ai\/c\//);
-		assert.match(email.headers["List-Unsubscribe"], /^<https:\/\/weekly\.mailcheap\.ai\/api\/unsubscribe\?token=/);
-		assert.equal(email.headers["Feedback-ID"], `${id}:mc-${user.accountId}:test:mailcheap`, "SES sends MailCheap's own as it is");
+		assert.equal(email.from, "hello@weekly.flockstack.io");
+		assert.match(email.html, /https:\/\/weekly\.flockstack\.io\/c\//);
+		assert.match(email.headers["List-Unsubscribe"], /^<https:\/\/weekly\.flockstack\.io\/api\/unsubscribe\?token=/);
+		assert.equal(email.headers["Feedback-ID"], `${id}:mc-${user.accountId}:test:flockstack`, "SES sends FlockStack's own as it is");
 	});
 
-	test("a slug saved before MailCheap kept it gets no sending subdomain, and the one of its old slug goes", async () => {
+	test("a slug saved before FlockStack kept it gets no sending subdomain, and the one of its old slug goes", async () => {
 		const user = await customer("legacy@example.com", "legacy-news");
 		const { sharedSender: old } = await m.Newsletter.findOne({ accountId: user.accountId }).lean();
-		await m.Newsletter.updateOne({ accountId: user.accountId, _id: user.newsletterId }, { $set: { slug: "r", fromEmail: "hello@r.mailcheap.ai" } });
+		await m.Newsletter.updateOne({ accountId: user.accountId, _id: user.newsletterId }, { $set: { slug: "r", fromEmail: "hello@r.flockstack.io" } });
 		const newsletter = await m.Newsletter.findOne({ accountId: user.accountId, _id: user.newsletterId }).lean();
 
 		assert.equal(await m.sharedSender.syncSharedSender({ account: user.account, newsletter }), null);
-		assert.equal(state.identities.has("r.mailcheap.ai"), false);
-		assert.equal(hasRecordsFor("r.mailcheap.ai"), false);
+		assert.equal(state.identities.has("r.flockstack.io"), false);
+		assert.equal(hasRecordsFor("r.flockstack.io"), false);
 		assert.equal(state.identities.has(old.domain), false);
 		assert.equal(hasRecordsFor(old.domain), false);
 	});
@@ -204,7 +204,7 @@ describe("shared addresses", () => {
 	test("when two plan starts set up the same address at once, the run that loses finds it set up and doesn't alert", async () => {
 		const user = await customer("race@example.com", "race-news");
 		const stored = await m.Newsletter.findOne({ accountId: user.accountId }).lean();
-		const alerts = () => platformEmails.filter(({ subject }) => subject === "[MailCheap] Shared address not set up").length;
+		const alerts = () => platformEmails.filter(({ subject }) => subject === "[FlockStack] Shared address not set up").length;
 		const before = alerts();
 		state.failNext = { name: "createDomainIdentity", error: new Error("500 Internal Server Error") };
 
@@ -217,7 +217,7 @@ describe("shared addresses", () => {
 	test("a new slug whose records the DNS helper refuses leaves nothing at the provider, and a later save sets it up", async () => {
 		const user = await customer("refused@example.com", "refused-old");
 		const { sharedSender: old } = await m.Newsletter.findOne({ accountId: user.accountId }).lean();
-		dnsRecords.set("rec_by_hand", { id: "rec_by_hand", slug: "by-hand", type: "CNAME", name: "refused-new.mailcheap.ai", value: "cname.vercel-dns.com" });
+		dnsRecords.set("rec_by_hand", { id: "rec_by_hand", slug: "by-hand", type: "CNAME", name: "refused-new.flockstack.io", value: "cname.vercel-dns.com" });
 		const save = () =>
 			as(user, () =>
 				m.newsletters.saveNewsletter(null, form({ id: user.newsletterId, name: "Refused", slug: "refused-new", postalAddress: "1 Main St, Paris", archiveEnabled: "on" }))
@@ -225,33 +225,33 @@ describe("shared addresses", () => {
 
 		assert.equal((await save()).ok, true, "the newsletter is saved either way");
 		const newsletter = await m.Newsletter.findOne({ accountId: user.accountId }).lean();
-		assert.deepEqual([newsletter.slug, newsletter.fromEmail, newsletter.sharedSender], ["refused-new", "hello@refused-new.mailcheap.ai", undefined]);
-		assert.equal(state.identities.has("refused-new.mailcheap.ai"), false, "the domain is taken back at the provider");
-		assert.deepEqual([...dnsRecords.values()].filter(({ name }) => name.endsWith("refused-new.mailcheap.ai")).map(({ id }) => id), ["rec_by_hand"]);
+		assert.deepEqual([newsletter.slug, newsletter.fromEmail, newsletter.sharedSender], ["refused-new", "hello@refused-new.flockstack.io", undefined]);
+		assert.equal(state.identities.has("refused-new.flockstack.io"), false, "the domain is taken back at the provider");
+		assert.deepEqual([...dnsRecords.values()].filter(({ name }) => name.endsWith("refused-new.flockstack.io")).map(({ id }) => id), ["rec_by_hand"]);
 		assert.equal(state.identities.has(old.domain), false);
 		assert.equal(hasRecordsFor(old.domain), false);
 		assert.ok(
-			platformEmails.some(({ subject, text }) => subject === "[MailCheap] Shared address not set up" && text.includes("refused-new.mailcheap.ai")),
+			platformEmails.some(({ subject, text }) => subject === "[FlockStack] Shared address not set up" && text.includes("refused-new.flockstack.io")),
 			"the admins hear of it"
 		);
 
 		dnsRecords.delete("rec_by_hand");
 		assert.equal((await save()).ok, true);
 		const { sharedSender } = await m.Newsletter.findOne({ accountId: user.accountId }).lean();
-		assert.equal(sharedSender.domain, "refused-new.mailcheap.ai");
-		assert.ok(state.identities.has("refused-new.mailcheap.ai"));
+		assert.equal(sharedSender.domain, "refused-new.flockstack.io");
+		assert.ok(state.identities.has("refused-new.flockstack.io"));
 		assert.ok(sharedSender.dnsRecordIds.every((id) => dnsRecords.get(id)?.slug === "refused-new"));
 	});
 });
 
 describe("sessions", () => {
-	test("the session cookie is host-only, and Better Auth trusts mailcheap.ai's origin alone", async () => {
+	test("the session cookie is host-only, and Better Auth trusts flockstack.io's origin alone", async () => {
 		const context = await (await m.auth.getAuth()).$context;
 		const { name, attributes } = context.authCookies.sessionToken;
 		assert.equal(name, "__Secure-better-auth.session_token");
 		assert.deepEqual([attributes.domain, attributes.httpOnly, attributes.secure, attributes.sameSite], [undefined, true, true, "lax"]);
 		assert.deepEqual(context.trustedOrigins, [APP_URL]);
-		for (const origin of ["https://weekly.mailcheap.ai", "https://www.mailcheap.ai", "http://mailcheap.ai"]) assert.equal(context.isTrustedOrigin(origin), false, origin);
+		for (const origin of ["https://weekly.flockstack.io", "https://www.flockstack.io", "http://flockstack.io"]) assert.equal(context.isTrustedOrigin(origin), false, origin);
 	});
 
 	test("an archive page's requests to the app carry the cookie, and the app refuses them", async () => {
@@ -273,7 +273,7 @@ describe("sessions", () => {
 		context.skipOriginCheck = false;
 		try {
 			console.error = () => {};
-			assert.equal((await signOut("https://weekly.mailcheap.ai")).status, 403);
+			assert.equal((await signOut("https://weekly.flockstack.io")).status, 403);
 			console.error = error;
 			const signedOut = await signOut(APP_URL);
 			assert.equal(signedOut.status, 200);

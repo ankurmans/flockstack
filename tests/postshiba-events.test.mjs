@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { after, before, describe, test } from "node:test";
-import mongoose from "mongoose";
+import mongoose from "@/lib/docdb";
 import { getEventPlan } from "../lib/email-event-rules.js";
 import { normalizePostshibaEvent, verifyPostshibaSignature } from "../lib/email-provider/postshiba-events.js";
 import { activate, catchRedirect, form, as, signIn, startTestApp } from "./helpers/app.mjs";

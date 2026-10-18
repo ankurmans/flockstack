@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
 
 // Uploaded images, on S3 behind the CDN or, for older ones and servers without S3, on Vercel Blob. Sent emails

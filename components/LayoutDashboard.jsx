@@ -16,11 +16,11 @@ import { isGetStartedOpen } from "@/lib/get-started";
 import { getRecommendedPlanId } from "@/lib/onboarding";
 import { PLANS } from "@/lib/plans";
 import { getPricing } from "@/lib/pricing";
-import { findPlansOnSale } from "@/lib/stripe";
+import { findPlansOnSale } from "@/lib/billing-provider";
 
 export default async function LayoutDashboard({ user, account, isAdmin, children }) {
 	const hasPlan = hasActiveSubscription(account);
-	// Only an account without a plan sees plans here, in the paywall and the banner, so only then is Stripe read.
+	// Only an account without a plan sees plans here, in the paywall and the banner, so only then is the billing provider read.
 	const plans = hasPlan ? PLANS : await findPlansOnSale();
 	const menu = <MenuUser name={user.name} email={user.email} image={user.image} status={getSendingStatus(account)} hasBilling={isCloud()} />;
 

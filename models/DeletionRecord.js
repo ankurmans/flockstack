@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from "../lib/docdb/index.js";
 
 // What stays of a deleted account (lib/deletion-records.js): its owner's email as a keyed hash, so the same email
 // signing up again can be noticed, and the dates. Nothing the account held. Stripe keeps its own billing history.

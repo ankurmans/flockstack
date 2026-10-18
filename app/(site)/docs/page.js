@@ -45,7 +45,7 @@ export default function DocsPage() {
 					<BlockCode
 						title="Terminal"
 						className="mt-4"
-						code={`curl ${appUrl}${API_BASE_PATH}/newsletters \\\n  -H "Authorization: Bearer $MAILCHEAP_API_KEY"`}
+						code={`curl ${appUrl}${API_BASE_PATH}/newsletters \\\n  -H "Authorization: Bearer $FLOCKSTACK_API_KEY"`}
 					/>
 				</Step>
 				<Step number="3" title="Or connect an AI assistant" isLast>

@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
 
 const newsletterSchema = new mongoose.Schema(
@@ -18,7 +18,7 @@ const newsletterSchema = new mongoose.Schema(
 		// archive and the links in its emails use <slug>.<shared domain>.
 		archiveHost: { type: String, lowercase: true, trim: true },
 		// The shared address's sending domain, <slug>.<shared domain>, in the account's tenant at the email
-		// provider, with the DNS records MailCheap published for it on the shared domain (lib/shared-sender.js).
+		// provider, with the DNS records FlockStack published for it on the shared domain (lib/shared-sender.js).
 		sharedSender: {
 			domain: { type: String, lowercase: true, trim: true },
 			provider: { type: String },

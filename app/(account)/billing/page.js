@@ -10,10 +10,10 @@ import StateEmpty from "@/components/StateEmpty";
 import { Button } from "@/components/ui/button";
 import { getWelcomePauseNotice, hasActiveSubscription } from "@/lib/account-state";
 import { requireAccount } from "@/lib/auth";
+import { findPlansOnSale, getBillingProviderName, hasBillingCustomer, isBillingConfigured } from "@/lib/billing-provider";
 import { isCloud } from "@/lib/config";
 import { getRecommendedPlanId } from "@/lib/onboarding";
 import { isOnFreePlan, readInterval } from "@/lib/plans";
-import { findPlansOnSale } from "@/lib/stripe";
 import { getUsage, hasWelcomeEmailsOn } from "@/lib/usage";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ export const metadata = { title: "Billing" };
 
 // The plans as the pricing page shows them: without an active plan, starting on the one the account's list fits; with
 // one, on the account's plan, marked. A free plan subscribes through Checkout like no plan; a paid plan's changes are
-// confirmed on Stripe.
+// confirmed with the billing provider.
 export default async function BillingPage({ searchParams }) {
 	const { account } = await requireAccount();
 	if (!isCloud()) return <PageBillingOff />;
@@ -55,7 +55,7 @@ export default async function BillingPage({ searchParams }) {
 	return (
 		<>
 			<HeaderPage title="Billing">
-				{account.stripeCustomerId && (
+				{hasBillingCustomer(account) && (
 					<form action={openBillingPortal}>
 						<Button type="submit" variant="outline">
 							<CreditCard data-icon="inline-start" />
@@ -100,9 +100,12 @@ function PageBillingOff() {
 }
 
 function getNotice({ account, isActive, checkout, error }) {
-	if (error === "stripe") return { tone: "error", text: "Stripe can't be reached right now. Try again in a minute." };
-	if (error === "rate_limited") return { tone: "error", text: "You opened Stripe too many times in the last hour. Try again later." };
+	const provider = getBillingProviderName();
+	if (error === "none") return { tone: "error", text: "Plans can't be bought yet. Try again later." };
+	if (error === "stripe" || error === "polar") return { tone: "error", text: `${provider} can't be reached right now. Try again in a minute.` };
+	if (error === "rate_limited") return { tone: "error", text: `You opened ${provider} too many times in the last hour. Try again later.` };
 	if (checkout === "pending") return { tone: "info", text: "Payment received. Your plan turns on in a few seconds." };
+	if (!isActive && !isBillingConfigured()) return { tone: "info", text: "Plans can't be bought yet. Check back soon." };
 	if (!isActive && (account.subscriptionStatus || account.comp?.plan)) {
 		return { tone: "info", text: "Your plan isn't active. Your newsletter, contacts and campaigns are kept: pick a plan to send again." };
 	}

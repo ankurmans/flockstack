@@ -8,7 +8,7 @@ const VIEW_WINDOW_MS = 24 * 60 * 60 * 1000;
 // One view per issue, browser and day; a refresh or a second visit the same day doesn't count again.
 export default function TrackView({ issueId }) {
 	useEffect(() => {
-		const key = `mailcheap:viewed:${issueId}`;
+		const key = `flockstack:viewed:${issueId}`;
 		if (Date.now() - readStoredNumber(key) < VIEW_WINDOW_MS) return;
 		storeValue(key, Date.now());
 

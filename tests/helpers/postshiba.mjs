@@ -81,7 +81,7 @@ export function createFakePostshiba() {
 		return Boolean(domain && domain.tenant_id === tenantId && domain.sending_allowed && !domain.suspended);
 	}
 
-	// Its two CNAMEs published by MailCheap on a Vercel-hosted zone, as PostShiba would find them in DNS once
+	// Its two CNAMEs published by FlockStack on a Vercel-hosted zone, as PostShiba would find them in DNS once
 	// they've propagated (state.isDnsVisible).
 	function isPublished(domain) {
 		return (

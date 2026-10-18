@@ -4,13 +4,13 @@ import { getDraftConfirmation, getDraftFromEmail, getDraftKey, getNewsletterDraf
 
 // The settings form's save bar shows while the form has unsaved changes: what saving would send, against what the
 // newsletter has saved.
-const sharedDomain = "mailcheapmail.com";
+const sharedDomain = "flockstackmail.com";
 const newsletter = {
 	_id: "n1",
 	name: "Field notes",
 	slug: "field-notes",
 	fromName: "Jane",
-	fromEmail: "hello@field-notes.mailcheapmail.com",
+	fromEmail: "hello@field-notes.flockstackmail.com",
 	postalAddress: "1 Main St, Paris",
 	requireConfirmation: true,
 	welcome: { enabled: false, subject: "", previewText: "", markdown: "" },
@@ -43,7 +43,7 @@ test("the confirmation email counts while new signups confirm, the welcome email
 });
 
 test("the shared address follows the slug; an own domain keeps its address", () => {
-	assert.equal(getDraftFromEmail({ ...saved, slug: "notes" }, sharedDomain), "hello@notes.mailcheapmail.com");
+	assert.equal(getDraftFromEmail({ ...saved, slug: "notes" }, sharedDomain), "hello@notes.flockstackmail.com");
 	assert.equal(hasChanges({ ...saved, slug: "notes" }), true);
 	assert.equal(hasChanges({ ...saved, fromLocal: "jane" }), false, "the shared address takes no name");
 
@@ -52,7 +52,7 @@ test("the shared address follows the slug; an own domain keeps its address", () 
 	assert.deepEqual([draft.fromLocal, draft.fromDomain], ["jane", "example.com"]);
 	assert.equal(getDraftFromEmail(draft, sharedDomain), "jane@example.com");
 	const removed = getNewsletterDraft({ newsletter: ownDomain, domains: [], sharedDomain });
-	assert.equal(getDraftFromEmail(removed, sharedDomain), "hello@field-notes.mailcheapmail.com", "a domain the account removed falls back to the shared address");
+	assert.equal(getDraftFromEmail(removed, sharedDomain), "hello@field-notes.flockstackmail.com", "a domain the account removed falls back to the shared address");
 });
 
 test("the postal address starts as the one emails print: the newsletter's own, else the default, unless it was cleared", () => {
@@ -68,9 +68,9 @@ test("the postal address starts as the one emails print: the newsletter's own, e
 test("a new slug says what it moves: the shared address and the website, whose old pages go while sent links stay", () => {
 	const changes = (fields) => getSlugChanges({ slug: "notes", savedSlug: "field-notes", isShared: true, sharedDomain, appUrl: "https://app.example.com", ...fields });
 	assert.deepEqual(changes(), [
-		"Sends from hello@notes.mailcheapmail.com",
-		"Your website moves to https://notes.mailcheapmail.com",
-		"Pages at https://field-notes.mailcheapmail.com stop working, Read online links in sent issues included. Unsubscribe and tracked links in sent emails keep working.",
+		"Sends from hello@notes.flockstackmail.com",
+		"Your website moves to https://notes.flockstackmail.com",
+		"Pages at https://field-notes.flockstackmail.com stop working, Read online links in sent issues included. Unsubscribe and tracked links in sent emails keep working.",
 		"You can change the slug 3 times a day",
 	]);
 	assert.equal(changes({ isShared: false }).length, 3, "an own sending domain keeps its address");

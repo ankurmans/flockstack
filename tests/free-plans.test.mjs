@@ -20,8 +20,8 @@ const TOMORROW = new Date(Date.now() + DAY * 1000).toISOString().slice(0, 10);
 const GROWTH_MONTHLY = {
 	id: "price_growth_monthly",
 	object: "price",
-	lookup_key: "mailcheap_growth_monthly",
-	unit_amount: 3900,
+	lookup_key: "flockstack_growth_monthly",
+	unit_amount: 2700,
 	currency: "usd",
 	recurring: { interval: "month" },
 };
@@ -184,7 +184,7 @@ test("a free plan opens what a paid one does: its limits, a tenant, the shared a
 	assert.equal(account.ses.tenantName, `mc-${user.accountId}`);
 	assert.ok(state.tenants.has(`mc-${user.accountId}`), "the tenant is at the email provider");
 	const newsletter = await m.Newsletter.findOne({ accountId: user.accountId }).lean();
-	assert.equal(newsletter.sharedSender.domain, "free-news.mailcheapmail.com", "the newsletter set up before gets its shared address");
+	assert.equal(newsletter.sharedSender.domain, "free-news.flockstackmail.com", "the newsletter set up before gets its shared address");
 
 	const { key } = await createKey(user);
 	const billing = await callApi("GET", "/api/v1/billing", { key });
@@ -276,7 +276,7 @@ test("ending a free plan stops sending at once and keeps the data; ending it aga
 	assert.equal(await m.Contact.countDocuments({ accountId: user.accountId }), 1);
 	assert.equal(await m.Campaign.countDocuments({ accountId: user.accountId }), 1);
 	const newsletter = await m.Newsletter.findOne({ accountId: user.accountId }).lean();
-	assert.equal(newsletter.sharedSender.domain, "ended-news.mailcheapmail.com", "the shared address waits for the next plan");
+	assert.equal(newsletter.sharedSender.domain, "ended-news.flockstackmail.com", "the shared address waits for the next plan");
 	assert.ok(state.tenants.has(`mc-${user.accountId}`), "and the tenant");
 	assert.deepEqual(await end(user), { error: "No free plan to end" });
 });
@@ -308,7 +308,7 @@ describe("with Stripe", () => {
 
 		const { key } = await createKey(user);
 		const billing = await callApi("GET", "/api/v1/billing", { key });
-		assert.deepEqual(billing.body.plan, { id: "growth", name: "Growth", interval: "month", price: 39 });
+		assert.deepEqual(billing.body.plan, { id: "growth", name: "Growth", interval: "month", price: 27 });
 		assert.equal(billing.body.freePlan.id, "scale");
 		assert.equal(billing.body.currentPeriodEnd, new Date((NOW + 30 * DAY) * 1000).toISOString());
 

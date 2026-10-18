@@ -10,8 +10,9 @@ import { cn } from "@/lib/utils";
 // current: the account's plan, and its interval when Stripe bills it: then only that billing period is marked.
 // action: with a plan Stripe bills, the server action that switches to the plan and period picked. Without it, the
 // button subscribes through Checkout.
+// ctaHref, ctaLabel: for pages that don't sell yet (the landing page leads to sign-up), a link in place of Checkout.
 // children: under the button. The Subscribe link isn't a <Link>: a prefetch would open a Checkout session.
-export default function SliderPricing({ plans, freeMonths, initialIndex = 0, initialPeriod = "month", current, action, children }) {
+export default function SliderPricing({ plans, freeMonths, initialIndex = 0, initialPeriod = "month", current, action, ctaHref, ctaLabel = "Subscribe", children }) {
 	const id = useId();
 	const [index, setIndex] = useState(initialIndex);
 	const [period, setPeriod] = useState(initialPeriod);
@@ -148,8 +149,12 @@ export default function SliderPricing({ plans, freeMonths, initialIndex = 0, ini
 						</form>
 					) : (
 						<Button asChild size="lg" className="h-11 w-full text-[15px]">
-							<a href={price.href} rel="nofollow" data-goal="checkout_started" data-goal-plan={plan.id} data-goal-interval={period}>
-								Subscribe
+							<a
+								href={ctaHref ?? price.href}
+								rel="nofollow"
+								{...(!ctaHref && { "data-goal": "checkout_started", "data-goal-plan": plan.id, "data-goal-interval": period })}
+							>
+								{ctaLabel}
 								<ArrowRight data-icon="inline-end" />
 							</a>
 						</Button>

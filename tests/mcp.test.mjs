@@ -84,7 +84,7 @@ describe("connecting", () => {
 		assert.equal(status, 200);
 		assert.equal(headers.get("mcp-session-id"), null, "no session to keep");
 		assert.equal(body.result.protocolVersion, "2025-06-18");
-		assert.equal(body.result.serverInfo.name, "mailcheap");
+		assert.equal(body.result.serverInfo.name, "flockstack");
 		assert.ok(body.result.capabilities.tools);
 		assert.match(body.result.instructions, /can't be undone/);
 		assert.equal((await mcp(owner.fullKey, "notifications/initialized")).status, 202);
@@ -110,7 +110,7 @@ describe("connecting", () => {
 			return anonymous(() => m.mcpRoute[request.method](request));
 		};
 		for (const mode of [{ pin: "2026-07-28" }, "legacy"]) {
-			const client = new Client({ name: "mailcheap-test", version: "1.0.0" }, { versionNegotiation: { mode } });
+			const client = new Client({ name: "flockstack-test", version: "1.0.0" }, { versionNegotiation: { mode } });
 			const transport = new StreamableHTTPClientTransport(new URL("http://localhost:3000/mcp"), {
 				fetch: fetchRoute,
 				authProvider: { token: async () => owner.fullKey },
