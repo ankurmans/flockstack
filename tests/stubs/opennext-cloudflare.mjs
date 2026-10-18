@@ -23,6 +23,13 @@ const bucket = {
 	},
 };
 
+// request.cf, the visitor's data Cloudflare adds to a request: set it to { country: "IE" } for a test.
+let cf;
+
+export function setCf(value) {
+	cf = value;
+}
+
 export async function getCloudflareContext() {
-	return { env: { FILES: bucket } };
+	return { env: { FILES: bucket }, cf };
 }

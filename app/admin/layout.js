@@ -6,6 +6,8 @@ import LogoWordmark from "@/components/LogoWordmark";
 import { Button } from "@/components/ui/button";
 import { SiteAnalytics } from "@/components/SiteExtensions";
 import { requireAdmin } from "@/lib/auth";
+import { isCloud } from "@/lib/config";
+import { REGION_NAMES, getRegion } from "@/lib/region";
 
 export const metadata = { title: "Admin" };
 
@@ -19,6 +21,11 @@ export default async function AdminLayout({ children }) {
 				<div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between gap-3 px-4 md:px-10">
 					<LogoWordmark href="/admin">
 						<span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Admin</span>
+						{isCloud() && (
+							<span title="The region this server stores data in" className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+								{REGION_NAMES[getRegion()]}
+							</span>
+						)}
 					</LogoWordmark>
 					<div className="flex min-w-0 items-center gap-1">
 						<span className="mr-2 hidden truncate text-xs text-muted-foreground sm:block">{admin.email}</span>

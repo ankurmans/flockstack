@@ -7,6 +7,7 @@ import {
 	getOtherRegion,
 	getRegion,
 	getRegionForCountry,
+	getRegionOptions,
 	getRegionUrls,
 	getSigninUrl,
 	isEu,
@@ -85,6 +86,22 @@ describe("the region a visitor starts on", () => {
 		assert.deepEqual(chooseRegion({ country: "US" }), { region: "us", source: "country" });
 		assert.deepEqual(chooseRegion({ env: EU }), { region: "eu", source: "deployment" });
 		assert.deepEqual(chooseRegion({ env: {} }), { region: "us", source: "deployment" });
+	});
+
+	test("the EU Worker ignores the country: whoever opened eu.flockstack.io went there on purpose", () => {
+		assert.deepEqual(chooseRegion({ country: "US", env: EU }), { region: "eu", source: "deployment" });
+		assert.deepEqual(chooseRegion({ country: "DE", env: EU }), { region: "eu", source: "deployment" });
+		assert.deepEqual(chooseRegion({ query: "us", country: "DE", env: EU }), { region: "us", source: "query" });
+		assert.deepEqual(chooseRegion({ cookie: "us", env: EU }), { region: "us", source: "cookie" });
+	});
+
+	test("the region options list both regions with their hosts and sign-in links", () => {
+		assert.deepEqual(getRegionOptions({ next: "/billing", env: {} }), [
+			{ id: "us", name: "United States", host: "flockstack.io", href: "/signin?region=us&next=%2Fbilling" },
+			{ id: "eu", name: "European Union", host: "eu.flockstack.io", href: "https://eu.flockstack.io/signin?region=eu&next=%2Fbilling" },
+		]);
+		assert.equal(getRegionOptions({ env: EU })[0].href, "https://flockstack.io/signin?region=us");
+		assert.equal(getRegionOptions({ env: EU })[1].href, "/signin?region=eu");
 	});
 
 	test("a query or cookie that names no region is ignored", () => {
