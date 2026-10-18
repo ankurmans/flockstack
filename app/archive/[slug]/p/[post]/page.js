@@ -7,6 +7,7 @@ import CardPaywall from "@/components/CardPaywall";
 import FrameIssue from "@/components/FrameIssue";
 import LinksShare from "@/components/LinksShare";
 import PitchSubscribe from "@/components/PitchSubscribe";
+import SectionComments from "@/components/SectionComments";
 import ScriptJsonLd from "@/components/ScriptJsonLd";
 import TrackView from "@/components/TrackView";
 import TriggerSubscribe from "@/components/TriggerSubscribe";
@@ -16,6 +17,8 @@ import { countReaders, getArchiveIssue, getArchiveNewsletter, getShopPayments, l
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getIssueDate } from "@/lib/archive-issues";
 import { getIssueSeo } from "@/lib/archive-seo";
+import { areCommentsOn, getCommentSettings } from "@/lib/comment-rules";
+import { listPublicComments } from "@/lib/comments";
 import { cn } from "@/lib/utils";
 
 export const revalidate = 3600;
@@ -41,11 +44,13 @@ export default async function IssuePage({ params }) {
 	if (!page) notFound();
 	const { newsletter, issue } = page;
 
-	const [more, readers, payments, signupFields] = await Promise.all([
+	const hasComments = areCommentsOn(newsletter, issue);
+	const [more, readers, payments, signupFields, comments] = await Promise.all([
 		listArchiveIssues(newsletter, { limit: 3, excludeId: issue._id }),
 		countReaders(newsletter),
 		getShopPayments(newsletter),
 		listSignupFields(newsletter),
+		hasComments ? listPublicComments(newsletter, issue) : null,
 	]);
 	const urls = getArchiveUrls(newsletter);
 	const body = renderIssueBody(issue, { referralLink: `${urls.siteIndex}#subscribe` });
@@ -108,6 +113,15 @@ export default async function IssuePage({ params }) {
 				)}
 				{body.kind === "paywall" && <CardPaywall newsletterName={newsletter.name} href={canSubscribePaid ? urls.subscribe : null} />}
 			</article>
+
+			{comments && (
+				<SectionComments
+					slug={newsletter.slug}
+					post={issue.archiveSlug}
+					data={comments}
+					restriction={getCommentSettings(newsletter).who === "paid" ? "On this newsletter, only paid subscribers can comment." : ""}
+				/>
+			)}
 
 			<section id="subscribe" className={cn("mx-auto max-w-2xl scroll-mt-24 px-5 pt-16", more.length === 0 && "pb-24")}>
 				<div className="rounded-2xl bg-card px-6 py-10 shadow-border sm:px-10">
