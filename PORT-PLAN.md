@@ -99,7 +99,7 @@ Done since the first deploy: passkey login, cloud mode with SES-only platform em
 1. Polar: create the org token, run `scripts/polar-setup.mjs`, add the webhook, set `POLAR_ACCESS_TOKEN` / `POLAR_WEBHOOK_SECRET` (see README, billing).
 2. SES stays on the owner's existing AWS account (decided, shared with other products). Each customer is its own SES tenant with its own suppression list, and the app pauses senders on bounce and complaint rates, which limits the blast radius; revisit if a customer ever hurts the account's reputation.
 3. Push the fork to a public repository (AGPL), then point `SOURCE_URL` in `lib/site.js` at it and add a source link to the site footer.
-4. Terms and Privacy pages.
+4. Terms, Privacy and Sub-processors pages are drafted (branch feat/legal: `/terms`, `/privacy`, `/sub-processors`, `lib/legal.js`). Not legal advice: have them checked, fill the `TODO:` constants in `lib/legal.js` (`node scripts/check-legal.mjs` lists what is left) and update them whenever the product changes what it stores or shares.
 5. Bulk updates (large imports, status changes) read and write each row separately: fine for small lists, make them single statements before big ones. Archive old Event rows (D1 is 10 GB per database).
 6. wrangler.jsonc holds the owner's account and database ids and domains: move them out before publishing a reusable template.
 

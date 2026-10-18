@@ -77,7 +77,7 @@ All names and addresses in the screenshots are made up.
 | Setup | A few minutes | About an hour, most of it waiting for DNS and production access (SES) |
 | Support | A chat in the dashboard | None: issues are off |
 
-FlockStack Cloud is this repository with `FLOCKSTACK_CLOUD=true`, which adds open sign-up, plans and billing (Polar or Stripe). Only active subscribers count toward a plan, not the ones list cleanup marked dormant. Its landing page is in this repository too (`lib/marketing`, `components/marketing`); the legal pages aren't written yet. Every change to the app ships to both.
+FlockStack Cloud is this repository with `FLOCKSTACK_CLOUD=true`, which adds open sign-up, plans and billing (Polar or Stripe). Only active subscribers count toward a plan, not the ones list cleanup marked dormant. Its landing page is in this repository too (`lib/marketing`, `components/marketing`), and so are its legal pages: `/terms`, `/privacy` and `/sub-processors`, which a self-hosted server doesn't serve (see [Legal pages](#legal-pages)). Every change to the app ships to both.
 
 With your own sending account, you pay your provider for the emails you send: 10,000 readers and 4 issues a month is 40,000 emails, about $4 to $6 on Amazon SES.
 
@@ -118,6 +118,16 @@ The EU Worker starts from nothing: `wrangler secret put <NAME> --env eu` for eac
 - **Optional:** `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (add `https://eu.flockstack.io/api/auth/callback/google` to the client), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `REGION_URL_US` and `REGION_URL_EU` (default to the two addresses above).
 
 **Webhooks and the other region.** A provider configured once can deliver to both Workers, so each gets events for accounts it doesn't have. Signatures are checked exactly as before. An event for a subscription, customer, connected account, tenant or message with no account in this region is acknowledged with a 2xx and logged at info level (`no such account in this region`), with no alert and no retry. A real failure, such as Polar being unreachable, still answers 5xx and alerts.
+
+## Legal pages
+
+FlockStack Cloud's terms of service (`/terms`), privacy policy (`/privacy`) and sub-processors (`/sub-processors`) are first drafts written from what the code and the infrastructure do. They are not legal advice: have a lawyer read them. They are linked from the landing page's footer and the sign-in page (whose "By continuing you agree" line is the sign-up step), listed in the sitemap and `llms.txt`, and 404 on a self-hosted server. Everything about the company that the code can't know lives in `lib/legal.js` as constants whose placeholders start with `TODO:`, and the pages read from it. Before shipping, run
+
+```bash
+node scripts/check-legal.mjs
+```
+
+which lists the placeholders still left and exits 1 until there are none. It is not part of `scripts/deploy-all.mjs`, so a deploy never waits for it: run it yourself. When the product changes what it stores, sends or shares (a new service, a new kind of data, a new cookie), change `lib/subprocessors.js` and the pages with it.
 
 ## Self-hosting
 
