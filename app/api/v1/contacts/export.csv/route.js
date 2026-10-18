@@ -5,6 +5,7 @@ import { getCsvHeader, toCsvRow } from "@/lib/contacts-csv";
 import { connectDb } from "@/lib/db";
 import { verifyExportToken } from "@/lib/export-token";
 import Account from "@/models/Account";
+import CustomField from "@/models/CustomField";
 import Contact from "@/models/Contact";
 import Newsletter from "@/models/Newsletter";
 
@@ -26,16 +27,19 @@ export async function GET(request) {
 		(await Newsletter.find(scoped(account)).select({ slug: 1 }).lean()).map(({ _id, slug }) => [String(_id), slug])
 	);
 	const filter = {
-		...contactSearchFilter(account, { newsletterId: link.newsletterId, query: link.query }),
+		...contactSearchFilter(account, { newsletterId: link.newsletterId, query: link.query, tag: link.tag }),
 		...(link.status && { status: link.status }),
 	};
+	const fieldKeys = [
+		...new Set((await CustomField.find(scoped(account, link.newsletterId ? { newsletterId: link.newsletterId } : {})).select({ key: 1 }).lean()).map(({ key }) => key)),
+	].sort();
 	const cursor = Contact.find(filter).sort({ subscribedAt: -1, _id: -1 }).lean().cursor();
 	const encoder = new TextEncoder();
 	let isStarted = false;
 
 	const stream = new ReadableStream({
 		async pull(controller) {
-			let chunk = isStarted ? "" : getCsvHeader();
+			let chunk = isStarted ? "" : getCsvHeader(fieldKeys);
 			isStarted = true;
 			for (let count = 0; count < ROWS_PER_CHUNK; count += 1) {
 				const contact = await cursor.next();
@@ -45,7 +49,7 @@ export async function GET(request) {
 					await cursor.close();
 					return;
 				}
-				chunk += toCsvRow(contact, newsletters);
+				chunk += toCsvRow(contact, newsletters, fieldKeys);
 			}
 			controller.enqueue(encoder.encode(chunk));
 		},

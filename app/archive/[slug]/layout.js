@@ -2,20 +2,21 @@ import { notFound } from "next/navigation";
 import FooterArchive from "@/components/FooterArchive";
 import HeaderArchive from "@/components/HeaderArchive";
 import ProviderSubscribe from "@/components/ProviderSubscribe";
-import { countReaders, getArchiveNewsletter } from "@/lib/archive-data";
+import { countReaders, getArchiveNewsletter, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 
 export default async function ArchiveLayout({ children, params }) {
 	const newsletter = await getArchiveNewsletter((await params).slug);
 	if (!newsletter) notFound();
 
-	const readers = await countReaders(newsletter);
+	const [readers, signupFields] = await Promise.all([countReaders(newsletter), listSignupFields(newsletter)]);
 	const { index } = getArchiveUrls(newsletter);
 	const pitch = {
 		name: newsletter.name,
 		slug: newsletter.slug,
 		imageUrl: newsletter.imageUrl,
 		description: newsletter.description,
+		signupFields,
 	};
 
 	return (

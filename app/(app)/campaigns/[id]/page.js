@@ -7,6 +7,7 @@ import { getAccountSendProblem, hasActiveSubscription, isBlocked } from "@/lib/a
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { countNewContacts, getSendVolumes, sendTimesPipeline } from "@/lib/campaign-queries";
 import { isSendingEnabled } from "@/lib/config";
+import { listCustomFields } from "@/lib/custom-fields";
 import { MESSAGE_STATS_GROUP } from "@/lib/message-stats";
 import { getPostalAddress } from "@/lib/postal-address";
 import { getSelectedNewsletter, openNewsletter } from "@/lib/selected-newsletter";
@@ -58,12 +59,13 @@ export default async function CampaignPage({ params }) {
 		);
 	}
 
-	const [audienceCount, sender, sendTimes, volumes, newContacts] = await Promise.all([
+	const [audienceCount, sender, sendTimes, volumes, newContacts, fields] = await Promise.all([
 		Contact.countDocuments(scoped(account, { newsletterId: newsletter._id, status: "active" })),
 		loadSender(account, newsletter),
 		getSendTimes(campaign),
 		getSendVolumes(account),
 		countNewContacts(account, newsletter._id),
+		listCustomFields(account, newsletter._id),
 	]);
 
 	return (
@@ -80,6 +82,7 @@ export default async function CampaignPage({ params }) {
 			emailsLeft={plan.emailsLeft}
 			pace={getPace(account, volumes)}
 			newContacts={newContacts}
+			fields={fields.map(({ key, label }) => ({ key, label }))}
 		/>
 	);
 }

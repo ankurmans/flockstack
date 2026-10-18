@@ -5,6 +5,7 @@ import { Extension } from "@tiptap/core";
 import { ReactRenderer } from "@tiptap/react";
 import Suggestion from "@tiptap/suggestion";
 import {
+	Braces,
 	Heading1,
 	Heading2,
 	Heading3,
@@ -82,14 +83,14 @@ export default function MenuSlash({ items, command, ref }) {
 export const SlashCommand = Extension.create({
 	name: "slashCommand",
 	addOptions() {
-		return { onPickImage: () => {} };
+		return { onPickImage: () => {}, fields: [] };
 	},
 	addProseMirrorPlugins() {
 		return [
 			Suggestion({
 				editor: this.editor,
 				char: "/",
-				items: ({ query }) => filterItems(query),
+				items: ({ query }) => filterItems(query, this.options.fields),
 				command: ({ editor, range, props: item }) => {
 					item.run(editor.chain().focus().deleteRange(range)).run();
 					if (item.isImage) this.options.onPickImage(editor);
@@ -122,9 +123,24 @@ function renderMenu() {
 	};
 }
 
-function filterItems(query) {
+// Merge tags (lib/merge-tags.js) for the email address and each custom field of the newsletter, with the words
+// to print when a contact has no value.
+function getMergeItems(fields) {
+	const tags = [
+		{ title: "Merge tag: email", text: "{{email}}" },
+		...fields.map(({ key, label }) => ({ title: `Merge tag: ${label}`, text: key === "first_name" ? "{{first_name|there}}" : `{{${key}|}}` })),
+	];
+	return tags.map(({ title, text }) => ({
+		title,
+		keywords: "merge tag personalize field name",
+		icon: Braces,
+		run: (chain) => chain.insertContent(text),
+	}));
+}
+
+function filterItems(query, fields = []) {
 	const search = query.toLowerCase().trim();
-	return SLASH_ITEMS.filter(({ title, keywords }) => `${title} ${keywords}`.toLowerCase().includes(search));
+	return [...SLASH_ITEMS, ...getMergeItems(fields)].filter(({ title, keywords }) => `${title} ${keywords}`.toLowerCase().includes(search));
 }
 
 function scrollIntoView(element) {

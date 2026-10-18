@@ -5,12 +5,14 @@ import { after } from "next/server";
 import { sendAlert } from "@/lib/alerts";
 import { isSendingEnabled } from "@/lib/config";
 import { getSignupProblem, upsertContact } from "@/lib/contacts";
+import { buildFieldUpdate, parseFieldValue } from "@/lib/custom-fields";
 import { connectDb } from "@/lib/db";
 import { getInbox } from "@/lib/inbox-links";
 import { findSignupNewsletter } from "@/lib/public-newsletters";
 import { getClientIp, isRateLimited } from "@/lib/rate-limit";
 import { queueConfirmationEmail, queueWelcomeEmail } from "@/lib/sending";
 import { normalizeEmail } from "@/lib/validation";
+import CustomField from "@/models/CustomField";
 
 const PER_IP = { name: "subscribe-ip", limit: 5, window: "10 m" };
 // Only alerts: refusing signups past a shared limit would let one flooder block every real signup.
@@ -37,6 +39,18 @@ export async function subscribe(_state, formData) {
 	});
 	if (!newsletter) return { error: "This newsletter is not taking signups" };
 
+	// Visitors only ever fill in the fields the form asks for, and never tags.
+	const definitions = await CustomField.find({ accountId: newsletter.accountId, newsletterId: newsletter._id, onSignupForm: true }).lean();
+	const values = {};
+	for (const { key, label, type } of definitions) {
+		const value = String(formData.get(`field_${key}`) ?? "").trim();
+		if (!value) continue;
+		const { problem } = parseFieldValue(type, value);
+		if (problem) return { error: `${label} ${problem}` };
+		values[key] = value;
+	}
+	const fieldUpdate = buildFieldUpdate(definitions, values);
+
 	if (await isRateLimited({ ...PER_NEWSLETTER, key: newsletter.slug })) {
 		after(() =>
 			sendAlert({
@@ -49,7 +63,7 @@ export async function subscribe(_state, formData) {
 		);
 	}
 
-	const { contact, created } = await upsertContact({ newsletter, email, source: "website", resubscribe: true });
+	const { contact, created } = await upsertContact({ newsletter, email, source: "website", resubscribe: true, fieldUpdate });
 	const isPending = contact.status === "pending";
 	if (isSendingEnabled() && (isPending || (created && contact.status === "active"))) {
 		const queue = isPending ? queueConfirmationEmail : queueWelcomeEmail;

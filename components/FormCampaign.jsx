@@ -39,8 +39,9 @@ import {
 import { getCheckFix } from "@/lib/campaign-steps";
 import { formatCount, formatSendTime } from "@/lib/format";
 import { markdownToHtml } from "@/lib/markdown";
+import { fillMergeTags } from "@/lib/merge-tags";
 import { getPresendChecks } from "@/lib/presend-checks";
-import { UNSUBSCRIBE_PLACEHOLDER, renderEmail, withResponsiveImages } from "@/lib/render-email";
+import { UNSUBSCRIBE_PLACEHOLDER, escapeHtml, renderEmail, withResponsiveImages } from "@/lib/render-email";
 import { getPaceHours } from "@/lib/send-spread";
 import { toast } from "@/lib/toast";
 import { useMediaQuery } from "@/lib/use-media-query";
@@ -67,6 +68,7 @@ export default function FormCampaign({
 	emailsLeft,
 	pace,
 	newContacts,
+	fields = [],
 }) {
 	const isHtml = campaign.format === "html";
 	const [step, setStep] = useState("write");
@@ -115,8 +117,9 @@ export default function FormCampaign({
 			}),
 		[format, deferredValues, newsletter]
 	);
+	// The preview has no reader, so merge tags show their fallbacks.
 	const previewHtml = useMemo(
-		() => withResponsiveImages(rendered.html.replaceAll(UNSUBSCRIBE_PLACEHOLDER, "#")),
+		() => withResponsiveImages(fillMergeTags(rendered.html.replaceAll(UNSUBSCRIBE_PLACEHOLDER, "#"), null, { escape: escapeHtml })),
 		[rendered.html]
 	);
 	const { checks, blocking } = getPresendChecks({
@@ -327,7 +330,7 @@ export default function FormCampaign({
 								/>
 							</div>
 						) : (
-							<EditorRich content={initialBody} onChange={updateBody} />
+							<EditorRich content={initialBody} onChange={updateBody} fields={fields} />
 						)}
 					</div>
 				</section>

@@ -78,7 +78,20 @@ test("the dashboard counts the hourly limits of what costs something each call",
 			.filter(({ limitDashboard }) => !limitDashboard)
 			.map(({ name }) => name)
 			.sort(),
-		["create_api_key", "create_campaign", "delete_contact", "duplicate_campaign", "export_contacts", "preview_campaign_cleanup"],
+		[
+			"add_tag",
+			"create_api_key",
+			"create_campaign",
+			"create_custom_field",
+			"delete_contact",
+			"delete_custom_field",
+			"delete_tag",
+			"duplicate_campaign",
+			"export_contacts",
+			"preview_campaign_cleanup",
+			"remove_tag",
+			"set_contact_field",
+		],
 		"drafts, keys, deletes, exports and counts stay inside FlockStack"
 	);
 	const imports = m.registry.getAction("import_contacts");

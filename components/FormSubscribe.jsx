@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { storeValue, subscribedKey } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
-export default function FormSubscribe({ newsletterSlug, className }) {
+export default function FormSubscribe({ newsletterSlug, fields = [], className }) {
 	const [state, action, isPending] = useActionState(subscribe, null);
 
 	useEffect(() => {
@@ -36,6 +36,22 @@ export default function FormSubscribe({ newsletterSlug, className }) {
 			<div aria-hidden="true" className="absolute -left-[10000px] size-px overflow-hidden">
 				<input type="text" name="website" tabIndex={-1} autoComplete="off" />
 			</div>
+			{fields?.length > 0 && (
+				<div className="mb-2 flex flex-col gap-2">
+					{fields.map(({ key, label, type }) => (
+						<input
+							key={key}
+							type={type === "number" ? "number" : type === "date" ? "date" : "text"}
+							name={`field_${key}`}
+							placeholder={`${label} (optional)`}
+							aria-label={label}
+							step={type === "number" ? "any" : undefined}
+							maxLength={type === "text" ? 500 : undefined}
+							className="h-11 w-full min-w-0 rounded-xl bg-background px-3.5 text-base shadow-border outline-none transition-shadow duration-150 placeholder:text-muted-foreground focus-visible:shadow-border-hover focus-visible:ring-3 focus-visible:ring-ring/25"
+						/>
+					))}
+				</div>
+			)}
 			<div className="flex items-center gap-1.5 rounded-xl bg-background p-1.5 shadow-border transition-shadow duration-150 focus-within:shadow-border-hover focus-within:ring-3 focus-within:ring-ring/25">
 				<input
 					type="email"

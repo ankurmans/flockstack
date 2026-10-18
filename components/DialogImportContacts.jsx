@@ -16,14 +16,16 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MAX_IMPORT_ROWS_PER_REQUEST, mapColumns, normalizeImportRow } from "@/lib/csv-import";
+import { Input } from "@/components/ui/input";
+import { MAX_IMPORT_ROWS_PER_REQUEST, mapColumns, mapExtraColumns, normalizeImportRow } from "@/lib/csv-import";
 import { CONSENT_TEXT, DROP_REASONS, addDropped } from "@/lib/import-checks";
 import { formatNumber } from "@/lib/format";
+import { parseTagList } from "@/lib/tag-rules";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
 // Into the newsletter the page shows.
-export default function DialogImportContacts({ newsletter, label = "Import", variant = "outline" }) {
+export default function DialogImportContacts({ newsletter, definitions = [], label = "Import", variant = "outline" }) {
 	const router = useRouter();
 	const [isOpen, setIsOpen] = useState(false);
 	const [mode, setMode] = useState("file");
@@ -31,13 +33,15 @@ export default function DialogImportContacts({ newsletter, label = "Import", var
 	const [parsed, setParsed] = useState(null);
 	const [progress, setProgress] = useState(null);
 	const [hasConsent, setHasConsent] = useState(false);
+	const [mapping, setMapping] = useState({});
+	const [importTag, setImportTag] = useState("");
 	const [summary, setSummary] = useState(null);
 	const [isImporting, startImporting] = useTransition();
 
 	// Invalid rows still go to the server, which checks every row again and counts them in the import.
 	const { rows, invalidRows, duplicates } = useMemo(() => {
 		if (!parsed) return { rows: [], invalidRows: [], duplicates: 0 };
-		const options = mode === "dormant" ? { status: "dormant" } : {};
+		const options = { ...(mode === "dormant" && { status: "dormant" }), extra: getExtra(mapping) };
 		const byEmail = new Map();
 		const invalid = [];
 		for (const row of parsed.rows) {
@@ -51,7 +55,7 @@ export default function DialogImportContacts({ newsletter, label = "Import", var
 			invalidRows: invalid,
 			duplicates: parsed.rows.length - invalid.length - byEmail.size,
 		};
-	}, [parsed, mode]);
+	}, [parsed, mode, mapping]);
 	const statusCounts = useMemo(
 		() =>
 			Object.entries(Object.groupBy(rows, ({ status }) => status)).map(([status, group]) => [
@@ -66,6 +70,8 @@ export default function DialogImportContacts({ newsletter, label = "Import", var
 		setParsed(null);
 		setProgress(null);
 		setHasConsent(false);
+		setMapping({});
+		setImportTag("");
 		setSummary(null);
 	}
 
@@ -82,6 +88,19 @@ export default function DialogImportContacts({ newsletter, label = "Import", var
 					toast.error("No email column found");
 					return reset();
 				}
+				const headers = meta.fields ?? [];
+				const extra = mapExtraColumns(headers, definitions);
+				const builtIn = new Set(Object.values(columns).filter(Boolean));
+				setMapping(
+					Object.fromEntries(
+						headers
+							.filter((header) => !builtIn.has(header))
+							.map((header) => {
+								const key = Object.entries(extra.fields).find(([, column]) => column === header)?.[0];
+								return [header, header === extra.tags ? "tags" : key ? `field:${key}` : "skip"];
+							})
+					)
+				);
 				setParsed({ rows: data, columns });
 			},
 			error: () => toast.error("Could not read this file"),
@@ -98,6 +117,7 @@ export default function DialogImportContacts({ newsletter, label = "Import", var
 				const result = await importContacts({
 					newsletterId: newsletter.id,
 					consent: hasConsent,
+					tags: parseTagList(importTag),
 					importId,
 					duplicates: importId ? 0 : duplicates,
 					rows: allRows.slice(start, start + MAX_IMPORT_ROWS_PER_REQUEST),
@@ -187,6 +207,20 @@ export default function DialogImportContacts({ newsletter, label = "Import", var
 							</div>
 						)}
 
+						{Object.keys(mapping).length > 0 && (
+							<ColumnMapping mapping={mapping} onChange={setMapping} definitions={definitions} isDisabled={isImporting} />
+						)}
+
+						<Input
+							value={importTag}
+							onChange={(event) => setImportTag(event.target.value)}
+							placeholder="Tag everyone in this file (optional)"
+							aria-label="Tag everyone in this file"
+							maxLength={120}
+							disabled={isImporting}
+							className="h-9"
+						/>
+
 						<label className="flex items-start gap-2.5 text-sm">
 							<input
 								type="checkbox"
@@ -241,6 +275,42 @@ export default function DialogImportContacts({ newsletter, label = "Import", var
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
+	);
+}
+
+// The columns the import doesn't read as email, status or dates: skipped, read as tags, or as a custom field.
+function getExtra(mapping) {
+	const entries = Object.entries(mapping);
+	return {
+		tags: entries.filter(([, choice]) => choice === "tags").map(([header]) => header),
+		fields: Object.fromEntries(entries.filter(([, choice]) => choice.startsWith("field:")).map(([header, choice]) => [choice.slice(6), header])),
+	};
+}
+
+function ColumnMapping({ mapping, onChange, definitions, isDisabled }) {
+	return (
+		<div className="flex max-h-40 flex-col gap-1.5 overflow-y-auto rounded-xl px-3.5 py-3 shadow-border">
+			<p className="text-xs text-muted-foreground">Other columns in the file</p>
+			{Object.entries(mapping).map(([header, choice]) => (
+				<div key={header} className="flex items-center gap-2 text-sm">
+					<span className="min-w-0 flex-1 truncate">{header}</span>
+					<Select value={choice} onValueChange={(value) => onChange({ ...mapping, [header]: value })} disabled={isDisabled}>
+						<SelectTrigger size="sm" className="w-40" aria-label={`What to do with ${header}`}>
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="skip">Skip</SelectItem>
+							<SelectItem value="tags">Tags</SelectItem>
+							{definitions.map((field) => (
+								<SelectItem key={field.key} value={`field:${field.key}`}>
+									Field: {field.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
+			))}
+		</div>
 	);
 }
 
