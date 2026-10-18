@@ -551,3 +551,32 @@ describe("the account page", () => {
 		assert.match((await as(user, () => m.exportActions.startExport())).error, /once every 5 minutes/);
 	});
 });
+
+describe("custom fields and recommendations", () => {
+	test("each newsletter's custom fields are CSV columns and in the manifest, with its recommendations by public slug", async () => {
+		const CustomField = (await import("../models/CustomField.js")).default;
+		const Recommendation = (await import("../models/Recommendation.js")).default;
+		const user = await customer("export-fields@example.com", { slug: "field-cols" });
+		const other = await customer("export-recommended@example.com", { slug: "their-notes" });
+		await CustomField.create({ accountId: user.accountId, newsletterId: user.newsletter._id, key: "first_name", label: "First name", type: "text" });
+		await m.Contact.create({ accountId: user.accountId, newsletterId: user.newsletter._id, email: "dee@example.org", fields: { first_name: "Dee" } });
+		await Recommendation.create({
+			accountId: user.accountId,
+			recommenderId: user.newsletter._id,
+			recommendedId: other.newsletter._id,
+			recommendedAccountId: other.accountId,
+			pitch: "Short notes on pricing",
+		});
+
+		const { latest } = await exportAndWait(user);
+		assert.equal(latest.body.status, "ready");
+		const zip = readZip(await readResponseBytes(await download(latest.body.downloadUrls[0])));
+		const text = (path) => zip.get(path)?.toString("utf8");
+		const [header, row] = text("contacts/field-cols.csv").trim().split("\r\n");
+		assert.ok(header.endsWith(",created_at,first_name"), header);
+		assert.ok(row.endsWith(",Dee"), row);
+		const [settings] = JSON.parse(text("manifest.json")).newsletters;
+		assert.deepEqual(settings.customFields, [{ key: "first_name", label: "First name", type: "text" }]);
+		assert.deepEqual(settings.recommendations, [{ newsletter: "their-notes", pitch: "Short notes on pricing", status: "active" }]);
+	});
+});

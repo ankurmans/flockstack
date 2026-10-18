@@ -99,7 +99,7 @@ export default function ExportPage() {
 			<Section title="The manifest" stagger={5}>
 				<p>
 					<Code>manifest.json</Code> lists everything in the export: each newsletter with its settings (sender, welcome and confirmation
-					emails, archive address, feed address, referral rewards), its contact count and file, every issue with its title, date, status and
+					emails, archive address, feed address, referral rewards, custom fields, and the newsletters it recommends by their public slug), its contact count and file, every issue with its title, date, status and
 					files, every picture with its original address and whether it could be fetched, and each file&apos;s size and CRC-32. Its{" "}
 					<Code>version</Code> changes only when the layout does.
 				</p>
