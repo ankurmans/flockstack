@@ -33,6 +33,10 @@ const campaignSchema = new mongoose.Schema(
 			checkedAt: { type: Date },
 			restHours: { type: Number },
 		},
+		// Sent to a saved segment (models/Segment.js) instead of every active contact. Its rules are copied at the first send
+		// (segmentSnapshot), so later steps and resumes keep the audience even if the segment changes or goes.
+		segmentId: { type: mongoose.Schema.Types.ObjectId, ref: "Segment" },
+		segmentSnapshot: { type: mongoose.Schema.Types.Mixed },
 		source: { type: String, default: "dashboard" },
 		scheduledAt: { type: Date },
 		startedAt: { type: Date },

@@ -19,7 +19,7 @@ export async function setupAudienceTests(env = {}) {
 		Newsletter: (await import("../../models/Newsletter.js")).default,
 		Suppression: (await import("../../models/Suppression.js")).default,
 	};
-	let processed = 0;
+	const handled = new Set();
 
 	async function api(key, method, path, body) {
 		const response = await callApi(method, `/api/v1${path}`, { key, body });
@@ -38,11 +38,13 @@ export async function setupAudienceTests(env = {}) {
 		return response.body.error.message;
 	}
 
-	// The send-batch jobs QStash was given since the last call.
-	async function runJobs() {
-		while (processed < published.length) {
-			const { url, body } = published[processed++];
-			if (url.endsWith("/api/jobs/send-batch")) await m.sendBatchRoute.POST(jsonRequest(url, { method: "POST", body }));
+	// The send-batch jobs QStash was given that this customer's account (every account's without one) hasn't run yet.
+	async function runJobs(user = null) {
+		for (const [index, { url, body }] of published.entries()) {
+			const isBatch = url.endsWith("/api/jobs/send-batch");
+			if (handled.has(index) || !isBatch || (user && body.accountId !== String(user.accountId))) continue;
+			handled.add(index);
+			await m.sendBatchRoute.POST(jsonRequest(url, { method: "POST", body }));
 		}
 	}
 

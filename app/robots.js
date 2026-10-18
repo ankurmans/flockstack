@@ -16,6 +16,7 @@ const PRIVATE_PATHS = [
 	"/newsletters",
 	"/oauth/",
 	"/restore",
+	"/segments",
 	"/welcome",
 	"/c/",
 	"/o/",

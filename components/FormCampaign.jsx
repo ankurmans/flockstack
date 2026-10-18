@@ -69,6 +69,7 @@ export default function FormCampaign({
 	pace,
 	newContacts,
 	fields = [],
+	segments = [],
 }) {
 	const isHtml = campaign.format === "html";
 	const [step, setStep] = useState("write");
@@ -379,6 +380,7 @@ export default function FormCampaign({
 						pace={pace}
 						newContacts={newContacts}
 						archiveUrlBase={archiveUrlBase}
+						segments={segments}
 					/>
 				</section>
 			</div>

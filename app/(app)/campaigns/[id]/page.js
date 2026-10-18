@@ -10,6 +10,7 @@ import { isSendingEnabled } from "@/lib/config";
 import { listCustomFields } from "@/lib/custom-fields";
 import { MESSAGE_STATS_GROUP } from "@/lib/message-stats";
 import { getPostalAddress } from "@/lib/postal-address";
+import { countCampaignAudience } from "@/lib/segments";
 import { getSelectedNewsletter, openNewsletter } from "@/lib/selected-newsletter";
 import { getPace } from "@/lib/send-spread";
 import { serialize } from "@/lib/serialize";
@@ -17,9 +18,9 @@ import { loadSender } from "@/lib/sender";
 import { siteExtensions } from "@/lib/site-extensions";
 import { countEmailsInFlight, getUsage } from "@/lib/usage";
 import Campaign from "@/models/Campaign";
-import Contact from "@/models/Contact";
 import Message from "@/models/Message";
 import Newsletter from "@/models/Newsletter";
+import Segment from "@/models/Segment";
 
 export const metadata = { title: "Campaign" };
 
@@ -59,13 +60,14 @@ export default async function CampaignPage({ params }) {
 		);
 	}
 
-	const [audienceCount, sender, sendTimes, volumes, newContacts, fields] = await Promise.all([
-		Contact.countDocuments(scoped(account, { newsletterId: newsletter._id, status: "active" })),
+	const [audienceCount, sender, sendTimes, volumes, newContacts, fields, segments] = await Promise.all([
+		countCampaignAudience(campaign),
 		loadSender(account, newsletter),
 		getSendTimes(campaign),
 		getSendVolumes(account),
 		countNewContacts(account, newsletter._id),
 		listCustomFields(account, newsletter._id),
+		Segment.find(scoped(account, { newsletterId: newsletter._id })).sort({ name: 1 }).select({ name: 1 }).lean(),
 	]);
 
 	return (
@@ -83,6 +85,7 @@ export default async function CampaignPage({ params }) {
 			pace={getPace(account, volumes)}
 			newContacts={newContacts}
 			fields={fields.map(({ key, label }) => ({ key, label }))}
+			segments={segments.map(({ _id, name }) => ({ id: String(_id), name }))}
 		/>
 	);
 }
@@ -122,11 +125,7 @@ async function getSendTimes(campaign) {
 // left after receiving it make this a little low, and the send itself skips everyone who has it.
 async function countRemaining(campaign) {
 	if (campaign.status !== "sent" || !campaign.audienceLimit) return 0;
-	const active = await Contact.countDocuments({
-		accountId: campaign.accountId,
-		newsletterId: campaign.newsletterId,
-		status: "active",
-	});
+	const active = await countCampaignAudience(campaign);
 	const reached = (campaign.stats?.recipients ?? 0) + (campaign.lastChance?.recipients ?? 0);
 	return Math.max(0, active - reached);
 }
