@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0"
+	xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:wp="http://wordpress.org/export/1.2/"
+>
+<channel>
+	<title>Field Notes</title>
+	<link>https://blog.example.com</link>
+	<description>Notes from the field</description>
+	<language>en-US</language>
+	<wp:wxr_version>1.2</wp:wxr_version>
+	<wp:base_site_url>https://blog.example.com</wp:base_site_url>
+	<wp:base_blog_url>https://blog.example.com</wp:base_blog_url>
+	<wp:author><wp:author_id>1</wp:author_id><wp:author_login><![CDATA[jdoe]]></wp:author_login><wp:author_email><![CDATA[jane@example.com]]></wp:author_email><wp:author_display_name><![CDATA[Jane Doe]]></wp:author_display_name></wp:author>
+	<wp:author><wp:author_id>2</wp:author_id><wp:author_login><![CDATA[sam]]></wp:author_login><wp:author_email><![CDATA[sam@example.com]]></wp:author_email><wp:author_display_name><![CDATA[Sam Guest]]></wp:author_display_name></wp:author>
+	<generator>https://wordpress.org/?v=6.6.2</generator>
+
+	<item>
+		<title><![CDATA[Cover photo]]></title>
+		<link>https://blog.example.com/2023/05/12/hello-world/cover/</link>
+		<dc:creator><![CDATA[jdoe]]></dc:creator>
+		<wp:post_id>41</wp:post_id>
+		<wp:post_date_gmt><![CDATA[2023-05-12 08:00:00]]></wp:post_date_gmt>
+		<wp:post_name><![CDATA[cover]]></wp:post_name>
+		<wp:status><![CDATA[inherit]]></wp:status>
+		<wp:post_type><![CDATA[attachment]]></wp:post_type>
+		<wp:attachment_url><![CDATA[https://blog.example.com/wp-content/uploads/2023/05/cover.jpg]]></wp:attachment_url>
+	</item>
+	<item>
+		<title><![CDATA[Hello world &amp; welcome]]></title>
+		<link>https://blog.example.com/2023/05/12/hello-world/</link>
+		<pubDate>Fri, 12 May 2023 08:00:00 +0000</pubDate>
+		<dc:creator><![CDATA[jdoe]]></dc:creator>
+		<description></description>
+		<content:encoded><![CDATA[Welcome to the blog. This is the first post.
+
+[caption id="attachment_41" align="alignnone" width="800"]<img class="size-full wp-image-41" src="/wp-content/uploads/2023/05/cover.jpg" alt="The view" width="800" height="533" /> The view from the office[/caption]
+
+Second paragraph with <a href="https://blog.example.com/about/">a link</a>.]]></content:encoded>
+		<excerpt:encoded><![CDATA[Where it all starts.]]></excerpt:encoded>
+		<wp:post_id>42</wp:post_id>
+		<wp:post_date><![CDATA[2023-05-12 10:00:00]]></wp:post_date>
+		<wp:post_date_gmt><![CDATA[2023-05-12 08:00:00]]></wp:post_date_gmt>
+		<wp:post_name><![CDATA[hello-world]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+		<wp:postmeta>
+			<wp:meta_key><![CDATA[_thumbnail_id]]></wp:meta_key>
+			<wp:meta_value><![CDATA[41]]></wp:meta_value>
+		</wp:postmeta>
+	</item>
+	<item>
+		<title><![CDATA[A block editor post]]></title>
+		<link>https://blog.example.com/2024/01/09/block-editor-post/</link>
+		<pubDate>Tue, 09 Jan 2024 17:45:00 +0000</pubDate>
+		<dc:creator><![CDATA[sam]]></dc:creator>
+		<content:encoded><![CDATA[<!-- wp:paragraph -->
+<p>Written with blocks.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">A heading</h2>
+<!-- /wp:heading -->]]></content:encoded>
+		<excerpt:encoded><![CDATA[]]></excerpt:encoded>
+		<wp:post_id>57</wp:post_id>
+		<wp:post_date_gmt><![CDATA[2024-01-09 17:45:00]]></wp:post_date_gmt>
+		<wp:post_name><![CDATA[block-editor-post]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+	</item>
+	<item>
+		<title><![CDATA[Not finished]]></title>
+		<link>https://blog.example.com/?p=60</link>
+		<dc:creator><![CDATA[jdoe]]></dc:creator>
+		<content:encoded><![CDATA[Soon.]]></content:encoded>
+		<wp:post_id>60</wp:post_id>
+		<wp:post_date_gmt><![CDATA[0000-00-00 00:00:00]]></wp:post_date_gmt>
+		<wp:post_name><![CDATA[]]></wp:post_name>
+		<wp:status><![CDATA[draft]]></wp:status>
+		<wp:post_type><![CDATA[post]]></wp:post_type>
+	</item>
+	<item>
+		<title><![CDATA[About]]></title>
+		<link>https://blog.example.com/about/</link>
+		<dc:creator><![CDATA[jdoe]]></dc:creator>
+		<content:encoded><![CDATA[About us.]]></content:encoded>
+		<wp:post_id>2</wp:post_id>
+		<wp:post_date_gmt><![CDATA[2023-01-01 00:00:00]]></wp:post_date_gmt>
+		<wp:post_name><![CDATA[about]]></wp:post_name>
+		<wp:status><![CDATA[publish]]></wp:status>
+		<wp:post_type><![CDATA[page]]></wp:post_type>
+	</item>
+</channel>
+</rss>

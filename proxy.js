@@ -130,7 +130,9 @@ export async function proxy(request) {
 	return NextResponse.redirect(signin);
 }
 
-// favicon.ico goes through the proxy so archive domains answer 404 and browsers keep the newsletter's logo.
+// favicon.ico goes through the proxy so archive domains answer 404 and browsers keep the newsletter's logo. An export
+// uploaded for a post import doesn't: the proxy buffers a request's body, only its first 10 MB, and the route checks the
+// session itself.
 export const config = {
-	matcher: ["/((?!_next/static|_next/image|.*\\.(?:png|svg|jpg|webp)$).*)"],
+	matcher: ["/((?!_next/static|_next/image|api/post-imports$|.*\\.(?:png|svg|jpg|webp)$).*)"],
 };

@@ -12,7 +12,7 @@ import SectionComments from "@/components/SectionComments";
 import ScriptJsonLd from "@/components/ScriptJsonLd";
 import TrackView from "@/components/TrackView";
 import TriggerSubscribe from "@/components/TriggerSubscribe";
-import { getArchiveAuthor } from "@/lib/archive-author";
+import { getIssueAuthor } from "@/lib/archive-author";
 import { renderIssueBody } from "@/lib/archive-content";
 import { countReaders, getArchiveIssue, getArchiveNewsletter, getShopPayments, listArchiveIssues, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
@@ -63,7 +63,7 @@ export default async function IssuePage({ params }) {
 	const canSubscribePaid = Boolean(newsletter.paidTier?.enabled) && payments.ready;
 	const date = getIssueDate(issue);
 	const views = issue.webViews ?? 0;
-	const author = getArchiveAuthor(newsletter);
+	const author = getIssueAuthor(newsletter, issue);
 	const pitch = {
 		name: newsletter.name,
 		slug: newsletter.slug,
@@ -85,18 +85,25 @@ export default async function IssuePage({ params }) {
 					)}
 					<div className="mt-6 flex items-center justify-between gap-4">
 						<div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground tabular-nums">
-							<a
-								href={urls.author(author.slug)}
-								rel="author"
-								className="flex min-w-0 items-center gap-2 font-medium text-foreground transition-opacity duration-150 hover:opacity-75"
-							>
-								<AvatarNewsletter
-									newsletter={{ name: author.name, imageUrl: author.imageUrl }}
-									size={24}
-									className="rounded-full"
-								/>
-								<span className="truncate">{author.name}</span>
-							</a>
+							{author.slug ? (
+								<a
+									href={urls.author(author.slug)}
+									rel="author"
+									className="flex min-w-0 items-center gap-2 font-medium text-foreground transition-opacity duration-150 hover:opacity-75"
+								>
+									<AvatarNewsletter
+										newsletter={{ name: author.name, imageUrl: author.imageUrl }}
+										size={24}
+										className="rounded-full"
+									/>
+									<span className="truncate">{author.name}</span>
+								</a>
+							) : (
+								<span className="flex min-w-0 items-center gap-2 font-medium text-foreground">
+									<AvatarNewsletter newsletter={{ name: author.name }} size={24} className="rounded-full" />
+									<span className="truncate">{author.name}</span>
+								</span>
+							)}
 							{date && <BadgeDate date={date} />}
 							{views > 0 && <BadgeViews views={views} />}
 						</div>
