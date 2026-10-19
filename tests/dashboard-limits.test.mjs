@@ -59,6 +59,7 @@ test("the dashboard counts the hourly limits of what costs something each call",
 			.sort(),
 		[
 			"activate_automation",
+			"add_dedicated_ip",
 			"add_domain",
 			"add_recommendation",
 			"change_plan",

@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { CreditCard } from "lucide-react";
 import { choosePlan, openBillingPortal } from "@/app/(account)/billing/actions";
+import CardDedicatedIp from "@/components/CardDedicatedIp";
+import CardExtraEmails from "@/components/CardExtraEmails";
 import CardSubscription from "@/components/CardSubscription";
 import CardUsage from "@/components/CardUsage";
 import HeaderPage from "@/components/HeaderPage";
@@ -9,6 +11,7 @@ import NoticeWelcomePaused from "@/components/NoticeWelcomePaused";
 import StateEmpty from "@/components/StateEmpty";
 import { Button } from "@/components/ui/button";
 import { getWelcomePauseNotice, hasActiveSubscription } from "@/lib/account-state";
+import { getDedicatedIpOutput, getExtraEmailsOutput } from "@/lib/actions/billing";
 import { requireAccount } from "@/lib/auth";
 import { findPlansOnSale, getBillingProviderName, hasBillingCustomer, isBillingConfigured } from "@/lib/billing-provider";
 import { isCloud } from "@/lib/config";
@@ -48,9 +51,10 @@ export default async function BillingPage({ searchParams }) {
 		);
 	}
 
-	const usage = await getUsage(account);
+	const [usage, extraEmails, dedicatedIp] = await Promise.all([getUsage(account), getExtraEmailsOutput(account), getDedicatedIpOutput(account)]);
 	const isWelcomePaused = usage.welcomeEmailsPaused && (await hasWelcomeEmailsOn(account._id));
 	const isFree = isOnFreePlan(account);
+	const showsDedicatedIp = dedicatedIp.available || dedicatedIp.subscription || dedicatedIp.isOn;
 	const current = isFree ? { plan: account.comp.plan } : { plan: account.plan, interval: readInterval(account.interval) };
 	return (
 		<>
@@ -74,7 +78,19 @@ export default async function BillingPage({ searchParams }) {
 					)}
 					<CardUsage usage={usage} />
 				</section>
-				<section style={{ "--stagger": 2 }} className="flex flex-col gap-3 animate-enter">
+				{extraEmails.available && (
+					<section style={{ "--stagger": 2 }} className="flex flex-col gap-3 animate-enter">
+						<h2 className="text-sm font-medium text-muted-foreground">Extra emails</h2>
+						<CardExtraEmails extraEmails={extraEmails} planEmails={usage.emailsLimit} />
+					</section>
+				)}
+				{showsDedicatedIp && (
+					<section style={{ "--stagger": 2 }} className="flex flex-col gap-3 animate-enter">
+						<h2 className="text-sm font-medium text-muted-foreground">Add-ons</h2>
+						<CardDedicatedIp dedicatedIp={dedicatedIp} isPending={params.addon === "dedicated_ip"} />
+					</section>
+				)}
+				<section style={{ "--stagger": 3 }} className="flex flex-col gap-3 animate-enter">
 					<div className="flex flex-col gap-1">
 						<h2 className="text-sm font-medium text-muted-foreground">Change plan</h2>
 						{isFree && <p className="text-sm text-pretty text-muted-foreground">A paid plan takes over from your free plan.</p>}

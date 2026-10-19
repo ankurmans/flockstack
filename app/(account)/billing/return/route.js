@@ -16,6 +16,8 @@ export async function GET(request) {
 		console.error("[billing] Couldn't read the checkout:", error.message);
 	}
 	const current = await Account.findById(account._id).lean();
+	// The dedicated IP add-on's checkout comes back to the billing page, which says whether it's on yet.
+	if (new URL(request.url).searchParams.get("addon") === "dedicated_ip") redirect("/billing?addon=dedicated_ip");
 	if (hasActiveSubscription(current)) await siteExtensions.sendGoalOnNextPage("plan_started");
 	redirect(hasActiveSubscription(current) ? "/" : "/billing?checkout=pending");
 }
