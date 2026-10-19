@@ -258,8 +258,8 @@ describe("pricing", () => {
 	test("the price per 1,000 emails is a month's price over the plan's emails, yearly plans spread over 12 months", () => {
 		const { PLANS, getPricePerThousand } = m.plans;
 		const perThousand = (interval) => PLANS.map((plan) => m.format.formatUsdCents(getPricePerThousand(plan, interval)));
-		assert.deepEqual(perThousand("month"), ["$0.60", "$0.36", "$0.28", "$0.22", "$0.15"]);
-		assert.deepEqual(perThousand("year"), ["$0.50", "$0.30", "$0.23", "$0.18", "$0.12"]);
+		assert.deepEqual(perThousand("month"), ["$0.36", "$0.23", "$0.24", "$0.22", "$0.15"]);
+		assert.deepEqual(perThousand("year"), ["$0.30", "$0.19", "$0.20", "$0.18", "$0.12"]);
 	});
 });
 

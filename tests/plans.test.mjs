@@ -26,11 +26,11 @@ test("the five plans match the spec: prices, emails a month and subscribers, yea
 	assert.deepEqual(
 		PLANS.map((plan) => [plan.id, plan.name, getPrice(plan, "month"), getPrice(plan, "year"), plan.emailsPerMonth, plan.subscribers]),
 		[
-			["starter", "Starter", 12, 120, 20_000, 10_000],
-			["growth", "Growth", 27, 270, 75_000, 40_000],
-			["pro", "Pro", 55, 550, 200_000, 100_000],
-			["scale", "Scale", 109, 1_090, 500_000, 250_000],
-			["max", "Max", 299, 2_990, 2_000_000, 1_000_000],
+			["starter", "Starter", 9, 90, 25_000, 5_000],
+			["growth", "Growth", 29, 290, 125_000, 25_000],
+			["pro", "Pro", 59, 590, 250_000, 50_000],
+			["scale", "Scale", 109, 1_090, 500_000, 100_000],
+			["max", "Max", 299, 2_990, 2_000_000, 400_000],
 		]
 	);
 	assert.equal(getPlan("max").name, "Max");
@@ -54,12 +54,12 @@ test("Stripe lookup keys name the plan and the interval, both ways", () => {
 });
 
 test("an admin's numbers replace the plan's", () => {
-	assert.deepEqual(getAccountLimits({ plan: "pro" }), { emails: 200_000, subscribers: 100_000 });
-	assert.deepEqual(getAccountLimits({ plan: "max" }), { emails: 2_000_000, subscribers: 1_000_000 });
-	assert.deepEqual(getAccountLimits({ plan: "max", limitOverrides: { emailsPerMonth: 3_000_000 } }), { emails: 3_000_000, subscribers: 1_000_000 });
+	assert.deepEqual(getAccountLimits({ plan: "pro" }), { emails: 250_000, subscribers: 50_000 });
+	assert.deepEqual(getAccountLimits({ plan: "max" }), { emails: 2_000_000, subscribers: 400_000 });
+	assert.deepEqual(getAccountLimits({ plan: "max", limitOverrides: { emailsPerMonth: 3_000_000 } }), { emails: 3_000_000, subscribers: 400_000 });
 	assert.deepEqual(getAccountLimits({ plan: "pro", limitOverrides: { emailsPerMonth: 1_000 } }), {
 		emails: 1_000,
-		subscribers: 100_000,
+		subscribers: 50_000,
 	});
 	assert.deepEqual(getAccountLimits({ plan: "starter", limitOverrides: { emailsPerMonth: 0, subscribers: 9 } }), {
 		emails: 0,
@@ -87,7 +87,7 @@ test("a free plan from an admin works like a paid one until its end; a paid plan
 	assert.equal(isOnFreePlan(free), true);
 	assert.equal(getAccountStatus(free), "active");
 	assert.equal(getAccountSendProblem(free), null);
-	assert.deepEqual(getAccountLimits(free), { emails: 500_000, subscribers: 250_000 });
+	assert.deepEqual(getAccountLimits(free), { emails: 500_000, subscribers: 100_000 });
 	assert.deepEqual(getAccountLimits({ ...free, limitOverrides: { subscribers: 7 } }), { emails: 500_000, subscribers: 7 });
 	assert.equal(getAccountStatus({ ...free, status: "paused" }), "blocked");
 	assert.equal(getAccountSendProblem({ ...free, status: "paused" }).code, ERROR_CODES.accountBlocked, "a free plan doesn't lift a block");
@@ -99,7 +99,7 @@ test("a free plan from an admin works like a paid one until its end; a paid plan
 	const paid = { plan: "growth", subscriptionStatus: "active", comp };
 	assert.equal(isOnFreePlan(paid), false);
 	assert.equal(getAccountPlan(paid).id, "growth", "the paid plan is in charge");
-	assert.deepEqual(getAccountLimits(paid), { emails: 75_000, subscribers: 40_000 });
+	assert.deepEqual(getAccountLimits(paid), { emails: 125_000, subscribers: 25_000 });
 
 	const ended = { comp: { ...comp, until: new Date(Date.now() - 1000) } };
 	assert.equal(hasActiveSubscription(ended), false);
@@ -108,7 +108,7 @@ test("a free plan from an admin works like a paid one until its end; a paid plan
 	assert.equal(hasActiveSubscription({ comp: { ...comp, until: new Date(Date.now() + day) } }), true, "an end date still ahead");
 	assert.equal(hasActiveSubscription({ comp, deletion: { requestedAt: new Date() } }), false, "an account waiting to be deleted");
 	assert.equal(hasActiveSubscription({ comp: { ...comp, plan: "enterprise" } }), false, "only the five plans");
-	assert.deepEqual(getAccountLimits({ comp: { ...comp, plan: "max" } }), { emails: 2_000_000, subscribers: 1_000_000 }, "a free Max");
+	assert.deepEqual(getAccountLimits({ comp: { ...comp, plan: "max" } }), { emails: 2_000_000, subscribers: 400_000 }, "a free Max");
 });
 
 test("every send needs a plan and an account that isn't blocked", () => {
@@ -123,7 +123,7 @@ test("every send needs a plan and an account that isn't blocked", () => {
 
 test("a send is blocked when it would pass the month's emails or the account is over its subscribers", () => {
 	const account = { plan: "starter", subscriptionStatus: "active" };
-	const fits = { account, emailsSent: 15_000, queued: 0, recipients: 5_000, activeContacts: 10_000 };
+	const fits = { account, emailsSent: 20_000, queued: 0, recipients: 5_000, activeContacts: 5_000 };
 	assert.equal(getPlanLimitProblem(fits), null, "exactly the emails left, exactly the subscriber limit");
 
 	const tooMany = getPlanLimitProblem({ ...fits, recipients: 5_001 });
@@ -131,23 +131,22 @@ test("a send is blocked when it would pass the month's emails or the account is 
 	assert.equal(tooMany.message, "This send needs 5,001 emails and your plan has 5,000 left this month. Upgrade to send.");
 
 	assert.equal(getPlanLimitProblem({ ...fits, queued: 1 }).code, "plan_limit_emails", "emails still going out count");
-	const overList = getPlanLimitProblem({ ...fits, recipients: 1, activeContacts: 10_001 });
+	const overList = getPlanLimitProblem({ ...fits, recipients: 1, activeContacts: 5_001 });
 	assert.equal(overList.code, ERROR_CODES.planLimitSubscribers);
-	assert.match(overList.message, /10,001 subscribers and your plan allows 10,000/);
+	assert.match(overList.message, /5,001 subscribers and your plan allows 5,000/);
 
-	const overridden = { ...account, limitOverrides: { emailsPerMonth: 30_000 } };
+	const overridden = { ...account, limitOverrides: { emailsPerMonth: 35_000 } };
 	assert.equal(getPlanLimitProblem({ ...fits, account: overridden, recipients: 15_000 }), null);
-	assert.equal(getPlanLimitProblem({ ...fits, emailsSent: 25_000 }).message.includes("has 0 left"), true, "never negative");
+	assert.equal(getPlanLimitProblem({ ...fits, emailsSent: 30_000 }).message.includes("has 0 left"), true, "never negative");
 });
 
-test("Max sends 2,000,000 emails a month to up to 1,000,000 subscribers: a weekly issue to about 460,000", () => {
+test("Max sends 2,000,000 emails a month to up to 400,000 subscribers: a weekly issue to all of them", () => {
 	const account = { plan: "max", subscriptionStatus: "active" };
-	const fits = { account, emailsSent: 1_500_000, queued: 0, recipients: 500_000, activeContacts: 1_000_000 };
+	const fits = { account, emailsSent: 1_500_000, queued: 0, recipients: 500_000, activeContacts: 400_000 };
 	assert.equal(getPlanLimitProblem(fits), null, "exactly the emails left, exactly the subscriber limit");
 	assert.equal(getPlanLimitProblem({ ...fits, recipients: 500_001 }).code, ERROR_CODES.planLimitEmails);
-	assert.equal(getPlanLimitProblem({ ...fits, recipients: 1, activeContacts: 1_000_001 }).code, ERROR_CODES.planLimitSubscribers);
-	assert.ok(Math.ceil(460_000 * 4.33) <= getAccountLimits(account).emails, "about 4.33 issues a month to 460,000");
-	assert.ok(Math.ceil(470_000 * 4.33) > getAccountLimits(account).emails, "not to 470,000");
+	assert.equal(getPlanLimitProblem({ ...fits, recipients: 1, activeContacts: 400_001 }).code, ERROR_CODES.planLimitSubscribers);
+	for (const plan of PLANS) assert.ok(Math.ceil(plan.subscribers * 4.33) <= plan.emailsPerMonth, `a weekly issue to all of ${plan.name}'s subscribers`);
 });
 
 test("self-hosted, without FLOCKSTACK_CLOUD: no paywall, no plan limits, every account active unless blocked", () => {

@@ -31,7 +31,7 @@ function product(planId, interval, { amount, ...rest } = {}) {
 	};
 }
 
-// Scale has no products in this Polar, and Pro's monthly one is $99 instead of $55: neither is on sale.
+// Scale has no products in this Polar, and Pro's monthly one is $99 instead of $59: neither is on sale.
 function baseProducts() {
 	return [
 		{ id: "prod_other", name: "Something else", is_archived: false, recurring_interval: "month", prices: [], metadata: {} },
@@ -209,7 +209,7 @@ describe("plans on sale", () => {
 			assert.equal(link, "/billing?interval=month", `${plan}: the plan buttons too`);
 		}
 		assert.equal(calls.some(({ path }) => path === "/v1/checkouts/"), false);
-		await assert.rejects(m.polar.findProductId("pro", "month"), /at 5500 USD cents/);
+		await assert.rejects(m.polar.findProductId("pro", "month"), /at 5900 USD cents/);
 		await assert.rejects(m.polar.findProductId("scale", "year"), /No active Polar product/);
 	});
 
@@ -399,7 +399,7 @@ describe("subscription changes", () => {
 		await deliver("subscription.updated", { id: "sub_life" });
 		let current = await account(user);
 		assert.deepEqual([current.plan, current.interval], ["max", "year"]);
-		assert.deepEqual(m.plans.getAccountLimits(current), { emails: 2_000_000, subscribers: 1_000_000 });
+		assert.deepEqual(m.plans.getAccountLimits(current), { emails: 2_000_000, subscribers: 400_000 });
 
 		subscriptions.set("sub_life", { ...subscriptions.get("sub_life"), cancel_at_period_end: true, ends_at: iso(NOW + 365 * DAY) });
 		await deliver("subscription.canceled", { id: "sub_life" });
