@@ -141,4 +141,18 @@ describe("automations", () => {
 		assert.match(html, />1 minute</);
 		assert.doesNotMatch(html, />1 days</);
 	});
+
+	test("say what's wrong in the editor's words: steps from 1, no field names", async () => {
+		const user = await t.customer("pages-automation-errors@example.com");
+		const created = await t.api(user.key, "POST", "/automations", { name: "Errors", trigger: { type: "subscribed" }, steps: [{ type: "email", subject: "Hi", content: "Hello." }] });
+		const save = (changes) => as(user, () => m.automationActions.saveAutomation(created.body.id, { name: "Errors", trigger: { type: "subscribed" }, steps: [], ...changes }));
+		const email = { type: "email", subject: "Hi", format: "rich", content: "<p>Hello.</p>" };
+		assert.deepEqual(await save({ steps: [email, { type: "wait", amount: 1, unit: "days" }, { type: "add_tag", tag: "" }] }), {
+			error: "Step 3 needs a tag: letters, digits, spaces and - _ . : / + &",
+		});
+		assert.deepEqual(await save({ steps: [email, { type: "wait", amount: 400, unit: "days" }] }), { error: "Step 2: a wait is a year at most" });
+		assert.deepEqual(await save({ trigger: { type: "tag_added", tag: "" }, steps: [email] }), { error: "Pick the tag that starts it" });
+		assert.deepEqual(await save({ name: "", steps: [email] }), { error: "Name the automation" });
+		assert.deepEqual(await save({ steps: [email] }), { ok: true });
+	});
 });
