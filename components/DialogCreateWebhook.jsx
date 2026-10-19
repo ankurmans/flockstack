@@ -11,6 +11,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 
 const ALL_NEWSLETTERS = "all";
 
@@ -84,7 +85,7 @@ function FormWebhookNew({ events, newsletters }) {
 	}
 
 	return (
-		<form action={action} className="flex flex-col gap-4">
+		<form action={action} onSubmit={submitKeepingFields(action)} className="flex flex-col gap-4">
 			<DialogHeader>
 				<DialogTitle>New webhook</DialogTitle>
 				<DialogDescription>FlockStack POSTs each event to this address as JSON, signed with a secret only you and FlockStack know.</DialogDescription>
