@@ -1,6 +1,8 @@
 "use client";
 
 import { CalendarClock, Loader2, Send } from "lucide-react";
+import { useState } from "react";
+import { setCampaignFromName } from "@/app/(app)/campaigns/actions";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import CardAbTest from "@/components/CardAbTest";
 import CardSettings from "@/components/CardSettings";
@@ -27,6 +29,7 @@ import { formatCount, formatNumber, formatSendTime } from "@/lib/format";
 import { getPaceHours } from "@/lib/send-spread";
 import { slugify } from "@/lib/slug";
 import { useIsClient } from "@/lib/use-is-client";
+import { useToastError } from "@/lib/use-toast-error";
 import { cn } from "@/lib/utils";
 
 // The send step: who gets the issue and how fast it goes out, then now or at a time. Its button is in the editor's
@@ -55,13 +58,12 @@ export default function PanelSend({
 	const isCleanupEnabled = Boolean(newsletter.cleanup?.enabled);
 	const isOverPlan = isNow && emailsLeft !== null && sending.sendEmails > emailsLeft;
 	const isTesting = (campaign.abTest?.variants?.length ?? 0) >= 2;
-	const from = newsletter.fromName ? `${newsletter.fromName} <${newsletter.fromEmail}>` : newsletter.fromEmail;
 
 	return (
 		<div className="flex flex-col gap-6">
 			<CardSettings title="Who gets it">
 				<RowCampaign label="From">
-					<span className="truncate text-sm">{from}</span>
+					<InputFromName campaign={campaign} newsletter={newsletter} />
 				</RowCampaign>
 				<RowCampaign label="To">
 					<span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
@@ -213,6 +215,37 @@ export default function PanelSend({
 				</DialogContent>
 			</Dialog>
 		</div>
+	);
+}
+
+// The issue's sender name, saved when the field loses focus; the address is always the newsletter's.
+function InputFromName({ campaign, newsletter }) {
+	const [name, setName] = useState(campaign.fromName ?? "");
+	const [saved, setSaved] = useState(campaign.fromName ?? "");
+	const toastError = useToastError();
+
+	async function save() {
+		const value = name.trim();
+		if (value === saved) return;
+		const result = await setCampaignFromName(campaign._id, value);
+		if (result?.error) return toastError(result);
+		setSaved(value);
+	}
+
+	return (
+		<span className="flex min-w-0 items-center gap-1 text-sm">
+			<input
+				value={name}
+				onChange={(event) => setName(event.target.value)}
+				onBlur={save}
+				placeholder={newsletter.fromName || "Sender name"}
+				aria-label="Sender name"
+				maxLength={100}
+				size={Math.max(8, (name || newsletter.fromName || "").length + 1)}
+				className="h-11 max-w-[60%] min-w-0 bg-transparent outline-none placeholder:text-foreground"
+			/>
+			<span className="truncate text-muted-foreground">&lt;{newsletter.fromEmail}&gt;</span>
+		</span>
 	);
 }
 

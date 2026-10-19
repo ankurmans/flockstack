@@ -13,6 +13,8 @@ const campaignSchema = new mongoose.Schema(
 		newsletterId: { type: mongoose.Schema.Types.ObjectId, ref: "Newsletter", required: true },
 		subject: { type: String, trim: true, default: "" },
 		previewText: { type: String, trim: true, default: "" },
+		// The name in this issue's From field, over the newsletter's; the address stays the newsletter's.
+		fromName: { type: String, trim: true },
 		// rich: written in the editor, stored as an HTML fragment in html. html: a designed document sent
 		// as is. markdown: older drafts and API campaigns.
 		format: { type: String, enum: ["markdown", "html", "rich"], default: "rich" },

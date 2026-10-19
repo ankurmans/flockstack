@@ -38,6 +38,14 @@ export async function saveCampaign(id, values) {
 	return { ok: true };
 }
 
+// This issue's sender name; empty goes back to the newsletter's.
+export async function setCampaignFromName(id, fromName) {
+	const { failure } = await runDashboardAction("update_campaign", { id: String(id), fromName: String(fromName ?? "").slice(0, 100) });
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	return { ok: true };
+}
+
 // Who the issue goes to, saved before the send so the list cleanup's count follows it.
 export async function setCampaignAudience(id, audience) {
 	const { failure } = await runDashboardAction("update_campaign", { id: String(id), audience: readAudience(audience) });
