@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { anonymous, as, catchNotFound, startTestApp } from "./helpers/app.mjs";
 import { PRODUCT_FILE, WEBHOOK_SECRET, api, assertError, buy, createProduct, createSeller, installFakeStripe, payForSession, postPaymentEvent } from "./helpers/shop.mjs";
 import { flushAfter } from "./stubs/next-server.mjs";
-import { files } from "./stubs/opennext-cloudflare.mjs";
+import { files, setFilesBound } from "./stubs/opennext-cloudflare.mjs";
 import { sent as emails } from "./stubs/ses.mjs";
 
 // Digital products: a creator makes one, uploads its file to a private bucket and puts it on sale; a reader pays through
@@ -160,6 +160,24 @@ describe("a product's life", () => {
 		const cross = new Request("http://localhost:3000/api/product-files", { method: "POST", headers: { "x-product-id": product.id, "sec-fetch-site": "cross-site" }, body: PRODUCT_FILE });
 		assert.equal((await as(seller, () => m.productFiles.POST(cross))).status, 403);
 		assert.equal((await anonymous(() => m.productFiles.POST(new Request("http://localhost:3000/api/product-files", { method: "POST", body: PRODUCT_FILE })))).status, 401);
+	});
+
+	test("a server without the FILES bucket says what's missing instead of asking to try again", async () => {
+		seller = await newSeller();
+		const product = await createProduct(seller, {}, { file: null, activate: false });
+		setFilesBound(false);
+		try {
+			const request = new Request("http://localhost:3000/api/product-files", {
+				method: "POST",
+				headers: { "x-product-id": product.id, "x-file-name": "guide.zip", "content-type": "application/zip", "sec-fetch-site": "same-origin" },
+				body: PRODUCT_FILE,
+			});
+			const response = await as(seller, () => m.productFiles.POST(request));
+			assert.equal(response.status, 503);
+			assert.deepEqual(await response.json(), { error: "This server has nowhere to keep product files: it needs a private R2 bucket bound as FILES", code: "unavailable" });
+		} finally {
+			setFilesBound(true);
+		}
 	});
 });
 
