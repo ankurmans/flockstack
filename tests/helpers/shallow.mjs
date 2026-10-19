@@ -4,18 +4,20 @@ import * as React from "react";
 // A client component's first render as React elements, without a DOM: its hooks answer from a stand-in dispatcher, so
 // a form's props (onSubmit) can be called as a browser would. useActionState hands back a dispatch that records what it
 // gets, and keeps the action, so a test can run it; useTransition runs its callback at once and keeps what it returns, for
-// the test to wait on. Function components named in `expand` render in place too.
+// the test to wait on. A state's setter records what it was given in updates. Function components named in `expand`
+// render in place too.
 const internals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 
 export function renderShallow(element, { expand = [] } = {}) {
 	const dispatched = [];
 	const actions = [];
 	const transitions = [];
+	const updates = [];
 	const dispatcher = {
 		readContext: (context) => context._currentValue,
 		use: (usable) => (usable && "_currentValue" in usable ? usable._currentValue : usable),
 		useContext: (context) => context._currentValue,
-		useState: (initial) => [typeof initial === "function" ? initial() : initial, () => {}],
+		useState: (initial) => [typeof initial === "function" ? initial() : initial, (next) => updates.push(next)],
 		useReducer: (_reducer, initial, init) => [init ? init(initial) : initial, () => {}],
 		useActionState: (action, initial) => {
 			actions.push(action);
@@ -47,7 +49,7 @@ export function renderShallow(element, { expand = [] } = {}) {
 	const previous = internals.H;
 	internals.H = dispatcher;
 	try {
-		return { tree: render(element.type(element.props)), dispatched, actions, transitions };
+		return { tree: render(element.type(element.props)), dispatched, actions, transitions, updates };
 	} finally {
 		internals.H = previous;
 	}
