@@ -29,7 +29,7 @@ export default function NavLinks({ isAdmin, onNavigate }) {
 											: "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
 									)}
 								>
-									<Icon className="size-4" />
+									<Icon className={cn("size-4", isActive && "text-link")} />
 									{label}
 								</Link>
 							</li>

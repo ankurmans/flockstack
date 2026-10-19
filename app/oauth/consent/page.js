@@ -84,7 +84,7 @@ export default async function ConsentPage({ searchParams }) {
 						<Link
 							href="/billing"
 							target="_blank"
-							className="text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground"
+							className="text-link underline decoration-link/30 underline-offset-4 hover:decoration-link"
 						>
 							pick one here
 						</Link>

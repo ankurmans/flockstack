@@ -18,12 +18,12 @@ export default function RecommendationsPage() {
 			<Section title="Recommend a newsletter" stagger={1}>
 				<p>
 					Add one from the{" "}
-					<Link href="/recommending" className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
+					<Link href="/recommending" className="font-medium text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
 						Recommendations page
 					</Link>{" "}
 					or with <Code>add_recommendation</Code>: the other newsletter&apos;s slug and a pitch of up to {MAX_PITCH_LENGTH} characters, plain
 					text without links. Find newsletters that want to be found in the{" "}
-					<Link href="/recommendations" className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
+					<Link href="/recommendations" className="font-medium text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
 						directory
 					</Link>{" "}
 					or with <Code>search_recommendable_newsletters</Code>.

@@ -24,7 +24,7 @@ export default async function UnsubscribePage({ searchParams }) {
 	const hasForm = view === "confirm" || view === "error";
 
 	return (
-		<main className="flex min-h-dvh items-center justify-center bg-background px-4 py-16">
+		<main className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
 			<div className="w-full max-w-sm rounded-xl bg-card p-6 text-center shadow-border sm:p-8">
 				<div className="mx-auto flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
 					<Icon className="size-5" aria-hidden="true" />

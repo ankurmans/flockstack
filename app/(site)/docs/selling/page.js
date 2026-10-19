@@ -36,7 +36,7 @@ export default function SellingPage() {
 			<Section title="Set up payments" stagger={1}>
 				<p>
 					On FlockStack Cloud, each account connects its own Stripe account from the{" "}
-					<Link href="/payments" className="text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
+					<Link href="/payments" className="text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
 						Payments page
 					</Link>{" "}
 					(<Code>connect_payments</Code>): Stripe&apos;s page takes you through its details, and the account stays yours, with its own

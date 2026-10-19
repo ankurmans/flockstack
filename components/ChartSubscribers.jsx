@@ -29,7 +29,7 @@ export default function ChartSubscribers({ current, previous }) {
 			].filter(Boolean),
 			dots: [
 				before && { y: toRatio(before.total, scale), className: "bg-muted-foreground" },
-				{ y: toRatio(day.total, scale), className: "bg-foreground" },
+				{ y: toRatio(day.total, scale), className: "bg-chart-1" },
 			].filter(Boolean),
 		};
 	});
@@ -71,7 +71,7 @@ export default function ChartSubscribers({ current, previous }) {
 						vectorEffect="non-scaling-stroke"
 						className="text-muted-foreground/50"
 					/>
-					<path d={areaPath(values, scale, BOX)} fill="url(#chart-subscribers-fill)" className="text-foreground" />
+					<path d={areaPath(values, scale, BOX)} fill="url(#chart-subscribers-fill)" className="text-chart-1" />
 					<path
 						d={linePath(values, scale, BOX)}
 						fill="none"
@@ -80,11 +80,11 @@ export default function ChartSubscribers({ current, previous }) {
 						strokeLinecap="round"
 						strokeLinejoin="round"
 						vectorEffect="non-scaling-stroke"
-						className="text-foreground"
+						className="text-chart-1"
 					/>
 				</svg>
 				<span
-					className="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground ring-4 ring-foreground/10"
+					className="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-chart-1 ring-4 ring-chart-1/10"
 					style={{ left: "100%", top: `${(1 - toRatio(last.total, scale)) * 100}%` }}
 				/>
 			</div>

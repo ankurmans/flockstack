@@ -77,7 +77,7 @@ function ZoneUpload({ upload, isDragging, onFile }) {
 	return (
 		<label
 			className={cn(
-				"group relative flex h-36 cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-dashed border-foreground/15 bg-muted/40 px-4 text-center transition-[background-color,border-color,box-shadow] duration-150 hover:border-foreground/30 hover:bg-muted/70 has-focus-visible:border-ring has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+				"group relative flex h-36 cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-dashed border-foreground/15 bg-muted/40 px-4 text-center transition-[background-color,border-color,box-shadow] duration-150 hover:border-foreground/30 hover:bg-muted/70 has-focus-visible:border-ring has-focus-visible:ring-2 has-focus-visible:ring-ring",
 				isDragging && "border-solid border-foreground/40 bg-muted ring-4 ring-foreground/5",
 				upload && "pointer-events-none"
 			)}
@@ -167,7 +167,7 @@ function GridLibrary({ request, currentUrl, isDisabled, onSelect }) {
 									onClick={(event) => pick(event, image)}
 									style={CHECKERBOARD}
 									className={cn(
-										"group relative block aspect-square w-full overflow-hidden rounded-lg shadow-border outline-none transition-[box-shadow,scale,opacity] duration-150 ease-out hover:shadow-border-hover focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97] disabled:opacity-50",
+										"group relative block aspect-square w-full overflow-hidden rounded-lg shadow-border outline-none transition-[box-shadow,scale,opacity] duration-150 ease-out hover:shadow-border-hover focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] disabled:opacity-50",
 										isCurrent && "ring-2 ring-foreground"
 									)}
 								>

@@ -60,7 +60,7 @@ export default function PickerSendTime({ value, onChange, suggestions, history }
 						value={toTimeValue(minutes)}
 						onChange={(event) => event.target.value && onChange(atMinutes(value, fromTimeValue(event.target.value)))}
 						aria-label="Other time"
-						className="h-8 rounded-full bg-transparent px-3 text-sm tabular-nums shadow-border outline-none [color-scheme:light_dark] focus-visible:ring-2 focus-visible:ring-ring/50"
+						className="h-8 rounded-full bg-transparent px-3 text-sm tabular-nums shadow-border outline-none [color-scheme:light_dark] focus-visible:ring-2 focus-visible:ring-ring"
 					/>
 				</div>
 			</Field>

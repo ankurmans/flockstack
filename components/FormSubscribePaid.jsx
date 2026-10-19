@@ -38,7 +38,7 @@ export default function FormSubscribePaid({ newsletterSlug, prices, currency, tr
 							aria-checked={interval === plan.interval}
 							onClick={() => setInterval(plan.interval)}
 							className={cn(
-								"flex flex-col items-start gap-0.5 rounded-xl p-4 text-left outline-none transition-[background-color,box-shadow] duration-150 focus-visible:ring-3 focus-visible:ring-ring/50",
+								"flex flex-col items-start gap-0.5 rounded-xl p-4 text-left outline-none transition-[background-color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-ring",
 								interval === plan.interval ? "bg-muted/60 shadow-[inset_0_0_0_1.5px_var(--foreground)]" : "shadow-border hover:bg-muted/60"
 							)}
 						>

@@ -41,7 +41,7 @@ export default function BannerConsent({ isSettings = false, consent = null, requ
 					{privacyHref && (
 						<>
 							{" "}
-							<Link href={privacyHref} className="text-foreground underline underline-offset-4">
+							<Link href={privacyHref} className="text-link underline underline-offset-4">
 								Privacy policy
 							</Link>
 						</>

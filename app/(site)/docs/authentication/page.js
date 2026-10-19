@@ -24,7 +24,7 @@ export default function AuthenticationPage() {
 			<HeaderDocs kicker="Guides" title="Authentication">
 				Every request carries an API key as a bearer token. The key decides the account, and its level decides what it can do. ChatGPT and
 				Claude don&apos;t need one: they connect to the{" "}
-				<Link href="/docs/mcp#chatgpt" className="text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
+				<Link href="/docs/mcp#chatgpt" className="text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
 					MCP server with OAuth
 				</Link>
 				.
@@ -46,7 +46,7 @@ export default function AuthenticationPage() {
 						<Code>{regionUrls.eu}</Code> for the European Union. A key from the other region answers <Code>401 unauthorized</Code>. The
 						prefix tells them apart: <Code>mc_</Code> and 43 more characters in the United States, <Code>mc_eu_</Code> and 43 in the
 						European Union. See{" "}
-						<Link href="/docs/regions" className="text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
+						<Link href="/docs/regions" className="text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
 							where your data is stored
 						</Link>
 						.

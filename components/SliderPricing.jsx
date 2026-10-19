@@ -38,7 +38,7 @@ export default function SliderPricing({ plans, freeMonths, initialIndex = 0, ini
 						{PERIODS.map(({ value, label }) => (
 							<label
 								key={value}
-								className="flex h-8 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-[color,background-color,box-shadow] duration-150 select-none hover:text-foreground has-checked:bg-background has-checked:text-foreground has-checked:shadow-border has-focus-visible:ring-3 has-focus-visible:ring-ring/50 dark:has-checked:bg-muted"
+								className="flex h-8 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-[color,background-color,box-shadow] duration-150 select-none hover:text-foreground has-checked:bg-background has-checked:text-foreground has-checked:shadow-border has-focus-visible:ring-2 has-focus-visible:ring-ring dark:has-checked:bg-muted"
 							>
 								<input
 									type="radio"
@@ -49,7 +49,7 @@ export default function SliderPricing({ plans, freeMonths, initialIndex = 0, ini
 									className="sr-only"
 								/>
 								{label}
-								{value === "year" && <span className="text-xs font-normal text-emerald-600 dark:text-emerald-400">{freeMonths} months free</span>}
+								{value === "year" && <span className="text-xs font-normal text-link">{freeMonths} months free</span>}
 							</label>
 						))}
 					</fieldset>
@@ -71,7 +71,7 @@ export default function SliderPricing({ plans, freeMonths, initialIndex = 0, ini
 								style={{ left: `${stopIndex * step}%`, width: `${barWidth}%`, height: `${Math.max(stop.bar, 0.28) * 100}%` }}
 								className={cn(
 									"absolute bottom-0 flex justify-center rounded-t-xl pt-2 text-xs font-semibold tabular-nums transition-colors duration-200",
-									stopIndex === index ? "bg-foreground text-background" : "bg-foreground/[0.07] text-muted-foreground hover:bg-foreground/[0.12]"
+									stopIndex === index ? "bg-primary text-primary-foreground" : "bg-foreground/[0.07] text-muted-foreground hover:bg-foreground/[0.12]"
 								)}
 							>
 								{stop.prices[period].price}
@@ -118,7 +118,7 @@ export default function SliderPricing({ plans, freeMonths, initialIndex = 0, ini
 				<div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
 					<p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
 						{plan.name}
-						{isCurrent && <span className="rounded-full bg-foreground px-2 py-0.5 text-[11px] whitespace-nowrap text-background">Current plan</span>}
+						{isCurrent && <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] whitespace-nowrap text-primary-foreground">Current plan</span>}
 					</p>
 					<p className="rounded-full bg-foreground/[0.06] px-2.5 py-0.5 text-xs whitespace-nowrap text-muted-foreground tabular-nums">
 						{price.perThousand} per 1,000 emails

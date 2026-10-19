@@ -82,7 +82,7 @@ export default async function SigninPage({ searchParams }) {
 					{regions && (
 						<p className="mt-6 text-sm text-pretty text-muted-foreground">
 							Already have an account in the other region?{" "}
-							<a href={regions.otherHref} className="font-medium whitespace-nowrap text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
+							<a href={regions.otherHref} className="font-medium whitespace-nowrap text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
 								Sign in there.
 							</a>
 						</p>

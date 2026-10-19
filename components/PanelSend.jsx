@@ -88,7 +88,7 @@ export default function PanelSend({
 									disabled={sending.isPending}
 									onClick={() => sending.audience !== value && sending.setAudience(value)}
 									className={cn(
-										"h-7 rounded-full px-3 text-xs font-medium outline-none transition-[background-color,box-shadow] duration-150 focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60",
+										"h-7 rounded-full px-3 text-xs font-medium outline-none transition-[background-color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60",
 										sending.audience === value ? "bg-foreground text-background" : "text-muted-foreground shadow-border hover:bg-muted/60 hover:text-foreground"
 									)}
 								>
@@ -220,7 +220,7 @@ function CardChoice({ icon: Icon, title, description, isSelected, onSelect }) {
 			aria-checked={isSelected}
 			onClick={onSelect}
 			className={cn(
-				"flex items-start gap-3 rounded-lg p-3 text-left outline-none transition-[background-color,box-shadow,scale] duration-150 ease-out focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.99]",
+				"flex items-start gap-3 rounded-lg p-3 text-left outline-none transition-[background-color,box-shadow,scale] duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.99]",
 				isSelected ? "bg-muted/60 shadow-[inset_0_0_0_1.5px_var(--foreground)]" : "shadow-border hover:bg-muted/60"
 			)}
 		>

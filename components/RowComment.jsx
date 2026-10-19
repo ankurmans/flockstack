@@ -136,7 +136,7 @@ export default function RowComment({ comment, reports = [] }) {
 						maxLength={500}
 						value={reason}
 						onChange={(event) => setReason(event.target.value)}
-						className="min-h-16 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
+						className="min-h-16 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-base outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring md:text-sm"
 					/>
 					<p className="text-xs text-muted-foreground">
 						{mode === "block"

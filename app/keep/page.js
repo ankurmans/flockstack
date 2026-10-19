@@ -20,7 +20,7 @@ export default async function KeepPage({ searchParams }) {
 	const newsletter = reference ? await getNewsletter(reference.newsletterId) : null;
 
 	return (
-		<main className="flex min-h-dvh items-center justify-center bg-background px-4 py-16">
+		<main className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
 			{newsletter ? (
 				<FormKeep
 					token={validToken}

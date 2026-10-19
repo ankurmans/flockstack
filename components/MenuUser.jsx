@@ -36,7 +36,7 @@ export default function MenuUser({ name, email, image, status, hasBilling }) {
 			<DropdownMenuTrigger asChild>
 				<button
 					type="button"
-					className="flex w-full items-center gap-2.5 rounded-lg p-1.5 text-left outline-none transition-colors duration-150 hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=open]:bg-muted"
+					className="flex w-full items-center gap-2.5 rounded-lg p-1.5 text-left outline-none transition-colors duration-150 hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-muted"
 				>
 					<AvatarUser name={name} email={email} image={image} size={32} />
 					<span className="flex min-w-0 flex-1 flex-col gap-0.5">

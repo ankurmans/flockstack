@@ -23,7 +23,7 @@ export default async function RepliesPage({ searchParams }) {
 	const page = await findPage(validToken);
 
 	return (
-		<main className="flex min-h-dvh items-center justify-center bg-background px-4 py-16">
+		<main className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
 			{!page ? (
 				<CardNotice icon={Link2Off} title="This link doesn't work">
 					Open the link in the newest email you got about a reply.

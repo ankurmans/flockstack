@@ -40,7 +40,7 @@ export default function RegionPicker({ options, selected, current, remember = fa
 								aria-current={isSelected ? "true" : undefined}
 								onClick={() => id === current && rememberRegion(id)}
 								className={cn(
-									"flex items-center justify-between gap-3 rounded-xl bg-card px-3.5 py-2.5 text-left shadow-border transition-[color,background-color,box-shadow] duration-150 outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+									"flex items-center justify-between gap-3 rounded-xl bg-card px-3.5 py-2.5 text-left shadow-border transition-[color,background-color,box-shadow] duration-150 outline-none focus-visible:ring-2 focus-visible:ring-ring",
 									isSelected ? "bg-muted ring-1 ring-foreground/50" : "hover:bg-muted/60"
 								)}
 							>

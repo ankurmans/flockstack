@@ -127,7 +127,7 @@ export default function FormAddNewsletter({ sharedDomain, domains, startsFrom, i
 							Add one on the{" "}
 							{/* The dialog belongs to the layout, so it would stay open over the Domains page. */}
 							<DialogClose asChild>
-								<Link href="/domains" className="font-medium text-foreground underline underline-offset-4">
+								<Link href="/domains" className="font-medium text-link underline underline-offset-4">
 									Domains page
 								</Link>
 							</DialogClose>{" "}

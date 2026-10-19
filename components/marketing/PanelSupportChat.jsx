@@ -170,7 +170,7 @@ export default function PanelSupportChat({ isSignedIn: isSignedInAtRender = fals
 				aria-expanded={isOpen}
 				aria-controls={`${id}-panel`}
 				aria-haspopup="dialog"
-				className="fixed right-(--chat-right) bottom-(--chat-bottom) z-40 flex size-[54px] flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-[11px] font-medium text-primary-foreground shadow-lg transition-[scale,background-color] duration-150 outline-none hover:bg-primary/85 focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.96]"
+				className="fixed right-(--chat-right) bottom-(--chat-bottom) z-40 flex size-[54px] flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-[11px] font-medium text-primary-foreground shadow-lg transition-[scale,background-color] duration-150 outline-none hover:bg-primary/85 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.96]"
 			>
 				<LifeBuoy aria-hidden="true" className="size-5" />
 				Help
@@ -228,7 +228,7 @@ export default function PanelSupportChat({ isSignedIn: isSignedInAtRender = fals
 											<ul className="mt-1 flex flex-col gap-1">
 												{message.sources.map((source) => (
 													<li key={source.href}>
-														<a href={source.href} className="text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
+														<a href={source.href} className="text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
 															{source.title}
 														</a>
 													</li>

@@ -148,7 +148,7 @@ export default function FormOnboarding({ defaultFromName, image, listSizes, list
 													/>
 												))}
 											</div>
-											<label className="cursor-pointer self-start rounded-sm text-sm text-muted-foreground underline decoration-foreground/20 underline-offset-4 transition-colors duration-150 select-none hover:text-foreground has-checked:font-medium has-checked:text-foreground has-checked:decoration-foreground has-focus-visible:ring-3 has-focus-visible:ring-ring/50">
+											<label className="cursor-pointer self-start rounded-sm text-sm text-muted-foreground underline decoration-foreground/20 underline-offset-4 transition-colors duration-150 select-none hover:text-foreground has-checked:font-medium has-checked:text-foreground has-checked:decoration-foreground has-focus-visible:ring-2 has-focus-visible:ring-ring">
 												<input type="radio" name="listSource" value={otherListSource} className="sr-only" />
 												{otherListSource}
 											</label>
@@ -186,7 +186,7 @@ function OptionChoice({ name, value, label, icon, checked, onChange, required })
 	return (
 		<label
 			className={cn(
-				"flex cursor-pointer items-center rounded-xl text-sm font-medium shadow-border transition-[box-shadow,background-color,color] duration-150 select-none hover:bg-muted/60 has-checked:bg-foreground has-checked:text-background has-checked:shadow-none has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+				"flex cursor-pointer items-center rounded-xl text-sm font-medium shadow-border transition-[box-shadow,background-color,color] duration-150 select-none hover:bg-muted/60 has-checked:bg-foreground has-checked:text-background has-checked:shadow-none has-focus-visible:ring-2 has-focus-visible:ring-ring",
 				icon ? "flex-col justify-center gap-2 py-3 sm:h-12 sm:flex-row sm:justify-start sm:gap-2.5 sm:px-3 sm:py-0" : "h-12 px-4"
 			)}
 		>
