@@ -83,11 +83,11 @@ function Referrals({ newsletter, status }) {
 			<div className="rounded-xl bg-card p-6 shadow-border sm:p-8">
 				<p className="text-3xl font-semibold tabular-nums">{count}</p>
 				<p className="text-sm text-muted-foreground">{count === 1 ? "person has" : "people have"} signed up and confirmed through your link</p>
-				<div className="mt-4 h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
+				<div className="mt-4 h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Progress to the next reward" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
 					<div className="h-full rounded-full bg-foreground transition-[width] duration-300" style={{ width: `${progress}%` }} />
 				</div>
 				<p className="mt-2 text-sm text-pretty text-muted-foreground">
-					{next ? `${formatCount(next.remaining, "more referral")} unlocks ${next.title}.` : rewards.length > 0 ? "You've unlocked every reward." : "Thank you for sharing."}
+					{next ? `${formatCount(next.remaining, "more referral")} ${next.remaining === 1 ? "unlocks" : "unlock"} ${next.title}.` : rewards.length > 0 ? "You've unlocked every reward." : "Thank you for sharing."}
 				</p>
 			</div>
 

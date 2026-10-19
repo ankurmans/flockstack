@@ -3,6 +3,7 @@ import { after, before, describe, test } from "node:test";
 import { castFilter } from "../lib/docdb/schema.js";
 import { splitFilter } from "../lib/docdb/sql.js";
 import { checkRules, compileRules, describeRules } from "../lib/segment-rules.js";
+import { as } from "./helpers/app.mjs";
 import { setupAudienceTests } from "./helpers/audience.mjs";
 import { sent as sesEmails } from "./stubs/ses.mjs";
 
@@ -195,6 +196,16 @@ describe("segments over a list", () => {
 		assert.deepEqual((await t.api(other.key, "GET", "/segments")).body.segments, []);
 		assert.equal((await t.api(other.key, "POST", "/segments/preview", { rules: { match: "all", conditions: [{ type: "status", value: "active" }] } })).body.matching, 0);
 		await t.api(user.key, "DELETE", `/segments/${saved.body.id}`);
+	});
+
+	test("the builder's half-filled rules get the dashboard's words, not the API's", async () => {
+		const actions = await import("../app/(app)/segments/actions.js");
+		const empty = { match: "all", conditions: [{ type: "tag", op: "has", value: "" }] };
+		const backwards = { match: "all", conditions: [{ type: "signup_date", from: "2026-05-01", to: "2026-04-01" }] };
+		assert.deepEqual(await as(user, () => actions.previewSegmentRules(user.newsletterId, empty)), { error: "Fill in every condition to see who matches" });
+		assert.deepEqual(await as(user, () => actions.createSegment({ newsletterId: user.newsletterId, name: "Half", rules: empty })), { error: "Fill in every condition first" });
+		assert.deepEqual(await as(user, () => actions.createSegment({ newsletterId: user.newsletterId, name: "Backwards", rules: backwards })), { error: "A signup date range starts after it ends" });
+		assert.equal((await as(user, () => actions.previewSegmentRules(user.newsletterId, { match: "all", conditions: [{ type: "tag", value: "vip" }] }))).matching, 2);
 	});
 });
 

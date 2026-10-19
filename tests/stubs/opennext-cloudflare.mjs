@@ -37,6 +37,13 @@ export function setAi(value) {
 	ai = value;
 }
 
+// false: a server without the FILES bucket.
+let hasFiles = true;
+
+export function setFilesBound(value) {
+	hasFiles = value;
+}
+
 export async function getCloudflareContext() {
-	return { env: { FILES: bucket, ...(ai && { AI: ai }) }, cf };
+	return { env: { ...(hasFiles && { FILES: bucket }), ...(ai && { AI: ai }) }, cf };
 }

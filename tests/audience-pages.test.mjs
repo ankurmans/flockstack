@@ -113,6 +113,7 @@ describe("automations", () => {
 		const html = await render(user, m.automationPage, { params: Promise.resolve({ id: created.body.id }) });
 		assert.match(html, /value="Welcome series"/);
 		assert.match(html, /Starts when/);
+		assert.match(html, /placeholder="Tag" aria-label="Tag"/);
 		assert.match(html, /Welcome/);
 		assert.match(html, /Add a tag/);
 		assert.match(html, />Contacts</);
@@ -126,5 +127,36 @@ describe("automations", () => {
 		const redirected = await as(user, () => m.automationActions.createAutomation(user.newsletterId).catch((error) => error));
 		assert.match(redirected.url, /^\/automations\/[a-f0-9]{24}$/);
 		assert.equal((await t.api(user.key, "GET", "/automations")).body.automations.length, 2);
+	});
+
+	test("name a wait of one unit in the singular", async () => {
+		const user = await t.customer("pages-automation-waits@example.com");
+		const created = await t.api(user.key, "POST", "/automations", {
+			name: "Waits",
+			trigger: { type: "subscribed" },
+			steps: [{ type: "wait", amount: 1, unit: "days" }, { type: "wait", amount: 3, unit: "hours" }, { type: "wait", amount: 1, unit: "minutes" }],
+		});
+		const html = await render(user, m.automationPage, { params: Promise.resolve({ id: created.body.id }) });
+		assert.match(html, />1 day</);
+		assert.match(html, />3 hours</);
+		assert.match(html, />1 minute</);
+		assert.doesNotMatch(html, />1 days</);
+		// A placeholder short enough for a phone's width; the field's name says the rest.
+		assert.match(html, /placeholder="Only with a tag, e.g. vip" aria-label="Only contacts who signed up with this tag"/);
+		assert.match(html, /placeholder="Only from a source, e.g. website" aria-label="Only contacts from this source"/);
+	});
+
+	test("say what's wrong in the editor's words: steps from 1, no field names", async () => {
+		const user = await t.customer("pages-automation-errors@example.com");
+		const created = await t.api(user.key, "POST", "/automations", { name: "Errors", trigger: { type: "subscribed" }, steps: [{ type: "email", subject: "Hi", content: "Hello." }] });
+		const save = (changes) => as(user, () => m.automationActions.saveAutomation(created.body.id, { name: "Errors", trigger: { type: "subscribed" }, steps: [], ...changes }));
+		const email = { type: "email", subject: "Hi", format: "rich", content: "<p>Hello.</p>" };
+		assert.deepEqual(await save({ steps: [email, { type: "wait", amount: 1, unit: "days" }, { type: "add_tag", tag: "" }] }), {
+			error: "Step 3 needs a tag: letters, digits, spaces and - _ . : / + &",
+		});
+		assert.deepEqual(await save({ steps: [email, { type: "wait", amount: 400, unit: "days" }] }), { error: "Step 2: a wait is a year at most" });
+		assert.deepEqual(await save({ trigger: { type: "tag_added", tag: "" }, steps: [email] }), { error: "Pick the tag that starts it" });
+		assert.deepEqual(await save({ name: "", steps: [email] }), { error: "Name the automation" });
+		assert.deepEqual(await save({ steps: [email] }), { ok: true });
 	});
 });

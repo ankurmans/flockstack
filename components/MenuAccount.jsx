@@ -61,7 +61,7 @@ export default function MenuAccount({
 		<>
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
-					<Button variant="ghost" size="icon-sm" aria-label="Actions" disabled={isPending}>
+					<Button variant="ghost" size="icon-sm" aria-label={email ? `Actions for ${email}` : "Actions"} disabled={isPending}>
 						<MoreHorizontal />
 					</Button>
 				</DropdownMenuTrigger>
@@ -149,7 +149,7 @@ function FormBlock({ accountId, email, providerName, onDone }) {
 					cancel. Its {providerName} tenant is suspended.
 				</DialogDescription>
 			</DialogHeader>
-			<Input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Reason, shown to them" maxLength={200} required />
+			<Input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Reason, shown to them" aria-label="Reason, shown to them" maxLength={200} required />
 			<DialogFooter>
 				<DialogClose asChild>
 					<Button variant="outline">Cancel</Button>

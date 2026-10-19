@@ -50,8 +50,9 @@ beforeEach(() => {
 describe("products", () => {
 	test("are made, edited, put on sale, taken off and archived from the dashboard's actions", async () => {
 		const user = await seller();
-		assert.deepEqual(await as(user, () => m.products.createProduct(null, form({ newsletter: user.newsletterId, title: "Guide", price: "abc", currency: "usd" }))), { error: "Enter a price, like 19 or 19.50" });
-		assert.deepEqual(await as(user, () => m.products.createProduct(null, form({ newsletter: user.newsletterId, title: "Guide", price: "0.20", currency: "usd" }))).then((result) => result.error.slice(0, 9)), "priceCent");
+		const priceError = { error: "Enter a price of 1 or more, like 19 or 19.50" };
+		assert.deepEqual(await as(user, () => m.products.createProduct(null, form({ newsletter: user.newsletterId, title: "Guide", price: "abc", currency: "usd" }))), priceError);
+		assert.deepEqual(await as(user, () => m.products.createProduct(null, form({ newsletter: user.newsletterId, title: "Guide", price: "0.20", currency: "usd" }))), priceError, "the form's words, not priceCents");
 
 		const url = await as(user, () => catchRedirect(m.products.createProduct(null, form({ newsletter: user.newsletterId, title: "Guide", price: "19,50", currency: "eur", description: "A guide." }))));
 		const id = url.split("/").at(-1);
@@ -61,7 +62,12 @@ describe("products", () => {
 
 		const saved = await as(user, () => m.products.saveProduct(null, form({ id, title: "Guide v2", description: "Better.", price: "24", currency: "eur", slug: "guide-v2", imageUrl: "" })));
 		assert.deepEqual(saved, { ok: true, slug: "guide-v2" });
-		assert.deepEqual((await as(user, () => m.products.publishProduct(id))).error?.match(/Upload the file/)?.length, 1, "no file, no sale");
+		const fields = { id, title: "Guide v2", description: "Better.", price: "24", currency: "eur", slug: "guide-v2", imageUrl: "" };
+		assert.deepEqual(await as(user, () => m.products.saveProduct(null, form({ ...fields, slug: "Guide two!" }))), {
+			error: "Page address: use lowercase letters, digits and dashes, 80 at most",
+		});
+		assert.deepEqual(await as(user, () => m.products.saveProduct(null, form({ ...fields, imageUrl: "http://example.com/cover.png" }))), { error: "Cover image: use an https:// link" });
+		assert.match((await as(user, () => m.products.publishProduct(id))).error, /^Upload the file/, "no file, no sale");
 
 		const bytes = Buffer.from("zip bytes").toString("base64");
 		assert.equal((await api(user, "POST", `/products/${id}/file`, { base64: bytes, fileName: "guide.zip" })).status, 200);
@@ -170,8 +176,10 @@ describe("payments", () => {
 		assert.match(page, /value="8"/);
 		assert.match(page, /value="80\.50"/);
 		assert.match(page, new RegExp(`https://${user.slug}\\.flockstackmail\\.com/subscribe`));
-		assert.deepEqual(await as(user, () => m.payments.savePaidTier(null, form({ ...fields, monthly: "x" }))), { error: "Enter prices like 8 or 8.50, or leave a plan empty" });
-		assert.match((await as(user, () => m.payments.savePaidTier(null, form({ ...fields, monthly: "", yearly: "" })))).error, /set a monthly or a yearly price/);
+		const priceError = { error: "Enter prices of 1 or more, like 8 or 8.50, or leave a plan empty" };
+		assert.deepEqual(await as(user, () => m.payments.savePaidTier(null, form({ ...fields, monthly: "x" }))), priceError);
+		assert.deepEqual(await as(user, () => m.payments.savePaidTier(null, form({ ...fields, monthly: "0.20" }))), priceError, "the form's words, not monthlyCents");
+		assert.deepEqual(await as(user, () => m.payments.savePaidTier(null, form({ ...fields, monthly: "", yearly: "" }))), { error: "Set a monthly or a yearly price first" });
 		const { enabled, ...off } = fields;
 		assert.deepEqual(await as(user, () => m.payments.savePaidTier(null, form(off))), { ok: true });
 		assert.equal((await api(user, "GET", `/newsletters/${user.slug}/paid-tier`)).body.enabled, false, "an unticked box turns it off");

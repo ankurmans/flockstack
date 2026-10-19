@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { activate, as, catchNotFound, form, signIn, startTestApp } from "./helpers/app.mjs";
 
 let app;
@@ -126,4 +128,10 @@ test("an admin block needs a reason, because its owner always reads one", async 
 	const id = String(customer.accountId);
 	assert.deepEqual(await as(admin, () => m.actions.blockAccountAction(id, "   ")), { error: "Give a reason: the account's owner reads it" });
 	assert.equal((await m.Account.findById(id).lean()).status, "active");
+});
+
+test("each account's menu button says whose it is", async () => {
+	const MenuAccount = (await import("../components/MenuAccount.jsx")).default;
+	const html = renderToStaticMarkup(createElement(MenuAccount, { accountId: String(customer.accountId), email: "customer@example.com", planLimits: {} }));
+	assert.match(html, /aria-label="Actions for customer@example.com"/);
 });

@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import SelectCurrency from "@/components/SelectCurrency";
+import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 import { useToastError } from "@/lib/use-toast-error";
 
 export default function DialogCreateProduct({ newsletterId }) {
@@ -52,7 +53,7 @@ function FormCreateProduct({ newsletterId }) {
 	}, null);
 
 	return (
-		<form action={action} className="flex flex-col gap-4">
+		<form action={action} onSubmit={submitKeepingFields(action)} className="flex flex-col gap-4">
 			<input type="hidden" name="newsletter" value={newsletterId} />
 			<DialogHeader>
 				<DialogTitle>New product</DialogTitle>

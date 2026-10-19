@@ -53,7 +53,7 @@ import { cn } from "@/lib/utils";
 
 const UPLOADING_MESSAGE = "Wait for images to finish uploading";
 // Below lg, as the step bar's classes.
-const COMPACT_SCREEN = "(width < 64rem)";
+const COMPACT_SCREEN = "(width < 80rem)";
 
 export default function FormCampaign({
 	campaign,
@@ -252,9 +252,10 @@ export default function FormCampaign({
 			return (
 				<>
 					<StatusSave isSaving={isDirty || isSaving} error={null} onRetry={flush} />
-					<Button variant="ghost" size="sm" onClick={openPreview} aria-label="Preview" className="text-muted-foreground max-sm:px-2">
+					{/* An icon alone below 2xl: the header's last column has room for the label from 96rem. */}
+					<Button variant="ghost" size="sm" onClick={openPreview} aria-label="Preview" className="text-muted-foreground max-sm:px-2 xl:max-2xl:px-2">
 						<Eye data-icon="inline-start" />
-						<span className="max-sm:sr-only">Preview</span>
+						<span className="max-sm:sr-only xl:max-2xl:sr-only">Preview</span>
 					</Button>
 				</>
 			);
@@ -279,16 +280,16 @@ export default function FormCampaign({
 	);
 
 	return (
-		<div ref={rootRef} data-campaign-steps className="pb-(--step-bar-space) lg:pb-0">
+		<div ref={rootRef} data-campaign-steps className="pb-(--step-bar-space) xl:pb-0">
 			{/* Phones and tablets: the title and the menu first, then the steps, which stick under the top bar. */}
-			<div className="mb-4 flex items-center gap-2 animate-enter lg:hidden">
+			<div className="mb-4 flex items-center gap-2 animate-enter xl:hidden">
 				{title}
 				{menu}
 			</div>
-			<header className="sticky top-[calc(var(--plan-bar-height)+3.5rem)] z-20 -mx-4 mb-6 border-b border-border/60 bg-background/80 px-4 py-2 backdrop-blur-md md:top-(--plan-bar-height) md:-mx-10 md:px-10 lg:-mt-10 lg:mb-8 lg:grid lg:h-16 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-center lg:gap-6 lg:border-b-0 lg:py-0">
-				<div className="hidden min-w-0 lg:flex">{title}</div>
+			<header className="sticky top-[calc(var(--plan-bar-height)+3.5rem)] z-20 -mx-4 mb-6 border-b border-border/60 bg-background/80 px-4 py-2 backdrop-blur-md md:top-(--plan-bar-height) md:-mx-10 md:px-10 xl:-mt-10 xl:mb-8 xl:grid xl:h-16 xl:grid-cols-[minmax(0,1fr)_auto_minmax(max-content,1fr)] xl:items-center xl:gap-6 xl:border-b-0 xl:py-0">
+				<div className="hidden min-w-0 xl:flex">{title}</div>
 				<NavSteps step={step} onStep={goToStep} />
-				<div className="hidden min-w-0 items-center justify-end gap-2 lg:flex">
+				<div className="hidden min-w-0 items-center justify-end gap-2 xl:flex">
 					<BarAction action={action} status={renderStatus()} />
 					{menu}
 				</div>
@@ -389,12 +390,12 @@ export default function FormCampaign({
 				</section>
 			</div>
 
-			{/* Below lg the step's button floats at the bottom like a save bar, clear of the support chat's button, and the
+			{/* Below xl the step's button floats at the bottom like a save bar, clear of the support chat's button, and the
 			    get-started pill steps aside for it (app/globals.css). */}
 			<div
 				data-save-bar={isCompact ? "" : undefined}
 				data-shown={isCompact ? "" : undefined}
-				className="fixed right-(--dock-right) bottom-(--dock-bottom) left-4 z-30 flex h-12 items-center rounded-xl bg-card p-1.5 pl-4 shadow-float md:left-64 lg:hidden"
+				className="fixed right-(--dock-right) bottom-(--dock-bottom) left-4 z-30 flex h-12 items-center rounded-xl bg-card p-1.5 pl-4 shadow-float md:left-64 xl:hidden"
 			>
 				<BarAction action={action} status={renderStatus()} className="w-full" />
 			</div>
@@ -449,7 +450,7 @@ function TitleCampaign({ title, newsletter, status }) {
 				<ChevronLeft className="size-5" />
 			</Link>
 			<AvatarNewsletter newsletter={newsletter} size={24} />
-			<h1 className="truncate text-lg font-semibold tracking-tight lg:text-base">{title || "Untitled"}</h1>
+			<h1 className="truncate text-lg font-semibold tracking-tight xl:text-base">{title || "Untitled"}</h1>
 			<BadgeStatus status={status} />
 		</div>
 	);
@@ -485,7 +486,7 @@ function BarAction({ action, status, className }) {
 
 	return (
 		<div className={cn("flex min-w-0 items-center gap-3", className)}>
-			<div id={statusId} className="flex min-w-0 flex-1 items-center justify-start gap-1 lg:justify-end">
+			<div id={statusId} className="flex min-w-0 flex-1 items-center justify-start gap-1 xl:justify-end">
 				{status}
 			</div>
 			<Button
@@ -516,7 +517,7 @@ function TextProblem({ children }) {
 	return (
 		<span className="flex min-w-0 items-center gap-1.5 text-xs leading-snug text-muted-foreground">
 			<CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />
-			<span className="line-clamp-2 text-pretty lg:max-w-48">{children}</span>
+			<span className="line-clamp-2 text-pretty xl:max-w-48">{children}</span>
 		</span>
 	);
 }
@@ -582,7 +583,7 @@ function StatusSave({ isSaving, error, onRetry }) {
 		);
 	}
 	return (
-		<span aria-live="polite" className="flex min-w-16 items-center gap-1.5 text-xs text-muted-foreground lg:justify-end">
+		<span aria-live="polite" className="flex min-w-16 items-center gap-1.5 text-xs text-muted-foreground xl:justify-end">
 			{isSaving ? (
 				"Saving…"
 			) : (
