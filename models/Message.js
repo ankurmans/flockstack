@@ -41,6 +41,8 @@ const messageSchema = new mongoose.Schema(
 		deliveredAt: Date,
 		openedAt: Date,
 		clickedAt: Date,
+		// The places of the tracked links this email's reader clicked (lib/link-clicks.js), each once.
+		clickedLinks: { type: [Number], default: undefined },
 		bouncedAt: Date,
 		complainedAt: Date,
 	},
@@ -69,6 +71,8 @@ messageSchema.index({ newsletterId: 1, sentAt: 1 });
 messageSchema.index({ campaignId: 1, status: 1 });
 // Emails still waiting to go out, which the plan check counts before a new send.
 messageSchema.index({ accountId: 1, campaignId: 1 }, { partialFilterExpression: { status: "queued" } });
+// Who clicked a campaign's links (list_link_clicks) reads only its clicked emails.
+messageSchema.index({ campaignId: 1, clickedAt: 1 }, { partialFilterExpression: { clickedAt: { $exists: true } } });
 // The account-level check on the last days of sends (lib/account-health.js).
 messageSchema.index({ accountId: 1, sentAt: -1 });
 

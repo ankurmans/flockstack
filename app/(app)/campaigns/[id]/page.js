@@ -8,6 +8,7 @@ import { getArchiveUrls } from "@/lib/archive-hosts";
 import { countNewContacts, getSendVolumes, sendTimesPipeline } from "@/lib/campaign-queries";
 import { isSendingEnabled } from "@/lib/config";
 import { listCustomFields } from "@/lib/custom-fields";
+import { getClickMapHtml, listCampaignLinks } from "@/lib/link-clicks";
 import { MESSAGE_STATS_GROUP } from "@/lib/message-stats";
 import { getPostalAddress } from "@/lib/postal-address";
 import { countCampaignAudience } from "@/lib/segments";
@@ -39,10 +40,12 @@ export default async function CampaignPage({ params }) {
 	const plan = await getPlanState(account);
 
 	if (!["draft", "scheduled"].includes(campaign.status)) {
-		const [providers, remainingCount] = await Promise.all([
+		const [providers, remainingCount, links] = await Promise.all([
 			getProviderBreakdown(campaign),
 			countRemaining(campaign),
+			listCampaignLinks(campaign),
 		]);
+		const clickMapHtml = links.length > 0 ? await getClickMapHtml(campaign, newsletter, links) : null;
 		// Only a next step needs them, for what its dialog says.
 		const [volumes, newContacts] =
 			remainingCount > 0 ? await Promise.all([getSendVolumes(account), countNewContacts(account, newsletter._id)]) : [];
@@ -51,6 +54,8 @@ export default async function CampaignPage({ params }) {
 				campaign={serialize(campaign)}
 				newsletter={serialize(newsletter)}
 				providers={providers}
+				links={links.map(({ index, url, clicks, uniqueClicks }) => ({ index, url, clicks, uniqueClicks }))}
+				clickMapHtml={clickMapHtml}
 				remainingCount={remainingCount}
 				emailsLeft={plan.emailsLeft}
 				isBlocked={isBlocked(account)}

@@ -147,3 +147,9 @@ export async function updateArchiveSlug(id, value) {
 	refresh(id);
 	return { ok: true, archiveSlug: output.archiveSlug ?? "" };
 }
+
+// One page of who clicked a link of a sent campaign; cursor comes from the page before.
+export async function listLinkClicks(id, link, cursor) {
+	const { output, failure } = await runDashboardAction("list_link_clicks", { id: String(id), link: Number(link), ...(cursor && { cursor: String(cursor) }) });
+	return failure ? toFormError(failure) : output;
+}

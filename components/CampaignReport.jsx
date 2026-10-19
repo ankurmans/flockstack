@@ -12,6 +12,7 @@ import ButtonCampaignAction from "@/components/ButtonCampaignAction";
 import ButtonCopy from "@/components/ButtonCopy";
 import GatePlan from "@/components/GatePlan";
 import CardStat from "@/components/CardStat";
+import DialogLinkClicks from "@/components/DialogLinkClicks";
 import DialogSendMore from "@/components/DialogSendMore";
 import HeaderPage from "@/components/HeaderPage";
 import IconWarmup from "@/components/IconWarmup";
@@ -41,6 +42,8 @@ export default function CampaignReport({
 	campaign,
 	newsletter,
 	providers,
+	links = [],
+	clickMapHtml = null,
 	remainingCount = 0,
 	emailsLeft = 0,
 	isBlocked = false,
@@ -250,9 +253,49 @@ export default function CampaignReport({
 					</div>
 				)}
 
+				{links.length > 0 && (
+					<div style={{ "--stagger": 3 }} className="overflow-hidden rounded-xl shadow-border animate-enter">
+						<Table>
+							<TableHeader>
+								<TableRow className="hover:bg-transparent">
+									<TableHead className="pl-4">Link</TableHead>
+									<TableHead className="text-right">Unique clicks</TableHead>
+									<TableHead className="hidden text-right sm:table-cell">Total</TableHead>
+									<TableHead className="text-right">CTR</TableHead>
+									<TableHead className="pr-4">
+										<span className="sr-only">Who clicked</span>
+									</TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{links.map((link) => (
+									<TableRow key={link.index} className="tabular-nums">
+										<TableCell className="max-w-0 pl-4 font-medium">
+											<span className="flex items-center gap-2.5">
+												<span className="grid size-5 shrink-0 place-items-center rounded-full bg-muted text-[11px] text-muted-foreground">
+													{link.index + 1}
+												</span>
+												<a href={link.url} target="_blank" rel="noreferrer noopener" className="truncate hover:underline" title={link.url}>
+													{link.url.replace(/^https?:\/\//, "")}
+												</a>
+											</span>
+										</TableCell>
+										<TableCell className="text-right">{formatNumber(link.uniqueClicks)}</TableCell>
+										<TableCell className="hidden text-right sm:table-cell">{formatNumber(link.clicks)}</TableCell>
+										<TableCell className="text-right">{formatRate(link.uniqueClicks, reached) ?? <TextEmpty />}</TableCell>
+										<TableCell className="w-0 pr-2 text-right">
+											<DialogLinkClicks campaignId={id} link={link} />
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+					</div>
+				)}
+
 				{newsletter.archiveEnabled && campaign.archiveSlug && (
 					<div
-						style={{ "--stagger": 3 }}
+						style={{ "--stagger": 4 }}
 						className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-x-2 rounded-xl bg-card px-4 shadow-border transition-colors duration-150 animate-enter focus-within:bg-muted/40"
 					>
 						<span className="text-sm text-muted-foreground">URL</span>
@@ -266,18 +309,18 @@ export default function CampaignReport({
 					</div>
 				)}
 
-				<div style={{ "--stagger": 4 }} className="animate-enter">
+				<div style={{ "--stagger": 5 }} className="animate-enter">
 					<PreviewEmail
 						fit="content"
 						sender={newsletter}
 						subject={campaign.subject}
 						previewText={campaign.previewText}
-						html={withResponsiveImages(html.replaceAll(UNSUBSCRIBE_PLACEHOLDER, "#"))}
+						html={withResponsiveImages(clickMapHtml ?? html.replaceAll(UNSUBSCRIBE_PLACEHOLDER, "#"))}
 						// Rendered next to PreviewEmail's own children, so dev React asks for a key.
 						toolbar={
 							<span key="toolbar" className="truncate text-xs text-muted-foreground">
-								{newsletter.name}
-								{campaign.sentAt && ` · ${formatDate(campaign.sentAt)}`}
+								{clickMapHtml ? "Click map: unique clicks on each link" : newsletter.name}
+								{!clickMapHtml && campaign.sentAt && ` · ${formatDate(campaign.sentAt)}`}
 							</span>
 						}
 					/>
