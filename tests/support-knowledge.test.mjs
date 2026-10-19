@@ -59,6 +59,7 @@ describe("the corpus", () => {
 		const text = m.corpus.getPricingText();
 		for (const { name, monthlyPrice } of m.plans.PLANS) assert.match(text, new RegExp(`${name}: \\$${monthlyPrice} a month`));
 		assert.match(text, new RegExp(`cost ${m.plans.YEARLY_MONTHS} months`));
+		assert.match(text, new RegExp(`Our price promise:\\n- ${m.legal.PRICE_INCREASE_NOTICE_DAYS} days' notice: `), "the promise the pricing section shows");
 	});
 
 	test("a self-hosted server has no legal pages, prices or FAQ to answer from", async () => {
