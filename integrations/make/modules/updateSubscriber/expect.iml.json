@@ -1,0 +1,47 @@
+[
+  {
+    "name": "email",
+    "type": "email",
+    "label": "Email",
+    "required": true
+  },
+  {
+    "name": "newsletter",
+    "type": "select",
+    "label": "Newsletter",
+    "required": false,
+    "options": "rpc://listNewsletters",
+    "help": "Leave empty for your first newsletter."
+  },
+  {
+    "name": "tags",
+    "type": "array",
+    "label": "Tags",
+    "required": false,
+    "spec": {
+      "type": "text",
+      "label": "Tag"
+    },
+    "help": "Tags to add. Tags the subscriber has stay."
+  },
+  {
+    "name": "fields",
+    "type": "array",
+    "label": "Custom fields",
+    "required": false,
+    "spec": [
+      {
+        "name": "key",
+        "type": "text",
+        "label": "Field key",
+        "required": true
+      },
+      {
+        "name": "value",
+        "type": "text",
+        "label": "Value"
+      }
+    ],
+    "help": "The newsletter has to have the field."
+  }
+]

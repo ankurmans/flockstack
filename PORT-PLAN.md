@@ -27,6 +27,15 @@ Tags, custom fields, segments and automations (migration `0005_segments_automati
 - **Automations** are one `Automation` (trigger and steps as JSON) and one `AutomationEnrollment` per contact and cycle (unique, so no double enrollment). `app/api/jobs/run-automations` runs `runAutomations` (lib/automations.js): it looks for contacts to start from segments (about hourly) and date fields (daily), claims due enrollments with a lock, runs non-email steps in process and makes a `Message` of kind `automation` (unique per enrollment and step) for each email, which `sendMessageBatch` sends like any other (plan emails, suppression, send lane, account blocks, the 7-day health check). A QStash schedule must call the route every 5 minutes (README, QStash).
 - **Known limits.** Eager exits (unsubscribe, bounce, delete) update enrollments at once, and the job checks the contact again before every step. Segment triggers read the whole segment each pass (500 contacts a page, 2,000 a run, resumed). The reports count enrollments per status with one query each. An account's automations share a daily room of emails (the warm-up allowance, 500 at least) on Cloud.
 
+## Webhooks
+
+Outgoing webhooks (migration `0011_webhooks.sql`, collections `webhookendpoints` and `webhookdeliveries`).
+
+- **Endpoints** belong to an account, optionally one newsletter, with an event filter and a `whsec_` secret (a rotated one signs alongside for 24 hours). The plan caps how many (`webhookEndpoints` in lib/plans.js); a self-hosted server has no cap.
+- **Delivery.** `emitWebhookEvent` costs one query for an account without endpoints. With some, it writes one `WebhookDelivery` per endpoint and publishes `app/api/jobs/deliver-webhook`; each attempt claims the delivery (QStash can repeat a job), signs at its own timestamp, POSTs without following redirects, and on failure publishes the next attempt with `notBefore` (lib/webhook-rules.js: 11 attempts over about 4.9 days). An endpoint failing for 4.5 days, or answering 410, is turned off and its owner alerted.
+- **Size.** Only the latest 100 deliveries per endpoint stay: each new one prunes the older ones, so the table is bounded by endpoints, not by traffic.
+- **Known limits.** Imports, bulk tag deletes and admin changes send no events. Hostnames are checked as written, not resolved: on Workers a fetch can't reach private addresses, but a self-hosted Node server could be pointed at one through DNS.
+
 ## Status
 
 - Test suite: 1243 tests, all passing on SQLite (`node scripts/test-all.mjs <logdir>`).

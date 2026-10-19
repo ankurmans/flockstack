@@ -1,0 +1,17 @@
+{
+  "name": "flockstack-zapier",
+  "version": "1.0.0",
+  "description": "FlockStack for Zapier: triggers from FlockStack's webhooks, actions on its REST API.",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "validate": "zapier validate"
+  },
+  "dependencies": {
+    "zapier-platform-core": "17.0.0"
+  }
+}

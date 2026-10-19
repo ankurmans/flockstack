@@ -1,0 +1,23 @@
+[
+  {
+    "name": "subscriber",
+    "type": "text",
+    "label": "Subscriber",
+    "required": true,
+    "help": "Their email address or FlockStack ID."
+  },
+  {
+    "name": "newsletter",
+    "type": "select",
+    "label": "Newsletter",
+    "required": false,
+    "options": "rpc://listNewsletters",
+    "help": "Needed when the address subscribes to several of your newsletters."
+  },
+  {
+    "name": "tag",
+    "type": "text",
+    "label": "Tag",
+    "required": true
+  }
+]

@@ -1,0 +1,25 @@
+[
+  {
+    "name": "id",
+    "type": "text",
+    "label": "ID"
+  },
+  {
+    "name": "email",
+    "type": "email",
+    "label": "Email"
+  },
+  {
+    "name": "tags",
+    "type": "array",
+    "label": "Tags",
+    "spec": {
+      "type": "text"
+    }
+  },
+  {
+    "name": "changed",
+    "type": "boolean",
+    "label": "Changed"
+  }
+]

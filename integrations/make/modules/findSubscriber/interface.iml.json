@@ -1,0 +1,65 @@
+[
+  {
+    "name": "id",
+    "type": "text",
+    "label": "ID"
+  },
+  {
+    "name": "newsletterId",
+    "type": "text",
+    "label": "Newsletter ID"
+  },
+  {
+    "name": "email",
+    "type": "email",
+    "label": "Email"
+  },
+  {
+    "name": "status",
+    "type": "text",
+    "label": "Status"
+  },
+  {
+    "name": "source",
+    "type": "text",
+    "label": "Source"
+  },
+  {
+    "name": "tier",
+    "type": "text",
+    "label": "Tier"
+  },
+  {
+    "name": "paidUntil",
+    "type": "date",
+    "label": "Paid until"
+  },
+  {
+    "name": "tags",
+    "type": "array",
+    "label": "Tags",
+    "spec": {
+      "type": "text"
+    }
+  },
+  {
+    "name": "fields",
+    "type": "any",
+    "label": "Custom fields"
+  },
+  {
+    "name": "subscribedAt",
+    "type": "date",
+    "label": "Subscribed at"
+  },
+  {
+    "name": "confirmedAt",
+    "type": "date",
+    "label": "Confirmed at"
+  },
+  {
+    "name": "unsubscribedAt",
+    "type": "date",
+    "label": "Unsubscribed at"
+  }
+]
