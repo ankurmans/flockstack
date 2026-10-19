@@ -69,7 +69,7 @@ All names and addresses in the screenshots are made up.
 
 | | [FlockStack Cloud](https://flockstack.io) | Self-hosted |
 | --- | --- | --- |
-| Price | From $12 a month for 20,000 emails | Free, plus what your provider charges per email: $0.10 to $0.16 per 1,000 on Amazon SES |
+| Price | From $9 a month for 25,000 emails, extra emails $0.15 per 1,000 | Free, plus what your provider charges per email: $0.10 to $0.16 per 1,000 on Amazon SES |
 | Sending | Set up for you, from `hello@<slug>.flockstack.io` or your domain | Your Amazon SES or PostShiba account, from your domain |
 | Website | `<slug>.flockstack.io` | `/archive/<slug>` on your server's domain |
 | Who signs in | Anyone who signs up | The emails you allow |
@@ -454,23 +454,27 @@ A paid subscriber is paid while Stripe says the subscription is active or in its
 
 | Plan | Monthly | Yearly | Emails per month | Active subscribers |
 | --- | --- | --- | --- | --- |
-| Starter | $12 | $120 | 20,000 | 10,000 |
-| Growth | $27 | $270 | 75,000 | 40,000 |
-| Pro | $55 | $550 | 200,000 | 100,000 |
-| Scale | $109 | $1,090 | 500,000 | 250,000 |
-| Max | $299 | $2,990 | 2,000,000 | 1,000,000 |
+| Starter | $9 | $90 | 25,000 | 5,000 |
+| Growth | $29 | $290 | 125,000 | 25,000 |
+| Pro | $59 | $590 | 250,000 | 50,000 |
+| Scale | $109 | $1,090 | 500,000 | 100,000 |
+| Max | $299 | $2,990 | 2,000,000 | 400,000 |
 
-`lib/plans.js` is the one place these live. Yearly plans get the monthly allowance every month of the paid year. Every email counts toward the month: issues, tests, welcome and confirmation emails. Over a limit, campaigns stop with a clear message and an upgrade link; signups and confirmation emails keep going. Welcome emails take room in the month's emails like issues: once they're used up, each one is skipped (its `Message` says why), the owner gets one email that month, and the dashboard says so next to the welcome email, on the overview and on the billing page. They start again when the month resets or the plan grows; the skipped ones aren't sent later. Admin overrides replace a plan's numbers for one account.
+`lib/plans.js` is the one place these live. Yearly plans get the monthly allowance every month of the paid year. Every email counts toward the month: issues, tests, welcome and confirmation emails. Over a limit, campaigns stop with a clear message and an upgrade link; signups and confirmation emails keep going.
+
+**Extra emails** (Polar only): a paid plan whose Polar subscription carries the extra emails price keeps sending past its emails, at $0.15 per 1,000, up to a monthly limit the owner sets on the billing page or with `set_extra_emails_limit` (the plan's emails by default, 10 times them at most). The owner is emailed at 80% and 100% of it. Each month's extra campaign, welcome and automation emails are counted in `ExtraEmailUsage` (`lib/extra-emails.js`) and reported to Polar as `flockstack_extra_emails` events, from the send path at most every 5 minutes per account and from the hourly cron; each report's event id is made from the range it covers, so a retry is a duplicate Polar skips. Polar bills them with the plan at the end of the period (monthly for yearly products the script creates; once a year for a yearly product updated in place, whose meter cycle Polar can't change). Free plans from an admin, Stripe and a plan bought before the price stop at their emails.
+
+**Dedicated IP add-on** (Polar only): Pro $35, Scale $69, Max $269 a month, yearly at 10 months. It is a Polar subscription of its own next to the plan's: the webhook turns the account's dedicated IP on (the same `setDedicatedIp` as the admin toggle) once it's paid, and off when it ends; a plan dropping below Pro cancels it at its period's end and turns the IP off at once, and a move between Pro, Scale and Max moves it to that plan's price. The admin toggle still gives one by hand. Welcome emails take room in the month's emails like issues: once they're used up, each one is skipped (its `Message` says why), the owner gets one email that month, and the dashboard says so next to the welcome email, on the overview and on the billing page. They start again when the month resets or the plan grows; the skipped ones aren't sent later. Admin overrides replace a plan's numbers for one account.
 
 Admins can give an account a free plan from `/admin` (the account's menu, **Give a free plan**): any of the five, with an optional end date, without Stripe. It works like a paid plan, its emails start over every month from the day it was given, and the billing page and `get_billing` (REST API and MCP) show it. A plan the account pays for takes over while there's one. **End free plan**, or its end date, stops it like a canceled plan: the data stays and sending stops.
 
-**With Polar:** create an organization access token (scopes for products, checkouts, customer sessions and subscriptions), run `POLAR_ACCESS_TOKEN=... node scripts/polar-setup.mjs` to create the ten products (it only creates what's missing; `--dry-run` shows what it would do), add a webhook at `<APP_URL>/api/webhooks/polar` for the `subscription.*` events and `order.paid`, and set `POLAR_ACCESS_TOKEN`, `POLAR_WEBHOOK_SECRET` (and `POLAR_SERVER=sandbox` while testing). Switching plans and cancelling happen in Polar's customer portal.
+**With Polar:** create an organization access token (scopes for products, meters, events, checkouts, customer sessions, subscriptions and reading the organization), then run `POLAR_ACCESS_TOKEN=... node scripts/polar-setup.mjs --dry-run` to see what it would do, and again without `--dry-run`. It creates the "Extra emails" meter, then for each of the 5 plans monthly and yearly and the 3 dedicated IP add-ons monthly and yearly, finds the product by its metadata (`flockstack_plan`, `interval`, `flockstack_addon`) and updates it in place (name, description, the fixed price and the extra emails price; Polar archives the prices it replaces), or creates it when there's none; a second run changes nothing. In Polar's settings, turn on **Allow multiple subscriptions** (the add-on is a second subscription; the script says when it's off). Add a webhook at `<APP_URL>/api/webhooks/polar` for the `subscription.*` events and `order.paid`, with API version `2026-10` (what `lib/polar-catalog.js` pins for requests), and set `POLAR_ACCESS_TOKEN`, `POLAR_WEBHOOK_SECRET` (and `POLAR_SERVER=sandbox` while testing). The hourly cron reports extra emails, so it has to run. Switching plans and cancelling happen in Polar's customer portal.
 
 **With Stripe:**
 
 1. **Prices by lookup key.** Create five products (Starter, Growth, Pro, Scale, Max), each with a monthly and a yearly recurring USD price, and give every price its lookup key: `flockstack_<plan>_monthly` and `flockstack_<plan>_yearly`, like `flockstack_growth_yearly`. Checkout finds prices by these keys and refuses one whose amount or interval doesn't match `lib/plans.js`, so no price ID goes in the environment. A plan shows on the pricing pages, the paywall, billing and `get_billing` only once Stripe has both of its prices at those amounts: the app reads them every 10 minutes, and the static pages when they're built, so redeploy after adding one.
 2. **Webhook.** Add an endpoint at `<APP_URL>/api/webhooks/stripe` with the events `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted` and `invoice.paid`. Use API version `2026-09-30.endive` (the one `stripe@23` pins) and put its signing secret in `STRIPE_WEBHOOK_SECRET`.
-3. **Customer Portal.** Turn on payment method updates, invoices, cancellation (at the end of the period) and plan changes between the ten prices. Charge upgrades at once, with prorations invoiced immediately, and schedule downgrades, a cheaper price or a shorter interval, for the end of the period: otherwise an account can upgrade, send a bigger plan's emails and downgrade before the difference is billed. The billing page's "Switch" buttons open the portal's confirm page for one plan; without plan changes on, they open the portal's home.
+3. **Customer Portal.** Turn on payment method updates, invoices, cancellation (at the end of the period) and plan changes between the ten prices. Charge upgrades at once, with prorations invoiced immediately, and schedule downgrades, a lower price or a shorter interval, for the end of the period: otherwise an account can upgrade, send a bigger plan's emails and downgrade before the difference is billed. The billing page's "Switch" buttons open the portal's confirm page for one plan; without plan changes on, they open the portal's home.
 
 Every subscription event re-reads the subscription from Stripe, so events arriving out of order can't leave stale data. Canceled accounts keep their data: sending, signups and the website stop, and everything comes back when they subscribe again.
 

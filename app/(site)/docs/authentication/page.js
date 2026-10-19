@@ -8,7 +8,8 @@ import { API_BASE_PATH, REQUESTS_PER_KEY } from "@/lib/api/rest";
 import { API_KEY_SCAN_REGEX } from "@/lib/api-key-tokens";
 import { getAppUrl, isCloud } from "@/lib/config";
 import { getDocsPageMetadata } from "@/lib/docs/llms";
-import { formatWindow } from "@/lib/format";
+import { formatUsdCents, formatWindow } from "@/lib/format";
+import { EXTRA_EMAILS } from "@/lib/plans";
 import { getRegionUrls } from "@/lib/region";
 
 export const metadata = getDocsPageMetadata("/docs/authentication");
@@ -146,10 +147,13 @@ export default function AuthenticationPage() {
 				{isCloud() ? (
 					<p>
 						Everything but the billing endpoints needs an active plan; without one the answer is <Code>402 subscription_required</Code>.
-						Signups and confirmation emails keep coming in over the plan&apos;s limits. Campaign sends stop with{" "}
-						<Code>plan_limit_emails</Code> or <Code>plan_limit_subscribers</Code>. Welcome emails count toward the month&apos;s emails
-						like issues: once they&apos;re used up, new subscribers get none until the count starts over or the plan grows, and don&apos;t
-						get one later. <Code>usage.welcomeEmailsPaused</Code> in <Code>get_billing</Code> and <Code>get_overview</Code> says so.
+						Signups and confirmation emails keep coming in over the plan&apos;s limits. On a paid plan, sending goes on past the
+						plan&apos;s emails as extra emails, at {formatUsdCents(EXTRA_EMAILS.pricePerThousand)} per 1,000, up to the monthly limit the
+						owner sets with <Code>set_extra_emails_limit</Code>; <Code>extraEmails</Code> in <Code>get_billing</Code> has the count, the
+						limit and the cost so far. Past that limit, or on a free plan, campaign sends stop with <Code>plan_limit_emails</Code>, and
+						over the subscribers with <Code>plan_limit_subscribers</Code>. Welcome emails count toward the month&apos;s emails like
+						issues: once they&apos;re used up, new subscribers get none until the count starts over or the plan grows, and don&apos;t get
+						one later. <Code>usage.welcomeEmailsPaused</Code> in <Code>get_billing</Code> and <Code>get_overview</Code> says so.
 					</p>
 				) : (
 					<p>
