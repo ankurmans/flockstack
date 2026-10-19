@@ -11,6 +11,8 @@ import { listCustomFields } from "@/lib/custom-fields";
 import { getClickMapHtml, listCampaignLinks } from "@/lib/link-clicks";
 import { MESSAGE_STATS_GROUP } from "@/lib/message-stats";
 import { getPostalAddress } from "@/lib/postal-address";
+import { isResend } from "@/lib/resend-rules";
+import { countResendAudience } from "@/lib/resends";
 import { countCampaignAudience } from "@/lib/segments";
 import { getSelectedNewsletter, openNewsletter } from "@/lib/selected-newsletter";
 import { getPace } from "@/lib/send-spread";
@@ -46,6 +48,7 @@ export default async function CampaignPage({ params }) {
 			listCampaignLinks(campaign),
 		]);
 		const clickMapHtml = links.length > 0 ? await getClickMapHtml(campaign, newsletter, links) : null;
+		const resendCounts = canResend(campaign) ? await countResendTargets(campaign) : null;
 		// Only a next step needs them, for what its dialog says.
 		const [volumes, newContacts] =
 			remainingCount > 0 ? await Promise.all([getSendVolumes(account), countNewContacts(account, newsletter._id)]) : [];
@@ -56,6 +59,7 @@ export default async function CampaignPage({ params }) {
 				providers={providers}
 				links={links.map(({ index, url, clicks, uniqueClicks }) => ({ index, url, clicks, uniqueClicks }))}
 				clickMapHtml={clickMapHtml}
+				resendCounts={resendCounts}
 				remainingCount={remainingCount}
 				emailsLeft={plan.emailsLeft}
 				isBlocked={isBlocked(account)}
@@ -135,6 +139,18 @@ async function countRemaining(campaign) {
 	const active = await countCampaignAudience(campaign);
 	const reached = (campaign.stats?.recipients ?? 0) + (campaign.lastChance?.recipients ?? 0);
 	return Math.max(0, active - reached);
+}
+
+// A sent campaign can be resent once, unless it is a resend or its subject line test is still running.
+function canResend(campaign) {
+	return campaign.status === "sent" && !campaign.resentAs && !isResend(campaign) && campaign.abTest?.status !== "testing";
+}
+
+async function countResendTargets(campaign) {
+	const [unopened, unclicked] = await Promise.all(
+		["unopened", "unclicked"].map((to) => countResendAudience({ accountId: campaign.accountId, resend: { of: campaign._id, to } }))
+	);
+	return { unopened, unclicked };
 }
 
 async function getProviderBreakdown(campaign) {

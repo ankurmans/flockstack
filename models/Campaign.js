@@ -1,6 +1,7 @@
 import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
 import { AB_TEST_METRICS, AB_TEST_STATUSES } from "../lib/ab-test-rules.js";
+import { RESEND_TARGETS } from "../lib/resend-rules.js";
 import { AUDIENCES } from "../lib/tiers.js";
 
 export const CAMPAIGN_STATUSES = ["draft", "scheduled", "sending", "paused", "sent", "canceled"];
@@ -100,6 +101,14 @@ const campaignSchema = new mongoose.Schema(
 			restSentAt: { type: Date },
 			problem: { type: String },
 		},
+		// A resend (lib/resends.js): the sent campaign it copies, which of its readers it goes to, and that campaign's page,
+		// which its emails link to as their own. The campaign it copies keeps resentAs: one resend each.
+		resend: {
+			of: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign" },
+			to: { type: String, enum: RESEND_TARGETS },
+			slug: { type: String },
+		},
+		resentAs: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign" },
 		// The list cleanup at this send: last-chance emails sent instead of the issue, and contacts made dormant.
 		lastChance: {
 			recipients: counter,

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Copy, ExternalLink, Globe, Pause, Pin, PinOff, Play } from "lucide-react";
+import { Copy, ExternalLink, Globe, Pause, Pin, PinOff, Play, Repeat } from "lucide-react";
 import {
 	duplicateCampaign,
 	pauseCampaign,
@@ -13,6 +13,7 @@ import ButtonCopy from "@/components/ButtonCopy";
 import GatePlan from "@/components/GatePlan";
 import CardStat from "@/components/CardStat";
 import DialogLinkClicks from "@/components/DialogLinkClicks";
+import DialogResend from "@/components/DialogResend";
 import DialogSendMore from "@/components/DialogSendMore";
 import HeaderPage from "@/components/HeaderPage";
 import IconWarmup from "@/components/IconWarmup";
@@ -46,6 +47,7 @@ export default function CampaignReport({
 	providers,
 	links = [],
 	clickMapHtml = null,
+	resendCounts = null,
 	remainingCount = 0,
 	emailsLeft = 0,
 	isBlocked = false,
@@ -91,6 +93,19 @@ export default function CampaignReport({
 							newContacts={newContacts}
 						/>
 					</GatePlan>
+				)}
+				{resendCounts && isSendingEnabled() && !isBlocked && (
+					<GatePlan reason="send">
+						<DialogResend campaignId={id} subject={campaign.subject} sentAt={campaign.sentAt ?? campaign.startedAt} counts={resendCounts} />
+					</GatePlan>
+				)}
+				{(campaign.resentAs || campaign.resend?.of) && (
+					<Button variant="outline" asChild>
+						<Link href={`/campaigns/${campaign.resentAs ?? campaign.resend.of}`}>
+							<Repeat data-icon="inline-start" />
+							{campaign.resentAs ? "View resend" : "View first send"}
+						</Link>
+					</Button>
 				)}
 				{campaign.status === "sending" && (
 					<ButtonCampaignAction action={pauseCampaign} id={id}>

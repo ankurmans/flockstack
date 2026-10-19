@@ -16,7 +16,7 @@ const USER_ACTION_FILES = new Set(["app/(account)/account/actions.js"]);
 // The site extensions are how FlockStack Cloud's analytics hears of a step only the server sees (a newsletter created).
 const ALLOWED_IMPORTS = new Set(["next/cache", "next/navigation", "@/lib/actions/dashboard", "@/lib/selected-newsletter", "@/lib/site-extensions"]);
 const VIEW_ACTIONS = new Set(["selectNewsletter"]);
-const SEND_TOOLS = ["schedule_campaign", "send_campaign", "send_campaign_to_more", "resume_campaign"];
+const SEND_TOOLS = ["schedule_campaign", "send_campaign", "send_campaign_to_more", "resend_campaign", "resume_campaign"];
 const APP_URL = "https://flockstack.io";
 const SAMPLE_ID = "6650f1c2e9b1d4a012345678";
 

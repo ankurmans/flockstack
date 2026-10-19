@@ -68,8 +68,12 @@ export default function PanelSend({
 						<span className="flex min-w-0 items-center gap-2">
 							<AvatarNewsletter newsletter={newsletter} size={18} />
 							<span className="truncate">
-								{newsletter.name}
-								<span className="text-muted-foreground tabular-nums"> · {formatCount(audienceCount, "contact")}</span>
+								{campaign.resend?.of ? `Readers who didn't ${campaign.resend.to === "unclicked" ? "click" : "open"} the first send` : newsletter.name}
+								<span className="text-muted-foreground tabular-nums">
+									{" "}
+									· {campaign.resend?.of && "up to "}
+									{formatCount(audienceCount, "contact")}
+								</span>
 								{sending.audience === "paid" && <span className="text-muted-foreground"> · web page shows a teaser</span>}
 							</span>
 						</span>
@@ -115,7 +119,7 @@ export default function PanelSend({
 						<span className="shrink-0 text-xs text-muted-foreground">Most engaged first</span>
 					</span>
 				</RowCampaign>
-				{archiveUrlBase && (
+				{archiveUrlBase && !campaign.resend?.of && (
 					<RowCampaign label="Web page">
 						<InputCampaignSlug
 							campaignId={campaign._id}
@@ -137,7 +141,7 @@ export default function PanelSend({
 					))}
 			</CardSettings>
 
-			<CardAbTest campaign={campaign} subject={subject} audienceCount={audienceCount} stagger={1} />
+			{!campaign.resend?.of && <CardAbTest campaign={campaign} subject={subject} audienceCount={audienceCount} stagger={1} />}
 
 			<CardSettings title="When" stagger={2}>
 				<div role="radiogroup" aria-label="When" className="grid gap-2 p-3 sm:grid-cols-2">

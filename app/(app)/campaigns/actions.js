@@ -161,3 +161,17 @@ export async function setCampaignAbTest(id, abTest) {
 	revalidatePath(`/campaigns/${id}`);
 	return { ok: true };
 }
+
+// A copy for the readers who didn't open (or click) a sent campaign, scheduled; its page opens next.
+export async function resendCampaign(id, { subject, previewText, to, scheduledAt } = {}) {
+	const { output, failure } = await runDashboardAction("resend_campaign", {
+		id: String(id),
+		subject: String(subject ?? "").slice(0, MAX_SUBJECT_LENGTH),
+		...(previewText && { previewText: String(previewText).slice(0, MAX_PREVIEW_TEXT_LENGTH) }),
+		to: to === "unclicked" ? "unclicked" : "unopened",
+		...(scheduledAt && { scheduledAt: String(scheduledAt) }),
+	});
+	if (failure) return toFormError(failure);
+	refresh(id);
+	return { ok: true, id: output.id };
+}
