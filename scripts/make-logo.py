@@ -37,6 +37,18 @@ def svg(colors, bg=None, size=None, pad=0, rx=0):
 def tile(pad, rx):
     return svg(TILE, bg=TILE["background"], pad=pad, rx=rx)
 
+# The browser tab's icon: the ink square on a light tab bar, a light square with ink bars on a dark one. Browsers that
+# ignore media queries in SVG icons keep the ink square, as favicon.ico does.
+LIGHT_TILE = {"background": "#f2f2f2", "ink": "#0b0b0b", "lime": "#b6d600"}
+
+def adaptive_tile(pad):
+    scale = 1 - 2 * pad / 48
+    tones = "".join(f".{tone}{{fill:{TILE[tone]}}}" for tone in ("ink", "lime"))
+    dark = "".join(f".{tone}{{fill:{LIGHT_TILE[tone]}}}" for tone in ("ink", "lime"))
+    style = f".bg{{fill:{TILE['background']}}}{tones}@media (prefers-color-scheme:dark){{.bg{{fill:{LIGHT_TILE['background']}}}{dark}}}"
+    paths = "".join(f'<path class="{tone}" d="{d}"/>' for d, tone in SHAPES)
+    return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{VIEWBOX}"><style>{style}</style><rect class="bg" width="48" height="48"/><g transform="translate({pad} {pad}) scale({scale:.4f})">{paths}</g></svg>'
+
 if __name__ == "__main__":
     print('export const LOGO_VIEWBOX = "%s";' % VIEWBOX)
     print("export const LOGO_SHAPES = [")
@@ -52,15 +64,16 @@ if __name__ == "__main__":
             tmp = os.path.join(root, ".logo-tmp.svg"); write(".logo-tmp.svg", svg_text)
             subprocess.run(["rsvg-convert", "-w", str(size), "-h", str(size), tmp, "-o", os.path.join(root, rel)], check=True)
             os.remove(tmp)
-        # The browser tab's icon is the tile; the docs' logos are one file per theme. iOS rounds apple-icon.png's
+        # The browser tab's icon follows the browser's theme (adaptive_tile); favicon.ico and the app icons are the ink square.
+        # The docs' logos are one file per theme. iOS rounds apple-icon.png's
         # corners itself, so it fills the square.
-        write("app/icon.svg", tile(pad=8, rx=11))
+        write("app/icon.svg", adaptive_tile(pad=7))
         write("docs/logo.svg", svg(LIGHT, size=96)); write("docs/logo-dark.svg", svg(DARK, size=96))
         png(tile(pad=9, rx=0), "app/apple-icon.png", 180)
-        png(tile(pad=9, rx=11), "public/icon-192.png", 192)
-        png(tile(pad=9, rx=11), "public/icon-512.png", 512)
+        png(tile(pad=9, rx=0), "public/icon-192.png", 192)
+        png(tile(pad=9, rx=0), "public/icon-512.png", 512)
         from PIL import Image
-        png(tile(pad=6, rx=10), "public/favicon-256.png", 256)
+        png(tile(pad=6, rx=0), "public/favicon-256.png", 256)
         im = Image.open(os.path.join(root, "public/favicon-256.png")).convert("RGBA")
         im.save(os.path.join(root, "public/favicon.ico"), sizes=[(16, 16), (32, 32), (48, 48)])
         os.remove(os.path.join(root, "public/favicon-256.png"))

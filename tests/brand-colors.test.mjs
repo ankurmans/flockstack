@@ -71,9 +71,13 @@ describe("the logo", () => {
 
 	test("the browser icon and the web manifest use the app icon's ink tile", async () => {
 		const { LOGO_SHAPES, LOGO_TILE } = await import("../components/LogoFlockstack.jsx");
+		// The tab icon is the ink square by default and a light square on a dark browser theme.
 		const icon = await read("app/icon.svg");
-		assert.ok(icon.includes(`fill="${LOGO_TILE.background}"`));
-		for (const { d, tone } of LOGO_SHAPES) assert.ok(icon.includes(`<path d="${d}" fill="${LOGO_TILE[tone]}"/>`), `${tone} chevron`);
+		const [base, dark] = icon.split("@media (prefers-color-scheme:dark)");
+		assert.ok(base.includes(`.bg{fill:${LOGO_TILE.background}}`) && base.includes(`.ink{fill:${LOGO_TILE.ink}}`) && base.includes(`.lime{fill:${LOGO_TILE.lime}}`));
+		assert.ok(dark.includes(`.bg{fill:#f2f2f2}`) && dark.includes(`.ink{fill:#0b0b0b}`));
+		for (const { d, tone } of LOGO_SHAPES) assert.ok(icon.includes(`<path class="${tone}" d="${d}"/>`), `${tone} bar`);
+		assert.ok(!/<rect[^>]*rx=/.test(icon), "a square, not a rounded tile");
 
 		const manifest = await (await import("../app/site.webmanifest/route.js")).GET().json();
 		assert.equal(manifest.theme_color, LOGO_TILE.background);
