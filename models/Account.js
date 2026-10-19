@@ -4,6 +4,15 @@ import { INTERVALS, PLAN_IDS } from "../lib/plans.js";
 export const ACCOUNT_STATUSES = ["active", "paused"];
 export const BLOCK_SOURCES = ["admin", "rates", "campaign", "slice", "trap", "ses", "postshiba", "gmail"];
 
+const watchIssue = {
+	rate: { type: Number },
+	limit: { type: Number },
+	count: { type: Number },
+	sent: { type: Number },
+	detail: { type: String, trim: true },
+	seenAt: { type: Date },
+};
+
 const accountSchema = new mongoose.Schema(
 	{
 		// The Better Auth user who signed up. One user per account at launch.
@@ -78,6 +87,15 @@ const accountSchema = new mongoose.Schema(
 				credentialId: { type: String },
 				clusterId: { type: String },
 			},
+		},
+		// Early warnings before an automatic block (lib/account-watch.js), by issue: what was measured and when it was last
+		// seen. The dashboard shows the ones seen within WATCH.periodDays (lib/config.js); a check back under the level
+		// clears its issue.
+		watch: {
+			bounces: watchIssue,
+			complaints: watchIssue,
+			gmail: watchIssue,
+			provider: watchIssue,
 		},
 		// The last account-level check on recent sends.
 		health: {

@@ -240,4 +240,55 @@ describe("contact imports", () => {
 		const emails = (await m.Contact.find({ accountId: user.accountId, newsletterId: newsletter }).lean()).map(({ email }) => email).sort();
 		assert.deepEqual(emails, ["info@acme.com", "jane.doe@gmail.com", "kim@yahoo.com"]);
 	});
+
+	// The writes go a chunk at a time (lib/docdb/model.js); lowered limits put a few rows across every boundary.
+	test("a file across many chunks gives what row by row would, in its own account only", async () => {
+		const { BULK_LIMITS } = await import("../lib/docdb/model.js");
+		const saved = { ...BULK_LIMITS };
+		Object.assign(BULK_LIMITS, { rowsPerStatement: 2, paramBytes: 600, scanPage: 3, bulkChunk: 4, deleteChunk: 3 });
+		try {
+			const url = await as(user, () => catchRedirect(m.newsletters.saveNewsletter(null, form({ name: "Chunks", slug: "chunked-import", postalAddress: "1 Main St" }))));
+			const newsletterId = url.split("/").at(-1);
+			const other = await signIn("chunk-neighbour@example.com");
+			await activate(other);
+			const otherUrl = await as(other, () => catchRedirect(m.newsletters.saveNewsletter(null, form({ name: "Neighbour", slug: "chunk-neighbour", postalAddress: "1 Main St" }))));
+			const otherNewsletterId = otherUrl.split("/").at(-1);
+			const emails = Array.from({ length: 17 }, (_, index) => `chunk${index}@example.org`);
+			await m.Contact.create(emails.map((email) => ({ accountId: other.accountId, newsletterId: otherNewsletterId, email, status: "active", tags: ["theirs"] })));
+			await m.Contact.create([
+				{ accountId: user.accountId, newsletterId, email: emails[1], status: "unsubscribed", source: "earlier" },
+				{ accountId: user.accountId, newsletterId, email: emails[6], status: "active", source: "earlier" },
+				{ accountId: user.accountId, newsletterId, email: emails[11], status: "dormant", source: "earlier" },
+			]);
+
+			const statusOf = (index) => (index === 6 ? "unsubscribed" : index === 13 ? "bounced" : "active");
+			const rows = [...emails.map((email, index) => ({ email, status: statusOf(index), tags: [`row-${index % 3}`] })), { email: emails[4], status: "active" }];
+			const result = await as(user, () => m.contacts.importContacts({ newsletterId, consent: true, tags: ["march"], rows }));
+			assert.equal(result.created, 14);
+			assert.equal(result.existing, 3);
+			assert.equal(result.dropped.duplicate, 1);
+
+			const stored = new Map((await m.Contact.find({ accountId: user.accountId, newsletterId }).lean()).map((contact) => [contact.email, contact]));
+			assert.equal(stored.size, 17);
+			assert.equal(stored.get(emails[1]).status, "unsubscribed", "an import never brings anyone back");
+			assert.equal(stored.get(emails[1]).source, "earlier");
+			assert.equal(stored.get(emails[6]).status, "unsubscribed", "a stricter status wins");
+			assert.ok(stored.get(emails[6]).unsubscribedAt instanceof Date);
+			assert.equal(stored.get(emails[11]).status, "dormant");
+			assert.equal(stored.get(emails[13]).status, "bounced");
+			assert.ok(await m.Suppression.exists({ accountId: user.accountId, email: emails[13] }));
+			for (const [index, email] of emails.entries()) {
+				const contact = stored.get(email);
+				assert.deepEqual(contact.tags, ["march", `row-${index % 3}`], email);
+				if (![1, 6, 11].includes(index)) assert.equal(contact.importId.toString(), result.importId, email);
+			}
+
+			const theirs = await m.Contact.find({ accountId: other.accountId }).lean();
+			assert.equal(theirs.length, 17);
+			assert.ok(theirs.every(({ status, tags, importId }) => status === "active" && tags.join() === "theirs" && !importId));
+			assert.equal(await m.Suppression.exists({ accountId: other.accountId, email: emails[13] }), null);
+		} finally {
+			Object.assign(BULK_LIMITS, saved);
+		}
+	});
 });

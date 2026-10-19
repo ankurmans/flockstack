@@ -433,12 +433,20 @@ describe("the daily check", () => {
 		assert.equal((await campaignOf(user, 1)).status, "sending", "its owner resumed it from a rates pause already");
 		assert.equal((await accountOf(user)).status, "active", "not blocked");
 
-		assert.deepEqual(to(user, platformEmails.slice(before.emails)).map(({ subject }) => subject), ["[FlockStack] Campaign paused"]);
+		assert.deepEqual(to(user, platformEmails.slice(before.emails)).map(({ subject }) => subject), [
+			"[FlockStack] Campaign paused",
+			"[FlockStack] Gmail's spam rate is getting close to a block",
+		]);
 		const [warning] = to(idle, platformEmails.slice(before.emails));
-		assert.equal(warning.subject, "[FlockStack] Gmail reports spam complaints");
-		assert.match(warning.text, /Gmail reported a spam rate of 0\.10% for your emails \(Google Postmaster Tools\)\. Nothing is paused, but at 0\.30% the account is blocked/);
-		assert.equal(telegramMessages.length, before.telegram, "pauses and warnings go to the owners only");
-		assert.equal(to(admin, platformEmails.slice(before.emails)).length, 0);
+		assert.equal(warning.subject, "[FlockStack] Gmail's spam rate is getting close to a block");
+		assert.match(warning.text, /Gmail reported a spam rate of 0\.10% for your emails \(Google Postmaster Tools\)\. At 0\.30%, FlockStack blocks the account/);
+		assert.equal((await accountOf(idle)).watch.gmail.rate, 0.001);
+		assert.equal(telegramMessages.length, before.telegram, "pauses and warnings never reach Telegram");
+		assert.deepEqual(
+			to(admin, platformEmails.slice(before.emails)).map(({ subject }) => subject),
+			["[FlockStack] Account close to a block", "[FlockStack] Account close to a block"],
+			"the admins get a record of each warning, by email"
+		);
 	});
 
 	test("an account at 0.3% is blocked through the block path, with Gmail's reason, and never blocked twice", async () => {
@@ -564,5 +572,20 @@ describe("the daily check", () => {
 		await withEnv({ CREDENTIALS_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64") }, async () => {
 			assert.match((await check()).refused, /The stored refresh token doesn't decrypt/);
 		});
+	});
+
+	test("the warning stays while Gmail has no newer data on the account, and a day under its level clears it", async () => {
+		const flagged = await customer("gmail-watch-flagged@example.com", []);
+		const quiet = await customer("gmail-watch-quiet@example.com", []);
+		google.setDay(DOMAIN, toDay(Date.now() + 20 * DAY_MS), { identifiers: { [`mc-${flagged.accountId}`]: 0.001, [`mc-${quiet.accountId}`]: 0.001 } });
+		await check(new Date(Date.now() + 21 * DAY_MS));
+		assert.equal((await accountOf(flagged)).watch.gmail.rate, 0.001);
+
+		google.setDay(DOMAIN, toDay(Date.now() + 21 * DAY_MS), { identifiers: { [`mc-${flagged.accountId}`]: 0.0002 } });
+		const emailsBefore = platformEmails.length;
+		await check(new Date(Date.now() + 22 * DAY_MS));
+		assert.equal((await accountOf(flagged)).watch?.gmail, undefined, "a day under the level clears it");
+		assert.equal((await accountOf(quiet)).watch.gmail.rate, 0.001, "a day without data leaves it");
+		assert.equal(platformEmails.length, emailsBefore, "clearing sends nothing");
 	});
 });
