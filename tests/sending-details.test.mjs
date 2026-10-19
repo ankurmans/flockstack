@@ -144,3 +144,45 @@ describe("several segments, in and out", () => {
 		assert.deepEqual([cleared.segmentIds, cleared.excludeSegmentIds], [[vip.id], []]);
 	});
 });
+
+describe("confirmed opt-in", () => {
+	test("reminds signups still unconfirmed after the delay once, and sends readers to the page set for after confirming", async () => {
+		const user = await setupSender(m, "opt-in@example.com", { contacts: 0 });
+		await assert.rejects(act(m, user, "update_newsletter", { id: user.newsletterId, confirmedRedirectUrl: "http://example.com/" }), { code: "validation_failed" });
+		await assert.rejects(act(m, user, "update_newsletter", { id: user.newsletterId, confirmationReminder: { enabled: true, delayHours: 2 } }), { code: "validation_failed" });
+		const saved = await act(m, user, "update_newsletter", {
+			id: user.newsletterId,
+			requireConfirmation: true,
+			confirmationReminder: { enabled: true, delayHours: 24 },
+			confirmedRedirectUrl: "https://example.com/thanks",
+		});
+		assert.deepEqual(saved.confirmationReminder, { enabled: true, delayHours: 24 });
+		assert.equal(saved.confirmedRedirectUrl, "https://example.com/thanks");
+
+		const hoursAgo = (hours) => new Date(Date.now() - hours * 3_600_000);
+		const pending = (email, subscribedAt, extra = {}) => ({ accountId: user.accountId, newsletterId: user.newsletterId, email, status: "pending", subscribedAt, ...extra });
+		await m.Contact.insertMany([
+			pending("due@example.org", hoursAgo(30)),
+			pending("early@example.org", hoursAgo(10)),
+			pending("long-gone@example.org", hoursAgo(200)),
+			pending("reminded@example.org", hoursAgo(30), { confirmReminderAt: hoursAgo(5) }),
+			{ ...pending("confirmed@example.org", hoursAgo(30)), status: "active" },
+		]);
+		const { sendConfirmationReminders } = await import("../lib/confirmation-reminders.js");
+		const first = await sendConfirmationReminders();
+		assert.equal(first.queued, 1);
+		await runJobs(sendRoutes(m));
+		const [reminder] = sentTo("due@example.org");
+		assert.match(reminder.subject, /^Reminder: /);
+		assert.match(reminder.html, /\/confirm\?token=/);
+		assert.equal((await sendConfirmationReminders()).queued, 0, "once");
+		for (const email of ["early@example.org", "long-gone@example.org", "reminded@example.org", "confirmed@example.org"]) assert.equal(sentTo(email).length, 0, email);
+
+		const { createConfirmToken } = await import("../lib/confirmation.js");
+		const { confirmSubscription } = await import("../app/confirm/actions.js");
+		const { anonymous } = await import("./helpers/app.mjs");
+		const contact = await m.Contact.findOne({ accountId: user.accountId, email: "due@example.org" }).lean();
+		const token = createConfirmToken({ contactId: contact._id, newsletterId: user.newsletterId });
+		assert.deepEqual(await anonymous(() => confirmSubscription(token)), { ok: true, redirectUrl: "https://example.com/thanks" });
+	});
+});

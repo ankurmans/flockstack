@@ -27,6 +27,8 @@ const messageSchema = new mongoose.Schema(
 		stepId: { type: String },
 		newsletterId: { type: mongoose.Schema.Types.ObjectId, ref: "Newsletter", required: true },
 		contactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact" },
+		// A confirmation email that is the one reminder to confirm (lib/confirmation-reminders.js).
+		reminder: { type: Boolean },
 		// A referral email: the reward it announces (Newsletter.referral.rewards[].id).
 		referralRewardId: { type: String },
 		email: { type: String, required: true, lowercase: true, trim: true },

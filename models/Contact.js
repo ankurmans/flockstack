@@ -33,6 +33,8 @@ const contactSchema = new mongoose.Schema(
 		subscriptionStatus: { type: String },
 		subscribedAt: { type: Date, default: Date.now },
 		confirmedAt: { type: Date },
+		// The one reminder to confirm went out (lib/confirmation-reminders.js).
+		confirmReminderAt: { type: Date },
 		unsubscribedAt: { type: Date },
 		lastSentAt: { type: Date },
 		lastOpenAt: { type: Date },

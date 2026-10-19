@@ -50,6 +50,11 @@ function readSettings(formData) {
 				previewText: readText(formData, "confirmationPreviewText"),
 				markdown: String(formData.get("confirmationMarkdown") ?? ""),
 			},
+			confirmationReminder: {
+				enabled: formData.get("confirmationReminderEnabled") === "on",
+				delayHours: readNumber(formData, "confirmationReminderHours"),
+			},
+			confirmedRedirectUrl: readText(formData, "confirmedRedirectUrl"),
 		}),
 	};
 }
