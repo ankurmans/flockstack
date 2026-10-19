@@ -258,6 +258,15 @@ describe("deleteMany", () => {
 		assert.equal((await Thing.deleteMany({ accountId: accountA, note: { $regex: "gone", $options: "i" } })).deletedCount, 7);
 		assert.deepEqual(await keys({ accountId: accountA }), ["f7", "f8"]);
 	});
+
+	test("with a limit, deletes that many at most, in SQL or not", async () => {
+		await Thing.insertMany(Array.from({ length: 10 }, (_, index) => ({ accountId: accountA, key: `g${index}`, note: "Gone" })));
+		assert.equal((await Thing.deleteMany({ accountId: accountA }).setOptions({ limit: 6 })).deletedCount, 6);
+		assert.equal(statements.filter((sql) => sql.startsWith("DELETE")).length, 2, "4, then the 2 left of the limit");
+		assert.equal((await Thing.deleteMany({ accountId: accountA, note: { $regex: "gone", $options: "i" } }).setOptions({ limit: 3 })).deletedCount, 3);
+		assert.equal(await Thing.countDocuments({ accountId: accountA }), 1);
+		assert.equal((await Thing.deleteMany({ accountId: accountA }).setOptions({ limit: 5 })).deletedCount, 1);
+	});
 });
 
 describe("query plans", () => {

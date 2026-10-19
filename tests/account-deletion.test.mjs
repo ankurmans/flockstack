@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import mongoose from "@/lib/docdb";
+import { BULK_LIMITS } from "@/lib/docdb/model";
 import { activate, addSentIssue, addVerifiedDomain, as, callApi, catchRedirect, form, jsonRequest, platformEmails, signIn, startTestApp, withEnv } from "./helpers/app.mjs";
 import { POSTSHIBA_ENV, createFakePostshiba } from "./helpers/postshiba.mjs";
 import { invalidations, refusedDistributions } from "./stubs/cloudfront.mjs";
@@ -462,6 +463,35 @@ describe("the purge", () => {
 		refusedDeletes.clear();
 		assert.deepEqual(await runPurgeJob(retry.body), { purged: true });
 		assert.equal((await countData(user)).Upload, 0);
+	});
+
+	test("a purge that runs out of time hands the rest to the next job, at once, until it's done", async () => {
+		const user = await customer("big@example.com", "big-news");
+		await m.Event.insertMany(Array.from({ length: 6 }, (_, index) => ({ accountId: user.accountId, type: "open", email: `reader${index}@big-news.org` })));
+		await cancelPlan(user);
+		await deleteAccount(user);
+
+		const limits = { ...BULK_LIMITS };
+		Object.assign(BULK_LIMITS, { deleteChunk: 2 });
+		process.env.PURGE_STEP_MS = "0";
+		const alerts = platformEmails.length;
+		const results = [];
+		try {
+			results.push(await purgeNow(user));
+			while (results.at(-1).continued) {
+				const next = findPurgeJob(user);
+				assert.ok(next.notBefore * 1000 <= Date.now(), "the next job runs now, not tomorrow");
+				results.push(await runPurgeJob(next.body));
+			}
+		} finally {
+			Object.assign(BULK_LIMITS, limits);
+			delete process.env.PURGE_STEP_MS;
+		}
+		assert.ok(results.length > 3, `${results.length} jobs`);
+		assert.deepEqual(results.at(-1), { purged: true });
+		assert.ok(results.slice(0, -1).every((result) => result.continued));
+		assert.ok(Object.values(await countData(user)).every((count) => count === 0), "nothing of it stays");
+		assert.equal(platformEmails.slice(alerts).filter(({ subject }) => subject === "[FlockStack] Account purge postponed").length, 0);
 	});
 
 	test("an invalidation CloudFront refuses is tried again the next day, until the CDN's cache is cleared", async () => {
