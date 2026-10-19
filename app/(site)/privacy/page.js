@@ -143,6 +143,12 @@ export default function PrivacyPage() {
 					<li>
 						<Strong>Web pages:</Strong> a newsletter&apos;s website counts a view per issue, browser and day, with no personal data.
 					</li>
+					<li>
+						<Strong>Embeds and files:</Strong> a creator can embed a video or post from YouTube, X, Instagram, TikTok, Bluesky, Spotify or
+						Apple Podcasts in an issue. On the website it loads from that service, in the reader&apos;s browser, under the service&apos;s own
+						privacy policy (YouTube through its privacy-enhanced address). Emails show a picture or a link instead, and the YouTube picture loads
+						from YouTube. Files a creator attaches are stored with their images.
+					</li>
 				</ul>
 				<p>
 					<Strong>Never-email list.</Strong> Across all accounts we keep one list of addresses that are known not to exist (hard bounces,

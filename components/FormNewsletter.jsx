@@ -68,7 +68,7 @@ export default function FormNewsletter({
 	const [discardCount, setDiscardCount] = useState(0);
 	const [isSaving, startSaving] = useTransition();
 	const [isTesting, startTesting] = useTransition();
-	const { name, description, slug, fromName, fromLocal, fromDomain, imageUrl, postalAddress, isConfirmationRequired, confirmationEdits, isWelcomeEnabled, welcome, isArchiveEnabled, isCleanupEnabled, cleanup } = draft;
+	const { name, description, accentColor, slug, fromName, fromLocal, fromDomain, imageUrl, postalAddress, isConfirmationRequired, confirmationEdits, isWelcomeEnabled, welcome, isArchiveEnabled, isCleanupEnabled, cleanup } = draft;
 	const savedCleanup = getCleanupSettings(newsletter);
 	const deferredWelcome = useDeferredValue(welcome);
 	const deferredPostalAddress = useDeferredValue(postalAddress);
@@ -250,6 +250,18 @@ export default function FormNewsletter({
 						label="newsletter image"
 						onChange={(value) => set("imageUrl", value)}
 					/>
+				</Field>
+				<Field label="Accent color" hint="Buttons, poll answers and file links in your issues" as="div">
+					<span className="flex items-center gap-2">
+						<input
+							type="color"
+							value={/^#[0-9a-f]{6}$/i.test(accentColor) ? accentColor : "#18181b"}
+							onChange={(event) => set("accentColor", event.target.value)}
+							aria-label="Pick the accent color"
+							className="size-9 shrink-0 cursor-pointer rounded-lg border border-input bg-transparent p-1"
+						/>
+						<Input name="accentColor" value={accentColor} onChange={update("accentColor")} placeholder="#18181b" maxLength={7} className="w-32 font-mono" aria-label="Accent color" />
+					</span>
 				</Field>
 			</Section>
 

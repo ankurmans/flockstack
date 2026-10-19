@@ -1,23 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import FileHandler from "@tiptap/extension-file-handler";
 import Image from "@tiptap/extension-image";
 import { Placeholder } from "@tiptap/extensions";
 import StarterKit from "@tiptap/starter-kit";
+import DialogEditorBlock from "@/components/DialogEditorBlock";
 import DialogImagePicker from "@/components/DialogImagePicker";
 import MenuFormat from "@/components/MenuFormat";
 import { SlashCommand } from "@/components/MenuSlash";
+import { ATTACHMENT_EXTENSIONS } from "@/lib/attachment-files";
 import { Callout } from "@/lib/editor-callout";
+import { createBlockExtensions } from "@/lib/editor-nodes";
 import { toast } from "@/lib/toast";
-import { IMAGE_TYPES, getDisplaySize, prepareImage, uploadImage } from "@/lib/upload-image";
+import { IMAGE_TYPES, getDisplaySize, prepareImage, uploadAttachment, uploadImage } from "@/lib/upload-image";
 
 const MIN_HEIGHT = "min-h-[560px]";
 
-export default function EditorRich({ content, onChange, fields = [] }) {
+// newsletterId and campaignId: where a poll made in this editor belongs. Without a newsletter, there's no poll block.
+export default function EditorRich({ content, onChange, fields = [], newsletterId = null, campaignId = null }) {
 	const [isEditingLink, setIsEditingLink] = useState(false);
 	const [isPickingImage, setIsPickingImage] = useState(false);
+	// The block whose dialog is open: { kind, attrs, pos }, pos null for a new one.
+	const [block, setBlock] = useState(null);
+	const fileInputId = useId();
 	const editor = useEditor({
 		immediatelyRender: false,
 		content,
@@ -38,6 +45,7 @@ export default function EditorRich({ content, onChange, fields = [] }) {
 				},
 			}),
 			Callout,
+			...createBlockExtensions({ onEdit: (kind, attrs, pos) => setBlock({ kind, attrs, pos }) }),
 			Placeholder.configure({
 				placeholder: ({ node }) => (node.type.name === "heading" ? "Heading" : "Write, or press / for commands"),
 			}),
@@ -47,7 +55,13 @@ export default function EditorRich({ content, onChange, fields = [] }) {
 				onDrop: (current, files, position) => insertImages(current, files, position),
 				onPaste: (current, files) => insertImages(current, files),
 			}),
-			SlashCommand.configure({ onPickImage: () => setIsPickingImage(true), fields }),
+			SlashCommand.configure({
+				onPickImage: () => setIsPickingImage(true),
+				onBlock: (kind) => setBlock({ kind, attrs: {}, pos: null }),
+				onPickFile: () => document.getElementById(fileInputId)?.click(),
+				fields,
+				canPoll: Boolean(newsletterId),
+			}),
 		],
 		editorProps: {
 			attributes: { class: `prose-issue ${MIN_HEIGHT} px-5 py-5 outline-none`, "aria-label": "Content" },
@@ -72,8 +86,56 @@ export default function EditorRich({ content, onChange, fields = [] }) {
 				onOpenChange={setIsPickingImage}
 				onSelect={(image) => insertImage(editor, image)}
 			/>
+			<DialogEditorBlock
+				block={block}
+				newsletterId={newsletterId}
+				campaignId={campaignId}
+				fields={fields}
+				onOpenChange={(isOpen) => !isOpen && setBlock(null)}
+				onSave={(attrs) => {
+					saveBlock(editor, block, attrs);
+					setBlock(null);
+				}}
+			/>
+			<input
+				id={fileInputId}
+				type="file"
+				hidden
+				accept={ATTACHMENT_EXTENSIONS.map((extension) => `.${extension}`).join(",")}
+				onChange={(event) => {
+					const [file] = event.target.files;
+					event.target.value = "";
+					if (file) insertAttachment(editor, file);
+				}}
+			/>
 		</>
 	);
+}
+
+// A new block goes where the slash command was typed; an edited one keeps its place.
+function saveBlock(editor, block, attrs) {
+	if (editor.isDestroyed || !block) return;
+	if (block.pos === null) {
+		editor.chain().focus().insertContent({ type: block.kind, attrs }).run();
+		return;
+	}
+	const node = editor.state.doc.nodeAt(block.pos);
+	if (node?.type.name !== block.kind) return;
+	editor.view.dispatch(editor.state.tr.setNodeMarkup(block.pos, undefined, { ...node.attrs, ...attrs }));
+	editor.commands.focus();
+}
+
+// The block shows once the file is stored, with the name it was uploaded under.
+async function insertAttachment(editor, file) {
+	const toastId = toast.loading(`Uploading ${file.name}`);
+	try {
+		const { url, name, bytes } = await uploadAttachment(file);
+		if (editor.isDestroyed) return;
+		editor.chain().focus().insertContent({ type: "fileAttachment", attrs: { href: url, name, size: String(bytes) } }).run();
+		toast.dismiss(toastId);
+	} catch (error) {
+		toast.error(error.message, { id: toastId });
+	}
 }
 
 // Where the slash command was typed: the editor keeps its selection while the picker has focus.

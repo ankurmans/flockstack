@@ -28,6 +28,7 @@ function readSettings(formData) {
 		postalAddress: readText(formData, "postalAddress"),
 		archiveEnabled: formData.get("archiveEnabled") === "on",
 		description: readText(formData, "description"),
+		accentColor: readText(formData, "accentColor"),
 		author: { bio: readText(formData, "authorBio"), imageUrl: readText(formData, "authorImageUrl") },
 		socialLinks: readText(formData, "socialLinks").split(/[\s,]+/).filter(Boolean),
 		requireConfirmation: formData.get("requireConfirmation") === "on",

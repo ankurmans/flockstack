@@ -32,6 +32,8 @@ const newsletterSchema = new mongoose.Schema(
 			verifiedAt: { type: Date },
 		},
 		description: { type: String, trim: true },
+		// Buttons and links in the editor's blocks (lib/editor-blocks.js), as #rrggbb. Without one, ink.
+		accentColor: { type: String, trim: true, lowercase: true },
 		socialLinks: [{ type: String, trim: true }],
 		// The archive's author page; the author's name is fromName.
 		author: {

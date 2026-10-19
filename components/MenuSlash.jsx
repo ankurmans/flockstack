@@ -6,17 +6,27 @@ import { ReactRenderer } from "@tiptap/react";
 import Suggestion from "@tiptap/suggestion";
 import {
 	Braces,
+	Clapperboard,
+	Columns2,
 	Heading1,
 	Heading2,
 	Heading3,
 	ImagePlus,
 	List,
 	ListOrdered,
+	Lock,
 	Minus,
+	MousePointerClick,
+	Paperclip,
 	Pilcrow,
 	RectangleHorizontal,
+	Rows3,
 	Share2,
+	Superscript,
+	Table,
 	TextQuote,
+	Trash2,
+	Vote,
 } from "lucide-react";
 import { RECOMMENDATIONS_TAG } from "@/lib/recommendation-tags";
 import { REFERRAL_COUNT_TAG, REFERRAL_LINK_TAG } from "@/lib/referral-tags";
@@ -82,21 +92,24 @@ export default function MenuSlash({ items, command, ref }) {
 	);
 }
 
-// Typing "/" at the start of a line or after a space opens the menu; the text after it filters.
+// Typing "/" at the start of a line or after a space opens the menu; the text after it filters. onBlock(kind) opens a
+// block's dialog, onPickFile the file picker. canPoll: the editor knows its newsletter, which a poll belongs to.
 export const SlashCommand = Extension.create({
 	name: "slashCommand",
 	addOptions() {
-		return { onPickImage: () => {}, fields: [] };
+		return { onPickImage: () => {}, onBlock: () => {}, onPickFile: () => {}, fields: [], canPoll: false };
 	},
 	addProseMirrorPlugins() {
 		return [
 			Suggestion({
 				editor: this.editor,
 				char: "/",
-				items: ({ query }) => filterItems(query, this.options.fields),
+				items: ({ query }) => filterItems(query, this.options),
 				command: ({ editor, range, props: item }) => {
 					item.run(editor.chain().focus().deleteRange(range)).run();
 					if (item.isImage) this.options.onPickImage(editor);
+					if (item.isFile) this.options.onPickFile(editor);
+					if (item.dialog) this.options.onBlock(item.dialog);
 				},
 				render: renderMenu,
 			}),
@@ -126,6 +139,8 @@ function renderMenu() {
 	};
 }
 
+const POLL_ITEM = { title: "Poll", keywords: "vote survey question answer", icon: Vote, run: (chain) => chain, dialog: "poll" };
+
 // Merge tags (lib/merge-tags.js) for the email address and each custom field of the newsletter, with the words
 // to print when a contact has no value.
 function getMergeItems(fields) {
@@ -141,9 +156,9 @@ function getMergeItems(fields) {
 	}));
 }
 
-function filterItems(query, fields = []) {
+function filterItems(query, { fields = [], canPoll = false } = {}) {
 	const search = query.toLowerCase().trim();
-	return [...SLASH_ITEMS, ...getMergeItems(fields)].filter(({ title, keywords }) => `${title} ${keywords}`.toLowerCase().includes(search));
+	return [...SLASH_ITEMS, ...(canPoll ? [POLL_ITEM] : []), ...getMergeItems(fields)].filter(({ title, keywords }) => `${title} ${keywords}`.toLowerCase().includes(search));
 }
 
 function scrollIntoView(element) {
@@ -183,6 +198,41 @@ const SLASH_ITEMS = [
 					},
 				],
 			}),
+	},
+	{ title: "Button", keywords: "call to action cta link", icon: MousePointerClick, run: (chain) => chain, dialog: "ctaButton" },
+	{
+		title: "Embed",
+		keywords: "youtube video x twitter tweet instagram tiktok bluesky spotify apple podcast audio",
+		icon: Clapperboard,
+		run: (chain) => chain,
+		dialog: "embed",
+	},
+	{ title: "File", keywords: "attachment download pdf upload", icon: Paperclip, run: (chain) => chain, isFile: true },
+	{
+		title: "Two columns",
+		keywords: "columns side layout grid",
+		icon: Columns2,
+		run: (chain) =>
+			chain.insertContent({
+				type: "columns",
+				content: [
+					{ type: "column", content: [{ type: "paragraph" }] },
+					{ type: "column", content: [{ type: "paragraph" }] },
+				],
+			}),
+	},
+	{ title: "Table", keywords: "grid rows cells", icon: Table, run: (chain) => chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }) },
+	{ title: "Table: add a row", keywords: "table row insert", icon: Rows3, run: (chain) => chain.addRowAfter() },
+	{ title: "Table: add a column", keywords: "table column insert", icon: Columns2, run: (chain) => chain.addColumnAfter() },
+	{ title: "Table: delete the row", keywords: "table row remove", icon: Trash2, run: (chain) => chain.deleteRow() },
+	{ title: "Table: delete the column", keywords: "table column remove", icon: Trash2, run: (chain) => chain.deleteColumn() },
+	{ title: "Table: delete the table", keywords: "table remove", icon: Trash2, run: (chain) => chain.deleteTable() },
+	{ title: "Footnote", keywords: "note reference citation", icon: Superscript, run: (chain) => chain, dialog: "footnote" },
+	{
+		title: "Paywall break",
+		keywords: "paid subscribers premium upgrade lock",
+		icon: Lock,
+		run: (chain) => chain.insertContent({ type: "paywallBreak" }),
 	},
 	{
 		title: "Recommended newsletters",

@@ -34,7 +34,7 @@ import { FIRST_SEND, LIMITS, isSendingEnabled } from "@/lib/config";
 import { formatCount, formatDate, formatNumber, formatRate } from "@/lib/format";
 import { rateTone } from "@/lib/health";
 import { PROVIDER_DOMAINS, PROVIDER_LABELS } from "@/lib/providers";
-import { UNSUBSCRIBE_PLACEHOLDER, renderEmail, withResponsiveImages } from "@/lib/render-email";
+import { renderEmail, withPreviewLinks, withResponsiveImages } from "@/lib/render-email";
 import { getAudienceLabel } from "@/lib/tiers";
 
 export default function CampaignReport({
@@ -272,7 +272,7 @@ export default function CampaignReport({
 						sender={newsletter}
 						subject={campaign.subject}
 						previewText={campaign.previewText}
-						html={withResponsiveImages(html.replaceAll(UNSUBSCRIBE_PLACEHOLDER, "#"))}
+						html={withResponsiveImages(withPreviewLinks(html))}
 						// Rendered next to PreviewEmail's own children, so dev React asks for a key.
 						toolbar={
 							<span key="toolbar" className="truncate text-xs text-muted-foreground">
