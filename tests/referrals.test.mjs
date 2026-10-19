@@ -3,6 +3,7 @@ import { after, before, describe, test } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createConfirmToken } from "../lib/confirmation.js";
+import { getRewardEmail } from "../lib/referral-content.js";
 import { createReferralCode, createReferralPageToken, getReferralLink, hashIp, readReferralCode, verifyReferralPageToken } from "../lib/referral-links.js";
 import { normalizeRewards } from "../lib/referral-rules.js";
 import { REFERRAL_COUNT_TAG, REFERRAL_LINK_TAG, fillReferralTags, isReferralLinkTag } from "../lib/referral-tags.js";
@@ -530,6 +531,20 @@ describe("a subscriber's page", () => {
 		const unlocked = await render(token);
 		assert.match(unlocked, /href="https:\/\/example\.com\/field-guide\.pdf"/);
 		assert.match(unlocked, /You&#x27;ve unlocked every reward\./);
+	});
+
+	test("says what's left to the next reward in the plural, on the page and in the reward email", async () => {
+		const rewards = [
+			{ referrals: 1, title: "A thank you", text: "Thanks." },
+			{ referrals: 5, title: "The field guide", url: "https://example.com/field-guide.pdf" },
+		];
+		const user = await program("page-plural@example.com", { rewards });
+		const ann = await subscriber(user, "plural@example.org", { referral: { count: 1 } });
+		const html = await render(createReferralPageToken({ contactId: ann._id, newsletterId: user.newsletterId }));
+		assert.match(html, /4 more referrals unlock The field guide\./);
+		assert.match(html, /role="progressbar" aria-label="Progress to the next reward"/);
+		const email = getRewardEmail({ newsletter: user.newsletter, reward: user.newsletter.referral.rewards[0], count: 1, pageUrl: "https://example.com/r" });
+		assert.match(email.markdown, /4 more referrals unlock The field guide\./);
 	});
 
 	test("answers a forged link, an unsubscribed subscriber and a newsletter without the program", async () => {
