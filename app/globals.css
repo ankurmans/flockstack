@@ -233,13 +233,14 @@ html:has([data-plan-bar]) {
 }
 
 /* The campaign editor's steps (FormCampaign): a shorter step keeps the page as wide, and what gets focus scrolls clear
-   of its sticky bars. Below lg the step's button floats at the bottom of the screen, and the page keeps that space. */
+   of its sticky bars. Below xl the step's button floats at the bottom of the screen, and the page keeps that space: the
+   one-line header with the title, the steps and the button only fits beside the sidebar from 80rem. */
 html:has([data-campaign-steps]) {
   scrollbar-gutter: stable;
   scroll-padding: calc(var(--plan-bar-height) + 5rem) 0 1rem;
 }
 
-@media (width < 64rem) {
+@media (width < 80rem) {
   html:has([data-campaign-steps]) {
     --step-bar-space: calc(3.5rem + var(--dock-bottom));
     scroll-padding: calc(var(--plan-bar-height) + 7.5rem) 0 var(--step-bar-space);
