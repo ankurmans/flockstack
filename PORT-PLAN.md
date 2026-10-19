@@ -141,7 +141,7 @@ Built or building: segments, tags and automations (`feat/segments-automations`),
 
 Next, in order:
 1. Recommendations between newsletters (built, `feat/recommendations`) and a community layer: comments are built (`feat/community`); reader profiles are next.
-2. Enforcement that explains itself: a published acceptable use policy, a warning and a way to answer before an account is blocked, the reason always shown (beehiiv's "AUP violation" blocks and unexplained ad-network cuts drew the angriest posts).
+2. Enforcement that explains itself: a published acceptable use policy, a warning and a way to answer before an account is blocked, the reason always shown (beehiiv's "AUP violation" blocks and unexplained ad-network cuts drew the angriest posts). The warning is built: past the watch level (`WATCH` in lib/config.js: half the block level, never above the pause level) on the 7-day bounces or complaints, Gmail's spam rate or an SES finding short of high impact, the owner is emailed once per issue per 7 days with the numbers and what to do, the dashboard shows `BannerWatch`, and the admins get a record (lib/account-watch.js, /docs/warnings). Spam traps still block at once, by design.
 3. A price promise: a published price ladder, 90 days' notice before any increase, existing customers keep their price.
 4. Release notes and no forced redesigns: new editor changes arrive behind a switch.
 5. Human support on every plan, with a stated reply time.

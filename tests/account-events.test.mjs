@@ -164,10 +164,13 @@ describe("per-account events", () => {
 		assert.equal(warned.health.sent, 600);
 		assert.ok(Math.abs(warned.health.bounceRate - 13 / 600) < 1e-9);
 		const emails = platformEmails.slice(emailsBefore);
-		const warning = emails.find(({ subject }) => subject === "[FlockStack] Bounces or complaints are high");
+		const warning = emails.find(({ subject }) => subject === "[FlockStack] Bounces are getting close to a block");
 		assert.deepEqual(warning.to, ["bouncy@example.com"]);
-		assert.match(warning.text, /Bounce rate of 2.17% over the last 7 days \(limit 2.00%\)\. Nothing is paused, but at 5.00% with 10 bounces the account is blocked/);
-		assert.equal(emails.some(({ to }) => to.includes("admin@example.com")), false, "the admins only hear of blocks");
+		assert.match(warning.text, /2\.17% of the emails you sent over the last 7 days bounced \(13 of 600\)\. At 5\.00% with 10 bounces, FlockStack blocks the account/);
+		assert.match(warning.text, /What to do: remove contacts you can't vouch for/);
+		const record = emails.filter(({ to }) => to.includes("admin@example.com"));
+		assert.deepEqual(record.map(({ subject }) => subject), ["[FlockStack] Account close to a block"], "the admins get a record, by email only");
+		assert.equal(warned.watch.bounces.count, 13);
 
 		await m.Message.updateMany({ accountId: user.accountId, _id: { $in: messages.slice(12, 36).map(({ _id }) => _id) } }, { $set: { bouncedAt: new Date(), status: "bounced" } });
 		await m.Account.updateOne({ _id: user.accountId }, { $unset: { "health.checkedAt": 1 } });

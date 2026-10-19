@@ -198,7 +198,10 @@ describe("what blocks an account", () => {
 		emailsBefore = platformEmails.length;
 		await event(user, messages[1], { type: "complaint" });
 		assert.equal((await loadAccount(user)).status, "active", "2 complaints never block");
-		assert.deepEqual(subjectsSince(emailsBefore), ["complaints@example.com [FlockStack] Bounces or complaints are high"]);
+		assert.deepEqual(subjectsSince(emailsBefore).sort(), [
+			"admin@example.com [FlockStack] Account close to a block",
+			"complaints@example.com [FlockStack] Spam complaints are getting close to a block",
+		]);
 
 		emailsBefore = platformEmails.length;
 		await event(user, messages[2], { type: "complaint" });

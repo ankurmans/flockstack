@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import BannerBlocked from "@/components/BannerBlocked";
 import BannerPlan from "@/components/BannerPlan";
+import BannerWatch from "@/components/BannerWatch";
 import LogoWordmark from "@/components/LogoWordmark";
 import MenuUser from "@/components/MenuUser";
 import NavLinks from "@/components/NavLinks";
@@ -48,7 +49,10 @@ export default async function LayoutDashboard({ user, account, isAdmin, children
 					footer={menu}
 				/>
 				<main className="min-w-0 flex-1">
-					<div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-10 md:py-10">{children}</div>
+					<div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-10 md:py-10">
+						<BannerWatch account={account} />
+						{children}
+					</div>
 				</main>
 			</div>
 			{isGetStartedOpen(account) && (
