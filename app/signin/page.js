@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight } from "lucide-react";
+import ButtonSigninApple from "@/components/ButtonSigninApple";
 import ButtonSigninGoogle from "@/components/ButtonSigninGoogle";
 import ButtonSigninPasskey from "@/components/ButtonSigninPasskey";
 import FormSignin from "@/components/FormSignin";
@@ -11,7 +12,7 @@ import RegionPicker from "@/components/RegionPicker";
 import { FooterCookies, SigninAside, SiteAnalytics, SupportChat } from "@/components/SiteExtensions";
 import { Button } from "@/components/ui/button";
 import { DELETION_GRACE_DAYS } from "@/lib/account-deletion";
-import { getSession, getSignupError, isGoogleEnabled } from "@/lib/auth";
+import { getSession, getSignupError, isAppleEnabled, isGoogleEnabled } from "@/lib/auth";
 import { isCloud } from "@/lib/config";
 import { getPublishedLegalPages } from "@/lib/legal";
 import { readOAuthRequest } from "@/lib/oauth";
@@ -56,9 +57,12 @@ export default async function SigninPage({ searchParams }) {
 						</div>
 					) : (
 						<div className={regions ? "mt-6" : "mt-8"}>
-							{isGoogleEnabled() && (
+							{(isGoogleEnabled() || isAppleEnabled()) && (
 								<>
-									<ButtonSigninGoogle next={nextPath} oauthQuery={oauthQuery} />
+									<div className="flex flex-col gap-3">
+										{isGoogleEnabled() && <ButtonSigninGoogle next={nextPath} oauthQuery={oauthQuery} />}
+										{isAppleEnabled() && <ButtonSigninApple next={nextPath} oauthQuery={oauthQuery} />}
+									</div>
 									<div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
 										<span className="h-px flex-1 bg-border" />
 										or
@@ -68,7 +72,7 @@ export default async function SigninPage({ searchParams }) {
 							)}
 							{typeof error === "string" && (
 								<p role="alert" className="mb-3 text-sm text-pretty text-destructive">
-									{getSignupError(error) ?? "Google sign-in failed. Try again."}
+									{getSignupError(error) ?? "Sign-in failed. Try again."}
 								</p>
 							)}
 							<FormSignin next={nextPath} oauthQuery={oauthQuery} />

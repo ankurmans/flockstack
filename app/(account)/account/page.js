@@ -14,7 +14,7 @@ import LayoutNarrow from "@/components/LayoutNarrow";
 import { Button } from "@/components/ui/button";
 import { DELETION_GRACE_DAYS, getDeletionBlockers } from "@/lib/account-deletion";
 import { getAccountStatus, hasActiveSubscription } from "@/lib/account-state";
-import { hasGoogleSignIn } from "@/lib/accounts";
+import { getSocialSignins } from "@/lib/accounts";
 import { runDashboardAction } from "@/lib/actions/dashboard";
 import { requireAccount } from "@/lib/auth";
 import { getBillingProviderName } from "@/lib/billing-provider";
@@ -29,9 +29,9 @@ export const metadata = { title: "Account" };
 // The whole account, apart from any newsletter: who signs in, billing, and deleting it.
 export default async function AccountPage() {
 	const { user, account } = await requireAccount();
-	const [blockers, hasGoogle, { output: latestExport }] = await Promise.all([
+	const [blockers, socialSignins, { output: latestExport }] = await Promise.all([
 		getDeletionBlockers(account),
-		hasGoogleSignIn(user.id),
+		getSocialSignins(user.id),
 		runDashboardAction("get_account_export", {}),
 	]);
 
@@ -41,7 +41,7 @@ export default async function AccountPage() {
 			<div className="flex flex-col gap-4">
 				<FormProfile name={user.name ?? ""} image={user.image ?? ""} maxNameLength={MAX_NAME_LENGTH} />
 				<CardSettings title="Email" stagger={1}>
-					<RowSettings label="Address" hint={hasGoogle ? "You sign in with Google or with a code sent here." : "You sign in with a code sent here."}>
+					<RowSettings label="Address" hint={`You sign in with ${[...socialSignins, "a code sent here"].join(", ").replace(/, ([^,]*)$/, " or $1")}.`}>
 						<span className="flex h-9 items-center justify-between gap-3 rounded-lg bg-muted/60 px-2.5 text-sm">
 							<span className="truncate">{user.email}</span>
 							<Lock aria-label="Can't be changed" className="size-3.5 shrink-0 text-muted-foreground" />

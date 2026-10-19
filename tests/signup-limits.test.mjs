@@ -130,7 +130,7 @@ describe("sign-ups on FlockStack Cloud", () => {
 		const refused = await signInWithGoogle(m, "jo@company.example", { verified: false });
 		assert.deepEqual(refused, { path: "/signin", error: "email_unverified", isSignedIn: false });
 		assert.equal(await users().countDocuments({ email: "jo@company.example" }), 0);
-		assert.equal(m.auth.getSignupError(refused.error), "Google hasn't verified this email. Sign in with a code instead.");
+		assert.equal(m.auth.getSignupError(refused.error), "This email isn't verified. Sign in with a code instead.");
 		assert.deepEqual(await signInWithGoogle(m, "jo@company.example"), { path: "/", error: null, isSignedIn: true }, "once Google verified it");
 	});
 

@@ -115,7 +115,7 @@ The EU Worker starts from nothing: `wrangler secret put <NAME> --env eu` for eac
 - **QStash, EU region:** `QSTASH_URL`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`, and the 5-minute schedule for `https://eu.flockstack.io/api/jobs/run-automations`.
 - **Images and newsletter sites:** `IMAGES_CDN_URL` (a domain on `flockstack-images-eu`), `SHARED_DOMAIN`, `ARCHIVE_CNAME_TARGET` (`sites-eu.flockstack.io`, never the US Worker's) and `ARCHIVE_TRUSTED_HOSTS` for the EU region's own newsletter addresses, and the Cloudflare variables in [Domains on Cloudflare](#domains-on-cloudflare-flockstack-cloud). The exports bucket needs its 8-day lifecycle rule.
 - **Billing:** `POLAR_ACCESS_TOKEN` and `POLAR_WEBHOOK_SECRET` (or `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`), and for selling, `STRIPE_CONNECT_SECRET_KEY` and `STRIPE_PAYMENTS_WEBHOOK_SECRET`. One Polar or Stripe webhook can feed both Workers, or the EU Worker can have its own endpoint.
-- **Optional:** `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (add `https://eu.flockstack.io/api/auth/callback/google` to the client), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `REGION_URL_US` and `REGION_URL_EU` (default to the two addresses above).
+- **Optional:** `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (add `https://eu.flockstack.io/api/auth/callback/google` to the client), `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID` and `APPLE_PRIVATE_KEY` (the same Services ID and key as the US Worker, see [Apple sign-in](#optional)), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `REGION_URL_US` and `REGION_URL_EU` (default to the two addresses above).
 - **Analytics:** `POSTHOG_KEY`, the same project key as on the US Worker (see Product analytics below).
 - **Support assistant:** nothing to set: `env.eu` has its own Workers AI binding. `SUPPORT_DAILY_LIMIT` and `SUPPORT_EMAIL` are optional (see Support assistant below).
 
@@ -251,7 +251,7 @@ Set them as Worker secrets (`wrangler secret put NAME`), or as `vars` in `wrangl
 | `SES_*` or `POSTSHIBA_*` | The email provider, in step 4 |
 | `QSTASH_*` | Background sending and scheduling, in step 5 |
 
-[`.env.example`](.env.example) lists every variable with what it does, the optional ones included: Google sign-in and Postmaster Tools, image uploads, Redis, Telegram alerts, the shared domain, billing, and FlockStack Cloud's own.
+[`.env.example`](.env.example) lists every variable with what it does, the optional ones included: Google and Apple sign-in, Postmaster Tools, image uploads, Redis, Telegram alerts, the shared domain, billing, and FlockStack Cloud's own.
 
 ### 1. Database and storage
 
@@ -272,7 +272,7 @@ Sending stays off until you finish the next steps, so nothing goes out to reader
 
 ### 3. Who can sign in
 
-Only the emails you list: `ADMIN_EMAILS` (who can also open `/admin`) and `ALLOWED_EMAILS`, a comma-separated list of addresses and whole domains, like `jane@example.com, @example.org`. It's checked at every sign-in, with a code or with Google, and anyone you take off the list is signed out and loses their API keys at their next request. With both lists empty, nobody can sign in.
+Only the emails you list: `ADMIN_EMAILS` (who can also open `/admin`) and `ALLOWED_EMAILS`, a comma-separated list of addresses and whole domains, like `jane@example.com, @example.org`. It's checked at every sign-in, with a code, Google or Apple, and anyone you take off the list is signed out and loses their API keys at their next request. With both lists empty, nobody can sign in.
 
 Everyone gets an account of their own, with up to 3 newsletters and their contacts and campaigns, and the account's domains and API keys. There's no billing on a self-hosted server: no plans, no limits.
 
@@ -367,6 +367,15 @@ Each run starts contacts from segments and date fields, then moves the contacts 
 ### Optional
 
 - **Google sign-in.** Create an OAuth client (web application) with the redirect URI `<APP_URL>/api/auth/callback/google`, then set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. The allowlist applies, and a Google sign-in joins an existing user only when Google verified that email.
+- **Apple sign-in.** A "Continue with Apple" button under Google's, shown only when all four variables below are set. In Apple Developer, under Certificates, Identifiers & Profiles:
+  1. **An App ID** with the Sign in with Apple capability.
+  2. **A Services ID**, for example `io.flockstack.signin`: this is `APPLE_CLIENT_ID`. Turn on Sign in with Apple for it, with the App ID above as the primary one, and add the domains and return URLs. FlockStack Cloud: `flockstack.io` and `eu.flockstack.io`, and `https://flockstack.io/api/auth/callback/apple` and `https://eu.flockstack.io/api/auth/callback/apple`. A self-hosted server: its own domain and `<APP_URL>/api/auth/callback/apple`.
+  3. **A key** with Sign in with Apple, configured for that App ID. Download the `.p8` file (Apple lets you download it once) and note its Key ID. Your Team ID is on the Membership page.
+  4. **On each Worker** (`wrangler secret put <NAME>`, and again with `--env eu`): `APPLE_CLIENT_ID` (the Services ID), `APPLE_TEAM_ID`, `APPLE_KEY_ID` and `APPLE_PRIVATE_KEY`, the `.p8` file's contents (pasted on one line with `\n` for its line breaks works too).
+
+  Apple takes no fixed client secret, only a JWT signed with that key, for 6 months at most. FlockStack signs a fresh one from the key, valid for a day (`lib/apple-signin.js`), so there's nothing to renew; only a revoked key needs a new one. The allowlist applies, and an Apple sign-in joins an existing user only when Apple verified that email. Apple sends the person's name on their first sign-in only: FlockStack stores it then, and never needs it.
+
+  **Hidden emails.** People can hide their address behind one at `privaterelay.appleid.com`, which becomes their account's email. Apple forwards email to it only from domains registered under **Sign in with Apple for Email Communication** (Certificates, Identifiers & Profiles > Services), with SPF passing for them. Register every domain FlockStack's own emails come from: `mail.flockstack.io`, FlockStack Cloud's default sender, and `EMAIL_FROM`'s domain when it's set to another one. Until then, sign-in codes, alerts and export links never reach those people.
 - **Gmail's spam rates (Google Postmaster Tools).** It needs the Google sign-in client above, `CREDENTIALS_ENCRYPTION_KEY` and `CRON_SECRET`; without them, or until someone connects, nothing runs.
   1. In the client's Google Cloud project, enable the **Gmail Postmaster Tools API**, and add `<APP_URL>/api/admin/postmaster/callback` to the client's authorized redirect URIs. Its consent screen has to be published (In production): in Testing, Google expires the connection after 7 days.
   2. At [postmaster.google.com](https://postmaster.google.com), add the domain every email is DKIM-signed with: `SHARED_DOMAIN`, which PostShiba's primary domain signing adds to every email, or `POSTMASTER_DOMAIN`. A domain the same Google account verified in Search Console is verified already.
