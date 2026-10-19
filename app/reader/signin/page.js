@@ -25,7 +25,7 @@ export default async function ReaderSignInPage({ searchParams }) {
 	const urls = preview.newsletter && getArchiveUrls(preview.newsletter);
 
 	return (
-		<main className="flex min-h-dvh items-center justify-center bg-background px-4 py-16">
+		<main className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
 			{preview.state === "ready" ? (
 				<CardNotice icon={MessageCircle} title={`Sign in to ${preview.newsletter.name}`}>
 					One click and you can join the discussion. Your email address stays private.

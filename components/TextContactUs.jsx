@@ -10,7 +10,7 @@ export default function TextContactUs({ emails, className }) {
 	return (
 		<p className={cn("text-center text-sm text-muted-foreground", className)}>
 			More than {formatNumber(emails)} emails?{" "}
-			<a href={supportChatPath} className="font-medium text-foreground underline underline-offset-4">
+			<a href={supportChatPath} className="font-medium text-link underline underline-offset-4">
 				Chat with us
 			</a>
 		</p>

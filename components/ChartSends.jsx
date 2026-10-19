@@ -39,7 +39,7 @@ export default function ChartSends({ hours }) {
 						/>
 						{today > 0 && (
 							<span
-								className="absolute inset-x-0 bottom-0 min-h-0.5 rounded-t-[3px] bg-foreground"
+								className="absolute inset-x-0 bottom-0 min-h-0.5 rounded-t-[3px] bg-chart-1"
 								style={{ height: `${toRatio(today, scale) * 100}%` }}
 							/>
 						)}

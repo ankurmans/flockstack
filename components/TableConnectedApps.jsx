@@ -13,7 +13,7 @@ export default function TableConnectedApps({ apps, mcpUrl }) {
 			<div className="flex flex-col gap-3 rounded-xl px-4 py-3.5 shadow-border sm:flex-row sm:items-center sm:justify-between">
 				<p className="text-sm text-pretty text-muted-foreground">
 					ChatGPT, Claude and Grok Bot connect with your FlockStack sign-in instead of a key. Add this URL to the app,{" "}
-					<Link href="/docs/mcp#chatgpt" className="text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
+					<Link href="/docs/mcp#chatgpt" className="text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
 						step by step
 					</Link>
 					.

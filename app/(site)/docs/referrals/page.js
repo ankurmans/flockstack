@@ -18,7 +18,7 @@ export default function ReferralsPage() {
 			<Section title="Set it up" stagger={1}>
 				<p>
 					Turn it on from the{" "}
-					<Link href="/referrals" className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
+					<Link href="/referrals" className="font-medium text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
 						Referrals page
 					</Link>{" "}
 					or with <Code>update_referral_settings</Code>. A newsletter needs confirmation emails on, so a referral only counts once the new

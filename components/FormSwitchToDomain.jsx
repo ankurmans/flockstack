@@ -27,7 +27,7 @@ export default function FormSwitchToDomain({ newsletterId, newsletterName, domai
 				<label htmlFor={`${id}-local`} className="shrink-0 text-muted-foreground">
 					Send <span className="font-medium text-foreground">{newsletterName}</span> from
 				</label>
-				<label className="flex h-9 max-w-full min-w-0 cursor-text items-center rounded-lg border border-input bg-background px-2.5 font-mono text-base transition-[border-color,box-shadow] duration-150 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 sm:h-8 sm:text-[13px] dark:bg-input/30">
+				<label className="flex h-9 max-w-full min-w-0 cursor-text items-center rounded-lg border border-input bg-background px-2.5 font-mono text-base transition-[border-color,box-shadow] duration-150 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring sm:h-8 sm:text-[13px] dark:bg-input/30">
 					<input
 						id={`${id}-local`}
 						name="localPart"

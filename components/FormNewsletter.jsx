@@ -311,7 +311,7 @@ export default function FormNewsletter({
 										<button
 											type="button"
 											onClick={() => set("postalAddress", defaultPostalAddress)}
-											className="font-medium text-foreground underline decoration-foreground/30 underline-offset-2 transition-colors duration-150 hover:decoration-foreground"
+											className="font-medium text-link underline decoration-link/30 underline-offset-2 transition-colors duration-150 hover:decoration-link"
 										>
 											Use FlockStack&apos;s address
 										</button>
@@ -542,7 +542,7 @@ export default function FormNewsletter({
 								<button
 									type="button"
 									onClick={() => paywall.open("website")}
-									className="font-medium text-foreground underline decoration-foreground/30 underline-offset-2 transition-colors duration-150 hover:decoration-foreground"
+									className="font-medium text-link underline decoration-link/30 underline-offset-2 transition-colors duration-150 hover:decoration-link"
 								>
 									Pick a plan
 								</button>

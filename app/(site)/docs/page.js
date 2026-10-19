@@ -34,7 +34,7 @@ export default function DocsPage() {
 				<Step number="1" title="Create an API key">
 					<p>
 						On the{" "}
-						<Link href="/api-keys" className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
+						<Link href="/api-keys" className="font-medium text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
 							API keys page
 						</Link>
 						. Full access for scripts and AI assistants; signups only for signup forms in your website&apos;s code. Keys are shown once.
@@ -52,7 +52,7 @@ export default function DocsPage() {
 					<p>
 						One command for Claude Code. Codex and Cursor take a few lines, and ChatGPT, Claude and Grok Bot connect with your sign-in, on
 						the{" "}
-						<Link href="/docs/mcp" className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
+						<Link href="/docs/mcp" className="font-medium text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
 							MCP page
 						</Link>
 						.
@@ -87,19 +87,19 @@ export default function DocsPage() {
 				<h2 className="font-semibold tracking-tight">For agents reading this</h2>
 				<ul className="mt-3 flex flex-col gap-2 text-sm text-muted-foreground">
 					<li>
-						<a href="/llms.txt" className="font-mono text-foreground underline decoration-foreground/30 underline-offset-4">
+						<a href="/llms.txt" className="font-mono text-link underline decoration-link/30 underline-offset-4">
 							/llms.txt
 						</a>{" "}
 						lists these pages and every endpoint.
 					</li>
 					<li>
-						<a href="/llms-full.txt" className="font-mono text-foreground underline decoration-foreground/30 underline-offset-4">
+						<a href="/llms-full.txt" className="font-mono text-link underline decoration-link/30 underline-offset-4">
 							/llms-full.txt
 						</a>{" "}
 						is the whole reference in Markdown.
 					</li>
 					<li>
-						<a href={`${API_BASE_PATH}/openapi.json`} className="font-mono text-foreground underline decoration-foreground/30 underline-offset-4">
+						<a href={`${API_BASE_PATH}/openapi.json`} className="font-mono text-link underline decoration-link/30 underline-offset-4">
 							{API_BASE_PATH}/openapi.json
 						</a>{" "}
 						is the API as OpenAPI 3.1, made from the same schemas as the MCP tools.

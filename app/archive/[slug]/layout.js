@@ -28,7 +28,7 @@ export default async function ArchiveLayout({ children, params }) {
 
 	return (
 		<ProviderSubscribe newsletter={pitch} readers={readers}>
-			<div className="flex min-h-dvh flex-col">
+			<div className="theme-neutral flex min-h-dvh flex-col">
 				<HeaderArchive newsletter={newsletter} indexHref={index} shopLink={shopLink} />
 				<main className="flex-1">{children}</main>
 				<FooterArchive newsletter={newsletter} indexHref={index} feedHref={feed} />

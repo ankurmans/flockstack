@@ -43,7 +43,7 @@ export default function ExportPage() {
 			<Section title="Get it" stagger={1}>
 				<p>
 					On the{" "}
-					<Link href="/account" className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
+					<Link href="/account" className="font-medium text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
 						account page
 					</Link>
 					, press Export everything. Or call <Code>export_account_data</Code> from the REST API (<Code>POST /api/v1/account/export</Code>)

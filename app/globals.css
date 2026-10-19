@@ -12,6 +12,8 @@
   --font-heading: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-newsreader), "Iowan Old Style", Georgia, serif;
   --color-site: var(--site);
+  --color-link: var(--link);
+  --color-logo-lime: var(--logo-lime);
   --shadow-border: var(--surface-shadow);
   --shadow-border-hover: var(--surface-shadow-hover);
   --shadow-float: var(--surface-shadow), 0 8px 24px -6px rgb(0 0 0 / 0.14);
@@ -53,6 +55,9 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Night lime: ink (#0b0b0b) and electric lime (#d4ff3a). On white, lime is too light for text or thin lines
+   (1.7:1 for #b6d600), so links, the focus ring and small accents use the olive #4d6400 (6.7:1 on white, 6.1:1 on
+   muted). Neutrals stay neutral: the lime is a spark. */
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -60,8 +65,8 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.15 0 0);
+  --primary-foreground: oklch(0.938 0.211 121.8);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
@@ -71,21 +76,24 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --ring: oklch(0.467 0.116 123.8);
+  --link: oklch(0.467 0.116 123.8);
+  --logo-lime: oklch(0.823 0.195 120);
+  --selection: oklch(0.938 0.211 121.8 / 70%);
+  --chart-1: oklch(0.15 0 0);
+  --chart-2: oklch(0.823 0.195 120);
+  --chart-3: oklch(0.467 0.116 123.8);
+  --chart-4: oklch(0.556 0 0);
+  --chart-5: oklch(0.87 0 0);
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.15 0 0);
+  --sidebar-primary-foreground: oklch(0.938 0.211 121.8);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-ring: oklch(0.467 0.116 123.8);
   --surface-shadow: 0px 0px 0px 1px rgba(0, 0, 0, 0.06), 0px 1px 2px -1px rgba(0, 0, 0, 0.06),
     0px 2px 4px 0px rgba(0, 0, 0, 0.04);
   --surface-shadow-hover: 0px 0px 0px 1px rgba(0, 0, 0, 0.08), 0px 1px 2px -1px rgba(0, 0, 0, 0.08),
@@ -103,8 +111,8 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
+  --primary: oklch(0.938 0.211 121.8);
+  --primary-foreground: oklch(0.15 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -114,25 +122,67 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.938 0.211 121.8);
+  --link: oklch(0.938 0.211 121.8);
+  --logo-lime: oklch(0.938 0.211 121.8);
+  --selection: oklch(0.938 0.211 121.8 / 35%);
+  --chart-1: oklch(0.938 0.211 121.8);
+  --chart-2: oklch(0.62 0.15 122);
+  --chart-3: oklch(0.87 0 0);
+  --chart-4: oklch(0.556 0 0);
+  --chart-5: oklch(0.371 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.938 0.211 121.8);
+  --sidebar-primary-foreground: oklch(0.15 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.938 0.211 121.8);
+}
+
+/* A newsletter's own pages (its archive, shop and what its emails link to: theme-neutral) are the creator's, so they
+   wear none of FlockStack's colors. Set on html, so dialogs and toasts rendered outside the page's element follow. */
+:root:has(.theme-neutral) {
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.708 0 0);
+  --link: var(--foreground);
+  --logo-lime: color-mix(in oklab, currentColor 50%, transparent);
+  --selection: oklch(0.708 0 0 / 35%);
+  --chart-1: oklch(0.205 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.87 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark:has(.theme-neutral) {
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
   --ring: oklch(0.556 0 0);
+  --link: var(--foreground);
+  --logo-lime: color-mix(in oklab, currentColor 50%, transparent);
+  --selection: oklch(0.708 0 0 / 35%);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-primary: oklch(0.922 0 0);
+  --sidebar-primary-foreground: oklch(0.205 0 0);
   --sidebar-ring: oklch(0.556 0 0);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
+  }
+  ::selection {
+    background-color: var(--selection);
   }
   body {
     @apply bg-background text-foreground;
@@ -337,19 +387,19 @@ html:has([data-support-chat]) {
   &::-webkit-slider-runnable-track {
     height: var(--track);
     border-radius: 999px;
-    background: linear-gradient(to right, var(--foreground) var(--fill), var(--muted) var(--fill));
+    background: linear-gradient(to right, var(--primary) var(--fill), var(--muted) var(--fill));
   }
   &::-moz-range-track {
     height: var(--track);
     border-radius: 999px;
-    background: linear-gradient(to right, var(--foreground) var(--fill), var(--muted) var(--fill));
+    background: linear-gradient(to right, var(--primary) var(--fill), var(--muted) var(--fill));
   }
   &::-webkit-slider-thumb {
     width: var(--thumb);
     height: var(--thumb);
     margin-top: calc((var(--track) - var(--thumb)) / 2);
     appearance: none;
-    border: 0.4rem solid var(--foreground);
+    border: 0.4rem solid var(--primary);
     border-radius: 999px;
     background: var(--background);
     box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
@@ -359,7 +409,7 @@ html:has([data-support-chat]) {
     width: var(--thumb);
     height: var(--thumb);
     box-sizing: border-box;
-    border: 0.4rem solid var(--foreground);
+    border: 0.4rem solid var(--primary);
     border-radius: 999px;
     background: var(--background);
     box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
@@ -373,12 +423,14 @@ html:has([data-support-chat]) {
   &:focus-visible::-webkit-slider-thumb {
     box-shadow:
       0 2px 8px rgb(0 0 0 / 0.2),
-      0 0 0 4px color-mix(in oklab, var(--ring) 50%, transparent);
+      0 0 0 2px var(--background),
+      0 0 0 4px var(--ring);
   }
   &:focus-visible::-moz-range-thumb {
     box-shadow:
       0 2px 8px rgb(0 0 0 / 0.2),
-      0 0 0 4px color-mix(in oklab, var(--ring) 50%, transparent);
+      0 0 0 2px var(--background),
+      0 0 0 4px var(--ring);
   }
 }
 

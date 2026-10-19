@@ -19,7 +19,7 @@ export default function CommentsPage() {
 			<Section title="Turn them on" stagger={1}>
 				<p>
 					Comments are off until you turn them on, from the{" "}
-					<Link href="/comments" className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
+					<Link href="/comments" className="font-medium text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
 						Comments page
 					</Link>{" "}
 					or with <Code>set_comment_settings</Code>. The newsletter needs its website on, since comments sit under each issue&apos;s page. You choose
@@ -48,7 +48,7 @@ export default function CommentsPage() {
 					A comment shows a display name, never an email address. It starts as the part of the address before the @ (ana.lopez becomes Ana Lopez),
 					and the reader can change it once, with their first comment. You, the owner, see the address next to each comment on the Comments page.
 					Everything is stored in your account&apos;s own database, in the region you chose, and nowhere else (see{" "}
-					<Link href="/docs/regions" className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
+					<Link href="/docs/regions" className="font-medium text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
 						Regions
 					</Link>
 					). When you delete a contact, their comments stay for the replies&apos; sake as the Deleted reader&apos;s, with nothing that links them to a person.

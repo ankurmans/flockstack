@@ -159,7 +159,7 @@ function readCookie(name) {
 }
 
 const TRIGGER =
-	"flex min-w-0 items-center gap-2.5 outline-none transition-[background-color,box-shadow] duration-150 focus-visible:ring-3 focus-visible:ring-ring/50";
+	"flex min-w-0 items-center gap-2.5 outline-none transition-[background-color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-ring";
 const TRIGGER_FULL =
 	"h-11 w-full rounded-xl bg-card pr-3 pl-2.5 shadow-border hover:bg-muted/50 hover:shadow-border-hover data-[state=open]:bg-muted/60";
 const TRIGGER_COMPACT = "h-10 max-w-full rounded-lg pr-2 pl-1.5 hover:bg-muted data-[state=open]:bg-muted";

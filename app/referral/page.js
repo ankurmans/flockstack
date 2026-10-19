@@ -25,7 +25,7 @@ export default async function ReferralPage({ searchParams }) {
 	const page = reference ? await findPage(reference) : null;
 
 	return (
-		<main className="flex min-h-dvh items-start justify-center bg-background px-4 py-12 sm:items-center sm:py-16">
+		<main className="theme-neutral flex min-h-dvh items-start justify-center bg-background px-4 py-12 sm:items-center sm:py-16">
 			{!page ? (
 				<CardNotice icon={Link2Off} title="This link doesn't work">
 					It may be mistyped. Open the link in the newest email you got from the newsletter.

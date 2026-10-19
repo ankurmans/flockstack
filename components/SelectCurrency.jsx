@@ -9,7 +9,7 @@ export default function SelectCurrency({ name, defaultValue, className }) {
 			defaultValue={defaultValue}
 			aria-label="Currency"
 			className={cn(
-				"h-9 w-24 rounded-lg border border-input bg-transparent px-2 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30",
+				"h-9 w-24 rounded-lg border border-input bg-transparent px-2 text-base outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring md:text-sm dark:bg-input/30",
 				className
 			)}
 		>

@@ -6,9 +6,9 @@ export default function SwatchChart({ kind }) {
 }
 
 const SWATCHES = {
-	line: "h-0.5 w-3 rounded-full bg-foreground",
+	line: "h-0.5 w-3 rounded-full bg-chart-1",
 	dashed:
 		"h-0.5 w-[15px] bg-[repeating-linear-gradient(90deg,var(--color-muted-foreground)_0_3px,transparent_3px_6px)] opacity-70",
-	bar: "size-2 rounded-[2px] bg-foreground",
+	bar: "size-2 rounded-[2px] bg-chart-1",
 	ghost: "size-2 rounded-[2px] bg-muted-foreground/25",
 };

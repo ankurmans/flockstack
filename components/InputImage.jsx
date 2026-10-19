@@ -47,7 +47,7 @@ export default function InputImage({ name, defaultValue, label, isRound, onChang
 				onClick={() => setIsPickerOpen(true)}
 				style={url ? CHECKERBOARD : undefined}
 				className={cn(
-					"group relative grid size-14 shrink-0 place-items-center overflow-hidden bg-muted shadow-border outline-none transition-[box-shadow,scale] duration-150 ease-out hover:shadow-border-hover focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.96]",
+					"group relative grid size-14 shrink-0 place-items-center overflow-hidden bg-muted shadow-border outline-none transition-[box-shadow,scale] duration-150 ease-out hover:shadow-border-hover focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96]",
 					isRound ? "rounded-full" : "rounded-lg",
 					isDragging && "ring-2 ring-foreground/30"
 				)}

@@ -16,7 +16,7 @@ export default function NavSteps({ step, onStep, className }) {
 								aria-current={isCurrent ? "step" : undefined}
 								onClick={() => onStep(id)}
 								className={cn(
-									"flex h-8 w-full items-center justify-center gap-2 rounded-md text-sm font-medium outline-none transition-[color,background-color,box-shadow,scale] duration-150 ease-out focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97] lg:h-9 lg:w-auto lg:rounded-full lg:pr-3.5 lg:pl-1.5",
+									"flex h-8 w-full items-center justify-center gap-2 rounded-md text-sm font-medium outline-none transition-[color,background-color,box-shadow,scale] duration-150 ease-out focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] lg:h-9 lg:w-auto lg:rounded-full lg:pr-3.5 lg:pl-1.5",
 									isCurrent
 										? "bg-background text-foreground shadow-sm lg:bg-transparent lg:shadow-none"
 										: "text-muted-foreground hover:text-foreground lg:hover:bg-muted"

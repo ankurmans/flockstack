@@ -15,7 +15,7 @@ export default function ApiReferencePage() {
 			<HeaderDocs kicker="Reference" title="API reference">
 				Base URL <code className="font-mono text-[15px] text-foreground">{`${appUrl}${API_BASE_PATH}`}</code>. Bodies are JSON; GET and
 				DELETE take their parameters in the query string. Each endpoint is also the MCP tool named under it. The same reference as{" "}
-				<a href={`${API_BASE_PATH}/openapi.json`} className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4">
+				<a href={`${API_BASE_PATH}/openapi.json`} className="font-medium text-link underline decoration-link/30 underline-offset-4">
 					OpenAPI 3.1
 				</a>
 				.
