@@ -6,6 +6,7 @@ import { saveExtraEmailsLimit } from "@/app/(account)/billing/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatNumber, formatUsdCents } from "@/lib/format";
+import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 import { toast } from "@/lib/toast";
 
 // Extra emails on the billing page (get_billing's extraEmails): this month's count and cost, and the owner's limit.
@@ -53,7 +54,7 @@ export default function CardExtraEmails({ extraEmails, planEmails }) {
 				Past your plan&apos;s {formatNumber(planEmails)} emails, sending goes on at {formatUsdCents(pricePerThousand)} per 1,000 extra emails, billed
 				with your plan at the end of the period. Sending stops at your limit, and we email you at 80% and 100% of it.
 			</p>
-			<form action={action} className="flex flex-col gap-2 border-t border-border/70 pt-4 sm:flex-row sm:items-end sm:gap-3">
+			<form action={action} onSubmit={submitKeepingFields(action)} className="flex flex-col gap-2 border-t border-border/70 pt-4 sm:flex-row sm:items-end sm:gap-3">
 				<div className="flex flex-1 flex-col gap-1.5">
 					<label htmlFor={`${id}-limit`} className="text-sm font-medium">
 						Monthly limit on extra emails

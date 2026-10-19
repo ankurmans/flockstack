@@ -4,6 +4,7 @@ import { useActionState, useId, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { switchToDomainAction } from "@/app/(app)/domains/actions";
 import { Button } from "@/components/ui/button";
+import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 import { toast } from "@/lib/toast";
 
 export default function FormSwitchToDomain({ newsletterId, newsletterName, domainId, domain, defaultLocalPart }) {
@@ -19,6 +20,7 @@ export default function FormSwitchToDomain({ newsletterId, newsletterName, domai
 	return (
 		<form
 			action={action}
+			onSubmit={submitKeepingFields(action)}
 			className="flex flex-col gap-3 border-t border-border/60 bg-muted/40 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
 		>
 			<input type="hidden" name="newsletterId" value={newsletterId} />

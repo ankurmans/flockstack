@@ -8,13 +8,14 @@ import InputImage from "@/components/InputImage";
 import StatusSaved from "@/components/StatusSaved";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 
 // The name and photo the dashboard shows. Google fills them at sign-up.
 export default function FormProfile({ name, image, maxNameLength }) {
 	const [state, action, isPending] = useActionState(save, null);
 
 	return (
-		<form action={action}>
+		<form action={action} onSubmit={submitKeepingFields(action)}>
 			<CardSettings title="Profile">
 				<RowSettings label="Photo" hint="Square, 128×128 or larger" isLabel>
 					<InputImage name="image" defaultValue={image} label="photo" isRound />

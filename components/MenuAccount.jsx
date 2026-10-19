@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatCompact, formatNumber } from "@/lib/format";
 import { PLANS } from "@/lib/plans";
+import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 import { toast } from "@/lib/toast";
 
 // freePlan: { plan, until } while the account has a free plan running. blockedBy: who blocked it, while it's blocked.
@@ -209,7 +210,7 @@ function FormLimits({ accountId, overrides, planLimits, onDone }) {
 	}, [state, onDone]);
 
 	return (
-		<form action={action} className="flex flex-col gap-4">
+		<form action={action} onSubmit={submitKeepingFields(action)} className="flex flex-col gap-4">
 			<input type="hidden" name="accountId" value={accountId} />
 			<DialogHeader>
 				<DialogTitle>Change limits</DialogTitle>
@@ -240,7 +241,7 @@ function FormFreePlan({ accountId, email, freePlan, onDone }) {
 	}, [state, freePlan, onDone]);
 
 	return (
-		<form action={action} className="flex flex-col gap-4">
+		<form action={action} onSubmit={submitKeepingFields(action)} className="flex flex-col gap-4">
 			<input type="hidden" name="accountId" value={accountId} />
 			<DialogHeader>
 				<DialogTitle>{freePlan ? "Change free plan" : "Give a free plan"}</DialogTitle>

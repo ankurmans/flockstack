@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ERROR_CODES } from "@/lib/account-state";
+import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 import { toast } from "@/lib/toast";
 import { usePaywall } from "@/lib/use-paywall";
 
@@ -60,7 +61,7 @@ function FormContact({ newsletter, onClose }) {
 	}, null);
 
 	return (
-		<form action={action} className="flex flex-col gap-4">
+		<form action={action} onSubmit={submitKeepingFields(action)} className="flex flex-col gap-4">
 			<DialogHeader>
 				<DialogTitle>Add a contact</DialogTitle>
 				<DialogDescription>
