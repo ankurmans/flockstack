@@ -13,7 +13,7 @@ import NoticeFirstSend from "@/components/NoticeFirstSend";
 import NoticeWarmup from "@/components/NoticeWarmup";
 import PickerSendTime from "@/components/PickerSendTime";
 import RowCampaign from "@/components/RowCampaign";
-import SelectSegment from "@/components/SelectSegment";
+import SelectSegments from "@/components/SelectSegments";
 import TextPlanLimit from "@/components/TextPlanLimit";
 import { Button } from "@/components/ui/button";
 import {
@@ -86,8 +86,13 @@ export default function PanelSend({
 								{sending.audience === "paid" && <span className="text-muted-foreground"> · web page shows a teaser</span>}
 							</span>
 						</span>
-						{(segments.length > 0 || campaign.segmentId) && (
-							<SelectSegment campaignId={campaign._id} segmentId={campaign.segmentId ?? null} segments={segments} />
+						{segments.length > 0 && !campaign.resend?.of && (
+							<SelectSegments
+								campaignId={campaign._id}
+								include={(campaign.segmentIds?.length ? campaign.segmentIds : campaign.segmentId ? [campaign.segmentId] : []).map(String)}
+								exclude={(campaign.excludeSegmentIds ?? []).map(String)}
+								segments={segments}
+							/>
 						)}
 					</span>
 				</RowCampaign>

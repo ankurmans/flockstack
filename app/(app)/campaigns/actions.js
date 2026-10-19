@@ -56,6 +56,18 @@ export async function toggleArchiveListed(id) {
 	return { ok: true };
 }
 
+// Contacts in any of these segments, leaving out those in the others; empty lists go back to everyone and nobody.
+export async function setCampaignSegments(id, { include = [], exclude = [] } = {}) {
+	const { failure } = await runDashboardAction("update_campaign", {
+		id: String(id),
+		segments: include.map(String),
+		excludeSegments: exclude.map(String),
+	});
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	return { ok: true };
+}
+
 // This issue's sender name; empty goes back to the newsletter's.
 export async function setCampaignFromName(id, fromName) {
 	const { failure } = await runDashboardAction("update_campaign", { id: String(id), fromName: String(fromName ?? "").slice(0, 100) });
@@ -72,15 +84,6 @@ export async function setCampaignAudience(id, audience) {
 	return { ok: true };
 }
 
-// Everyone, or one of the newsletter's saved segments (null clears it).
-export async function setCampaignSegment(id, segmentId) {
-	const { failure } = await runDashboardAction("update_campaign", { id: String(id), segment: segmentId ? String(segmentId) : null });
-	if (failure) return toFormError(failure);
-	revalidatePath(`/campaigns/${id}`);
-	return { ok: true };
-}
-
-// To the owner, or to the addresses typed (up to 10): what was sent and what was skipped come back for the toast.
 export async function sendTestCampaign(id, to) {
 	const addresses = Array.isArray(to) ? to.map((email) => String(email).trim()).filter(Boolean) : [];
 	const { output, failure } = await runDashboardAction("send_test_email", { id: String(id), ...(addresses.length > 0 && { to: addresses }) });

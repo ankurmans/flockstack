@@ -104,3 +104,43 @@ describe("email only and web only issues", () => {
 		await assert.rejects(act(m, user, "send_campaign", { id }), { code: "send_check_failed", message: /website/ });
 	});
 });
+
+describe("several segments, in and out", () => {
+	test("a send goes to contacts in any of its segments and in none of the ones it leaves out", async () => {
+		const user = await setupSender(m, "segments-in-out@example.com", { contacts: 6 });
+		const tag = (index, tags) => m.Contact.updateOne({ accountId: user.accountId, email: `reader${index}@segments-in-out.example.org` }, { $set: { tags } });
+		await tag(0, ["vip"]);
+		await tag(1, ["beta"]);
+		await tag(2, ["vip", "staff"]);
+		await tag(3, ["staff"]);
+		const segment = (name, value) => act(m, user, "create_segment", { name, rules: { match: "all", conditions: [{ type: "tag", op: "has", value }] } });
+		const vip = await segment("VIP", "vip");
+		await segment("Beta", "beta");
+		const staff = await segment("Staff", "staff");
+
+		const id = await createDraft(m, user, { subject: "Insiders" });
+		const updated = await act(m, user, "update_campaign", { id, segments: [vip.id, "Beta"], excludeSegments: ["Staff"] });
+		assert.equal(updated.segmentId, vip.id);
+		assert.equal(updated.segmentIds.length, 2);
+		assert.deepEqual(updated.excludeSegmentIds, [staff.id]);
+		const detail = await act(m, user, "get_campaign", { id });
+		assert.equal(detail.audienceSize, 2);
+		assert.equal(detail.segment.name, "VIP or Beta, not Staff");
+		await assert.rejects(act(m, user, "delete_segment", { id: staff.id }), { code: "conflict" });
+		await assert.rejects(
+			act(m, user, "update_campaign", { id, segments: ["VIP", "Beta", "Staff", "VIP", "Beta", "Staff"] }),
+			{ code: "validation_failed" },
+			"5 at most"
+		);
+
+		await act(m, user, "send_campaign", { id });
+		await runJobs(sendRoutes(m));
+		const reached = sent.filter(({ subject }) => subject === "Insiders").map(({ to }) => to.split("@")[0]).sort();
+		assert.deepEqual(reached, ["reader0", "reader1"]);
+		const campaign = await m.Campaign.findOne({ accountId: user.accountId, _id: id }).lean();
+		assert.deepEqual([campaign.segmentSnapshot.include.length, campaign.segmentSnapshot.exclude.length], [2, 1], "the audience is kept as it went out");
+
+		const cleared = await act(m, user, "update_campaign", { id: await createDraft(m, user), segments: [vip.id], excludeSegments: [] });
+		assert.deepEqual([cleared.segmentIds, cleared.excludeSegmentIds], [[vip.id], []]);
+	});
+});

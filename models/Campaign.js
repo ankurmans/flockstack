@@ -46,6 +46,10 @@ const campaignSchema = new mongoose.Schema(
 		// (segmentSnapshot), so later steps and resumes keep the audience even if the segment changes or goes.
 		segmentId: { type: mongoose.Schema.Types.ObjectId, ref: "Segment" },
 		segmentSnapshot: { type: mongoose.Schema.Types.Mixed },
+		// Several segments: contacts in any of segmentIds (segmentId is its first), and in none of excludeSegmentIds. The
+		// snapshot then holds each one's rules as include and exclude (lib/segments.js).
+		segmentIds: { type: [mongoose.Schema.Types.ObjectId], default: undefined },
+		excludeSegmentIds: { type: [mongoose.Schema.Types.ObjectId], default: undefined },
 		source: { type: String, default: "dashboard" },
 		scheduledAt: { type: Date },
 		startedAt: { type: Date },
