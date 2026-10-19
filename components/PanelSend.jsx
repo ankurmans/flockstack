@@ -1,8 +1,9 @@
 "use client";
 
 import { CalendarClock, Loader2, Send } from "lucide-react";
-import { useState } from "react";
-import { setCampaignFromName } from "@/app/(app)/campaigns/actions";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { setCampaignFromName, setCampaignPublishTo } from "@/app/(app)/campaigns/actions";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import CardAbTest from "@/components/CardAbTest";
 import CardSettings from "@/components/CardSettings";
@@ -58,10 +59,16 @@ export default function PanelSend({
 	const isCleanupEnabled = Boolean(newsletter.cleanup?.enabled);
 	const isOverPlan = isNow && emailsLeft !== null && sending.sendEmails > emailsLeft;
 	const isTesting = (campaign.abTest?.variants?.length ?? 0) >= 2;
+	const isWebOnly = campaign.publishTo === "web";
 
 	return (
 		<div className="flex flex-col gap-6">
 			<CardSettings title="Who gets it">
+				{!campaign.resend?.of && (
+					<RowCampaign label="Publish">
+						<ChoicePublishTo campaign={campaign} isWebsiteOn={Boolean(newsletter.archiveEnabled)} />
+					</RowCampaign>
+				)}
 				<RowCampaign label="From">
 					<InputFromName campaign={campaign} newsletter={newsletter} />
 				</RowCampaign>
@@ -196,8 +203,11 @@ export default function PanelSend({
 			<Dialog open={sending.isConfirmOpen} onOpenChange={sending.setIsConfirmOpen}>
 				<DialogContent className="sm:max-w-sm">
 					<DialogHeader>
-						<DialogTitle className="tabular-nums">Send to {formatCount(sending.sendRecipients, "contact")}?</DialogTitle>
+						<DialogTitle className="tabular-nums">
+							{isWebOnly ? "Publish on the website?" : `Send to ${formatCount(sending.sendRecipients, "contact")}?`}
+						</DialogTitle>
 						<DialogDescription>
+							{isWebOnly && "It goes on your website now, with no email. "}
 							{scheduledTime ? `It goes out now instead of ${scheduledTime}.` : "Most engaged contacts receive it first."}
 							{isTesting
 								? " The subject line test goes to a slice of them first, and the winner to the rest after the wait."
@@ -214,6 +224,50 @@ export default function PanelSend({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+		</div>
+	);
+}
+
+const PUBLISH_CHOICES = [
+	{ value: "both", label: "Email and web" },
+	{ value: "email", label: "Email only" },
+	{ value: "web", label: "Web only" },
+];
+
+// Where the issue goes, saved as it's picked. Web only needs the website on.
+function ChoicePublishTo({ campaign, isWebsiteOn }) {
+	const router = useRouter();
+	const toastError = useToastError();
+	const [isPending, startTransition] = useTransition();
+	const current = campaign.publishTo ?? "both";
+
+	function choose(value) {
+		startTransition(async () => {
+			const result = await setCampaignPublishTo(campaign._id, value);
+			if (result?.error) return toastError(result);
+			router.refresh();
+		});
+	}
+
+	return (
+		<div role="radiogroup" aria-label="Publish" className="flex min-w-0 flex-wrap gap-1.5 py-2">
+			{PUBLISH_CHOICES.map(({ value, label }) => (
+				<button
+					key={value}
+					type="button"
+					role="radio"
+					aria-checked={current === value}
+					disabled={isPending || (value === "web" && !isWebsiteOn)}
+					title={value === "web" && !isWebsiteOn ? "Turn on the newsletter's website first" : undefined}
+					onClick={() => current !== value && choose(value)}
+					className={cn(
+						"h-7 rounded-full px-3 text-xs font-medium outline-none transition-[background-color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60",
+						current === value ? "bg-foreground text-background" : "text-muted-foreground shadow-border hover:bg-muted/60 hover:text-foreground"
+					)}
+				>
+					{label}
+				</button>
+			))}
 		</div>
 	);
 }

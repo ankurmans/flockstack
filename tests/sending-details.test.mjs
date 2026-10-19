@@ -59,3 +59,48 @@ describe("test emails", () => {
 		await assert.rejects(act(m, user, "send_test_email", { id: campaignId, to: ["bounced@example.net"] }), { code: "send_check_failed" });
 	});
 });
+
+describe("email only and web only issues", () => {
+	test("web only publishes the page with no email; email only sends with no page and no read online link", async () => {
+		const user = await setupSender(m, "channels@example.com", { contacts: 2 });
+		await m.Newsletter.updateOne({ accountId: user.accountId, _id: user.newsletterId }, { $set: { archiveEnabled: true } });
+		const { getArchiveIssue, listArchiveIssues } = await import("../lib/archive-data.js");
+		const newsletter = await m.Newsletter.findOne({ accountId: user.accountId, _id: user.newsletterId }).lean();
+
+		const webId = await createDraft(m, user, { subject: "On the web" });
+		assert.equal((await act(m, user, "update_campaign", { id: webId, publishTo: "web" })).publishTo, "web");
+		const published = await act(m, user, "send_campaign", { id: webId });
+		assert.equal(published.status, "sent");
+		assert.equal(published.stats.recipients, 0);
+		await runJobs(sendRoutes(m));
+		assert.equal(sentTo("reader0@channels.example.org").length, 0, "no email");
+		assert.ok(await getArchiveIssue(newsletter, published.archiveSlug));
+		await assert.rejects(act(m, user, "send_campaign_to_more", { id: webId }), { code: "conflict" });
+		await assert.rejects(act(m, user, "resend_campaign", { id: webId, subject: "Again" }), { code: "conflict" });
+
+		const emailId = await createDraft(m, user, { subject: "In the inbox" });
+		await act(m, user, "update_campaign", { id: emailId, publishTo: "email" });
+		const emailed = await act(m, user, "send_campaign", { id: emailId });
+		await runJobs(sendRoutes(m));
+		const [email] = sentTo("reader0@channels.example.org");
+		assert.equal(email.subject, "In the inbox");
+		assert.doesNotMatch(email.html, /Read online/);
+		assert.equal(emailed.archiveListed, false);
+		const current = await m.Campaign.findOne({ accountId: user.accountId, _id: emailId }).lean();
+		assert.equal(await getArchiveIssue(newsletter, current.archiveSlug), null, "no page");
+		assert.deepEqual((await listArchiveIssues(newsletter)).map(({ subject }) => subject), ["On the web"]);
+		await assert.rejects(act(m, user, "update_campaign_archive", { id: emailId, listed: true }), { code: "conflict" });
+
+		const unlisted = await act(m, user, "update_campaign_archive", { id: webId, listed: false });
+		assert.equal(unlisted.archiveListed, false);
+		assert.deepEqual(await listArchiveIssues(newsletter), []);
+		assert.ok(await getArchiveIssue(newsletter, published.archiveSlug), "an unlisted issue keeps its page");
+	});
+
+	test("web only needs the website on, and isn't for paid issues", async () => {
+		const user = await setupSender(m, "web-off@example.com", { contacts: 1 });
+		const id = await createDraft(m, user, { subject: "Nowhere" });
+		await act(m, user, "update_campaign", { id, publishTo: "web" });
+		await assert.rejects(act(m, user, "send_campaign", { id }), { code: "send_check_failed", message: /website/ });
+	});
+});

@@ -1,6 +1,7 @@
 import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
 import { AB_TEST_METRICS, AB_TEST_STATUSES } from "../lib/ab-test-rules.js";
+import { PUBLISH_TARGETS } from "../lib/archive-issues.js";
 import { RESEND_TARGETS } from "../lib/resend-rules.js";
 import { AUDIENCES } from "../lib/tiers.js";
 
@@ -60,6 +61,8 @@ const campaignSchema = new mongoose.Schema(
 		thumbnailUrl: { type: String, trim: true },
 		// Unlisted issues keep their /p/slug page but stay off the archive index.
 		archiveListed: { type: Boolean, default: true },
+		// Email only issues are also unlisted, and have no page at all; web only ones are published without an email.
+		publishTo: { type: String, enum: PUBLISH_TARGETS },
 		// This issue's own word on comments, over the newsletter's setting: on or off. Without one it follows the newsletter.
 		comments: { type: String, enum: ["on", "off"] },
 		// Pinned issues sit in the Featured row at the top of the archive.

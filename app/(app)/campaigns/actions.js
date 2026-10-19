@@ -38,6 +38,24 @@ export async function saveCampaign(id, values) {
 	return { ok: true };
 }
 
+// Email and web, email only or web only.
+export async function setCampaignPublishTo(id, publishTo) {
+	const { failure } = await runDashboardAction("update_campaign", { id: String(id), publishTo: ["email", "web"].includes(publishTo) ? publishTo : "both" });
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	return { ok: true };
+}
+
+// Shown in the website's list of issues and its feed, or only at its link.
+export async function toggleArchiveListed(id) {
+	const current = await runDashboardAction("get_campaign", { id: String(id) });
+	if (current.failure) return toFormError(current.failure);
+	const { failure } = await runDashboardAction("update_campaign_archive", { id: String(id), listed: !current.output.archiveListed });
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	return { ok: true };
+}
+
 // This issue's sender name; empty goes back to the newsletter's.
 export async function setCampaignFromName(id, fromName) {
 	const { failure } = await runDashboardAction("update_campaign", { id: String(id), fromName: String(fromName ?? "").slice(0, 100) });

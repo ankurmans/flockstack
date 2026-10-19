@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Copy, ExternalLink, Globe, Pause, Pin, PinOff, Play, Repeat } from "lucide-react";
+import { Copy, Eye, EyeOff, ExternalLink, Globe, Pause, Pin, PinOff, Play, Repeat } from "lucide-react";
 import {
 	duplicateCampaign,
 	pauseCampaign,
 	resumeCampaign,
+	toggleArchiveListed,
 	toggleArchivePin,
 } from "@/app/(app)/campaigns/actions";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
@@ -139,6 +140,12 @@ export default function CampaignReport({
 						</ButtonCampaignAction>
 					</>
 				)}
+				{newsletter.archiveEnabled && campaign.archiveSlug && campaign.publishTo !== "email" && (
+					<ButtonCampaignAction action={toggleArchiveListed} id={id}>
+						{campaign.archiveListed === false ? <Eye data-icon="inline-start" /> : <EyeOff data-icon="inline-start" />}
+						{campaign.archiveListed === false ? "List on website" : "Unlist"}
+					</ButtonCampaignAction>
+				)}
 				<ButtonCampaignAction action={duplicateCampaign} id={id}>
 					<Copy data-icon="inline-start" />
 					Duplicate
@@ -220,6 +227,13 @@ export default function CampaignReport({
 						detail={formatNumber(stats.unsubscribed)}
 					/>
 				</div>
+
+				{campaign.publishTo === "web" && (
+					<p className="rounded-xl bg-muted/60 px-4 py-3 text-sm text-pretty animate-enter">Published on the website only: no email went out.</p>
+				)}
+				{campaign.publishTo === "email" && (
+					<p className="rounded-xl bg-muted/60 px-4 py-3 text-sm text-pretty animate-enter">Email only: this issue has no page on the website.</p>
+				)}
 
 				{hasAbTest(campaign) && campaign.abTest.status && <TableAbTest abTest={campaign.abTest} />}
 
