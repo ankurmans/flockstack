@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { getArchiveHostUrl } from "@/lib/archive-hosts";
 import { isCloud } from "@/lib/config";
 import { resolveArchiveHost } from "@/lib/host-routing";
+import { withQuery } from "@/lib/redirect-paths";
+import { findRedirect } from "@/lib/redirect-routing";
 import { getCookiePrefix } from "@/lib/region";
 import { siteRouting } from "@/lib/site-routing";
 
@@ -84,6 +86,9 @@ export async function proxy(request) {
 		if (pathname === "/feed.xml") return rewriteTo(request, `/archive/${archiveSlug}/feed`);
 		if (pathname === "/shop" || pathname === "/shop/") return rewriteTo(request, `/archive/${archiveSlug}/shop`);
 		if (pathname === "/subscribe" || pathname === "/subscribe/") return rewriteTo(request, `/archive/${archiveSlug}/subscribe`);
+		// The newsletter's redirects (lib/redirect-routing.js): old addresses of imported posts, and the owner's own.
+		const redirect = await findRedirect(archiveSlug, pathname);
+		if (redirect) return NextResponse.redirect(new URL(withQuery(redirect, request.nextUrl.search), request.url), 301);
 		const productSlug = PRODUCT_PATH_PATTERN.exec(pathname)?.[1];
 		if (productSlug) return rewriteTo(request, `/archive/${archiveSlug}/shop/${productSlug}`);
 		const issueSlug = ISSUE_PATH_PATTERN.exec(pathname)?.[1];

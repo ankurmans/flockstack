@@ -104,3 +104,24 @@ export async function createNewsletter(_state, formData) {
 	await siteExtensions.sendGoalOnNextPage("newsletter_created");
 	redirect("/newsletters");
 }
+
+// The website's redirects, on the settings page.
+export async function listRedirects(newsletterId, cursor) {
+	const { output, failure } = await runDashboardAction("list_redirects", { newsletter: String(newsletterId ?? ""), ...(cursor && { cursor: String(cursor) }) });
+	return failure ? toFormError(failure) : output;
+}
+
+export async function addRedirect(newsletterId, from, to) {
+	const { output, failure } = await runDashboardAction("add_redirect", { newsletter: String(newsletterId ?? ""), from: String(from ?? ""), to: String(to ?? "") });
+	return failure ? toFormError(failure) : { redirect: output };
+}
+
+export async function deleteRedirect(id) {
+	const { failure } = await runDashboardAction("delete_redirect", { id: String(id ?? "") });
+	return failure ? toFormError(failure) : { ok: true };
+}
+
+export async function importRedirects(newsletterId, csv) {
+	const { output, failure } = await runDashboardAction("import_redirects", { newsletter: String(newsletterId ?? ""), csv: String(csv ?? "") });
+	return failure ? toFormError(failure) : output;
+}
