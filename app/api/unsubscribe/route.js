@@ -3,6 +3,7 @@ import { exitEnrollments } from "@/lib/automation-triggers";
 import { connectDb } from "@/lib/db";
 import { getClientIp, isRateLimited } from "@/lib/rate-limit";
 import { verifyUnsubscribeToken } from "@/lib/unsubscribe";
+import { emitSubscriberEvent } from "@/lib/webhooks";
 import Campaign from "@/models/Campaign";
 import Contact from "@/models/Contact";
 import Message from "@/models/Message";
@@ -41,10 +42,10 @@ async function unsubscribe({ contactId, newsletterId }) {
 	await connectDb();
 	const previous = await Contact.findOneAndUpdate(
 		{ _id: contactId, newsletterId, status: { $in: SUBSCRIBED_STATUSES } },
-		{ $set: { status: "unsubscribed", unsubscribedAt: new Date() } }
+		{ $set: { status: "unsubscribed", unsubscribedAt: new Date() } },
+		{ returnDocument: "after" }
 	)
 		.setOptions({ crossAccount: true })
-		.select({ _id: 1, accountId: 1 })
 		.lean();
 	if (!previous) return;
 
@@ -55,6 +56,7 @@ async function unsubscribe({ contactId, newsletterId }) {
 	await creditLatestCampaign({ accountId: previous.accountId, contactId, newsletterId }).catch((error) =>
 		console.error("[unsubscribe] Could not credit the campaign:", error.message)
 	);
+	await emitSubscriberEvent("subscriber.unsubscribed", previous);
 }
 
 function redirectToPage(request, params) {
