@@ -618,7 +618,8 @@ describe("the emails", () => {
 		const base = `https://${user.slug}.flockstackmail.com`;
 		const open = (target) => anonymous(() => m.portalRoute.GET(new Request(target)));
 
-		const forged = m.portalLink.getPortalUrl({ contactId: member._id, newsletterId: user.newsletterId }, base).replace(/.$/, "A");
+		const real = m.portalLink.getPortalUrl({ contactId: member._id, newsletterId: user.newsletterId }, base);
+		const forged = real.replace(/.$/, real.endsWith("A") ? "B" : "A");
 		assert.equal((await open(forged)).status, 410);
 		assert.equal((await open(`${base}/api/shop/portal?token=garbage`)).status, 410);
 		assert.equal((await open(`${base}/api/shop/portal`)).status, 410);
