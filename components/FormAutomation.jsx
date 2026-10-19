@@ -283,8 +283,8 @@ function TriggerEditor({ trigger, onChange, segments, dateFields, tags, isDisabl
 						list={listId}
 						value={trigger.tag ?? ""}
 						onChange={(event) => set({ tag: event.target.value })}
-						placeholder={trigger.type === "tag_added" ? "Tag" : "Only contacts who signed up with this tag (optional)"}
-						aria-label="Tag"
+						placeholder={trigger.type === "tag_added" ? "Tag" : "Only with a tag, e.g. vip"}
+						aria-label={trigger.type === "tag_added" ? "Tag" : "Only contacts who signed up with this tag"}
 						maxLength={60}
 						disabled={isDisabled}
 						className="h-9"
@@ -300,8 +300,8 @@ function TriggerEditor({ trigger, onChange, segments, dateFields, tags, isDisabl
 				<Input
 					value={trigger.source ?? ""}
 					onChange={(event) => set({ source: event.target.value })}
-					placeholder="Only contacts from this source, e.g. website (optional)"
-					aria-label="Source"
+					placeholder="Only from a source, e.g. website"
+					aria-label="Only contacts from this source"
 					maxLength={100}
 					disabled={isDisabled}
 					className="h-9"

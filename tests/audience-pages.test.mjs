@@ -113,6 +113,7 @@ describe("automations", () => {
 		const html = await render(user, m.automationPage, { params: Promise.resolve({ id: created.body.id }) });
 		assert.match(html, /value="Welcome series"/);
 		assert.match(html, /Starts when/);
+		assert.match(html, /placeholder="Tag" aria-label="Tag"/);
 		assert.match(html, /Welcome/);
 		assert.match(html, /Add a tag/);
 		assert.match(html, />Contacts</);
@@ -140,6 +141,9 @@ describe("automations", () => {
 		assert.match(html, />3 hours</);
 		assert.match(html, />1 minute</);
 		assert.doesNotMatch(html, />1 days</);
+		// A placeholder short enough for a phone's width; the field's name says the rest.
+		assert.match(html, /placeholder="Only with a tag, e.g. vip" aria-label="Only contacts who signed up with this tag"/);
+		assert.match(html, /placeholder="Only from a source, e.g. website" aria-label="Only contacts from this source"/);
 	});
 
 	test("say what's wrong in the editor's words: steps from 1, no field names", async () => {
