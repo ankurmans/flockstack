@@ -137,6 +137,9 @@ describe("referral codes and tags", () => {
 		assert.equal(readReferralCode(`${code.slice(0, -1)}${code.endsWith("A") ? "B" : "A"}`), null);
 		assert.equal(readReferralCode(createReferralCode("6650f1c2e9b1d4a012345679").slice(0, 16) + code.slice(16)), null, "another subscriber's ID with this signature");
 		for (const bad of [undefined, "", "abc", `${code}x`, `${code.slice(0, 26)}!`]) assert.equal(readReferralCode(bad), null, String(bad));
+		const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+		const aliases = [...alphabet].map((last) => `${code.slice(0, 26)}${last}`).filter((other) => other !== code);
+		assert.deepEqual(aliases.filter((other) => readReferralCode(other) !== null), [], "only the code as made counts, not its other spellings");
 
 		const token = createReferralPageToken({ contactId, newsletterId: "6650f1c2e9b1d4a0aaaaaaaa" });
 		assert.deepEqual(verifyReferralPageToken(token), { contactId, newsletterId: "6650f1c2e9b1d4a0aaaaaaaa" });

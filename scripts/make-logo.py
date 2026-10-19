@@ -1,4 +1,4 @@
-"""FlockStack's mark: three gulls in a stack, each smaller and fainter than the one below, climbing away.
+"""FlockStack's mark, Rising flock: two stacked chevrons, the upper one fainter. A V of birds and an arrow up.
 Prints the three paths (for components/LogoFlockstack.jsx) and writes the icon files from them.
 
     python3 scripts/make-logo.py            # print the shapes
@@ -7,38 +7,28 @@ Prints the three paths (for components/LogoFlockstack.jsx) and writes the icon f
 import math, subprocess, sys, os
 
 VIEWBOX = "0 0 48 48"
-# (center x, y of the wing tips, wingspan, thickness at the body, opacity)
-GULLS = [(24, 40, 40, 6.0, 1.0), (24, 27.5, 29, 4.5, 0.6), (24, 16.5, 18, 3.2, 0.32)]
+# Two chevrons, the upper one fainter: (left x, y of the arms' ends, apex x, apex y, right x, thickness, opacity)
+CHEVRONS = [(7, 38, 24, 23, 41, 7.0, 1.0), (7, 25, 24, 10, 41, 7.0, 0.5)]
 
-def bez(p0, p1, p2, p3, s):
-    u = 1 - s
-    return tuple(u**3*a + 3*u*u*s*b + 3*u*s*s*c + s**3*d for a, b, c, d in zip(p0, p1, p2, p3))
+def chevron(ax, ay, bx, by, cx, t):
+    # A stroke from A to the apex B to C with round ends and a round top, outlined as one filled shape.
+    h = t / 2
+    def unit(x, y):
+        length = math.hypot(x, y)
+        return x / length, y / length
+    u1 = unit(bx - ax, by - ay); u2 = unit(cx - bx, ay - by)
+    n1 = (u1[1], -u1[0]); n2 = (u2[1], -u2[0])   # the upper side of each arm
+    up = lambda px, py, n, k=1: (px + k * h * n[0], py + k * h * n[1])
+    sx, sy = n1[0] + n2[0], n1[1] + n2[1]
+    s2 = sx * sx + sy * sy
+    inner = (bx - 2 * h * sx / s2, by - 2 * h * sy / s2)   # where the lower edges meet under the apex
+    a_top, b1, b2, c_top = up(ax, ay, n1), up(bx, by, n1), up(bx, by, n2), up(cx, ay, n2)
+    c_bot, a_bot = up(cx, ay, n2, -1), up(ax, ay, n1, -1)
+    p = lambda pt: f"{pt[0]:.2f} {pt[1]:.2f}"
+    arc = lambda pt: f"A{h:.2f} {h:.2f} 0 0 1 {p(pt)}"
+    return f"M{p(a_top)}L{p(b1)}{arc(b2)}L{p(c_top)}{arc(c_bot)}L{p(inner)}L{p(a_bot)}{arc(a_top)}Z"
 
-def smooth(s):
-    return s * s * (3 - 2 * s)
-
-def gull(cx, y, w, t):
-    # left half of the wing's centreline, tip to body; the right half mirrors it
-    p0, p1, p2, p3 = (cx - w/2, y + 0.04*w), (cx - w/2 + 0.12*w, y - 0.30*w), (cx - 0.20*w, y - 0.40*w), (cx, y - 0.02*w)
-    n = 28
-    pts = [bez(p0, p1, p2, p3, i / n) for i in range(n + 1)]
-    upper, lower = [], []
-    for i, (x, yy) in enumerate(pts):
-        a = pts[max(i - 1, 0)]; b = pts[min(i + 1, n)]
-        dx, dy = b[0] - a[0], b[1] - a[1]
-        length = math.hypot(dx, dy) or 1
-        nx, ny = -dy / length, dx / length   # points down-left of travel direction (towards the lower edge)
-        half = t * (0.10 + 0.90 * math.sin(math.pi * i / n) ** 0.75) / 2
-        upper.append((x - nx * half, yy - ny * half))
-        lower.append((x + nx * half, yy + ny * half))
-    mirror = lambda ps: [(2 * cx - x, yy) for x, yy in ps]
-    outline = upper + mirror(upper)[::-1][1:] + mirror(lower)[1:] + lower[::-1]
-    return outline
-
-def path(points):
-    return "M" + "L".join(f"{x:.1f} {y:.1f}" for x, y in points) + "Z"
-
-SHAPES = [(path(gull(cx, y, w, t)), op) for cx, y, w, t, op in GULLS]
+SHAPES = [(chevron(ax, ay, bx, by, cx, t), op) for ax, ay, bx, by, cx, t, op in CHEVRONS]
 
 def svg(fg="#0a0a0a", bg=None, size=None, pad=0, rx=0, mono=False):
     box = "0 0 48 48"
