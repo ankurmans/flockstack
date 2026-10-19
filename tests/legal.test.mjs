@@ -161,7 +161,7 @@ describe("the legal pages", () => {
 		assert.doesNotMatch(processors + privacy, /PostHog EU Cloud/);
 	});
 
-	test("Sign in with Apple is described as optional, with what Apple gets and what FlockStack keeps", () => {
+	test("Sign in with Apple is described as in use, with what Apple gets and what FlockStack keeps", () => {
 		const privacy = textOf(renderPage("privacy"));
 		const processors = textOf(renderPage("sub-processors"));
 		const apple = m.subprocessors.OPTIONAL_SUBPROCESSORS.find(({ name }) => name === "Apple (sign-in)");
@@ -171,7 +171,7 @@ describe("the legal pages", () => {
 		for (const phrase of ["Sign in with Apple", "Apple receives the sign-in request", "private relay address", "the first time only, the name"]) {
 			assert.ok(processors.includes(phrase), phrase);
 		}
-		assert.match(m.legal.OPTIONAL_SERVICES_IN_USE, /Sign in with Apple is optional/);
+		assert.match(m.legal.OPTIONAL_SERVICES_IN_USE, /uses Google sign-in and Sign in with Apple/);
 		for (const phrase of ["if you sign in with Google or Apple we store that link to your Google or Apple account", "private relay address", "a passkey, Google or Apple"]) {
 			assert.ok(privacy.includes(phrase), phrase);
 		}
