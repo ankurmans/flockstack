@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronLeft, ChevronRight, Users } from "lucide-react";
 import AvatarContact from "@/components/AvatarContact";
+import BannerRemovals from "@/components/BannerRemovals";
 import BadgeStatus from "@/components/BadgeStatus";
 import ButtonExportContacts from "@/components/ButtonExportContacts";
 import CardAddContacts from "@/components/CardAddContacts";
@@ -30,6 +31,7 @@ import {
 } from "@/components/ui/table";
 import { scoped } from "@/lib/account-scope";
 import { isPaidContact } from "@/lib/tiers";
+import { listRemovals } from "@/lib/bulk-removal";
 import { getAppUrl } from "@/lib/config";
 import { CONTACTS_PAGE_SIZE, findContactsPage } from "@/lib/contacts";
 import { listCustomFields, toFieldOutput } from "@/lib/custom-fields";
@@ -54,12 +56,13 @@ export default async function ContactsPage({ searchParams }) {
 	const tag = typeof params.tag === "string" ? params.tag.trim().toLowerCase().slice(0, 60) : "";
 	const page = Math.max(1, Number.parseInt(params.page, 10) || 1);
 
-	const [{ contacts, counts, totalAll, total }, definitions, tagNames] = await Promise.all([
+	const [{ contacts, counts, totalAll, total }, definitions, tagNames, removals] = await Promise.all([
 		newsletterId
 			? findContactsPage(account, { newsletterId, status, query, tag, page })
 			: { contacts: [], counts: {}, totalAll: 0, total: 0 },
 		newsletterId ? listCustomFields(account, selected._id) : [],
 		newsletterId ? Tag.find(scoped(account, { newsletterId: selected._id })).sort({ name: 1 }).select({ name: 1 }).lean() : [],
+		newsletterId ? listRemovals(account, selected._id) : [],
 	]);
 	const fieldOptions = definitions.map(toFieldOutput);
 	const tags = tagNames.map(({ name }) => name);
@@ -93,6 +96,9 @@ export default async function ContactsPage({ searchParams }) {
 			</HeaderPage>
 
 			<div className="flex flex-col gap-4">
+				{removals.length > 0 && (
+					<BannerRemovals key={removals.map(({ id }) => id).join()} newsletterId={newsletterId} initial={removals} />
+				)}
 				{hasContacts && (
 					<>
 						<Suspense fallback={<Skeleton className="h-9 w-full rounded-lg" />}>
