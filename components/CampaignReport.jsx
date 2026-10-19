@@ -36,6 +36,7 @@ import { rateTone } from "@/lib/health";
 import { PROVIDER_DOMAINS, PROVIDER_LABELS } from "@/lib/providers";
 import { renderEmail, withPreviewLinks, withResponsiveImages } from "@/lib/render-email";
 import { getAudienceLabel } from "@/lib/tiers";
+import CardPollResults from "@/components/CardPollResults";
 
 export default function CampaignReport({
 	campaign,
@@ -46,6 +47,7 @@ export default function CampaignReport({
 	isBlocked = false,
 	pace = null,
 	newContacts = 0,
+	polls = [],
 }) {
 	const { stats } = campaign;
 	const id = campaign._id.toString();
@@ -249,6 +251,10 @@ export default function CampaignReport({
 						</Table>
 					</div>
 				)}
+
+				{polls.map((poll) => (
+					<CardPollResults key={poll.id} poll={poll} />
+				))}
 
 				{newsletter.archiveEnabled && campaign.archiveSlug && (
 					<div

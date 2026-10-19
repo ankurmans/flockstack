@@ -4,6 +4,7 @@ import { cleanRichHtml } from "../lib/clean-html.js";
 import { renderFootnotes, splitAtPaywall } from "../lib/editor-blocks.js";
 import { parseEmbed } from "../lib/embeds.js";
 import { renderEmail } from "../lib/render-email.js";
+import { TEST_CONTACT_ID, buildRecipientEmail } from "../lib/sending-rules.js";
 import { setupAudienceTests } from "./helpers/audience.mjs";
 
 const POLL_ID = "6650f1c2e9b1d4a012345678";
@@ -227,5 +228,26 @@ describe("the accent color", () => {
 		assert.equal(saved.body.accentColor, "#ff5500");
 		t.assertError(await t.api(user.key, "PATCH", `/newsletters/${user.slug}`, { accentColor: "red" }), 400, "validation_failed");
 		assert.equal((await t.api(user.key, "PATCH", `/newsletters/${user.slug}`, { accentColor: "" })).body.accentColor, "");
+	});
+});
+
+describe("each reader's email", () => {
+	test("ends at the paywall break for free readers, and goes on for paid ones and in test emails", () => {
+		const campaign = { _id: POLL_ID, format: "rich", subject: "Issue", html: '<p>Free part</p><div data-paywall=""></div><p>Paid part</p>' };
+		const site = { _id: "6650f1c2e9b1d4a012345679", name: "Field notes", slug: "field-notes", fromEmail: "hello@field-notes.example.com", postalAddress: "1 Main St" };
+		const contactId = "6650f1c2e9b1d4a01234567a";
+		const free = buildRecipientEmail({ campaign, newsletter: site, contact: { _id: contactId, email: "free@example.com" } });
+		assert.ok(free.html.includes("Free part") && !free.html.includes("Paid part"));
+		assert.match(free.html, /href="[^"]*\/subscribe"/, "the upgrade card links to the subscribe page");
+		const paid = buildRecipientEmail({
+			campaign,
+			newsletter: site,
+			contact: { _id: contactId, email: "paid@example.com", tier: "paid", paidUntil: new Date(Date.now() + 86_400_000) },
+		});
+		assert.ok(paid.html.includes("Paid part") && !paid.html.includes("Paid subscribers read on"));
+		const lapsed = buildRecipientEmail({ campaign, newsletter: site, contact: { _id: contactId, email: "lapsed@example.com", tier: "paid", paidUntil: new Date(2020, 0, 1) } });
+		assert.ok(!lapsed.html.includes("Paid part"), "a paid period that ran out reads as free");
+		const testEmail = buildRecipientEmail({ campaign, newsletter: site, contact: { _id: TEST_CONTACT_ID, email: "owner@example.com" } });
+		assert.ok(testEmail.html.includes("Paid part") && testEmail.html.includes("Paid subscribers read on from here"));
 	});
 });

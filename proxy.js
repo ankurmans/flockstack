@@ -30,6 +30,7 @@ const PUBLIC_PATHS = [
 	/^\/keep$/,
 	/^\/referral$/,
 	/^\/reader\/(in|signin|replies)$/,
+	/^\/(poll|poll\/results|survey|preferences)$/,
 	/^\/o\//,
 	/^\/c\//,
 	/^\/p\//,
@@ -56,6 +57,8 @@ const ARCHIVE_HOST_PATHS = [
 	/^\/keep$/,
 	/^\/referral$/,
 	/^\/reader\/(in|signin|replies)$/,
+	// Polls, surveys and the preference center (lib/subscriber-links.js).
+	/^\/(poll|poll\/results|survey|preferences)$/,
 	/^\/o\//,
 	/^\/c\//,
 ];

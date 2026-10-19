@@ -13,8 +13,12 @@ const contactSchema = new mongoose.Schema(
 		source: { type: String, trim: true },
 		// Free-form labels, normalized by lib/tags.js. Filters on them run in SQL (lib/docdb/sql.js, arrays of scalars).
 		tags: { type: [String], default: undefined },
-		// The newsletter's custom fields by key, with text, number or date (YYYY-MM-DD) values (lib/custom-fields.js).
+		// The newsletter's custom fields by key (lib/custom-fields.js): text, a number, a date (YYYY-MM-DD), a date and time,
+		// true or false, or a list field's option, or options as an array.
 		fields: { type: mongoose.Schema.Types.Mixed, scalarMembers: true },
+		// The answer this subscriber gave each poll from an email, by "p" and the poll's ID, so segments filter on it
+		// (lib/polls.js keeps it in step with the vote).
+		polls: { type: mongoose.Schema.Types.Mixed, scalarMembers: true },
 		importId: { type: mongoose.Schema.Types.ObjectId, ref: "ContactImport" },
 		// Added by hand on the dashboard: the user who said this person agreed to get the newsletter, and when.
 		consent: {

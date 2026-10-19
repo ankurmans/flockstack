@@ -20,7 +20,14 @@ const TYPE_LABELS = {
 	source: "Source",
 	engagement: "Engagement",
 	imported: "Imported",
+	poll: "Poll answer",
 };
+const POLL_OPS = [
+	["is", "answered"],
+	["is_not", "didn't answer"],
+	["is_set", "voted"],
+	["is_not_set", "didn't vote"],
+];
 const ENGAGEMENT_LABELS = {
 	opened: "Opened in the last",
 	clicked: "Clicked in the last",
@@ -100,6 +107,7 @@ function cleanCondition(condition) {
 	if (type === "signup_date") return { type, ...(condition.from && { from: condition.from }), ...(condition.to && { to: condition.to }) };
 	if (type === "engagement") return { type, kind: condition.kind, ...(condition.kind !== "never_opened" && { days: Number(condition.days) || undefined }) };
 	if (type === "imported") return { type, value: condition.value !== false };
+	if (type === "poll") return { type, poll: condition.poll, op: condition.op, ...(["is", "is_not"].includes(condition.op) && { option: Number(condition.option) }) };
 	return { type, op: condition.op, value: condition.value };
 }
 
@@ -115,7 +123,8 @@ function fromRules(rules) {
 }
 
 // A segment's name and its rules, with the contacts they match counted as they change.
-export default function FormSegment({ newsletter, segment, fields, tags }) {
+// polls: the newsletter's, { id, question, options }, for conditions on what subscribers answered.
+export default function FormSegment({ newsletter, segment, fields, tags, polls = [] }) {
 	const router = useRouter();
 	const [name, setName] = useState(segment?.name ?? "");
 	const [description, setDescription] = useState(segment?.description ?? "");
@@ -187,11 +196,12 @@ export default function FormSegment({ newsletter, segment, fields, tags }) {
 									group={item}
 									fields={fields}
 									tags={tags}
+									polls={polls}
 									onChange={(group) => setItem(index, group)}
 									onRemove={() => removeItem(index)}
 								/>
 							) : (
-								<Condition key={index} condition={item} fields={fields} tags={tags} onChange={(condition) => setItem(index, condition)} onRemove={() => removeItem(index)} />
+								<Condition key={index} condition={item} fields={fields} tags={tags} polls={polls} onChange={(condition) => setItem(index, condition)} onRemove={() => removeItem(index)} />
 							)
 						)}
 						<div className="flex flex-wrap gap-2">
@@ -240,7 +250,7 @@ function MatchSelect({ value, onChange }) {
 	);
 }
 
-function Group({ group, fields, tags, onChange, onRemove }) {
+function Group({ group, fields, tags, polls, onChange, onRemove }) {
 	function setCondition(index, condition) {
 		onChange({ ...group, conditions: group.conditions.map((existing, position) => (position === index ? condition : existing)) });
 	}
@@ -261,6 +271,7 @@ function Group({ group, fields, tags, onChange, onRemove }) {
 					condition={condition}
 					fields={fields}
 					tags={tags}
+					polls={polls}
 					onChange={(next) => setCondition(index, next)}
 					onRemove={group.conditions.length > 1 ? () => onChange({ ...group, conditions: group.conditions.filter((_, position) => position !== index) }) : null}
 				/>
@@ -273,7 +284,7 @@ function Group({ group, fields, tags, onChange, onRemove }) {
 	);
 }
 
-function defaultsFor(type, fields) {
+function defaultsFor(type, fields, polls = []) {
 	switch (type) {
 		case "status":
 			return { type, op: "is", value: "active" };
@@ -287,6 +298,8 @@ function defaultsFor(type, fields) {
 			return { type, from: "", to: "" };
 		case "engagement":
 			return { type, kind: "opened", days: 30 };
+		case "poll":
+			return { type, poll: polls[0]?.id ?? "", op: "is", option: 0 };
 		default:
 			return { type, value: true };
 	}
@@ -298,20 +311,21 @@ function fieldCondition(field) {
 	return { type: "field", field: field?.key ?? "", op: ops[0][0], value: "" };
 }
 
-function Condition({ condition, fields, tags, onChange, onRemove }) {
+function Condition({ condition, fields, tags, polls = [], onChange, onRemove }) {
 	const listId = useId();
 	const field = fields.find(({ key }) => key === condition.field);
+	const poll = polls.find(({ id }) => id === condition.poll);
 	const set = (changes) => onChange({ ...condition, ...changes });
 
 	return (
 		<div className="flex flex-wrap items-center gap-2">
-			<Select value={condition.type} onValueChange={(type) => onChange(defaultsFor(type, fields))}>
+			<Select value={condition.type} onValueChange={(type) => onChange(defaultsFor(type, fields, polls))}>
 				<SelectTrigger size="sm" className="w-36" aria-label="Condition">
 					<SelectValue />
 				</SelectTrigger>
 				<SelectContent>
 					{Object.entries(TYPE_LABELS)
-						.filter(([type]) => type !== "field" || fields.length > 0)
+						.filter(([type]) => (type !== "field" || fields.length > 0) && (type !== "poll" || polls.length > 0))
 						.map(([type, label]) => (
 							<SelectItem key={type} value={type}>
 								{label}
@@ -443,6 +457,38 @@ function Condition({ condition, fields, tags, onChange, onRemove }) {
 							/>
 							<span className="text-sm text-muted-foreground">days</span>
 						</>
+					)}
+				</>
+			)}
+
+			{condition.type === "poll" && (
+				<>
+					<Select value={condition.poll} onValueChange={(id) => onChange({ type: "poll", poll: id, op: condition.op, option: 0 })}>
+						<SelectTrigger size="sm" className="w-48" aria-label="Poll">
+							<SelectValue placeholder="Pick a poll" />
+						</SelectTrigger>
+						<SelectContent>
+							{polls.map(({ id, question }) => (
+								<SelectItem key={id} value={id}>
+									{question}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+					<OpSelect value={condition.op} onChange={(op) => set({ op })} options={POLL_OPS} />
+					{["is", "is_not"].includes(condition.op) && poll && (
+						<Select value={String(condition.option ?? 0)} onValueChange={(option) => set({ option: Number(option) })}>
+							<SelectTrigger size="sm" className="w-40" aria-label="Answer">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{poll.options.map((label, index) => (
+									<SelectItem key={label} value={String(index)}>
+										{label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					)}
 				</>
 			)}

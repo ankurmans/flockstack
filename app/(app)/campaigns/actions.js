@@ -147,3 +147,43 @@ export async function updateArchiveSlug(id, value) {
 	refresh(id);
 	return { ok: true, archiveSlug: output.archiveSlug ?? "" };
 }
+
+// The editor's poll block: { question, options: [{ label, tag }], fieldKey, showResults, followUp }.
+function readPoll(values) {
+	return {
+		question: String(values?.question ?? ""),
+		options: (Array.isArray(values?.options) ? values.options : []).map(({ label, tag }) => ({ label: String(label ?? ""), ...(tag && { tag: String(tag) }) })),
+		fieldKey: values?.fieldKey ? String(values.fieldKey) : null,
+		showResults: values?.showResults !== false,
+		followUp: values?.followUp ? String(values.followUp) : null,
+	};
+}
+
+export async function createPoll(newsletterId, campaignId, values) {
+	const { output, failure } = await runDashboardAction("create_poll", {
+		newsletter: String(newsletterId ?? ""),
+		...(campaignId && { campaign: String(campaignId) }),
+		...readPoll(values),
+	});
+	return failure ? toFormError(failure) : { poll: output };
+}
+
+export async function updatePoll(id, values) {
+	const { output, failure } = await runDashboardAction("update_poll", { id: String(id ?? ""), ...readPoll(values) });
+	return failure ? toFormError(failure) : { poll: output };
+}
+
+export async function getPoll(id) {
+	const { output, failure } = await runDashboardAction("get_poll", { id: String(id ?? "") });
+	return failure ? toFormError(failure) : { poll: output };
+}
+
+// Who picked an answer, for the report; option null for everyone.
+export async function listPollVoters(id, option, cursor) {
+	const { output, failure } = await runDashboardAction("list_poll_voters", {
+		id: String(id ?? ""),
+		...(Number.isInteger(option) && { option }),
+		...(cursor && { cursor: String(cursor) }),
+	});
+	return failure ? toFormError(failure) : output;
+}

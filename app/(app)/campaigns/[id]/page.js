@@ -5,9 +5,11 @@ import FormCampaign from "@/components/FormCampaign";
 import { scoped } from "@/lib/account-scope";
 import { getAccountSendProblem, hasActiveSubscription, isBlocked } from "@/lib/account-state";
 import { getArchiveUrls } from "@/lib/archive-hosts";
+import { runAction } from "@/lib/actions/run-action";
 import { countNewContacts, getSendVolumes, sendTimesPipeline } from "@/lib/campaign-queries";
 import { isSendingEnabled } from "@/lib/config";
 import { listCustomFields } from "@/lib/custom-fields";
+import { findPolls } from "@/lib/editor-blocks";
 import { MESSAGE_STATS_GROUP } from "@/lib/message-stats";
 import { getPostalAddress } from "@/lib/postal-address";
 import { countCampaignAudience } from "@/lib/segments";
@@ -39,9 +41,10 @@ export default async function CampaignPage({ params }) {
 	const plan = await getPlanState(account);
 
 	if (!["draft", "scheduled"].includes(campaign.status)) {
-		const [providers, remainingCount] = await Promise.all([
+		const [providers, remainingCount, polls] = await Promise.all([
 			getProviderBreakdown(campaign),
 			countRemaining(campaign),
+			getCampaignPolls(account, campaign),
 		]);
 		// Only a next step needs them, for what its dialog says.
 		const [volumes, newContacts] =
@@ -56,6 +59,7 @@ export default async function CampaignPage({ params }) {
 				isBlocked={isBlocked(account)}
 				pace={getPace(account, volumes)}
 				newContacts={newContacts}
+				polls={polls}
 			/>
 		);
 	}
@@ -86,7 +90,7 @@ export default async function CampaignPage({ params }) {
 			emailsLeft={plan.emailsLeft}
 			pace={getPace(account, volumes)}
 			newContacts={newContacts}
-			fields={fields.map(({ key, label }) => ({ key, label }))}
+			fields={fields.map(({ key, label, type }) => ({ key, label, type }))}
 			segments={segments.map(({ _id, name }) => ({ id: String(_id), name }))}
 		/>
 	);
@@ -130,6 +134,13 @@ async function countRemaining(campaign) {
 	const active = await countCampaignAudience(campaign);
 	const reached = (campaign.stats?.recipients ?? 0) + (campaign.lastChance?.recipients ?? 0);
 	return Math.max(0, active - reached);
+}
+
+// The polls the issue has, with their results, through get_poll as the API reads them.
+async function getCampaignPolls(account, campaign) {
+	const ids = [...new Set(findPolls(campaign.format === "rich" ? campaign.html : "").map(({ id }) => id))];
+	const results = await Promise.all(ids.map((id) => runAction("get_poll", { account, input: { id }, via: "dashboard" }).catch(() => null)));
+	return results.filter(Boolean);
 }
 
 async function getProviderBreakdown(campaign) {

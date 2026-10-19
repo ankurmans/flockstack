@@ -149,6 +149,11 @@ export default function PrivacyPage() {
 						privacy policy (YouTube through its privacy-enhanced address). Emails show a picture or a link instead, and the YouTube picture loads
 						from YouTube. Files a creator attaches are stored with their images.
 					</li>
+					<li>
+						<Strong>Polls:</Strong> a subscriber who votes from an email has their answer, and what they write to the poll&apos;s follow-up
+						question, stored with their subscription, so the creator sees who picked what. A vote on the website is anonymous: it is counted
+						with a keyed hash of the reader&apos;s IP address, so one address votes once, and the address itself isn&apos;t kept.
+					</li>
 				</ul>
 				<p>
 					<Strong>Never-email list.</Strong> Across all accounts we keep one list of addresses that are known not to exist (hard bounces,
