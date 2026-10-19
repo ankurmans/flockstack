@@ -3,12 +3,14 @@ import * as React from "react";
 
 // A client component's first render as React elements, without a DOM: its hooks answer from a stand-in dispatcher, so
 // a form's props (onSubmit) can be called as a browser would. useActionState hands back a dispatch that records what it
-// gets, and keeps the action, so a test can run it. Function components named in `expand` render in place too.
+// gets, and keeps the action, so a test can run it; useTransition runs its callback at once and keeps what it returns, for
+// the test to wait on. Function components named in `expand` render in place too.
 const internals = React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 
 export function renderShallow(element, { expand = [] } = {}) {
 	const dispatched = [];
 	const actions = [];
+	const transitions = [];
 	const dispatcher = {
 		readContext: (context) => context._currentValue,
 		use: (usable) => (usable && "_currentValue" in usable ? usable._currentValue : usable),
@@ -29,7 +31,7 @@ export function renderShallow(element, { expand = [] } = {}) {
 		useMemo: (create) => create(),
 		useCallback: (callback) => callback,
 		useId: () => ":r0:",
-		useTransition: () => [false, (callback) => callback()],
+		useTransition: () => [false, (callback) => transitions.push(callback())],
 		useDeferredValue: (value) => value,
 		useSyncExternalStore: (_subscribe, getSnapshot) => getSnapshot(),
 	};
@@ -45,19 +47,23 @@ export function renderShallow(element, { expand = [] } = {}) {
 	const previous = internals.H;
 	internals.H = dispatcher;
 	try {
-		return { tree: render(element.type(element.props)), dispatched, actions };
+		return { tree: render(element.type(element.props)), dispatched, actions, transitions };
 	} finally {
 		internals.H = previous;
 	}
 }
 
-// Every element of a rendered tree of this type ("form", "input"), depth first.
+// Every element of a rendered tree of this type ("form", a component), depth first.
 export function findAll(tree, type) {
+	return findWhere(tree, (node) => node.type === type);
+}
+
+export function findWhere(tree, matches) {
 	const found = [];
 	const visit = (node) => {
 		if (Array.isArray(node)) return node.forEach(visit);
 		if (!isValidElement(node) && !(node && typeof node === "object" && node.props)) return;
-		if (node.type === type) found.push(node);
+		if (matches(node)) found.push(node);
 		Children.forEach(node.props?.children, visit);
 	};
 	visit(tree);
