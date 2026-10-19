@@ -8,7 +8,7 @@ import {
 	hasActiveSubscription,
 	isPaidStatus,
 } from "../lib/account-state.js";
-import { PLANS, getAccountLimits, getAccountPlan, getLookupKey, getPlan, getPrice, isOnFreePlan, parseLookupKey, readInterval } from "../lib/plans.js";
+import { PLANS, getAccountLimits, getAccountPlan, getImportLimits, getLookupKey, getPlan, getPrice, isOnFreePlan, parseLookupKey, readInterval } from "../lib/plans.js";
 
 // Plans and the paywall are FlockStack Cloud's; the last test is a self-hosted server.
 process.env.FLOCKSTACK_CLOUD = "true";
@@ -171,4 +171,22 @@ test("self-hosted, without FLOCKSTACK_CLOUD: no paywall, no plan limits, every a
 		assert.equal(getPlanLimitProblem(huge), null);
 	});
 	assert.equal(getAccountSendProblem({}).code, ERROR_CODES.subscriptionRequired, "back on FlockStack Cloud");
+});
+
+test("each plan caps the posts of an import and what imported pictures weigh; a self-hosted server has no caps", () => {
+	const GB = 1024 ** 3;
+	assert.deepEqual(
+		PLANS.map(({ id, importPosts, importImageBytes }) => [id, importPosts, importImageBytes / GB]),
+		[
+			["starter", 500, 1],
+			["growth", 1500, 3],
+			["pro", 3000, 6],
+			["scale", 5000, 10],
+			["max", 10000, 25],
+		]
+	);
+	const account = { plan: "pro", subscriptionStatus: "active" };
+	assert.deepEqual(getImportLimits(account), { posts: 3000, imageBytes: 6 * GB });
+	assert.deepEqual(getImportLimits({}), { posts: 500, imageBytes: GB });
+	selfHosted(() => assert.equal(getImportLimits(account), null));
 });
