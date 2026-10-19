@@ -127,4 +127,18 @@ describe("automations", () => {
 		assert.match(redirected.url, /^\/automations\/[a-f0-9]{24}$/);
 		assert.equal((await t.api(user.key, "GET", "/automations")).body.automations.length, 2);
 	});
+
+	test("name a wait of one unit in the singular", async () => {
+		const user = await t.customer("pages-automation-waits@example.com");
+		const created = await t.api(user.key, "POST", "/automations", {
+			name: "Waits",
+			trigger: { type: "subscribed" },
+			steps: [{ type: "wait", amount: 1, unit: "days" }, { type: "wait", amount: 3, unit: "hours" }, { type: "wait", amount: 1, unit: "minutes" }],
+		});
+		const html = await render(user, m.automationPage, { params: Promise.resolve({ id: created.body.id }) });
+		assert.match(html, />1 day</);
+		assert.match(html, />3 hours</);
+		assert.match(html, />1 minute</);
+		assert.doesNotMatch(html, />1 days</);
+	});
 });

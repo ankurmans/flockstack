@@ -223,7 +223,7 @@ function describe(step) {
 		case "email":
 			return step.subject?.trim() || "No subject yet";
 		case "wait":
-			return `${step.amount || "…"} ${step.unit ?? ""}`.trim();
+			return `${step.amount || "…"} ${step.amount === 1 ? (step.unit ?? "").replace(/s$/, "") : (step.unit ?? "")}`.trim();
 		case "add_tag":
 		case "remove_tag":
 			return step.tag?.trim() || "No tag yet";
