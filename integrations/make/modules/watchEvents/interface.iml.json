@@ -1,0 +1,251 @@
+[
+  {
+    "name": "type",
+    "type": "text",
+    "label": "Event"
+  },
+  {
+    "name": "timestamp",
+    "type": "date",
+    "label": "Happened at"
+  },
+  {
+    "name": "data",
+    "type": "collection",
+    "label": "Data",
+    "spec": [
+      {
+        "name": "subscriber",
+        "type": "collection",
+        "label": "Subscriber",
+        "spec": [
+          {
+            "name": "id",
+            "type": "text",
+            "label": "ID"
+          },
+          {
+            "name": "newsletterId",
+            "type": "text",
+            "label": "Newsletter ID"
+          },
+          {
+            "name": "email",
+            "type": "email",
+            "label": "Email"
+          },
+          {
+            "name": "status",
+            "type": "text",
+            "label": "Status"
+          },
+          {
+            "name": "source",
+            "type": "text",
+            "label": "Source"
+          },
+          {
+            "name": "tier",
+            "type": "text",
+            "label": "Tier"
+          },
+          {
+            "name": "paidUntil",
+            "type": "date",
+            "label": "Paid until"
+          },
+          {
+            "name": "tags",
+            "type": "array",
+            "label": "Tags",
+            "spec": {
+              "type": "text"
+            }
+          },
+          {
+            "name": "fields",
+            "type": "any",
+            "label": "Custom fields"
+          },
+          {
+            "name": "subscribedAt",
+            "type": "date",
+            "label": "Subscribed at"
+          },
+          {
+            "name": "confirmedAt",
+            "type": "date",
+            "label": "Confirmed at"
+          },
+          {
+            "name": "unsubscribedAt",
+            "type": "date",
+            "label": "Unsubscribed at"
+          }
+        ]
+      },
+      {
+        "name": "changes",
+        "type": "collection",
+        "label": "Changes",
+        "spec": [
+          {
+            "name": "tagsAdded",
+            "type": "array",
+            "label": "Tags added",
+            "spec": {
+              "type": "text"
+            }
+          },
+          {
+            "name": "tagsRemoved",
+            "type": "array",
+            "label": "Tags removed",
+            "spec": {
+              "type": "text"
+            }
+          },
+          {
+            "name": "fields",
+            "type": "array",
+            "label": "Fields changed",
+            "spec": {
+              "type": "text"
+            }
+          }
+        ]
+      },
+      {
+        "name": "resubscribed",
+        "type": "boolean",
+        "label": "Resubscribed"
+      },
+      {
+        "name": "interval",
+        "type": "text",
+        "label": "Paid interval"
+      },
+      {
+        "name": "subscriptionStatus",
+        "type": "text",
+        "label": "Subscription status"
+      },
+      {
+        "name": "campaign",
+        "type": "collection",
+        "label": "Campaign",
+        "spec": [
+          {
+            "name": "id",
+            "type": "text",
+            "label": "ID"
+          },
+          {
+            "name": "newsletterId",
+            "type": "text",
+            "label": "Newsletter ID"
+          },
+          {
+            "name": "subject",
+            "type": "text",
+            "label": "Subject"
+          },
+          {
+            "name": "previewText",
+            "type": "text",
+            "label": "Preview text"
+          },
+          {
+            "name": "audience",
+            "type": "text",
+            "label": "Audience"
+          },
+          {
+            "name": "archiveUrl",
+            "type": "url",
+            "label": "Web address"
+          },
+          {
+            "name": "sentAt",
+            "type": "date",
+            "label": "Sent at"
+          },
+          {
+            "name": "finishedAt",
+            "type": "date",
+            "label": "Finished at"
+          },
+          {
+            "name": "stats",
+            "type": "collection",
+            "label": "Stats",
+            "spec": [
+              {
+                "name": "recipients",
+                "type": "number",
+                "label": "Recipients"
+              },
+              {
+                "name": "sent",
+                "type": "number",
+                "label": "Sent"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "order",
+        "type": "collection",
+        "label": "Order",
+        "spec": [
+          {
+            "name": "id",
+            "type": "text",
+            "label": "ID"
+          },
+          {
+            "name": "newsletterId",
+            "type": "text",
+            "label": "Newsletter ID"
+          },
+          {
+            "name": "productId",
+            "type": "text",
+            "label": "Product ID"
+          },
+          {
+            "name": "productTitle",
+            "type": "text",
+            "label": "Product"
+          },
+          {
+            "name": "buyerEmail",
+            "type": "email",
+            "label": "Buyer email"
+          },
+          {
+            "name": "buyerName",
+            "type": "text",
+            "label": "Buyer name"
+          },
+          {
+            "name": "amountCents",
+            "type": "number",
+            "label": "Amount in cents"
+          },
+          {
+            "name": "currency",
+            "type": "text",
+            "label": "Currency"
+          },
+          {
+            "name": "paidAt",
+            "type": "date",
+            "label": "Paid at"
+          }
+        ]
+      }
+    ]
+  }
+]

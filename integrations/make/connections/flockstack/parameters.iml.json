@@ -1,0 +1,34 @@
+[
+  {
+    "name": "apiKey",
+    "type": "password",
+    "label": "API key",
+    "required": true,
+    "help": "A full access key from the API keys page of your FlockStack dashboard."
+  },
+  {
+    "name": "region",
+    "type": "select",
+    "label": "Region",
+    "required": true,
+    "default": "us",
+    "options": [
+      {
+        "label": "United States (flockstack.io)",
+        "value": "us"
+      },
+      {
+        "label": "European Union (eu.flockstack.io)",
+        "value": "eu"
+      }
+    ],
+    "help": "Where your account lives: keys starting with mc_eu_ are European Union keys."
+  },
+  {
+    "name": "serverUrl",
+    "type": "url",
+    "label": "Your own server",
+    "required": false,
+    "help": "Only if you host FlockStack yourself: its address, e.g. https://news.example.com. Leave empty on FlockStack Cloud."
+  }
+]

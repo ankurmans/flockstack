@@ -1,0 +1,50 @@
+[
+  {
+    "name": "event",
+    "type": "select",
+    "label": "Event",
+    "required": true,
+    "options": [
+      {
+        "label": "New subscriber",
+        "value": "subscriber.created"
+      },
+      {
+        "label": "Subscriber confirmed",
+        "value": "subscriber.confirmed"
+      },
+      {
+        "label": "Subscriber unsubscribed",
+        "value": "subscriber.unsubscribed"
+      },
+      {
+        "label": "Subscriber updated",
+        "value": "subscriber.updated"
+      },
+      {
+        "label": "Subscriber upgraded to paid",
+        "value": "subscriber.upgraded"
+      },
+      {
+        "label": "Subscriber downgraded to free",
+        "value": "subscriber.downgraded"
+      },
+      {
+        "label": "Campaign sent",
+        "value": "campaign.sent"
+      },
+      {
+        "label": "Order paid",
+        "value": "order.paid"
+      }
+    ]
+  },
+  {
+    "name": "newsletter",
+    "type": "select",
+    "label": "Newsletter",
+    "required": false,
+    "options": "rpc://listNewsletters",
+    "help": "Leave empty for every newsletter of the account."
+  }
+]

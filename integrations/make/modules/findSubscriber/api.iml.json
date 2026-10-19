@@ -1,0 +1,12 @@
+{
+  "url": "/contacts/{{encodeURL(parameters.email)}}",
+  "method": "GET",
+  "qs": {
+    "newsletter": "{{ifempty(parameters.newsletter; undefined)}}"
+  },
+  "response": {
+    "valid": "{{statusCode < 300 || statusCode = 404}}",
+    "iterate": "{{if(statusCode = 404; emptyarray; add(emptyarray; body))}}",
+    "output": "{{item}}"
+  }
+}

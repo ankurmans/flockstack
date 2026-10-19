@@ -1,0 +1,10 @@
+{
+  "url": "{{ifempty(connection.serverUrl; if(connection.region = \"eu\"; \"https://eu.flockstack.io\"; \"https://flockstack.io\"))}}/api/v1/webhooks/{{webhook.externalHookId}}",
+  "method": "DELETE",
+  "headers": {
+    "Authorization": "Bearer {{connection.apiKey}}"
+  },
+  "response": {
+    "valid": "{{statusCode < 300 || statusCode = 404}}"
+  }
+}

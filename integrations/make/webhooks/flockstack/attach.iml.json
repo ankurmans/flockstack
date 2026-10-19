@@ -1,0 +1,24 @@
+{
+  "url": "{{ifempty(connection.serverUrl; if(connection.region = \"eu\"; \"https://eu.flockstack.io\"; \"https://flockstack.io\"))}}/api/v1/webhooks",
+  "method": "POST",
+  "headers": {
+    "Authorization": "Bearer {{connection.apiKey}}"
+  },
+  "body": {
+    "url": "{{webhook.url}}",
+    "events": [
+      "{{parameters.event}}"
+    ],
+    "description": "Make: {{parameters.event}}",
+    "source": "make",
+    "newsletter": "{{ifempty(parameters.newsletter; undefined)}}"
+  },
+  "response": {
+    "data": {
+      "externalHookId": "{{body.endpoint.id}}"
+    },
+    "error": {
+      "message": "[{{statusCode}}] {{body.error.message}}"
+    }
+  }
+}
