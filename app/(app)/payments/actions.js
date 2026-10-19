@@ -2,14 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { runDashboardAction, toFormError } from "@/lib/actions/dashboard";
-
-function toCents(value) {
-	const text = String(value ?? "").trim();
-	if (!text) return 0;
-	const amount = Number(text.replace(",", "."));
-	return Number.isFinite(amount) ? Math.round(amount * 100) : Number.NaN;
-}
+import { MIN_PRICE, readPriceCents, runDashboardAction, toFormError } from "@/lib/actions/dashboard";
 
 // Stripe's own page for the account owner to connect an account, or finish connecting it.
 export async function connectStripe() {
@@ -25,12 +18,17 @@ export async function refreshPayments() {
 }
 
 export async function savePaidTier(_state, formData) {
-	const monthlyCents = toCents(formData.get("monthly"));
-	const yearlyCents = toCents(formData.get("yearly"));
-	if (Number.isNaN(monthlyCents) || Number.isNaN(yearlyCents)) return { error: "Enter prices like 8 or 8.50, or leave a plan empty" };
+	// Empty is a plan not offered.
+	const monthlyCents = readPriceCents(formData.get("monthly"), { allowEmpty: true });
+	const yearlyCents = readPriceCents(formData.get("yearly"), { allowEmpty: true });
+	if (Number.isNaN(monthlyCents) || Number.isNaN(yearlyCents)) {
+		return { error: `Enter prices of ${MIN_PRICE} or more, like 8 or 8.50, or leave a plan empty` };
+	}
+	const enabled = formData.get("enabled") === "on";
+	if (enabled && monthlyCents === 0 && yearlyCents === 0) return { error: "Set a monthly or a yearly price first" };
 	const { failure } = await runDashboardAction("set_paid_tier", {
 		id: String(formData.get("newsletterId") ?? ""),
-		enabled: formData.get("enabled") === "on",
+		enabled,
 		monthlyCents,
 		yearlyCents,
 		currency: String(formData.get("currency") ?? "usd"),

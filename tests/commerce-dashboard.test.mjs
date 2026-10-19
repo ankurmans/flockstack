@@ -50,8 +50,9 @@ beforeEach(() => {
 describe("products", () => {
 	test("are made, edited, put on sale, taken off and archived from the dashboard's actions", async () => {
 		const user = await seller();
-		assert.deepEqual(await as(user, () => m.products.createProduct(null, form({ newsletter: user.newsletterId, title: "Guide", price: "abc", currency: "usd" }))), { error: "Enter a price, like 19 or 19.50" });
-		assert.deepEqual(await as(user, () => m.products.createProduct(null, form({ newsletter: user.newsletterId, title: "Guide", price: "0.20", currency: "usd" }))).then((result) => result.error.slice(0, 9)), "priceCent");
+		const priceError = { error: "Enter a price of 1 or more, like 19 or 19.50" };
+		assert.deepEqual(await as(user, () => m.products.createProduct(null, form({ newsletter: user.newsletterId, title: "Guide", price: "abc", currency: "usd" }))), priceError);
+		assert.deepEqual(await as(user, () => m.products.createProduct(null, form({ newsletter: user.newsletterId, title: "Guide", price: "0.20", currency: "usd" }))), priceError, "the form's words, not priceCents");
 
 		const url = await as(user, () => catchRedirect(m.products.createProduct(null, form({ newsletter: user.newsletterId, title: "Guide", price: "19,50", currency: "eur", description: "A guide." }))));
 		const id = url.split("/").at(-1);
@@ -170,8 +171,10 @@ describe("payments", () => {
 		assert.match(page, /value="8"/);
 		assert.match(page, /value="80\.50"/);
 		assert.match(page, new RegExp(`https://${user.slug}\\.flockstackmail\\.com/subscribe`));
-		assert.deepEqual(await as(user, () => m.payments.savePaidTier(null, form({ ...fields, monthly: "x" }))), { error: "Enter prices like 8 or 8.50, or leave a plan empty" });
-		assert.match((await as(user, () => m.payments.savePaidTier(null, form({ ...fields, monthly: "", yearly: "" })))).error, /set a monthly or a yearly price/);
+		const priceError = { error: "Enter prices of 1 or more, like 8 or 8.50, or leave a plan empty" };
+		assert.deepEqual(await as(user, () => m.payments.savePaidTier(null, form({ ...fields, monthly: "x" }))), priceError);
+		assert.deepEqual(await as(user, () => m.payments.savePaidTier(null, form({ ...fields, monthly: "0.20" }))), priceError, "the form's words, not monthlyCents");
+		assert.deepEqual(await as(user, () => m.payments.savePaidTier(null, form({ ...fields, monthly: "", yearly: "" }))), { error: "Set a monthly or a yearly price first" });
 		const { enabled, ...off } = fields;
 		assert.deepEqual(await as(user, () => m.payments.savePaidTier(null, form(off))), { ok: true });
 		assert.equal((await api(user, "GET", `/newsletters/${user.slug}/paid-tier`)).body.enabled, false, "an unticked box turns it off");

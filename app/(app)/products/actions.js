@@ -2,23 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { runDashboardAction, toFormError } from "@/lib/actions/dashboard";
-
-// The forms take dollars (or euros…) with decimals; the actions take the currency's smallest unit.
-function toCents(value) {
-	const amount = Number(String(value ?? "").trim().replace(",", "."));
-	return Number.isFinite(amount) ? Math.round(amount * 100) : Number.NaN;
-}
+import { MIN_PRICE, readPriceCents, runDashboardAction, toFormError } from "@/lib/actions/dashboard";
 
 function refresh(id) {
 	revalidatePath("/products");
 	if (id) revalidatePath(`/products/${id}`);
 }
 
-const PRICE_ERROR = { error: "Enter a price, like 19 or 19.50" };
+const PRICE_ERROR = { error: `Enter a price of ${MIN_PRICE} or more, like 19 or 19.50` };
 
 export async function createProduct(_state, formData) {
-	const priceCents = toCents(formData.get("price"));
+	const priceCents = readPriceCents(formData.get("price"));
 	if (Number.isNaN(priceCents)) return PRICE_ERROR;
 	const { output, failure } = await runDashboardAction("create_product", {
 		newsletter: String(formData.get("newsletter") ?? "") || undefined,
@@ -34,7 +28,7 @@ export async function createProduct(_state, formData) {
 
 export async function saveProduct(_state, formData) {
 	const id = String(formData.get("id") ?? "");
-	const priceCents = toCents(formData.get("price"));
+	const priceCents = readPriceCents(formData.get("price"));
 	if (Number.isNaN(priceCents)) return PRICE_ERROR;
 	const { output, failure } = await runDashboardAction("update_product", {
 		id,
