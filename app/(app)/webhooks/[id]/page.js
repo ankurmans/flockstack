@@ -4,7 +4,7 @@ import HeaderPage from "@/components/HeaderPage";
 import TableWebhookDeliveries from "@/components/TableWebhookDeliveries";
 import { runDashboardAction } from "@/lib/actions/dashboard";
 import { WEBHOOK_EVENTS } from "@/lib/webhook-events";
-import { MAX_DELIVERIES_PER_ENDPOINT } from "@/lib/webhooks";
+import { MAX_DELIVERIES_PER_ENDPOINT } from "@/lib/webhook-rules";
 
 export const metadata = { title: "Webhook" };
 

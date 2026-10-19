@@ -83,7 +83,7 @@ before(async () => {
 		signing: await import("../lib/webhook-signing.js"),
 		url: await import("../lib/webhook-url.js"),
 		events: await import("../lib/webhook-events.js"),
-		webhooks: await import("../lib/webhooks.js"),
+		webhooks: { ...(await import("../lib/webhooks.js")), ...(await import("../lib/webhook-rules.js")) },
 		plans: await import("../lib/plans.js"),
 		contacts: await import("../lib/contacts.js"),
 		unsubscribe: await import("../lib/unsubscribe.js"),
