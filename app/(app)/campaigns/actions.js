@@ -62,10 +62,13 @@ export async function setCampaignSegment(id, segmentId) {
 	return { ok: true };
 }
 
-export async function sendTestCampaign(id) {
-	const { failure } = await runDashboardAction("send_test_email", { id: String(id) });
+// To the owner, or to the addresses typed (up to 10): what was sent and what was skipped come back for the toast.
+export async function sendTestCampaign(id, to) {
+	const addresses = Array.isArray(to) ? to.map((email) => String(email).trim()).filter(Boolean) : [];
+	const { output, failure } = await runDashboardAction("send_test_email", { id: String(id), ...(addresses.length > 0 && { to: addresses }) });
 	revalidatePath(`/campaigns/${id}`);
-	return failure ? toFormError(failure) : { ok: true };
+	if (failure) return toFormError(failure);
+	return addresses.length > 0 ? { ok: true, sentTo: output.recipients.map(({ email }) => email), skipped: output.skipped.map(({ email }) => email) } : { ok: true };
 }
 
 function readAudience(value) {
