@@ -1,0 +1,19 @@
+// The benchmark Worker (worker.mjs) on a database of its own: copy to wrangler.jsonc and fill in that database's id.
+{
+	"name": "flockstack-bench",
+	"main": "dist/worker.js",
+	"compatibility_date": "2026-09-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"workers_dev": true,
+	"preview_urls": false,
+	"build": { "command": "node build.mjs" },
+	"observability": { "enabled": true },
+	"d1_databases": [{ "binding": "DB", "database_name": "flockstack-bench", "database_id": "<the flockstack-bench database's id>" }],
+	// Made-up values, as the tests use: the bench only signs and hashes its own example.com addresses.
+	"vars": {
+		"SUPPRESSION_HASH_KEY": "bench-suppression-hash-key-0123456789abcdef",
+		"BETTER_AUTH_SECRET": "bench-secret-for-local-runs-0123456789abcdef",
+		"FLOCKSTACK_CLOUD": "true",
+		"APP_URL": "https://example.com"
+	}
+}
