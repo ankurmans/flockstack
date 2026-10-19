@@ -51,6 +51,7 @@ const STATUS_TONES = {
 	bounced: "red",
 	complained: "red",
 	failed: "red",
+	failing: "red",
 	shutdown: "red",
 	deleting: "red",
 	blocked: "red",

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { after, before, beforeEach, describe, test } from "node:test";
-import { activate, anonymous, jsonRequest, platformEmails, startTestApp, withEnv } from "./helpers/app.mjs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { activate, anonymous, as, form, jsonRequest, platformEmails, startTestApp, withEnv } from "./helpers/app.mjs";
 import { WEBHOOK_SECRET, api, assertError, buy, createProduct, createSeller, installFakeStripe, payForSession, postPaymentEvent } from "./helpers/shop.mjs";
 import { flushAfter } from "./stubs/next-server.mjs";
 import { published } from "./stubs/qstash.mjs";
@@ -92,6 +94,10 @@ before(async () => {
 		Contact: (await import("../models/Contact.js")).default,
 		WebhookDelivery: (await import("../models/WebhookDelivery.js")).default,
 		WebhookEndpoint: (await import("../models/WebhookEndpoint.js")).default,
+		dashboard: await import("../app/(app)/webhooks/actions.js"),
+		listPage: (await import("../app/(app)/webhooks/page.js")).default,
+		endpointPage: (await import("../app/(app)/webhooks/[id]/page.js")).default,
+		TooltipProvider: (await import("../components/ui/tooltip.jsx")).TooltipProvider,
 	};
 });
 
@@ -495,5 +501,44 @@ describe("delivery", () => {
 		const { requests, fetchImpl } = receiver();
 		await runDeliveries(fetchImpl);
 		assert.equal(requests.length, 0);
+	});
+});
+
+describe("the dashboard", () => {
+	const textOf = (markup) => markup.replace(/<[^>]+>/g, " ").replace(/&#x27;|&apos;/g, "'").replace(/\s+/g, " ");
+
+	async function render(user, page, props = {}) {
+		const element = await as(user, () => page(props));
+		return textOf(renderToStaticMarkup(createElement(m.TooltipProvider, null, element)));
+	}
+
+	test("creates an endpoint from the form, lists it, and edits, tests and deletes it on its page", async () => {
+		const user = await seller();
+		assert.match(await render(user, m.listPage), /No webhooks yet.*0 of 3 endpoints/);
+
+		const refused = await as(user, () => m.dashboard.createWebhookEndpoint(null, form({ url: "http://example.com/x", allEvents: "on" })));
+		assert.match(refused.error, /https/);
+		const data = form({ url: RECEIVER, description: "CRM sync", newsletter: "all" });
+		data.append("events", "subscriber.created");
+		data.append("events", "order.paid");
+		const created = await as(user, () => m.dashboard.createWebhookEndpoint(null, data));
+		assert.match(created.secret, /^whsec_/);
+		const stored = await m.WebhookEndpoint.findOne({ accountId: user.accountId, _id: created.id }).lean();
+		assert.deepEqual([stored.events, stored.source, stored.newsletterId ?? null], [["subscriber.created", "order.paid"], "dashboard", null]);
+
+		const list = await render(user, m.listPage);
+		assert.match(list, /hooks\.example\.com\/flockstack/);
+		assert.match(list, /CRM sync · 2 events · Nothing sent yet/);
+
+		const saved = await as(user, () => m.dashboard.updateWebhookEndpoint(created.id, { url: RECEIVER, description: "CRM", events: [], newsletterId: null, enabled: false }));
+		assert.deepEqual([saved.endpoint.enabled, saved.endpoint.events], [false, []]);
+		assert.deepEqual(await as(user, () => m.dashboard.sendTestWebhook(created.id)), { ok: true });
+		const page = await render(user, m.endpointPage, { params: Promise.resolve({ id: created.id }) });
+		assert.match(page, /Signing secret/);
+		assert.match(page, /webhook\.test/);
+		assert.doesNotMatch(page, new RegExp(created.secret.slice(6, 20).replace(/[+/]/g, "\\$&")), "the secret isn't on the page");
+		const rotated = await as(user, () => m.dashboard.rotateWebhookSecret(created.id));
+		assert.match(rotated.secret, /^whsec_/);
+		assert.deepEqual(await as(user, () => m.dashboard.deleteWebhookEndpoint(created.id)), { ok: true });
 	});
 });
