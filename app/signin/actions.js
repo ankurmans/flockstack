@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { findUserByEmail } from "@/lib/accounts";
 import { notifyActivity } from "@/lib/alerts";
-import { SIGNIN_NOT_ALLOWED_MESSAGE, SIGNUP_ERRORS, getAuth, getAuthCallContext, getSignupError, isGoogleEnabled, sendSigninCodeEmail } from "@/lib/auth";
+import { SIGNIN_NOT_ALLOWED_MESSAGE, SIGNUP_ERRORS, getAuth, getAuthCallContext, getSignupError, isAppleEnabled, isGoogleEnabled, sendSigninCodeEmail } from "@/lib/auth";
 import { isCloud, isEmailAllowed } from "@/lib/config";
 import { isDisposableDomain } from "@/lib/disposable-domains";
 import { getCanonicalEmail } from "@/lib/email-aliases";
@@ -77,16 +77,25 @@ export async function verifySigninCode(_state, formData) {
 	redirect(oauthNext ?? toSafeNextPath(formData.get("next")));
 }
 
-// Google sends refusals back to /signin with Better Auth's error code in ?error=. An app's authorization
-// request goes along through Google, and Better Auth carries on with it after the callback.
 export async function signinWithGoogle(formData) {
 	if (!isGoogleEnabled()) redirect("/signin");
+	await signinWithProvider("google", formData);
+}
+
+export async function signinWithApple(formData) {
+	if (!isAppleEnabled()) redirect("/signin");
+	await signinWithProvider("apple", formData);
+}
+
+// Google and Apple send refusals back to /signin with Better Auth's error code in ?error=. An app's authorization
+// request goes along through them, and Better Auth carries on with it after the callback.
+async function signinWithProvider(provider, formData) {
 	const oauthQuery = readOAuthQueryField(formData.get("oauth_query"));
 	let url;
 	try {
 		({ url } = await (await getAuth()).api.signInSocial({
 			body: {
-				provider: "google",
+				provider,
 				callbackURL: toSafeNextPath(formData.get("next")),
 				errorCallbackURL: oauthQuery ? `/signin?${oauthQuery}` : "/signin",
 				...(oauthQuery && { oauth_query: oauthQuery }),

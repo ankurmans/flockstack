@@ -161,6 +161,22 @@ describe("the legal pages", () => {
 		assert.doesNotMatch(processors + privacy, /PostHog EU Cloud/);
 	});
 
+	test("Sign in with Apple is described as optional, with what Apple gets and what FlockStack keeps", () => {
+		const privacy = textOf(renderPage("privacy"));
+		const processors = textOf(renderPage("sub-processors"));
+		const apple = m.subprocessors.OPTIONAL_SUBPROCESSORS.find(({ name }) => name === "Apple (sign-in)");
+		assert.ok(!m.subprocessors.SUBPROCESSORS.some(({ name }) => name.startsWith("Apple")), "optional, not one FlockStack Cloud always uses");
+		assert.equal(apple.link, "https://www.apple.com/legal/privacy/");
+		assert.ok(hrefsOf(renderPage("sub-processors")).includes(apple.link));
+		for (const phrase of ["Sign in with Apple", "Apple receives the sign-in request", "private relay address", "the first time only, the name"]) {
+			assert.ok(processors.includes(phrase), phrase);
+		}
+		assert.match(m.legal.OPTIONAL_SERVICES_IN_USE, /Sign in with Apple is optional/);
+		for (const phrase of ["if you sign in with Google or Apple we store that link to your Google or Apple account", "private relay address", "a passkey, Google or Apple"]) {
+			assert.ok(privacy.includes(phrase), phrase);
+		}
+	});
+
 	test("the terms give the limits the code uses, the refund rules and the promises", () => {
 		const { pause, block } = m.config.LIMITS;
 		const text = textOf(renderPage("terms"));
@@ -208,7 +224,7 @@ describe("the legal pages", () => {
 	test("the sub-processors table lists every service with its regions, optional ones apart", () => {
 		const text = textOf(renderPage("sub-processors"));
 		const names = [...m.subprocessors.SUBPROCESSORS, ...m.subprocessors.OPTIONAL_SUBPROCESSORS].map(({ name }) => name);
-		assert.deepEqual(names, ["Cloudflare", "Amazon SES (Amazon Web Services)", "Upstash QStash", "Polar", "Stripe", "PostHog", "Google (sign-in)", "Google Postmaster Tools", "Telegram", "Upstash Redis", "Vercel"]);
+		assert.deepEqual(names, ["Cloudflare", "Amazon SES (Amazon Web Services)", "Upstash QStash", "Polar", "Stripe", "PostHog", "Google (sign-in)", "Apple (sign-in)", "Google Postmaster Tools", "Telegram", "Upstash Redis", "Vercel"]);
 		for (const { name, purpose, us, eu, link } of [...m.subprocessors.SUBPROCESSORS, ...m.subprocessors.OPTIONAL_SUBPROCESSORS]) {
 			assert.ok(text.includes(name) && text.includes(purpose) && text.includes(us) && text.includes(eu), name);
 			assert.match(link, /^https:\/\//, name);

@@ -56,8 +56,9 @@ export default function PrivacyPage() {
 				<ul>
 					<li>
 						<Strong>Your account:</Strong> your email address, and the name and photo if you add them. Sign-in codes are stored hashed, work
-						once, last 5 minutes and die after 3 wrong tries. If you add a passkey we store its public key; if you sign in with Google we store
-						that link to your Google account.
+						once, last 5 minutes and die after 3 wrong tries. If you add a passkey we store its public key; if you sign in with Google or
+						Apple we store that link to your Google or Apple account. With Apple, your email can be a private relay address that Apple forwards
+						to your inbox, and we get your name only the first time, if you choose to share it.
 					</li>
 					<li>
 						<Strong>Sessions and sign-in records:</Strong> each session records the IP address and browser it started from. Our logs have a line
@@ -284,7 +285,7 @@ export default function PrivacyPage() {
 				<ul>
 					<li>
 						<Strong>A session cookie</Strong> (<code>better-auth.session_token</code> in the United States, <code>flockstack-eu.session_token</code>{" "}
-						in the EU) while you are signed in, and short-lived sign-in cookies while you use a passkey or Google. They are needed to sign you in.
+						in the EU) while you are signed in, and short-lived sign-in cookies while you use a passkey, Google or Apple. They are needed to sign you in.
 					</li>
 					<li>
 						<Strong><code>region</code></Strong>, for a year: the region you picked on the home page or sign-in page.
