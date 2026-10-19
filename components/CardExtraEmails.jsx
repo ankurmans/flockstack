@@ -62,7 +62,7 @@ export default function CardExtraEmails({ extraEmails, planEmails }) {
 						id={`${id}-limit`}
 						name="limit"
 						inputMode="numeric"
-						defaultValue={String(limit)}
+						defaultValue={formatNumber(limit)}
 						aria-describedby={`${id}-hint`}
 						className="tabular-nums sm:max-w-56"
 						autoComplete="off"

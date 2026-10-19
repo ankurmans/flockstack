@@ -16,8 +16,7 @@ export default function CardDedicatedIp({ dedicatedIp, isPending = false }) {
 				<div className="flex min-w-0 flex-col gap-1">
 					<p className="font-medium">{isOn ? "Dedicated IP" : "Add a dedicated IP"}</p>
 					<p className="max-w-xl text-sm text-pretty text-muted-foreground">
-						Your own sending IP, warmed up automatically by AWS, so other senders&apos; mail never affects yours. Best for steady volume
-						above 250,000 emails a month.
+						Your own sending IP, warmed up automatically by AWS. Best for steady volume above 250,000 emails a month.
 					</p>
 					<p className="text-sm text-muted-foreground tabular-nums">{getStatus({ isOn, isPaid, isPending, price, interval, subscription })}</p>
 				</div>
