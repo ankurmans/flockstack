@@ -62,7 +62,12 @@ describe("products", () => {
 
 		const saved = await as(user, () => m.products.saveProduct(null, form({ id, title: "Guide v2", description: "Better.", price: "24", currency: "eur", slug: "guide-v2", imageUrl: "" })));
 		assert.deepEqual(saved, { ok: true, slug: "guide-v2" });
-		assert.deepEqual((await as(user, () => m.products.publishProduct(id))).error?.match(/Upload the file/)?.length, 1, "no file, no sale");
+		const fields = { id, title: "Guide v2", description: "Better.", price: "24", currency: "eur", slug: "guide-v2", imageUrl: "" };
+		assert.deepEqual(await as(user, () => m.products.saveProduct(null, form({ ...fields, slug: "Guide two!" }))), {
+			error: "Page address: use lowercase letters, digits and dashes, 80 at most",
+		});
+		assert.deepEqual(await as(user, () => m.products.saveProduct(null, form({ ...fields, imageUrl: "http://example.com/cover.png" }))), { error: "Cover image: use an https:// link" });
+		assert.match((await as(user, () => m.products.publishProduct(id))).error, /^Upload the file/, "no file, no sale");
 
 		const bytes = Buffer.from("zip bytes").toString("base64");
 		assert.equal((await api(user, "POST", `/products/${id}/file`, { base64: bytes, fileName: "guide.zip" })).status, 200);

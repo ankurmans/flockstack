@@ -120,6 +120,10 @@ describe("a product's life", () => {
 		assertError(await api(seller, "PATCH", `/products/${second.body.id}`, { slug: "guide" }), 409, "conflict");
 		assert.equal((await api(seller, "PATCH", `/products/${second.body.id}`, { slug: "guide-pro", currency: "eur" })).body.currency, "eur");
 		assertError(await api(seller, "POST", `/products/${first.body.id}/file`, { base64: "!!!", fileName: "x.pdf" }), 400, "validation_failed");
+		assert.match(assertError(await api(seller, "PATCH", `/products/${first.body.id}`, { imageUrl: "javascript:alert(1)" }), 400, "validation_failed"), /https:\/\//);
+		assertError(await api(seller, "POST", "/products", { title: "Covered", priceCents: 900, imageUrl: "http://example.com/cover.png" }), 400, "validation_failed");
+		assert.equal((await api(seller, "PATCH", `/products/${first.body.id}`, { imageUrl: "https://example.com/cover.png" })).body.imageUrl, "https://example.com/cover.png");
+		assert.equal((await api(seller, "PATCH", `/products/${first.body.id}`, { imageUrl: "" })).body.imageUrl, null, "empty removes it");
 	});
 
 	test("goes on sale only where the account can take payments", async () => {
