@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatBytes, formatCount } from "@/lib/format";
 import { formatPrice } from "@/lib/payments/config";
+import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 import { toast } from "@/lib/toast";
 import { useToastError } from "@/lib/use-toast-error";
 
@@ -25,9 +26,12 @@ export default function FormProduct({ product, payments, maxFileMb }) {
 	const [isWorking, startWorking] = useTransition();
 	const [state, action, isSaving] = useActionState(async (previous, formData) => {
 		const result = await saveProduct(previous, formData);
-		if (result?.error) toastError(result);
-		else toast.success("Saved");
-		return result;
+		if (result?.error) {
+			toastError(result);
+			return result;
+		}
+		toast.success("Saved");
+		return { ...result, savedAt: Date.now() };
 	}, null);
 	const isActive = product.status === "active";
 	const isArchived = product.status === "archived";
@@ -110,7 +114,8 @@ export default function FormProduct({ product, payments, maxFileMb }) {
 				<FileUpload product={product} maxFileMb={maxFileMb} onUploaded={() => router.refresh()} />
 			</CardSettings>
 
-			<form action={action}>
+			{/* A new key after each save: the fields start again from what was saved, the slug as the server made it. */}
+			<form key={state?.savedAt ?? 0} action={action} onSubmit={submitKeepingFields(action)}>
 				<CardSettings
 					title="Details"
 					stagger={2}
