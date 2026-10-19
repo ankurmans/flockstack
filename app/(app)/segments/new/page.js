@@ -23,7 +23,7 @@ export default async function NewSegmentPage() {
 			<FormSegment
 				newsletter={toNewsletterOption(selected)}
 				segment={null}
-				fields={fields.map(({ key, label, type }) => ({ key, label, type }))}
+				fields={fields.map(({ key, label, type, options, multiple }) => ({ key, label, type, options: options ?? [], multiple: Boolean(multiple) }))}
 				tags={tags.map(({ name }) => name)}
 			/>
 		</>

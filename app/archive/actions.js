@@ -46,10 +46,11 @@ export async function subscribe(_state, formData) {
 	// Visitors only ever fill in the fields the form asks for, and never tags.
 	const definitions = await CustomField.find({ accountId: newsletter.accountId, newsletterId: newsletter._id, onSignupForm: true }).lean();
 	const values = {};
-	for (const { key, label, type } of definitions) {
-		const value = String(formData.get(`field_${key}`) ?? "").trim();
-		if (!value) continue;
-		const { problem } = parseFieldValue(type, value);
+	for (const definition of definitions) {
+		const { key, label, type, multiple } = definition;
+		const value = type === "list" && multiple ? formData.getAll(`field_${key}`).map(String) : String(formData.get(`field_${key}`) ?? "").trim();
+		if (value.length === 0) continue;
+		const { problem } = parseFieldValue(type, value, definition);
 		if (problem) return { error: `${label} ${problem}` };
 		values[key] = value;
 	}

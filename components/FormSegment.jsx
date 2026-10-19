@@ -56,6 +56,32 @@ const FIELD_OPS = {
 		["is_set", "has a value"],
 		["is_not_set", "has no value"],
 	],
+	datetime: [
+		["gt", "is after"],
+		["gte", "is at or after"],
+		["lt", "is before"],
+		["lte", "is at or before"],
+		["is_set", "has a value"],
+		["is_not_set", "has no value"],
+	],
+	boolean: [
+		["eq", "is"],
+		["neq", "is not"],
+		["is_set", "has a value"],
+		["is_not_set", "has no value"],
+	],
+	list: [
+		["eq", "is"],
+		["neq", "is not"],
+		["is_set", "has a value"],
+		["is_not_set", "has no value"],
+	],
+	multiple: [
+		["includes", "includes"],
+		["excludes", "doesn't include"],
+		["is_set", "has a value"],
+		["is_not_set", "has no value"],
+	],
 };
 const DEBOUNCE_MS = 450;
 
@@ -256,7 +282,7 @@ function defaultsFor(type, fields) {
 		case "source":
 			return { type, op: "is", value: "" };
 		case "field":
-			return { type, field: fields[0]?.key ?? "", op: "eq", value: "" };
+			return fieldCondition(fields[0]);
 		case "signup_date":
 			return { type, from: "", to: "" };
 		case "engagement":
@@ -264,6 +290,12 @@ function defaultsFor(type, fields) {
 		default:
 			return { type, value: true };
 	}
+}
+
+// A new condition on a field starts with the first op its type takes.
+function fieldCondition(field) {
+	const ops = FIELD_OPS[field?.multiple ? "multiple" : (field?.type ?? "text")];
+	return { type: "field", field: field?.key ?? "", op: ops[0][0], value: "" };
 }
 
 function Condition({ condition, fields, tags, onChange, onRemove }) {
@@ -335,7 +367,7 @@ function Condition({ condition, fields, tags, onChange, onRemove }) {
 
 			{condition.type === "field" && (
 				<>
-					<Select value={condition.field} onValueChange={(key) => onChange({ type: "field", field: key, op: "eq", value: "" })}>
+					<Select value={condition.field} onValueChange={(key) => onChange(fieldCondition(fields.find((item) => item.key === key)))}>
 						<SelectTrigger size="sm" className="w-36" aria-label="Field">
 							<SelectValue />
 						</SelectTrigger>
@@ -347,12 +379,26 @@ function Condition({ condition, fields, tags, onChange, onRemove }) {
 							))}
 						</SelectContent>
 					</Select>
-					<OpSelect value={condition.op} onChange={(op) => set({ op })} options={FIELD_OPS[field?.type ?? "text"]} />
-					{!["is_set", "is_not_set"].includes(condition.op) && (
+					<OpSelect value={condition.op} onChange={(op) => set({ op })} options={FIELD_OPS[field?.multiple ? "multiple" : (field?.type ?? "text")]} />
+					{!["is_set", "is_not_set"].includes(condition.op) && (field?.type === "boolean" || field?.type === "list") && (
+						<Select value={String(condition.value ?? "")} onValueChange={(value) => set({ value: field.type === "boolean" ? value === "true" : value })}>
+							<SelectTrigger size="sm" className="w-40" aria-label="Value">
+								<SelectValue placeholder="Pick one" />
+							</SelectTrigger>
+							<SelectContent>
+								{(field.type === "boolean" ? ["true", "false"] : field.options).map((option) => (
+									<SelectItem key={option} value={option}>
+										{option}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					)}
+					{!["is_set", "is_not_set"].includes(condition.op) && field?.type !== "boolean" && field?.type !== "list" && (
 						<Input
-							type={field?.type === "number" ? "number" : field?.type === "date" ? "date" : "text"}
+							type={field?.type === "number" ? "number" : field?.type === "date" ? "date" : field?.type === "datetime" ? "datetime-local" : "text"}
 							step={field?.type === "number" ? "any" : undefined}
-							value={condition.value ?? ""}
+							value={field?.type === "datetime" ? String(condition.value ?? "").slice(0, 16) : (condition.value ?? "")}
 							onChange={(event) => set({ value: event.target.value })}
 							aria-label="Value"
 							className="h-8 w-40"

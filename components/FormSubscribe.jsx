@@ -5,6 +5,7 @@ import { Check, Loader2, MailOpen } from "lucide-react";
 import { subscribe } from "@/app/archive/actions";
 import { Button } from "@/components/ui/button";
 import FormRecommendedSubscribe from "@/components/FormRecommendedSubscribe";
+import InputCustomField from "@/components/InputCustomField";
 import { captureRecommender, captureReferralCode, storeValue, subscribedKey } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
@@ -57,7 +58,17 @@ export default function FormSubscribe({ newsletterSlug, fields = [], className }
 			</div>
 			{fields?.length > 0 && (
 				<div className="mb-2 flex flex-col gap-2">
-					{fields.map(({ key, label, type }) => (
+					{fields.map(({ key, label, type, ...field }) =>
+						type === "list" || type === "boolean" || type === "datetime" ? (
+							<label key={key} className="flex flex-col gap-1.5 text-left text-sm">
+								<span className="text-muted-foreground">{label} (optional)</span>
+								<InputCustomField
+									field={{ key, label, type, ...field }}
+									name={`field_${key}`}
+									className="h-11 rounded-xl border-0 bg-background px-3.5 shadow-border"
+								/>
+							</label>
+						) : (
 						<input
 							key={key}
 							type={type === "number" ? "number" : type === "date" ? "date" : "text"}
@@ -68,7 +79,8 @@ export default function FormSubscribe({ newsletterSlug, fields = [], className }
 							maxLength={type === "text" ? 500 : undefined}
 							className="h-11 w-full min-w-0 rounded-xl bg-background px-3.5 text-base shadow-border outline-none transition-shadow duration-150 placeholder:text-muted-foreground focus-visible:shadow-border-hover focus-visible:ring-3 focus-visible:ring-ring/25"
 						/>
-					))}
+						)
+					)}
 				</div>
 			)}
 			<div className="flex items-center gap-1.5 rounded-xl bg-background p-1.5 shadow-border transition-shadow duration-150 focus-within:shadow-border-hover focus-within:ring-3 focus-within:ring-ring/25">

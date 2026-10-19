@@ -31,7 +31,7 @@ export default async function SegmentPage({ params }) {
 			<FormSegment
 				newsletter={toNewsletterOption(selected)}
 				segment={{ id: String(segment._id), ...serialize({ name: segment.name, description: segment.description ?? "", rules: segment.rules }) }}
-				fields={fields.map(({ key, label, type }) => ({ key, label, type }))}
+				fields={fields.map(({ key, label, type, options, multiple }) => ({ key, label, type, options: options ?? [], multiple: Boolean(multiple) }))}
 				tags={tags.map(({ name }) => name)}
 			/>
 		</>

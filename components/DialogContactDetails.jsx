@@ -5,6 +5,7 @@ import { Loader2, Plus, X } from "lucide-react";
 import { addContactTag, removeContactTag, setContactField } from "@/app/(app)/contacts/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import InputCustomField from "@/components/InputCustomField";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
 
@@ -35,7 +36,8 @@ export default function DialogContactDetails({ contact, definitions, isOpen, onO
 	}
 
 	function saveField(key, value) {
-		if (String(fields[key] ?? "") === value.trim()) return;
+		const same = (a, b) => JSON.stringify(a ?? "") === JSON.stringify(b ?? "");
+		if (same(fields[key], typeof value === "string" ? value.trim() : value)) return;
 		startTransition(async () => {
 			const result = await setContactField(contact.id, key, value);
 			if (result?.error) return void toast.error(result.error);
@@ -93,17 +95,10 @@ export default function DialogContactDetails({ contact, definitions, isOpen, onO
 						<p className="text-sm text-muted-foreground">This newsletter has no custom fields yet. Add them from Tags and fields on the contacts page.</p>
 					) : (
 						definitions.map((field) => (
-							<label key={field.key} className="flex flex-col gap-1 text-sm">
+							<div key={field.key} className="flex flex-col gap-1 text-sm">
 								<span className="text-muted-foreground">{field.label}</span>
-								<Input
-									type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
-									step={field.type === "number" ? "any" : undefined}
-									defaultValue={fields[field.key] ?? ""}
-									onBlur={(event) => saveField(field.key, event.target.value)}
-									maxLength={field.type === "text" ? 500 : undefined}
-									className="h-9"
-								/>
-							</label>
+								<InputCustomField field={field} name={`field_${field.key}`} value={fields[field.key]} onCommit={(value) => saveField(field.key, value)} />
+							</div>
 						))
 					)}
 				</section>
