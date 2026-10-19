@@ -1,0 +1,6 @@
+post_id,post_date,is_published,email_sent_at,inbox_sent_at,type,audience,title,subtitle,podcast_url
+140000001.why-we-moved,2024-03-05T14:00:00.000Z,true,2024-03-05T14:00:12.000Z,2024-03-05T14:00:12.000Z,newsletter,everyone,Why we moved,And what changes for you &amp; the list,
+140000002.the-paid-deep-dive,2024-04-10T09:30:00.000Z,true,2024-04-10T09:30:05.000Z,2024-04-10T09:30:05.000Z,newsletter,only_paid,The paid deep dive,Numbers from a year of pricing experiments,
+140000003.half-an-idea,,false,,,newsletter,everyone,Half an idea,,
+140000004.episode-one,2024-02-01T08:00:00.000Z,true,2024-02-01T08:00:00.000Z,,podcast,everyone,Episode one,Our first show,https://api.substack.com/feed/podcast/140000004.mp3
+140000005.missing-body,2024-01-15T08:00:00.000Z,true,2024-01-15T08:00:00.000Z,,newsletter,everyone,A post without its file,,
