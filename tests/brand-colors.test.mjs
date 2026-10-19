@@ -47,22 +47,25 @@ function readBlock(css, selector) {
 }
 
 describe("the logo", () => {
-	test("has an ink chevron under a lime one", async () => {
+	test("is Stack F: a lime bar over two ink bars, each shorter than the one above", async () => {
 		const { LOGO_SHAPES } = await import("../components/LogoFlockstack.jsx");
 		assert.deepEqual(
 			LOGO_SHAPES.map(({ tone }) => tone),
-			["ink", "lime"]
+			["lime", "ink", "ink"]
 		);
-		const top = (d) => Math.min(...[...d.matchAll(/[ML]([\d.]+) ([\d.]+)/g)].map(([, , y]) => Number(y)));
-		assert.ok(top(LOGO_SHAPES[1].d) < top(LOGO_SHAPES[0].d), "the lime chevron is the upper one");
+		const top = (d) => Number(/^M[\d.]+ ([\d.]+)/.exec(d)[1]);
+		const right = (d) => Math.max(...[...d.matchAll(/H([\d.]+)/g)].map(([, x]) => Number(x)));
+		const [first, second, third] = LOGO_SHAPES.map(({ d }) => d);
+		assert.ok(top(first) < top(second) && top(second) < top(third), "the lime bar is the top one");
+		assert.ok(right(first) > right(second) && right(second) > right(third), "each bar is shorter than the one above");
 	});
 
-	test("paints the lime chevron with --logo-lime, so it follows the theme", async () => {
+	test("paints the lime bar with --logo-lime, so it follows the theme", async () => {
 		const { default: LogoFlockstack } = await import("../components/LogoFlockstack.jsx");
 		const html = renderToStaticMarkup(createElement(LogoFlockstack));
 		assert.deepEqual(
 			[...html.matchAll(/fill="([^"]+)"/g)].map(([, fill]) => fill),
-			["currentColor", "var(--logo-lime)"]
+			["var(--logo-lime)", "currentColor", "currentColor"]
 		);
 	});
 

@@ -1,39 +1,27 @@
-"""FlockStack's mark, Rising flock: two stacked chevrons, the upper one lime. A V of birds and an arrow up.
+"""FlockStack's mark, Stack F: three stacked bars shrinking like a list, the top one lime, reading as an F.
 Prints the shapes and the app icon's colors (for components/LogoFlockstack.jsx) and writes the icon files from them.
 
     python3 scripts/make-logo.py            # print the shapes
     python3 scripts/make-logo.py --write    # also write the icon files (needs rsvg-convert and Pillow)
 """
-import math, subprocess, sys, os
+import subprocess, sys, os
 
 VIEWBOX = "0 0 48 48"
-# Two chevrons, the upper one lime: (left x, y of the arms' ends, apex x, apex y, right x, thickness, tone)
-CHEVRONS = [(7, 38, 24, 23, 41, 7.0, "ink"), (7, 25, 24, 10, 41, 7.0, "lime")]
+# Stack F: three rounded bars shrinking like a list, the top one lime, so together they read as an F.
+# (left x, top y, width, height, tone)
+BARS = [(6, 7, 36, 9, "lime"), (6, 20, 26, 9, "ink"), (6, 33, 9, 9, "ink")]
 # Night lime. On a light page the lime is #b6d600, which holds up on white; on a dark one, #d4ff3a. The app icon is an
 # ink tile in every theme, so it reads on light and dark browser chrome alike.
 LIGHT = {"ink": "#0b0b0b", "lime": "#b6d600"}
 DARK = {"ink": "#fafafa", "lime": "#d4ff3a"}
 TILE = {"background": "#0b0b0b", "ink": "#f2f2f2", "lime": "#d4ff3a"}
 
-def chevron(ax, ay, bx, by, cx, t):
-    # A stroke from A to the apex B to C with round ends and a round top, outlined as one filled shape.
-    h = t / 2
-    def unit(x, y):
-        length = math.hypot(x, y)
-        return x / length, y / length
-    u1 = unit(bx - ax, by - ay); u2 = unit(cx - bx, ay - by)
-    n1 = (u1[1], -u1[0]); n2 = (u2[1], -u2[0])   # the upper side of each arm
-    up = lambda px, py, n, k=1: (px + k * h * n[0], py + k * h * n[1])
-    sx, sy = n1[0] + n2[0], n1[1] + n2[1]
-    s2 = sx * sx + sy * sy
-    inner = (bx - 2 * h * sx / s2, by - 2 * h * sy / s2)   # where the lower edges meet under the apex
-    a_top, b1, b2, c_top = up(ax, ay, n1), up(bx, by, n1), up(bx, by, n2), up(cx, ay, n2)
-    c_bot, a_bot = up(cx, ay, n2, -1), up(ax, ay, n1, -1)
-    p = lambda pt: f"{pt[0]:.2f} {pt[1]:.2f}"
-    arc = lambda pt: f"A{h:.2f} {h:.2f} 0 0 1 {p(pt)}"
-    return f"M{p(a_top)}L{p(b1)}{arc(b2)}L{p(c_top)}{arc(c_bot)}L{p(inner)}L{p(a_bot)}{arc(a_top)}Z"
+def bar(x, y, w, h):
+    # A rectangle with fully round ends, as a path so every consumer draws it the same way.
+    r = h / 2
+    return f"M{x + r:.2f} {y:.2f}H{x + w - r:.2f}A{r:.2f} {r:.2f} 0 0 1 {x + w - r:.2f} {y + h:.2f}H{x + r:.2f}A{r:.2f} {r:.2f} 0 0 1 {x + r:.2f} {y:.2f}Z"
 
-SHAPES = [(chevron(ax, ay, bx, by, cx, t), tone) for ax, ay, bx, by, cx, t, tone in CHEVRONS]
+SHAPES = [(bar(x, y, w, h), tone) for x, y, w, h, tone in BARS]
 
 def svg(colors, bg=None, size=None, pad=0, rx=0):
     dims = f' width="{size}" height="{size}"' if size else ""

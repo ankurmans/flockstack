@@ -29,7 +29,7 @@ export default function IconBrand({ brand, className }) {
 }
 
 // One path in the glyph's paint, or a mark's own paths, each in its color or else the glyph's (Gmail, FlockStack's
-// chevrons, Grok Bot).
+// F, Grok Bot).
 export function getGlyphPaths({ path, paths, glyph, fillRule }) {
 	return paths?.map((item) => ({ fill: glyph, ...item })) ?? [{ d: path, fill: glyph, fillRule }];
 }

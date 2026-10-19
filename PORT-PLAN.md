@@ -121,7 +121,7 @@ A help chat on FlockStack's own pages, FlockStack Cloud only (README, Support as
 
 ## Still to do
 
-Done since the first deploy: passkey login, cloud mode with SES-only platform email, Polar billing next to Stripe (needs the owner's Polar token, products and webhook), the landing page at `/` for signed-out visitors, database-backed rate limits, R2 images at img.flockstack.io, the logo (now Rising flock: two stacked chevrons), README and AGENTS.md for the new setup.
+Done since the first deploy: passkey login, cloud mode with SES-only platform email, Polar billing next to Stripe (needs the owner's Polar token, products and webhook), the landing page at `/` for signed-out visitors, database-backed rate limits, R2 images at img.flockstack.io, the logo (now Stack F: three stacked bars, the top one lime), README and AGENTS.md for the new setup.
 
 0. Growth: create the private R2 bucket `flockstack-exports` with an 8-day lifecycle rule and bind it as `EXPORTS` (commented line in `wrangler.jsonc`); apply `migrations/0006_growth.sql` and `migrations/0007_recommendations.sql` (`deploy-all` applies the numbered files it hasn't recorded). Segments and automations: apply `migrations/0005_segments_automations.sql` and create the QStash schedule that calls `/api/jobs/run-automations` every 5 minutes (README, QStash).
 1. Polar: create the org token, run `scripts/polar-setup.mjs`, add the webhook, set `POLAR_ACCESS_TOKEN` / `POLAR_WEBHOOK_SECRET` (see README, billing).
