@@ -78,7 +78,7 @@ const DOT_TONES = {
 
 function Dot({ tone, children }) {
 	return (
-		<span className="flex items-center gap-2 text-muted-foreground">
+		<span className="flex items-center gap-2 text-sm text-muted-foreground">
 			<span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", DOT_TONES[tone])} />
 			{children}
 		</span>
