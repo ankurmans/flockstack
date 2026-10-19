@@ -2,7 +2,8 @@ import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getWelcomePauseNotice } from "@/lib/account-state";
-import { formatNumber } from "@/lib/format";
+import { formatNumber, formatUsdCents } from "@/lib/format";
+import { EXTRA_EMAILS } from "@/lib/plans";
 
 // Shown near or over a plan limit: campaign sends stop at the limit, and so do welcome emails; signups don't.
 // isWelcomePaused: the month's emails are used up while a newsletter has its welcome email on.
@@ -24,8 +25,9 @@ export default function BannerUsage({ usage, isWelcomePaused = false }) {
 }
 
 function getMessage(usage, isWelcomePaused) {
-	const { emailsSent, emailsLimit, subscribers, subscribersLimit } = usage;
+	const { emailsSent, emailsLimit, extraEmailsLimit = 0, subscribers, subscribersLimit } = usage;
 	if (emailsLimit === null) return null;
+	const ceiling = emailsLimit + extraEmailsLimit;
 	if (isWelcomePaused) {
 		const { title, detail } = getWelcomePauseNotice(usage);
 		return (
@@ -37,8 +39,13 @@ function getMessage(usage, isWelcomePaused) {
 	if (subscribers > subscribersLimit) {
 		return `You have ${formatNumber(subscribers)} subscribers and your plan allows ${formatNumber(subscribersLimit)}. Campaigns can't go out until you upgrade.`;
 	}
-	if (emailsSent >= emailsLimit) {
-		return "This month's emails are used up. Campaigns can't go out until you upgrade or the month resets.";
+	if (emailsSent >= ceiling) {
+		return extraEmailsLimit
+			? "This month's emails and extra emails are used up. Campaigns can't go out until you raise your extra emails limit, upgrade, or the month resets."
+			: "This month's emails are used up. Campaigns can't go out until you upgrade or the month resets.";
+	}
+	if (extraEmailsLimit && emailsSent >= emailsLimit) {
+		return `Your plan's ${formatNumber(emailsLimit)} emails are used up, so you're sending extra emails at ${formatUsdCents(EXTRA_EMAILS.pricePerThousand)} per 1,000, up to ${formatNumber(extraEmailsLimit)} this month.`;
 	}
 	if (emailsSent >= emailsLimit * 0.9) {
 		return `You've sent ${formatNumber(emailsSent)} of your ${formatNumber(emailsLimit)} emails this month.`;

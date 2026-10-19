@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 // button subscribes through Checkout.
 // ctaHref, ctaLabel: for pages that don't sell yet (the landing page leads to sign-up), a link in place of Checkout.
 // children: under the button. The Subscribe link isn't a <Link>: a prefetch would open a Checkout session.
-export default function SliderPricing({ plans, freeMonths, initialIndex = 0, initialPeriod = "month", current, action, ctaHref, ctaLabel = "Subscribe", children }) {
+export default function SliderPricing({ plans, freeMonths, extraPerThousand, initialIndex = 0, initialPeriod = "month", current, action, ctaHref, ctaLabel = "Subscribe", children }) {
 	const id = useId();
 	const [index, setIndex] = useState(initialIndex);
 	const [period, setPeriod] = useState(initialPeriod);
@@ -129,6 +129,11 @@ export default function SliderPricing({ plans, freeMonths, initialIndex = 0, ini
 					<span className="text-muted-foreground">/{isYearly ? "year" : "month"}</span>
 				</p>
 				<p className="mt-1.5 h-5 text-sm text-muted-foreground tabular-nums">{isYearly ? `${price.monthly} a month, billed yearly` : "Billed monthly"}</p>
+				{extraPerThousand && (
+					<p className="mt-1 text-sm text-pretty text-muted-foreground tabular-nums">
+						Past {plan.emails} emails: {extraPerThousand} per 1,000 extra, up to a limit you set
+					</p>
+				)}
 				<div className="mt-6 border-t border-border/70 pt-6">
 					<p className="text-xs font-medium text-muted-foreground">Every plan includes</p>
 					<ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[13px]">

@@ -146,15 +146,15 @@ describe("Max with its prices in Stripe", () => {
 		assert.deepEqual(
 			stops.map(({ name, emails, emailsShort, subscribers }) => [name, emails, emailsShort, subscribers]),
 			[
-				["Starter", "20,000", "20K", "10,000"],
-				["Growth", "75,000", "75K", "40,000"],
-				["Pro", "200,000", "200K", "100,000"],
-				["Scale", "500,000", "500K", "250,000"],
-				["Max", "2,000,000", "2M", "1,000,000"],
+				["Starter", "25,000", "25K", "5,000"],
+				["Growth", "125,000", "125K", "25,000"],
+				["Pro", "250,000", "250K", "50,000"],
+				["Scale", "500,000", "500K", "100,000"],
+				["Max", "2,000,000", "2M", "400,000"],
 			]
 		);
-		assert.deepEqual(stops.map(({ prices }) => prices.month.price), ["$12", "$27", "$55", "$109", "$299"]);
-		assert.deepEqual(stops.map(({ prices }) => prices.year.price), ["$120", "$270", "$550", "$1,090", "$2,990"]);
+		assert.deepEqual(stops.map(({ prices }) => prices.month.price), ["$9", "$29", "$59", "$109", "$299"]);
+		assert.deepEqual(stops.map(({ prices }) => prices.year.price), ["$90", "$290", "$590", "$1,090", "$2,990"]);
 		assert.deepEqual(
 			[stops[4].prices.month.perThousand, stops[4].prices.year.perThousand, stops[4].prices.year.monthly],
 			["$0.15", "$0.12", "$249.17"]

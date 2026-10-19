@@ -141,9 +141,9 @@ describe("when welcome emails pause", () => {
 		const { addMonths, startUsagePeriod } = m.usagePeriod;
 		const start = new Date("2026-10-03T00:00:00Z");
 		const now = new Date("2026-10-15T12:00:00Z");
-		const account = { plan: "starter", subscriptionStatus: "active", usage: { ...startUsagePeriod({ start, end: addMonths(start, 12) }), emailsSent: 20_000 } };
-		assert.equal(areWelcomeEmailsPaused(account, now), true, "Starter's 20,000 are used up");
-		assert.equal(areWelcomeEmailsPaused({ ...account, usage: { ...account.usage, emailsSent: 19_999 } }, now), false);
+		const account = { plan: "starter", subscriptionStatus: "active", usage: { ...startUsagePeriod({ start, end: addMonths(start, 12) }), emailsSent: 25_000 } };
+		assert.equal(areWelcomeEmailsPaused(account, now), true, "Starter's 25,000 are used up");
+		assert.equal(areWelcomeEmailsPaused({ ...account, usage: { ...account.usage, emailsSent: 24_999 } }, now), false);
 		assert.equal(areWelcomeEmailsPaused({ ...account, limitOverrides: { emailsPerMonth: 30_000 } }, now), false, "an admin's numbers win");
 		assert.equal(areWelcomeEmailsPaused(account, addMonths(start, 1)), false, "the next month starts over before it's stored");
 		assert.equal(areWelcomeEmailsPaused({ ...account, subscriptionStatus: "canceled" }, now), false, "without a plan nothing sends anyway");
@@ -310,8 +310,8 @@ describe("the owner", () => {
 		assert.equal(sesEmails.some(({ to }) => to === "while-paused@example.org"), false);
 		assert.equal((await usage(user)).emailsSent, 2);
 
-		await setUsage(user, 75_000);
-		assert.equal((await signUp("REST API", user, "growth-used-up@example.org")).status, "skipped", "Growth's 75,000 used up too");
+		await setUsage(user, 125_000);
+		assert.equal((await signUp("REST API", user, "growth-used-up@example.org")).status, "skipped", "Growth's 125,000 used up too");
 		assert.equal(platformEmails.slice(emailsBefore).filter(isWelcomeNotice).length, 1, "one email a month");
 	});
 });
@@ -321,10 +321,10 @@ describe("whose limits", () => {
 		const user = await signIn("free-welcome@example.com");
 		assert.equal((await as(admin, () => m.admin.giveFreePlan(null, form({ accountId: String(user.accountId), plan: "starter" })))).ok, true);
 		await addNewsletter(user);
-		await setUsage(user, 19_999);
+		await setUsage(user, 24_999);
 		assert.equal((await signUp("REST API", user, "last-room@example.org")).status, "sent");
 		assert.equal((await signUp("REST API", user, "no-room@example.org")).status, "skipped");
-		assert.equal((await usage(user)).emailsSent, 20_000);
+		assert.equal((await usage(user)).emailsSent, 25_000);
 	});
 
 	test("an admin's override wins over the plan, below it or above it", async () => {
@@ -334,12 +334,12 @@ describe("whose limits", () => {
 		const held = await addNewsletter(await customer("override-low@example.com", { plan: "growth" }));
 		assert.equal((await saveLimits(held, "3")).ok, true);
 		await setUsage(held, 3);
-		assert.equal((await signUp("Add contact", held, "held@example.org")).status, "skipped", "Growth's 75,000 held to 3");
+		assert.equal((await signUp("Add contact", held, "held@example.org")).status, "skipped", "Growth's 125,000 held to 3");
 
 		const raised = await addNewsletter(await customer("override-high@example.com", { plan: "starter" }));
-		assert.equal((await saveLimits(raised, "30000")).ok, true);
-		await setUsage(raised, 25_000);
-		assert.equal((await signUp("Add contact", raised, "raised@example.org")).status, "sent", "Starter's 20,000 raised to 30,000");
+		assert.equal((await saveLimits(raised, "35000")).ok, true);
+		await setUsage(raised, 30_000);
+		assert.equal((await signUp("Add contact", raised, "raised@example.org")).status, "sent", "Starter's 25,000 raised to 35,000");
 	});
 });
 

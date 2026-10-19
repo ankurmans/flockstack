@@ -117,6 +117,25 @@ const accountSchema = new mongoose.Schema(
 			checklistDismissedAt: { type: Date },
 			checklistFinishedAt: { type: Date },
 		},
+		// Extra emails past the plan's (lib/plans.js, lib/extra-emails.js). billable: the Polar subscription carries the extra
+		// emails price, as the webhook last read it. limit: the owner's monthly limit on them; unset is the plan's emails.
+		extraEmails: {
+			billable: { type: Boolean },
+			limit: { type: Number, min: 0 },
+		},
+		// The dedicated IP add-on, a Polar subscription of its own next to the plan's (lib/dedicated-ip.js), as the webhook
+		// last read it. turnedOnAt: when the add-on turned the account's dedicated IP on, so its end turns off only that,
+		// never one an admin gave by hand.
+		dedicatedIp: {
+			polarSubscriptionId: { type: String },
+			status: { type: String },
+			plan: { type: String, enum: PLAN_IDS },
+			interval: { type: String, enum: INTERVALS },
+			currentPeriodEnd: { type: Date },
+			cancelAt: { type: Date },
+			turnedOnAt: { type: Date },
+			error: { type: String, trim: true },
+		},
 		// Set by an admin; they replace the plan's numbers.
 		limitOverrides: {
 			emailsPerMonth: { type: Number, min: 0 },

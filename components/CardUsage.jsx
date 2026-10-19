@@ -7,7 +7,7 @@ export default function CardUsage({ usage, isShared = false, now = new Date() })
 
 	return (
 		<div className="grid gap-px overflow-hidden rounded-xl bg-border/60 shadow-border sm:grid-cols-2">
-			<MeterUsage label="Emails this month" used={usage.emailsSent} limit={usage.emailsLimit} detail={resetsAt} />
+			<MeterUsage label="Emails this month" used={usage.emailsSent} limit={usage.emailsLimit} detail={resetsAt} goesOn={usage.extraEmailsLimit > 0} />
 			<MeterUsage
 				label="Subscribers"
 				used={usage.subscribers}
@@ -18,7 +18,8 @@ export default function CardUsage({ usage, isShared = false, now = new Date() })
 	);
 }
 
-function MeterUsage({ label, used, limit, detail }) {
+// goesOn: sending carries on past the limit as extra emails, so reaching it is no alarm.
+function MeterUsage({ label, used, limit, detail, goesOn = false }) {
 	const ratio = limit > 0 ? used / limit : used > 0 ? 1 : 0;
 
 	return (
@@ -40,7 +41,7 @@ function MeterUsage({ label, used, limit, detail }) {
 				className="h-1.5 overflow-hidden rounded-full bg-muted"
 			>
 				<div
-					className={cn("h-full rounded-full transition-[width] duration-500", meterTone(ratio))}
+					className={cn("h-full rounded-full transition-[width] duration-500", meterTone(goesOn ? Math.min(ratio, 0.89) : ratio))}
 					style={{ width: `${Math.max(Math.min(ratio, 1) * 100, ratio > 0 ? 2 : 0)}%` }}
 				/>
 			</div>

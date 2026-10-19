@@ -96,19 +96,23 @@ describe("/welcome", () => {
 		assert.equal((await loadAccount(user)).onboarding.listSize, undefined);
 	});
 
-	test("the list sizes are steps of one issue a week, each suggesting the plan it names", () => {
+	test("the list sizes are steps of the plans' subscribers, each suggesting the plan it names", () => {
 		const suggest = (listSize) => m.onboarding.getRecommendedPlanId({ onboarding: { listSize } });
-		// About 4.33 emails per subscriber a month: 15,000 subscribers take 64,950 of Growth's 75,000, 45,000 take 194,850 of
-		// Pro's 200,000 and 100,000 take 433,000 of Scale's 500,000. Starter's 20,000 hold about 4,600, and Under 5,000 stays
-		// on it: most new lists are far smaller. Max's 2,000,000 hold about 460,000.
+		const plan = (id) => m.plans.getPlan(id);
+		// Each step's top is its plan's subscribers, and one issue a week to them (about 4.33 emails per subscriber a month)
+		// fits the plan's emails.
+		for (const [id, top] of [["starter", 5_000], ["growth", 25_000], ["pro", 50_000], ["scale", 100_000]]) {
+			assert.equal(plan(id).subscribers, top, id);
+			assert.ok(Math.ceil(top * 4.33) <= plan(id).emailsPerMonth, `a weekly issue to ${top} fits ${id}`);
+		}
 		assert.deepEqual(
 			m.onboarding.LIST_SIZES.map(({ id, label }) => [label, suggest(id)]),
 			[
 				["Not yet", "starter"],
 				["Under 5,000", "starter"],
-				["5,000 to 15,000", "growth"],
-				["15,000 to 45,000", "pro"],
-				["45,000 to 100,000", "scale"],
+				["5,000 to 25,000", "growth"],
+				["25,000 to 50,000", "pro"],
+				["50,000 to 100,000", "scale"],
 				["Over 100,000", "max"],
 			]
 		);

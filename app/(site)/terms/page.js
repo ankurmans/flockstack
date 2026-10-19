@@ -73,8 +73,10 @@ export default function TermsPage() {
 					A plan sets how many emails you can send in a month and how many active subscribers you can have. Prices are in US dollars, billed
 					monthly or yearly (a yearly plan costs 10 months, not 12), and shown on the pricing section of the home page. You pay through our
 					billing provider, Polar. Your card details go to them, not to us. Every email you send counts toward the month: issues, tests,
-					welcome emails and confirmation emails. If you reach the limit, sending stops with a message and an upgrade link. Nothing is
-					billed on top of your plan. {TAX_NOTE}
+					welcome emails and confirmation emails. If you reach the limit on a paid plan, sending goes on and we bill extra emails at the
+					price on the home page, with your plan at the end of the period, up to a monthly limit you set on the billing page; confirmation
+					emails are never billed as extra. At that limit, or on a free plan, sending stops with a message and an upgrade link. A dedicated
+					IP is an optional add-on with its own price, which you buy separately. Nothing else is billed on top of your plan. {TAX_NOTE}
 				</p>
 				<p>
 					<strong className="font-medium text-foreground">Cancelling a monthly plan.</strong> Cancel any time from the billing page, which

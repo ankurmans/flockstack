@@ -16,14 +16,14 @@ function price(lookupKey, unitAmount, interval) {
 	return { id: `price_${lookupKey}`, object: "price", lookup_key: lookupKey, unit_amount: unitAmount, currency: "usd", recurring: { interval } };
 }
 
-// Scale has no prices in this Stripe, and Pro's monthly one is $99 instead of $55: neither is on sale.
+// Scale has no prices in this Stripe, and Pro's monthly one is $99 instead of $59: neither is on sale.
 const PRICES = {
-	flockstack_starter_monthly: price("flockstack_starter_monthly", 1200, "month"),
-	flockstack_starter_yearly: price("flockstack_starter_yearly", 12_000, "year"),
-	flockstack_growth_monthly: price("flockstack_growth_monthly", 2700, "month"),
-	flockstack_growth_yearly: price("flockstack_growth_yearly", 27_000, "year"),
+	flockstack_starter_monthly: price("flockstack_starter_monthly", 900, "month"),
+	flockstack_starter_yearly: price("flockstack_starter_yearly", 9_000, "year"),
+	flockstack_growth_monthly: price("flockstack_growth_monthly", 2900, "month"),
+	flockstack_growth_yearly: price("flockstack_growth_yearly", 29_000, "year"),
 	flockstack_pro_monthly: price("flockstack_pro_monthly", 9900, "month"),
-	flockstack_pro_yearly: price("flockstack_pro_yearly", 55_000, "year"),
+	flockstack_pro_yearly: price("flockstack_pro_yearly", 59_000, "year"),
 	flockstack_max_monthly: price("flockstack_max_monthly", 29_900, "month"),
 	flockstack_max_yearly: price("flockstack_max_yearly", 299_000, "year"),
 };
@@ -182,7 +182,7 @@ describe("checkout", () => {
 	test("a Stripe price that doesn't match the plan file, or a plan without its prices, is never offered nor reaches Checkout", async () => {
 		const user = await signIn("mismatch@example.com");
 		const real = PRICES.flockstack_pro_monthly;
-		assert.equal(real.unit_amount, 9900, "Stripe says $99, the plan says $55");
+		assert.equal(real.unit_amount, 9900, "Stripe says $99, the plan says $59");
 		for (const plan of ["pro", "scale"]) {
 			const url = await as(user, () => catchRedirect(m.billing.choosePlan(form({ plan, interval: "year" }))));
 			assert.equal(url, "/billing", `${plan}: the billing page, which shows the plans on sale`);
@@ -347,11 +347,11 @@ describe("Max", () => {
 
 		const paid = await account(user);
 		assert.deepEqual([paid.plan, paid.interval, paid.subscriptionStatus], ["max", "year", "active"]);
-		assert.deepEqual(m.plans.getAccountLimits(paid), { emails: 2_000_000, subscribers: 1_000_000 });
+		assert.deepEqual(m.plans.getAccountLimits(paid), { emails: 2_000_000, subscribers: 400_000 });
 		const { key } = await createKey(user, "Max");
 		const billing = await callApi("GET", "/api/v1/billing", { key });
 		assert.deepEqual(billing.body.plan, { id: "max", name: "Max", interval: "year", price: 2990 });
-		assert.deepEqual([billing.body.usage.emailsLimit, billing.body.usage.subscribersLimit], [2_000_000, 1_000_000]);
+		assert.deepEqual([billing.body.usage.emailsLimit, billing.body.usage.subscribersLimit], [2_000_000, 400_000]);
 
 		subscriptions.set("sub_max", subscription({ id: "sub_max", accountId: user.accountId, customer: "cus_max", lookupKey: "flockstack_growth_monthly" }));
 		await deliver("customer.subscription.updated", { id: "sub_max" });

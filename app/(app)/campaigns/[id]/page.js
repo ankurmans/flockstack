@@ -99,7 +99,7 @@ async function getPlanState(account) {
 	const [usage, inFlight] = await Promise.all([getUsage(account), countEmailsInFlight(account._id)]);
 	const accountProblem = getAccountSendProblem(account)?.message ?? null;
 	if (usage.emailsLimit === null) return { emailsLeft: null, problem: accountProblem };
-	const emailsLeft = Math.max(0, usage.emailsLimit - usage.emailsSent - inFlight);
+	const emailsLeft = Math.max(0, usage.emailsLimit + usage.extraEmailsLimit - usage.emailsSent - inFlight);
 	const problem =
 		accountProblem ??
 		(usage.subscribers > usage.subscribersLimit
