@@ -131,7 +131,7 @@ async function getSendTimes(campaign) {
 // Only a send capped to the most engaged has a next step. Close enough for the dialog: contacts who
 // left after receiving it make this a little low, and the send itself skips everyone who has it.
 async function countRemaining(campaign) {
-	if (campaign.status !== "sent" || !campaign.audienceLimit) return 0;
+	if (campaign.status !== "sent" || !campaign.audienceLimit || campaign.abTest?.status === "testing") return 0;
 	const active = await countCampaignAudience(campaign);
 	const reached = (campaign.stats?.recipients ?? 0) + (campaign.lastChance?.recipients ?? 0);
 	return Math.max(0, active - reached);

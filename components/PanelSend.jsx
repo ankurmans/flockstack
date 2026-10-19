@@ -2,6 +2,7 @@
 
 import { CalendarClock, Loader2, Send } from "lucide-react";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
+import CardAbTest from "@/components/CardAbTest";
 import CardSettings from "@/components/CardSettings";
 import InputCampaignSlug from "@/components/InputCampaignSlug";
 import ListCleanupPreview from "@/components/ListCleanupPreview";
@@ -53,6 +54,7 @@ export default function PanelSend({
 	const isPaced = Boolean(pace?.warmup) || getPaceHours(pace, { emails: paceEmails, newContacts }) > 0;
 	const isCleanupEnabled = Boolean(newsletter.cleanup?.enabled);
 	const isOverPlan = isNow && emailsLeft !== null && sending.sendEmails > emailsLeft;
+	const isTesting = (campaign.abTest?.variants?.length ?? 0) >= 2;
 	const from = newsletter.fromName ? `${newsletter.fromName} <${newsletter.fromEmail}>` : newsletter.fromEmail;
 
 	return (
@@ -135,7 +137,9 @@ export default function PanelSend({
 					))}
 			</CardSettings>
 
-			<CardSettings title="When" stagger={1}>
+			<CardAbTest campaign={campaign} subject={subject} audienceCount={audienceCount} stagger={1} />
+
+			<CardSettings title="When" stagger={2}>
 				<div role="radiogroup" aria-label="When" className="grid gap-2 p-3 sm:grid-cols-2">
 					<CardChoice
 						icon={Send}
@@ -189,7 +193,9 @@ export default function PanelSend({
 						<DialogTitle className="tabular-nums">Send to {formatCount(sending.sendRecipients, "contact")}?</DialogTitle>
 						<DialogDescription>
 							{scheduledTime ? `It goes out now instead of ${scheduledTime}.` : "Most engaged contacts receive it first."}
-							{sending.sendRecipients < sending.issueAudience && " Send it to more later from its page."}
+							{isTesting
+								? " The subject line test goes to a slice of them first, and the winner to the rest after the wait."
+								: sending.sendRecipients < sending.issueAudience && " Send it to more later from its page."}
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>

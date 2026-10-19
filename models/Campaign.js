@@ -1,5 +1,6 @@
 import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
+import { AB_TEST_METRICS, AB_TEST_STATUSES } from "../lib/ab-test-rules.js";
 import { AUDIENCES } from "../lib/tiers.js";
 
 export const CAMPAIGN_STATUSES = ["draft", "scheduled", "sending", "paused", "sent", "canceled"];
@@ -72,6 +73,32 @@ const campaignSchema = new mongoose.Schema(
 			clicked: counter,
 			unsubscribed: counter,
 			failed: counter,
+		},
+		// A subject line test (lib/ab-tests.js): variants[0] is the campaign's own subject, copied again as the send starts.
+		// The test slice is testPercent of the audience; waitMinutes after it went out, the winner by metric goes to the
+		// rest, within the send's own limit (audienceLimit here; the campaign's own is the slice's while it tests). The
+		// counters are the test slice's alone.
+		abTest: {
+			variants: [
+				{
+					_id: false,
+					subject: { type: String, trim: true },
+					previewText: { type: String, trim: true },
+					sent: counter,
+					opened: counter,
+					clicked: counter,
+				},
+			],
+			testPercent: { type: Number },
+			waitMinutes: { type: Number },
+			metric: { type: String, enum: AB_TEST_METRICS },
+			status: { type: String, enum: AB_TEST_STATUSES },
+			audienceLimit: { type: Number },
+			pickAt: { type: Date },
+			winner: { type: Number },
+			pickedAt: { type: Date },
+			restSentAt: { type: Date },
+			problem: { type: String },
 		},
 		// The list cleanup at this send: last-chance emails sent instead of the issue, and contacts made dormant.
 		lastChance: {

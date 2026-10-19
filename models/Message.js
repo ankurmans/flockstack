@@ -32,6 +32,8 @@ const messageSchema = new mongoose.Schema(
 		email: { type: String, required: true, lowercase: true, trim: true },
 		provider: { type: String },
 		status: { type: String, enum: MESSAGE_STATUSES, default: "queued" },
+		// The subject line it got in a campaign's test slice: an index of Campaign.abTest.variants.
+		variant: { type: Number },
 		// The contact had never received an email from this account (lib/first-send.js).
 		firstSend: { type: Boolean },
 		// The email provider's id for it, when the send returns one; else the first event fills it in.

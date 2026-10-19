@@ -20,6 +20,7 @@ import ImageFavicon from "@/components/ImageFavicon";
 import InputCampaignSlug from "@/components/InputCampaignSlug";
 import PreviewEmail from "@/components/PreviewEmail";
 import TextEmpty from "@/components/TextEmpty";
+import TimeLocal from "@/components/TimeLocal";
 import { Button } from "@/components/ui/button";
 import {
 	Table,
@@ -29,6 +30,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { VARIANT_LABELS, hasAbTest } from "@/lib/ab-test-rules";
 import { isPlanLimitCode } from "@/lib/account-state";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { FIRST_SEND, LIMITS, isSendingEnabled } from "@/lib/config";
@@ -204,6 +206,8 @@ export default function CampaignReport({
 					/>
 				</div>
 
+				{hasAbTest(campaign) && campaign.abTest.status && <TableAbTest abTest={campaign.abTest} />}
+
 				{providers.length > 0 && (
 					<div
 						style={{ "--stagger": 2 }}
@@ -327,6 +331,81 @@ export default function CampaignReport({
 				</div>
 			</div>
 		</>
+	);
+}
+
+const TIME_OPTIONS = { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" };
+
+// The subject line test's slice, subject by subject, and where the pick stands.
+function TableAbTest({ abTest }) {
+	const isPicked = abTest.status === "picked";
+	const measure = abTest.metric === "opens" ? "opens" : "unique clicks";
+	return (
+		<div style={{ "--stagger": 2 }} className="overflow-hidden rounded-xl shadow-border animate-enter">
+			<p className="px-4 py-3 text-sm text-pretty text-muted-foreground">
+				{isPicked ? (
+					<>
+						Subject {VARIANT_LABELS[abTest.winner]} won by {measure}
+						{abTest.pickedAt && (
+							<>
+								{" "}
+								on <TimeLocal value={abTest.pickedAt} options={TIME_OPTIONS} />
+							</>
+						)}
+						{abTest.problem ? `, but it didn't reach the rest: ${abTest.problem}` : " and went to the rest."}
+					</>
+				) : (
+					<>
+						Subject line test: the winner by {measure} goes to the rest
+						{abTest.pickAt ? (
+							<>
+								{" "}
+								around <TimeLocal value={abTest.pickAt} options={TIME_OPTIONS} />
+							</>
+						) : (
+							" after the wait"
+						)}
+						.
+					</>
+				)}
+			</p>
+			<Table>
+				<TableHeader>
+					<TableRow className="hover:bg-transparent">
+						<TableHead className="pl-4">Subject</TableHead>
+						<TableHead className="text-right">Sent</TableHead>
+						<TableHead className="text-right">Opened</TableHead>
+						<TableHead className="pr-4 text-right">Clicked</TableHead>
+					</TableRow>
+				</TableHeader>
+				<TableBody>
+					{abTest.variants.map((variant, index) => (
+						<TableRow key={index} className="tabular-nums">
+							<TableCell className="max-w-0 pl-4">
+								<span className="flex items-center gap-2.5">
+									<span
+										className={
+											isPicked && abTest.winner === index
+												? "grid size-5 shrink-0 place-items-center rounded-full bg-foreground text-[11px] font-medium text-background"
+												: "grid size-5 shrink-0 place-items-center rounded-full bg-muted text-[11px] text-muted-foreground"
+										}
+										title={isPicked && abTest.winner === index ? "Winner" : undefined}
+									>
+										{VARIANT_LABELS[index]}
+									</span>
+									<span className="truncate font-medium" title={variant.subject}>
+										{variant.subject}
+									</span>
+								</span>
+							</TableCell>
+							<TableCell className="text-right">{formatNumber(variant.sent)}</TableCell>
+							<TableCell className="text-right">{formatRate(variant.opened, variant.sent) ?? <TextEmpty />}</TableCell>
+							<TableCell className="pr-4 text-right">{formatRate(variant.clicked, variant.sent) ?? <TextEmpty />}</TableCell>
+						</TableRow>
+					))}
+				</TableBody>
+			</Table>
+		</div>
 	);
 }
 

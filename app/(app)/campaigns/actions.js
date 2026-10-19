@@ -153,3 +153,11 @@ export async function listLinkClicks(id, link, cursor) {
 	const { output, failure } = await runDashboardAction("list_link_clicks", { id: String(id), link: Number(link), ...(cursor && { cursor: String(cursor) }) });
 	return failure ? toFormError(failure) : output;
 }
+
+// The campaign's subject line test, or null to remove it.
+export async function setCampaignAbTest(id, abTest) {
+	const { failure } = await runDashboardAction("update_campaign", { id: String(id), abTest: abTest ?? null });
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	return { ok: true };
+}

@@ -56,10 +56,12 @@ export const QSTASH_KEYS = { QSTASH_CURRENT_SIGNING_KEY: "sig-current", QSTASH_N
 
 const handled = new Set();
 
-// Runs the published jobs whose path ends with one of these, in order, until none are left.
+// Runs the jobs published so far that routes has a route for, in order, each once. A job they publish waits for the
+// next call, so a job that publishes itself again can't loop.
 export async function runJobs(routes, { only = null } = {}) {
 	const results = [];
-	for (let index = 0; index < published.length; index++) {
+	const end = published.length;
+	for (let index = 0; index < end; index++) {
 		const job = published[index];
 		if (handled.has(index)) continue;
 		const path = new URL(job.url).pathname;
