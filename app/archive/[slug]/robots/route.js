@@ -9,7 +9,9 @@ export async function GET(_request, { params }) {
 	const { siteIndex } = getArchiveUrls(newsletter);
 	// The newsletter's own domain serves the sitemap as /sitemap.xml; without one it stays under /archive.
 	const sitemap = siteIndex.endsWith("/") ? new URL("/sitemap.xml", siteIndex) : `${siteIndex}/sitemap`;
-	return new Response(`User-agent: *\nAllow: /\n\nSitemap: ${sitemap}\n`, {
+	// The reader's own pages are noindex already; this keeps crawlers from asking.
+	const reader = ["/signin", "/account"].map((path) => `Disallow: ${path}`).join("\n");
+	return new Response(`User-agent: *\nAllow: /\n${reader}\n\nSitemap: ${sitemap}\n`, {
 		headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, s-maxage=86400" },
 	});
 }

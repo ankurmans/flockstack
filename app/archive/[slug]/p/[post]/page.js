@@ -2,9 +2,9 @@ import { notFound } from "next/navigation";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import BadgeDate from "@/components/BadgeDate";
 import BadgeViews from "@/components/BadgeViews";
+import BodyIssue from "@/components/BodyIssue";
 import CardIssue from "@/components/CardIssue";
-import CardPaywall from "@/components/CardPaywall";
-import FrameIssue from "@/components/FrameIssue";
+import ChipsTag from "@/components/ChipsTag";
 import LinksShare from "@/components/LinksShare";
 import ListRecommendations from "@/components/ListRecommendations";
 import PitchSubscribe from "@/components/PitchSubscribe";
@@ -13,13 +13,14 @@ import ScriptJsonLd from "@/components/ScriptJsonLd";
 import TrackView from "@/components/TrackView";
 import TriggerSubscribe from "@/components/TriggerSubscribe";
 import { getIssueAuthor } from "@/lib/archive-author";
-import { renderIssueBody } from "@/lib/archive-content";
-import { countReaders, getArchiveIssue, getArchiveNewsletter, getShopPayments, listArchiveIssues, listSignupFields } from "@/lib/archive-data";
+import { renderPageBody } from "@/lib/archive-content";
+import { countReaders, getArchiveIssue, getArchiveNewsletter, getArchivePage, getShopPayments, listArchiveIssues, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
-import { getAccent } from "@/lib/editor-blocks";
-import { getPollVoteUrl } from "@/lib/subscriber-links";
+import { getBrand } from "@/lib/brand";
 import { getIssueDate } from "@/lib/archive-issues";
-import { getIssueSeo } from "@/lib/archive-seo";
+import { getIssueSeo, getPageSeo } from "@/lib/archive-seo";
+import { getTagSlug } from "@/lib/issue-tags";
+import { renderWebIssue } from "@/lib/web-issue";
 import { hasRecommendationsTag } from "@/lib/recommendation-tags";
 import { listLiveRecommendations } from "@/lib/recommendations";
 import { areCommentsOn, getCommentSettings } from "@/lib/comment-rules";
@@ -32,22 +33,57 @@ export function generateStaticParams() {
 	return [];
 }
 
-async function getIssuePage(params) {
+// /p/<slug> is an issue or, when no issue has the slug, one of the newsletter's custom pages. The two never share a slug
+// within a newsletter (lib/archive-slugs.js, lib/actions/website.js), so the order only decides the rare old collision: the issue keeps the address.
+async function getPost(params) {
 	const { slug, post } = await params;
 	const newsletter = await getArchiveNewsletter(slug);
-	const issue = newsletter && (await getArchiveIssue(newsletter, post));
-	return issue ? { newsletter, issue } : null;
+	if (!newsletter) return null;
+	const issue = await getArchiveIssue(newsletter, post);
+	if (issue) return { newsletter, issue };
+	const page = await getArchivePage(newsletter, post);
+	return page ? { newsletter, page } : null;
 }
 
 export async function generateMetadata({ params }) {
-	const page = await getIssuePage(params);
-	return page ? getIssueSeo(page.newsletter, page.issue).metadata : {};
+	const post = await getPost(params);
+	if (!post) return {};
+	return post.issue ? getIssueSeo(post.newsletter, post.issue).metadata : getPageSeo(post.newsletter, post.page).metadata;
 }
 
-export default async function IssuePage({ params }) {
-	const page = await getIssuePage(params);
-	if (!page) notFound();
-	const { newsletter, issue } = page;
+export default async function PostPage({ params }) {
+	const post = await getPost(params);
+	if (!post) notFound();
+	// Called, not rendered as components, so the page's output is the finished tree.
+	return post.issue ? await renderIssue(post) : await renderPage(post);
+}
+
+async function renderPage({ newsletter, page }) {
+	const [readers, signupFields] = await Promise.all([countReaders(newsletter), listSignupFields(newsletter)]);
+	const pitch = { name: newsletter.name, slug: newsletter.slug, imageUrl: newsletter.imageUrl, description: newsletter.description, signupFields };
+
+	return (
+		<>
+			<ScriptJsonLd data={getPageSeo(newsletter, page).jsonLd} />
+			<article className="mx-auto max-w-2xl px-5 pt-12 sm:pt-16">
+				<h1 className="site-title text-4xl font-semibold tracking-tight text-balance animate-enter sm:text-[2.75rem] sm:leading-[1.1]">{page.title}</h1>
+				<div
+					style={{ "--stagger": 1 }}
+					className="prose-issue mt-10 animate-enter"
+					dangerouslySetInnerHTML={{ __html: renderPageBody(page.html, { accent: getBrand(newsletter).accent }) }}
+				/>
+			</article>
+			<section id="subscribe" className="mx-auto max-w-2xl scroll-mt-24 px-5 pt-16 pb-24">
+				<div className="rounded-2xl bg-card px-6 py-10 shadow-border sm:px-10">
+					<PitchSubscribe newsletter={pitch} readers={readers} />
+				</div>
+			</section>
+			<TriggerSubscribe newsletterSlug={newsletter.slug} />
+		</>
+	);
+}
+
+async function renderIssue({ newsletter, issue }) {
 
 	const hasComments = areCommentsOn(newsletter, issue);
 	const [more, readers, payments, signupFields, recommendations, comments] = await Promise.all([
@@ -59,18 +95,14 @@ export default async function IssuePage({ params }) {
 		hasComments ? listPublicComments(newsletter, issue) : null,
 	]);
 	const urls = getArchiveUrls(newsletter);
-	const body = renderIssueBody(issue, {
-		referralLink: `${urls.siteIndex}#subscribe`,
-		recommendations,
-		accent: getAccent(newsletter),
-		pollUrl: (pollId, option) => getPollVoteUrl(null, newsletter, { pollId, option }),
-	});
+	const body = renderWebIssue({ newsletter, issue, recommendations });
 	// An issue that places the block itself gets no second one below it.
 	const closing = hasRecommendationsTag(issue.html) || hasRecommendationsTag(issue.markdown) ? [] : recommendations;
 	const canSubscribePaid = Boolean(newsletter.paidTier?.enabled) && payments.ready;
 	const date = getIssueDate(issue);
 	const views = issue.webViews ?? 0;
 	const author = getIssueAuthor(newsletter, issue);
+	const issueTags = (issue.tags ?? []).map((name, index) => ({ name, slug: issue.tagSlugs?.[index] ?? getTagSlug(name) }));
 	const pitch = {
 		name: newsletter.name,
 		slug: newsletter.slug,
@@ -84,7 +116,7 @@ export default async function IssuePage({ params }) {
 			<ScriptJsonLd data={getIssueSeo(newsletter, issue).jsonLd} />
 			<article className="mx-auto max-w-2xl px-5 pt-12 sm:pt-16">
 				<header className="animate-enter">
-					<h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-[2.75rem] sm:leading-[1.1]">
+					<h1 className="site-title text-4xl font-semibold tracking-tight text-balance sm:text-[2.75rem] sm:leading-[1.1]">
 						{issue.subject}
 					</h1>
 					{issue.previewText && (
@@ -120,20 +152,16 @@ export default async function IssuePage({ params }) {
 							className="-mr-2.5 shrink-0"
 						/>
 					</div>
+					<ChipsTag tags={issueTags} urls={urls} className="mt-5" />
 				</header>
 
-				{body.kind === "article" || body.kind === "paywall" ? (
-					<div
-						style={{ "--stagger": 1 }}
-						className="prose-issue mt-10 animate-enter"
-						dangerouslySetInnerHTML={{ __html: body.html }}
-					/>
-				) : (
-					<FrameIssue html={body.html} className="-mx-5 mt-10 rounded-none sm:mx-0 sm:rounded-xl" />
-				)}
-				{body.kind === "paywall" && (
-					<CardPaywall newsletterName={newsletter.name} href={canSubscribePaid ? urls.subscribe : null} isPartial={body.isPartial} />
-				)}
+				<BodyIssue
+					slug={newsletter.slug}
+					post={issue.archiveSlug}
+					initial={body}
+					newsletterName={newsletter.name}
+					subscribeHref={canSubscribePaid ? urls.subscribe : null}
+				/>
 			</article>
 
 			{comments && (
@@ -160,7 +188,7 @@ export default async function IssuePage({ params }) {
 			{more.length > 0 && (
 				<section className="mx-auto max-w-5xl px-5 pt-20 pb-24">
 					<div className="mb-6 flex items-baseline justify-between gap-4 border-b border-border/60 pb-4">
-						<h2 className="text-sm font-medium text-muted-foreground">Keep reading</h2>
+						<h2 className="site-label text-sm font-medium text-muted-foreground">Keep reading</h2>
 						<a
 							href={urls.index}
 							className="text-sm text-muted-foreground transition-colors duration-150 hover:text-foreground"

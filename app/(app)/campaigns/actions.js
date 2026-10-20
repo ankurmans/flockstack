@@ -180,6 +180,18 @@ export async function updateArchiveSlug(id, value) {
 	return { ok: true, archiveSlug: output.archiveSlug ?? "" };
 }
 
+// The issue's tags, which the website shows on the issue and gives each a page. Separated by commas.
+export async function setCampaignTags(id, text) {
+	const tags = String(text ?? "")
+		.split(",")
+		.map((tag) => tag.trim())
+		.filter(Boolean);
+	const { output, failure } = await runDashboardAction("update_campaign_archive", { id: String(id), tags });
+	if (failure) return toFormError(failure);
+	refresh(id);
+	return { ok: true, tags: output.tags };
+}
+
 // One page of who clicked a link of a sent campaign; cursor comes from the page before.
 export async function listLinkClicks(id, link, cursor) {
 	const { output, failure } = await runDashboardAction("list_link_clicks", { id: String(id), link: Number(link), ...(cursor && { cursor: String(cursor) }) });

@@ -1,0 +1,26 @@
+// Previous and next links for a paged list. hrefFor(page): the address of a page. Plain links, so it needs no script.
+export default function PaginationIssues({ page, pages, hrefFor }) {
+	if (pages <= 1) return null;
+	const link = "inline-flex h-9 items-center rounded-lg px-3 text-sm font-medium shadow-border transition-shadow duration-150 hover:shadow-border-hover";
+	return (
+		<nav aria-label="Pages of issues" className="mt-12 flex items-center justify-between gap-4">
+			{page > 1 ? (
+				<a href={hrefFor(page - 1)} rel="prev" className={link}>
+					← Newer
+				</a>
+			) : (
+				<span />
+			)}
+			<p className="text-sm text-muted-foreground tabular-nums">
+				Page {page} of {pages}
+			</p>
+			{page < pages ? (
+				<a href={hrefFor(page + 1)} rel="next" className={link}>
+					Older →
+				</a>
+			) : (
+				<span />
+			)}
+		</nav>
+	);
+}

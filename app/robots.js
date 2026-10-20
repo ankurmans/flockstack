@@ -30,6 +30,7 @@ const PRIVATE_PATHS = [
 	"/survey",
 	"/preferences",
 	"/webhooks",
+	"/website",
 	"/welcome",
 	"/c/",
 	"/o/",

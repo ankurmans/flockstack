@@ -69,6 +69,10 @@ const campaignSchema = new mongoose.Schema(
 		publishTo: { type: String, enum: PUBLISH_TARGETS },
 		// This issue's own word on comments, over the newsletter's setting: on or off. Without one it follows the newsletter.
 		comments: { type: String, enum: ["on", "off"] },
+		// The issue's tags (lib/issue-tags.js) and their web-address forms, in step: the website's tag pages find an issue by
+		// tagSlugs.
+		tags: { type: [String], default: undefined },
+		tagSlugs: { type: [String], default: undefined },
 		// Pinned issues sit in the Featured row at the top of the archive.
 		archivePinned: { type: Boolean, default: false },
 		// An issue brought from another platform by a post import (lib/post-import.js): "<source>:<its ID there>", so the

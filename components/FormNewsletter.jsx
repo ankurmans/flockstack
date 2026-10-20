@@ -7,12 +7,15 @@ import BarSave from "@/components/BarSave";
 import ButtonCopy from "@/components/ButtonCopy";
 import InputImage from "@/components/InputImage";
 import NoticeWelcomePaused from "@/components/NoticeWelcomePaused";
+import PreviewBrand from "@/components/PreviewBrand";
 import PreviewEmail from "@/components/PreviewEmail";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { FONT_PAIRS, THEME_IDS } from "@/lib/brand";
+import { THEMES } from "@/lib/site-themes";
 import { CLEANUP_LIMITS, LAST_CHANCE_DAYS, getCleanupSettings } from "@/lib/cleanup";
 import { CONFIRM_URL_PLACEHOLDER } from "@/lib/confirmation-content";
 import { formatNumber } from "@/lib/format";
@@ -118,6 +121,19 @@ export default function FormNewsletter({
 	}, [name, fromEmail, deferredPostalAddress]);
 
 	const previewImageUrl = IMAGE_PREVIEW_PATTERN.test(imageUrl) ? imageUrl : "";
+	const brandPreview = useMemo(
+		() => ({
+			name,
+			description,
+			imageUrl: previewImageUrl,
+			fromName,
+			fromEmail,
+			postalAddress: deferredPostalAddress,
+			accentColor: /^#[0-9a-f]{6}$/i.test(accentColor) ? accentColor.toLowerCase() : "",
+			brand: { theme: draft.theme, fontPair: draft.fontPair, headerUrl: draft.headerUrl, emailLogo: draft.isEmailLogo },
+		}),
+		[name, description, previewImageUrl, fromName, fromEmail, deferredPostalAddress, accentColor, draft.theme, draft.fontPair, draft.headerUrl, draft.isEmailLogo]
+	);
 	const isShared = Boolean(sharedDomain) && fromDomain === sharedDomain;
 	const isDomainUnverified = !isShared && domains.some(({ domain, verified }) => domain === fromDomain && !verified);
 	const fromHint = getFromHint({ isShared, isDomainUnverified, fromDomain, hasDomains: domains.length > 0 });
@@ -251,7 +267,13 @@ export default function FormNewsletter({
 						onChange={(value) => set("imageUrl", value)}
 					/>
 				</Field>
-				<Field label="Accent color" hint="Buttons, poll answers and file links in your issues" as="div">
+			</Section>
+
+			<Section title="Brand" stagger={1}>
+				<p className="px-4 py-3 text-sm text-pretty text-muted-foreground">
+					One look for your website and your emails. The logo is the image above; readers see the rest in every issue.
+				</p>
+				<Field label="Accent color" hint="Buttons, links and poll answers, on the website and in emails. A pale color gets a darker shade for text." as="div">
 					<span className="flex items-center gap-2">
 						<input
 							type="color"
@@ -263,9 +285,42 @@ export default function FormNewsletter({
 						<Input name="accentColor" value={accentColor} onChange={update("accentColor")} placeholder="#18181b" maxLength={7} className="w-32 font-mono" aria-label="Accent color" />
 					</span>
 				</Field>
+				<Field label="Theme" as="div">
+					<input type="hidden" name="theme" value={draft.theme} />
+					<div role="radiogroup" aria-label="Theme" className="grid gap-2 sm:grid-cols-2">
+						{THEME_IDS.map((id) => (
+							<ChoiceCard key={id} isSelected={draft.theme === id} onSelect={() => set("theme", id)} title={THEMES[id].label} description={THEMES[id].description} />
+						))}
+					</div>
+				</Field>
+				<Field label="Fonts" hint="Fonts every device has, so the email looks like the website." as="div">
+					<input type="hidden" name="fontPair" value={draft.fontPair} />
+					<div role="radiogroup" aria-label="Fonts" className="grid gap-2 sm:grid-cols-2">
+						{Object.entries(FONT_PAIRS).map(([id, pair]) => (
+							<ChoiceCard
+								key={id}
+								isSelected={draft.fontPair === id}
+								onSelect={() => set("fontPair", id)}
+								title={pair.label}
+								titleStyle={{ fontFamily: pair.heading }}
+								description={pair.description}
+							/>
+						))}
+					</div>
+				</Field>
+				<Field label="Header image" hint="Wide, about 3 to 1. Above the issue in emails and at the top of your website." as="div">
+					<InputImage key={discardCount} name="headerUrl" defaultValue={draft.headerUrl} label="header image" onChange={(value) => set("headerUrl", value)} />
+				</Field>
+				<Field label="Email header" hint="The logo and your name above every issue. Without it, issues open with the text." as="div">
+					<span className="flex items-center gap-2 text-sm">
+						<Switch name="emailLogo" checked={draft.isEmailLogo} onCheckedChange={(isChecked) => set("isEmailLogo", isChecked)} aria-label="Show the logo and name above every issue" />
+						Show the logo and name
+					</span>
+				</Field>
+				<PreviewBrand newsletter={brandPreview} />
 			</Section>
 
-			<Section title="Sender" stagger={1}>
+			<Section title="Sender" stagger={2}>
 				<Field label="From name">
 					<Input name="fromName" value={fromName} placeholder="Jane Doe" onChange={update("fromName")} />
 				</Field>
@@ -354,7 +409,7 @@ export default function FormNewsletter({
 
 			<Section
 				title="Confirm new signups"
-				stagger={2}
+				stagger={3}
 				action={
 					<Switch
 						name="requireConfirmation"
@@ -443,7 +498,7 @@ export default function FormNewsletter({
 
 			<Section
 				title="Welcome email"
-				stagger={3}
+				stagger={4}
 				collapsedNote={
 					isConfirmationRequired &&
 					"Not sent while new signups confirm, since the confirmation email replaces it. Its content is kept."
@@ -503,7 +558,7 @@ export default function FormNewsletter({
 
 			<Section
 				title="List cleanup"
-				stagger={4}
+				stagger={5}
 				action={
 					<Switch
 						name="cleanupEnabled"
@@ -563,7 +618,7 @@ export default function FormNewsletter({
 
 			<Section
 				title="Website"
-				stagger={5}
+				stagger={6}
 				action={
 					<Switch
 						name="archiveEnabled"
@@ -679,6 +734,27 @@ function Section({ title, action, stagger, collapsedNote, children }) {
 				children && <div className="divide-y divide-border/60 border-t border-border/60">{children}</div>
 			)}
 		</section>
+	);
+}
+
+// A choice among a few, as a radio: the theme and the font pair.
+function ChoiceCard({ isSelected, onSelect, title, titleStyle, description }) {
+	return (
+		<button
+			type="button"
+			role="radio"
+			aria-checked={isSelected}
+			onClick={onSelect}
+			className={cn(
+				"flex flex-col gap-0.5 rounded-xl px-3.5 py-3 text-left outline-none transition-[box-shadow,background-color] duration-150 focus-visible:ring-2 focus-visible:ring-ring",
+				isSelected ? "bg-muted shadow-[0_0_0_2px_var(--foreground)]" : "shadow-border hover:shadow-border-hover"
+			)}
+		>
+			<span style={titleStyle} className="text-sm font-semibold">
+				{title}
+			</span>
+			<span className="text-xs text-pretty text-muted-foreground">{description}</span>
+		</button>
 	);
 }
 
