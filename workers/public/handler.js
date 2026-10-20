@@ -1,5 +1,5 @@
 // The public pages Worker's logic, apart from its manifest so the tests can give it one. See workers/public/index.js.
-import { fillAnalyticsMarkers } from "../../lib/prerender.js";
+import { fillMarkerStream } from "../../lib/prerender.js";
 import { readAnalyticsEnv } from "../../lib/marketing/analytics-config.js";
 import { readConsent, requiresConsent } from "../../lib/marketing/analytics-consent.js";
 
@@ -46,9 +46,9 @@ export function createHandler(manifest) {
 		const headers = new Headers(entry.headers);
 		headers.set("x-public-build", manifest.build);
 		const isHead = request.method === "HEAD";
-		if (!entry.hasMarkers) return new Response(isHead ? null : asset.body, { status: entry.status, headers });
+		if (isHead || !entry.replacements?.length) return new Response(isHead ? null : asset.body, { status: entry.status, headers });
 
-		const html = fillAnalyticsMarkers(await asset.text(), analyticsValues(request, env, region));
-		return new Response(isHead ? null : html, { status: entry.status, headers });
+		// The page streams out as it is read; only the bytes of the markers are changed on the way.
+		return new Response(fillMarkerStream(asset.body, entry.replacements, analyticsValues(request, env, region)), { status: entry.status, headers });
 	};
 }

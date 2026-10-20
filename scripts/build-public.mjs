@@ -77,6 +77,14 @@ export function countMarkers(text) {
 	return counts;
 }
 
+// Where the markers are in a page, as byte offsets, so the Worker can stream the page and change only those bytes (a page of 4 MB
+// is not read whole before its first byte is sent): [[start, end, marker, isEscaped], ...] in order. The page is read as one byte
+// to a character, which the markers, plain ASCII, survive.
+export function findMarkerReplacements(bytes) {
+	const text = Buffer.from(bytes).toString("latin1");
+	return [...text.matchAll(ANALYTICS_MARKER_PATTERN)].map((match) => [match.index, match.index + match[0].length, match[1], match[0].startsWith("\\") ? 1 : 0]);
+}
+
 export function hasMarkers(text) {
 	const counts = Object.values(countMarkers(text));
 	if (counts.every((count) => count === 0)) return false;
@@ -171,16 +179,16 @@ async function renderRegion({ region, out, root = ROOT }) {
 			const contentType = response.headers.get("content-type");
 			const problems = checkPage({ pathname, status: response.status, body, contentType });
 			if (problems.length > 0) throw new Error(`${region} ${pathname}: ${problems.join(", ")}`);
-			let markers = false;
+			let replacements = [];
 			try {
-				markers = /^(text|application)\//.test(contentType) && hasMarkers(body.toString("utf8"));
+				if (/^(text|application)\//.test(contentType) && hasMarkers(body.toString("utf8"))) replacements = findMarkerReplacements(body);
 			} catch (error) {
 				throw new Error(`${region} ${pathname}: ${error.message}`);
 			}
 			const file = fileFor(pathname);
 			mkdirSync(dirname(join(out, "assets", region, file)), { recursive: true });
 			writeFileSync(join(out, "assets", region, file), body);
-			entries[pathname] = { file, status: response.status, headers: pickHeaders(response.headers), hasMarkers: markers, bytes: body.length };
+			entries[pathname] = { file, status: response.status, headers: pickHeaders(response.headers), replacements, bytes: body.length };
 		}
 	} catch (error) {
 		throw new Error(`${error.message}\n--- wrangler dev, last output ---\n${log}`);

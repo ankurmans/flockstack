@@ -3,9 +3,9 @@ import { after, before, describe, test } from "node:test";
 import { startTestApp, withEnv } from "./helpers/app.mjs";
 import { runWithRequest } from "./stubs/next-headers.mjs";
 import { analyticsValues, createHandler, lookup } from "../workers/public/handler.js";
-import { ANALYTICS_MARKERS, ANALYTICS_MARKER_PATTERN, fillAnalyticsMarkers, isPrerendering } from "../lib/prerender.js";
+import { ANALYTICS_MARKERS, ANALYTICS_MARKER_PATTERN, fillAnalyticsMarkers, fillMarkerStream, isPrerendering } from "../lib/prerender.js";
 import { firstDifference, normalize, removeHelpChat, resolveStreaming } from "../scripts/verify-public.mjs";
-import { buildDevVars, buildWranglerConfig, checkPage, countMarkers, fileFor, hasMarkers, parseArgs, pickHeaders } from "../scripts/build-public.mjs";
+import { buildDevVars, buildWranglerConfig, checkPage, countMarkers, fileFor, findMarkerReplacements, hasMarkers, parseArgs, pickHeaders } from "../scripts/build-public.mjs";
 
 // workers/public: the Worker that serves what scripts/build-public.mjs rendered. Its files here are stand-ins; the pages
 // themselves are the app's own output, and the tests that follow check what is added to them per request.
@@ -22,8 +22,8 @@ function manifest() {
 	return {
 		build: "abc123",
 		regions: {
-			us: { "/terms": { file: "terms.page", status: 200, headers, hasMarkers: true }, "/docs/api": { file: "docs/api.page", status: 200, headers, hasMarkers: false }, "/privacy": { file: "privacy.page", status: 404, headers, hasMarkers: false }, "/robots.txt": { file: "robots.txt.page", status: 200, headers: { "content-type": "text/plain; charset=utf-8" }, hasMarkers: false } },
-			eu: { "/terms": { file: "terms.page", status: 200, headers, hasMarkers: true } },
+			us: { "/terms": { file: "terms.page", status: 200, headers, replacements: findMarkerReplacements(Buffer.from(PAGE)) }, "/docs/api": { file: "docs/api.page", status: 200, headers, replacements: [] }, "/privacy": { file: "privacy.page", status: 404, headers, replacements: [] }, "/robots.txt": { file: "robots.txt.page", status: 200, headers: { "content-type": "text/plain; charset=utf-8" }, replacements: [] } },
+			eu: { "/terms": { file: "terms.page", status: 200, headers, replacements: findMarkerReplacements(Buffer.from(PAGE)) } },
 		},
 	};
 }
@@ -149,6 +149,32 @@ describe("the markers", () => {
 		assert.equal(isPrerendering({}), false);
 		assert.equal(isPrerendering({ FLOCKSTACK_PRERENDER: "true" }), true);
 		assert.equal(isPrerendering({ FLOCKSTACK_PRERENDER: "1" }), false);
+	});
+
+	test("the stream makes the same bytes as the text does, however the page is cut up, with multi-byte text before and between", async () => {
+		const page = `<!DOCTYPE html><html><body><h1>Términos · 条款</h1>${"é".repeat(300)}${flight(PROPS)}<p>${"日本".repeat(50)}</p>${flight({ ...PROPS, region: "eu" })}</body></html>`;
+		const bytes = Buffer.from(page);
+		const replacements = findMarkerReplacements(bytes);
+		assert.equal(replacements.length, 10, "five markers, twice");
+		for (const values of [{ token: "phc_abcdefgh", host: "https://us.i.posthog.com", replay: false, requiresConsent: true, consent: null }, { token: "phc_zzzzzzzz", host: "https://eu.i.posthog.com", replay: true, requiresConsent: false, consent: "declined" }]) {
+			const expected = Buffer.from(fillAnalyticsMarkers(page, values));
+			for (const size of [1, 2, 3, 7, 13, 64, 500, 100000]) {
+				const body = new ReadableStream({
+					start(controller) {
+						for (let at = 0; at < bytes.length; at += size) controller.enqueue(new Uint8Array(bytes.subarray(at, at + size)));
+						controller.close();
+					},
+				});
+				const out = Buffer.from(await new Response(fillMarkerStream(body, replacements, values)).arrayBuffer());
+				assert.equal(out.toString("utf8"), expected.toString("utf8"), `chunks of ${size}`);
+			}
+		}
+	});
+
+	test("the offsets are bytes, not characters: a page with text before a marker is changed in the right place", () => {
+		const bytes = Buffer.from(`ééé"${M.token}"`);
+		assert.deepEqual(findMarkerReplacements(bytes), [[6, 6 + M.token.length + 2, M.token, 0]]);
+		assert.deepEqual(findMarkerReplacements(Buffer.from("<h1>plain</h1>")), []);
 	});
 
 	test("the build counts them, and refuses a page that has some but not all", () => {
