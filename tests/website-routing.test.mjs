@@ -15,7 +15,7 @@ const forward = (overrides) => shouldForwardToWebsite({ method: "GET", hostname:
 
 describe("lib/website-routing.js", () => {
 	test("forwards the website's paths, with or without a session", () => {
-		for (const pathname of ["/pricing", "/compare", "/changelog", "/blog", "/blog/a-post", "/blog/feed.xml", "/vs", "/vs/mailchimp", "/alternatives", "/alternatives/mailchimp", "/switch", "/switch/mailchimp", "/newsletter-api", "/newsletter-mcp-server", "/newsletter-automation", "/paid-newsletter-platform", "/cheapest-newsletter-platform", "/amazon-ses-newsletter", "/self-hosted-newsletter", "/llms.txt", "/sitemap-website.xml", "/_website/_next/static/a.js", "/_website/og/home", "/_website/site.webmanifest"]) {
+		for (const pathname of ["/pricing", "/compare", "/changelog", "/blog", "/blog/a-post", "/blog/feed.xml", "/vs", "/vs/mailchimp", "/alternatives", "/alternatives/mailchimp", "/switch", "/switch/mailchimp", "/newsletter-api", "/newsletter-mcp-server", "/newsletter-automation", "/paid-newsletter-platform", "/cheapest-newsletter-platform", "/amazon-ses-newsletter", "/self-hosted-newsletter", "/tools/newsletter-cost-calculator", "/llms.txt", "/sitemap-website.xml", "/_website/_next/static/a.js", "/_website/og/home", "/_website/site.webmanifest"]) {
 			assert.equal(forward({ pathname }), true, pathname);
 			assert.equal(forward({ pathname, hasSession: true }), true, `${pathname} signed in`);
 		}
@@ -27,7 +27,7 @@ describe("lib/website-routing.js", () => {
 	});
 
 	test("leaves everything else to the app", () => {
-		for (const pathname of ["/docs", "/docs/api", "/signin", "/terms", "/privacy", "/sub-processors", "/custom", "/robots.txt", "/sitemap.xml", "/site.webmanifest", "/llms-full.txt", "/llms-docs.txt", "/api/v1/contacts", "/mcp", "/archive/x", "/pricing/extra", "/blogger", "/vsx", "/newsletter-api/extra", "/newsletter", "/_websitefoo", "/campaigns", "/billing"]) {
+		for (const pathname of ["/docs", "/docs/api", "/signin", "/terms", "/privacy", "/sub-processors", "/custom", "/robots.txt", "/sitemap.xml", "/site.webmanifest", "/llms-full.txt", "/llms-docs.txt", "/api/v1/contacts", "/mcp", "/archive/x", "/pricing/extra", "/blogger", "/vsx", "/newsletter-api/extra", "/newsletter", "/_websitefoo", "/campaigns", "/billing", "/tools", "/tools/", "/tools/other", "/tools/newsletter-cost-calculator/extra", "/tools/newsletter-cost-calculator/", "/tool"]) {
 			assert.equal(forward({ pathname }), false, pathname);
 		}
 	});
@@ -107,10 +107,37 @@ describe("worker-entry.mjs", () => {
 	}
 
 	test("hands the website's paths to the WEBSITE binding, and everything else to the app", async () => {
-		for (const path of ["/pricing", "/compare", "/changelog", "/blog", "/blog/a-post", "/vs/mailchimp", "/switch", "/alternatives/mailchimp", "/newsletter-automation", "/llms.txt", "/sitemap-website.xml", "/_website/og/home", "/"]) {
+		for (const path of ["/pricing", "/compare", "/changelog", "/blog", "/blog/a-post", "/vs/mailchimp", "/switch", "/alternatives/mailchimp", "/newsletter-automation", "/tools/newsletter-cost-calculator", "/llms.txt", "/sitemap-website.xml", "/_website/og/home", "/"]) {
 			assert.deepEqual(await answer(`https://flockstack.io${path}`), { body: "website", website: true, app: false }, path);
 		}
 		for (const path of ["/docs", "/signin", "/robots.txt", "/sitemap.xml", "/llms-docs.txt", "/llms-full.txt", "/api/v1/newsletters", "/campaigns"]) {
+			assert.deepEqual(await answer(`https://flockstack.io${path}`), { body: "app", website: false, app: true }, path);
+		}
+	});
+
+	test("hands the calculator to the website as the visitor sent it: query string kept, no session needed, no redirect, in either region", async () => {
+		const path = "/tools/newsletter-cost-calculator";
+		const query = "?utm_source=newsletter&utm_campaign=a%20b&x=1";
+		for (const [origin, env] of [
+			["https://flockstack.io", { ...ENV, WEBSITE }],
+			["https://eu.flockstack.io", { APP_URL: "https://eu.flockstack.io", FLOCKSTACK_REGION: "eu", WEBSITE }],
+		]) {
+			for (const cookie of [undefined, "__Secure-better-auth.session_token=x", "__Secure-flockstack-eu.session_token=x"]) {
+				websiteCalls.length = 0;
+				openNextCalls.length = 0;
+				const response = await worker.fetch(new Request(`${origin}${path}${query}`, { headers: cookie ? { cookie } : {} }), env, ctx);
+				assert.equal(response.status, 200);
+				assert.equal(response.headers.get("location"), null, "the Worker doesn't redirect it, to sign-in or anywhere");
+				assert.deepEqual(websiteCalls, [`${origin}${path}${query}`], "the website gets the same address, query string included");
+				assert.deepEqual(openNextCalls, [], "the app doesn't see it");
+			}
+		}
+		assert.equal((await answer(`https://flockstack.io${path}`, { method: "HEAD" })).website, true);
+		assert.equal((await answer(`https://flockstack.io${path}`, { method: "POST" })).app, true, "a write is the app's");
+	});
+
+	test("what is near the calculator's path stays the app's, which answers an unknown path with its own 404", async () => {
+		for (const path of ["/tools", "/tools/", "/tools/other", "/tools/newsletter-cost-calculator/extra", "/tool", "/tools.json"]) {
 			assert.deepEqual(await answer(`https://flockstack.io${path}`), { body: "app", website: false, app: true }, path);
 		}
 	});
