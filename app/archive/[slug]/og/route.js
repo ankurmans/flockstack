@@ -1,5 +1,3 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { countReaders, getArchiveIssue, getArchiveNewsletter } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
@@ -7,16 +5,8 @@ import { getIssueDate } from "@/lib/archive-issues";
 import { SHARE_IMAGE_SIZE } from "@/lib/archive-seo";
 import { getAppUrl } from "@/lib/config";
 import { formatDate, formatNumber } from "@/lib/format";
-import { readLogo } from "@/lib/og-image";
+import { getShareFonts, readLogo } from "@/lib/og-image";
 
-const [geistRegular, geistSemiBold] = await Promise.all([
-	readFile(join(process.cwd(), "assets/fonts/Geist-Regular.ttf")),
-	readFile(join(process.cwd(), "assets/fonts/Geist-SemiBold.ttf")),
-]);
-const FONTS = [
-	{ name: "Geist", data: geistRegular, weight: 400, style: "normal" },
-	{ name: "Geist", data: geistSemiBold, weight: 600, style: "normal" },
-];
 const COLORS = { foreground: "#0a0a0a", muted: "#737373", border: "#e5e5e5" };
 
 // Each issue gets its own soft tint, so archive cards stand out from the page and a row of them
@@ -95,7 +85,7 @@ export async function GET(request, { params }) {
 		</div>,
 		{
 			...SHARE_IMAGE_SIZE,
-			fonts: FONTS,
+			fonts: getShareFonts(),
 			headers: { "Cache-Control": "public, s-maxage=86400, stale-while-revalidate=604800" },
 		}
 	);

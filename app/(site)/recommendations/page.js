@@ -1,7 +1,7 @@
 import Link from "next/link";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import { Button } from "@/components/ui/button";
-import { APP_NAME } from "@/lib/config";
+import { APP_NAME, getAppUrl } from "@/lib/config";
 import { searchListedNewsletters } from "@/lib/recommendations";
 import { REGION_RULE } from "@/lib/recommendation-rules";
 import { getPageMetadata } from "@/lib/site";
@@ -10,10 +10,15 @@ const PAGE_SIZE = 12;
 const TITLE = "Newsletters that take recommendations";
 const DESCRIPTION = `Find ${APP_NAME} newsletters that welcome recommendations from other newsletters, and recommend the ones your readers will like. Free, with no paid placement.`;
 
-// A search is never a page of its own for search engines; the directory itself is.
+// A search is never a page of its own for search engines; the directory itself is. It lists this server's newsletters
+// only, so it stays on this server's address even where the other shared pages are indexed at another's.
 export async function generateMetadata({ searchParams }) {
 	const { q, page } = await searchParams;
-	return { ...getPageMetadata({ title: TITLE, description: DESCRIPTION, path: "/recommendations" }), ...((q || page) && { robots: { index: false, follow: true } }) };
+	return {
+		metadataBase: new URL(getAppUrl()),
+		...getPageMetadata({ title: TITLE, description: DESCRIPTION, path: "/recommendations" }),
+		...((q || page) && { robots: { index: false, follow: true } }),
+	};
 }
 
 function readPage(value) {

@@ -90,18 +90,17 @@ async function listSitePages() {
 }
 
 // Where the app's own pages and routes start: everything outside app/(site), up to its first [segment]. The
-// dashboard's / is left out, since signed-out visitors get the landing page there.
+// dashboard's / is left out, which the app redirects to sign-in without a session (FlockStack Cloud's website serves / for those).
 async function listAppRoutes() {
 	const files = (await readdir(join(ROOT, "app"), { recursive: true })).filter((file) => /(^|\/)(page|route)\.js$/.test(file) && !file.startsWith("(site)/"));
 	const routes = files.map((file) => `/${file}`.replace(/\/(page|route)\.js$/, "").replace(/\/\([^)]+\)/g, "").replace(/\/\[.*$/, ""));
 	return [...new Set(routes)].filter(Boolean);
 }
 
-// A public path's page and metadata, with the landing page rendered at landingPath (proxy.js).
+// A public path's page and metadata.
 async function readPage(path) {
-	const renderedAt = path === "/" ? m.siteExtensions.landingPath : path;
 	for (const { file, pattern } of await listSitePages()) {
-		const match = pattern.exec(renderedAt);
+		const match = pattern.exec(path);
 		if (!match) continue;
 		const page = await importFile(file);
 		return { file, metadata: page.metadata ?? (await page.generateMetadata({ params: Promise.resolve({ ...match.groups }) })) };
@@ -149,9 +148,8 @@ beforeEach(() => {
 after(() => app?.stop());
 
 describe("/", () => {
-	test("signed-out visitors get the marketing site's landing page where there is one, else sign-in; with a session, / stays the dashboard", async () => {
-		const { landingPath } = m.siteExtensions;
-		assert.deepEqual(outcome(await visit("/")), landingPath ? { rewrite: landingPath } : { status: 307, location: "http://localhost:3000/signin" });
+	test("signed-out visitors are sent to sign-in (FlockStack Cloud's website answers / before the app does); with a session, / stays the dashboard", async () => {
+		assert.deepEqual(outcome(await visit("/")), { status: 307, location: "http://localhost:3000/signin" });
 
 		const user = await signIn("home@example.com");
 		assert.ok(cookieOf(user).includes("better-auth.session_token="));
@@ -168,7 +166,7 @@ describe("/", () => {
 });
 
 describe("public pages", () => {
-	test("the marketing site's pages, the docs, the sitemap, robots.txt, the share image and the llms files open without a session", async () => {
+	test("the pages the site extensions open, the docs, the sitemap, robots.txt, the share image and the llms files open without a session", async () => {
 		const paths = [
 			...m.siteExtensions.publicPages.filter((path) => path !== "/"),
 			...m.docs.DOC_PAGES.map(({ href }) => href),
@@ -183,11 +181,35 @@ describe("public pages", () => {
 	});
 
 	test("the dashboard, the admin and the account's API still need a session", async () => {
-		for (const path of ["/campaigns", "/contacts", "/billing", "/admin", "/api-keys"]) {
+		for (const path of ["/campaigns", "/contacts", "/billing", "/admin", "/api-keys", "/campaigns/abc123", "/billing/checkout", "/welcome", "/restore", "/account"]) {
 			assert.deepEqual(outcome(await visit(path)), { status: 307, location: `http://localhost:3000/signin?next=${encodeURIComponent(path)}` }, path);
 		}
-		const api = await visit("/api/uploads");
-		assert.equal(api.status, 401);
+		for (const path of ["/api/uploads", "/api/no-such-route"]) assert.equal((await visit(path)).status, 401, path);
+		// The REST API checks its key itself.
+		assert.deepEqual(outcome(await visit("/api/v1/newsletters")), { next: true });
+	});
+
+	test("a path that's no dashboard page goes on to Next.js, which renders its page or a 404, never sign-in", async () => {
+		const unknown = ["/blog", "/pricing", "/vs/beehiiv", "/index.html", "/.well-known/security.txt", "/campaigns-guide", "/docs/no-such-page", "/oauth/elsewhere"];
+		const sitePages = await listSitePages();
+		const appRoutes = await listAppRoutes();
+		for (const path of unknown) {
+			assert.deepEqual(outcome(await visit(path)), { next: true }, path);
+			assert.ok(!sitePages.some(({ pattern }) => pattern.test(path)), `${path} has a page: pick a path that has none`);
+			assert.ok(!appRoutes.some((route) => path === route || path.startsWith(`${route}/`)), `${path} has a route`);
+		}
+		// With a session nothing changes: the dashboard opens, and the rest goes on to Next.js too.
+		const user = await signIn("unknown-paths@example.com");
+		for (const path of ["/campaigns", "/blog"]) assert.deepEqual(outcome(await visit(path, { cookie: cookieOf(user) })), { next: true }, path);
+	});
+
+	test("a newsletter's website still opens on the app's address without a shared domain, and on its own host with one", async () => {
+		assert.deepEqual(outcome(await visit("/archive/weekly")), { next: true });
+		assert.deepEqual(outcome(await visit("/archive/weekly/p/first-issue")), { next: true });
+		await withEnv({ SHARED_DOMAIN: "flockstackmail.com" }, async () => {
+			const request = new m.NextRequest(new URL("https://weekly.flockstackmail.com/p/first-issue"), { headers: { host: "weekly.flockstackmail.com" } });
+			assert.deepEqual(outcome(await m.proxy(request)), { rewrite: "/archive/weekly/p/first-issue" });
+		});
 	});
 
 	test("every docs page exists in app/(site)", async () => {
@@ -276,7 +298,7 @@ describe("copy", () => {
 });
 
 describe("search engines", () => {
-	test("the sitemap lists the marketing site's pages, the directory, then the docs", () => {
+	test("the sitemap lists the pages the site extensions open, the directory, then the docs", () => {
 		const urls = withSiteUrl(() => m.sitemap()).map(({ url }) => url);
 		const docs = m.docs.DOC_PAGES.map(({ href }) => `${SITE_URL}${href}`);
 		assert.deepEqual(urls, [...m.siteExtensions.publicPages.map((path) => (path === "/" ? SITE_URL : `${SITE_URL}${path}`)), `${SITE_URL}/recommendations`, ...docs]);
@@ -284,9 +306,11 @@ describe("search engines", () => {
 
 	test("robots.txt keeps crawlers out of every dashboard page, the admin and the APIs, and points at the sitemap", async () => {
 		const { rules, sitemap } = withSiteUrl(() => m.robots());
-		assert.equal(sitemap, `${SITE_URL}/sitemap.xml`);
+		// FlockStack Cloud's marketing website has a sitemap of its own, which the app's robots.txt names beside its own.
+		assert.deepEqual(sitemap, m.config.isCloud() ? [`${SITE_URL}/sitemap.xml`, `${SITE_URL}/sitemap-website.xml`] : `${SITE_URL}/sitemap.xml`);
 		assert.equal(rules.userAgent, "*");
-		assert.equal(rules.allow, "/");
+		// The OpenAPI document opens to crawlers, alone: the longer Allow wins over Disallow: /api/ (RFC 9309).
+		assert.deepEqual(rules.allow, ["/", "/api/v1/openapi.json"]);
 
 		const folders = [];
 		for (const group of ["app/(app)", "app/(account)"]) {
@@ -329,12 +353,55 @@ describe("search engines", () => {
 	});
 
 	test("public pages are indexed on the app's address, with large social cards that name each page", async () => {
-		const { metadata } = await importFile("app/(site)/layout.js");
+		const metadata = (await importFile("app/(site)/layout.js")).generateMetadata();
 		assert.equal(metadata.metadataBase.href, new URL("/", m.config.getAppUrl()).href);
 		assert.deepEqual(metadata.robots, { index: true, follow: true });
 		assert.deepEqual(metadata.openGraph, { type: "website", siteName: "FlockStack", locale: "en_US", url: "./" });
 		assert.equal(metadata.twitter.card, "summary_large_image");
 		assert.deepEqual((await importFile("app/layout.js")).metadata.robots, { index: false, follow: false }, "the app's own pages stay out of search");
+	});
+
+	test("on FlockStack Cloud's EU Worker, the shared pages are indexed at the US address, and its sitemap lists only its directory", async () => {
+		const layout = await importFile("app/(site)/layout.js");
+		const directory = await importFile("app/(site)/recommendations/page.js");
+		const directoryBase = async () => (await directory.generateMetadata({ searchParams: Promise.resolve({}) })).metadataBase.href;
+
+		await withEnv({ FLOCKSTACK_REGION: "eu", APP_URL: "https://eu.flockstack.io" }, async () => {
+			// Canonical paths resolve against metadataBase: /docs/mcp on the EU Worker is https://flockstack.io/docs/mcp.
+			assert.equal(layout.generateMetadata().metadataBase.href, `${SITE_URL}/`);
+			assert.equal(m.docs.getDocsPageMetadata("/docs/mcp").alternates.canonical, "/docs/mcp");
+			// The directory lists the EU's own newsletters, so it keeps the EU address.
+			assert.equal(await directoryBase(), "https://eu.flockstack.io/");
+			assert.deepEqual(
+				m.sitemap().map(({ url }) => url),
+				["https://eu.flockstack.io/recommendations"]
+			);
+			assert.equal(m.robots().sitemap, "https://eu.flockstack.io/sitemap.xml");
+		});
+
+		await withEnv({ FLOCKSTACK_REGION: "eu", APP_URL: "https://eu.flockstack.io", REGION_URL_US: "https://us.example.com" }, () =>
+			assert.equal(layout.generateMetadata().metadataBase.href, "https://us.example.com/")
+		);
+	});
+
+	test("on the US Worker the shared pages are indexed at its own address, with every page in its sitemap", async () => {
+		await withEnv({ FLOCKSTACK_REGION: "us", APP_URL: SITE_URL }, async () => {
+			const layout = await importFile("app/(site)/layout.js");
+			assert.equal(layout.generateMetadata().metadataBase.href, `${SITE_URL}/`);
+			const urls = m.sitemap().map(({ url }) => url);
+			assert.ok(urls.includes(`${SITE_URL}/custom`) && urls.includes(`${SITE_URL}/docs/mcp`) && urls.includes(`${SITE_URL}/recommendations`), urls.join());
+		});
+	});
+
+	test("a self-hosted server, in any region, keeps its pages on its own address", async () => {
+		const defaults = (await import("../lib/site-extensions.js")).siteExtensions;
+		assert.equal(defaults.getCanonicalOrigin(), null);
+		await withEnv({ FLOCKSTACK_CLOUD: "", FLOCKSTACK_REGION: "eu", APP_URL: "https://news.example.com" }, async () => {
+			const layout = await importFile("app/(site)/layout.js");
+			assert.equal(layout.generateMetadata().metadataBase.href, "https://news.example.com/");
+			const urls = m.sitemap().map(({ url }) => url);
+			assert.deepEqual(urls, ["https://news.example.com/recommendations", ...m.docs.DOC_PAGES.map(({ href }) => `https://news.example.com${href}`)]);
+		});
 	});
 
 	test("the sitemap lists public pages only, never one of the app's", async () => {
@@ -345,15 +412,14 @@ describe("search engines", () => {
 		for (const url of urls) {
 			const path = url === SITE_URL ? "/" : new URL(url).pathname;
 			assert.ok(url === SITE_URL || url.startsWith(`${SITE_URL}/`), url);
-			const renderedAt = path === "/" ? m.siteExtensions.landingPath : path;
-			assert.ok(sitePages.some(({ pattern }) => pattern.test(renderedAt)), `${url} isn't a page of app/(site)`);
+			assert.ok(sitePages.some(({ pattern }) => pattern.test(path)), `${url} isn't a page of app/(site)`);
 			assert.ok(!appRoutes.some((route) => path === route || path.startsWith(`${route}/`)), `${url} is one of the app's routes`);
-			assert.deepEqual(outcome(await visit(path)), path === "/" ? { rewrite: renderedAt } : { next: true }, url);
+			assert.deepEqual(outcome(await visit(path)), { next: true }, url);
 		}
 	});
 
 	test("public pages link a web manifest with the app's icons at 192 and 512 pixels", async () => {
-		assert.equal((await importFile("app/(site)/layout.js")).metadata.manifest, "/site.webmanifest");
+		assert.equal((await importFile("app/(site)/layout.js")).generateMetadata().manifest, "/site.webmanifest");
 		assert.deepEqual(outcome(await visit("/site.webmanifest")), { next: true });
 		const response = (await importFile("app/site.webmanifest/route.js")).GET();
 		assert.equal(response.headers.get("content-type"), "application/manifest+json");

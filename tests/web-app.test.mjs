@@ -71,7 +71,7 @@ describe("the links to it", () => {
 			assert.equal(layout.metadata.manifest, "/site.webmanifest");
 			assert.deepEqual(layout.metadata.appleWebApp, { capable: true, title: "FlockStack", statusBarStyle: "default" });
 		}
-		assert.equal(m.siteLayout.metadata.manifest, m.webApp.WEB_APP_METADATA.manifest);
+		assert.equal(m.siteLayout.generateMetadata().manifest, m.webApp.WEB_APP_METADATA.manifest);
 	});
 
 	test("the manifest and the icons open without a session", async () => {

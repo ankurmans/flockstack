@@ -361,7 +361,10 @@ describe("discovery", () => {
 		for (const path of ["/.well-known/oauth-protected-resource/mcp", "/.well-known/oauth-protected-resource", "/.well-known/oauth-authorization-server", "/.well-known/openid-configuration", "/oauth/consent", "/api/auth/oauth2/token"]) {
 			assert.ok((await visit(path)).headers.get("x-middleware-next"), path);
 		}
-		assert.equal((await visit("/.well-known/security.txt")).status, 307, "nothing else under /.well-known");
+		// Nothing else under /.well-known is a page: Next.js answers it with its 404, never sign-in.
+		const other = await visit("/.well-known/security.txt");
+		assert.ok(other.headers.get("x-middleware-next"), "nothing else under /.well-known");
+		assert.equal(other.headers.get("location"), null);
 	});
 
 	test("Better Auth's routes MCP clients don't need stay closed", async () => {

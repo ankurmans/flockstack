@@ -111,10 +111,9 @@ describe("hosts", () => {
 	});
 
 	test("the app answers on its own hosts, and an archive host only opens the archive and its links", async () => {
-		// Signed out, / is the marketing site's landing page where FlockStack Cloud has one, else sign-in.
-		const { landingPath } = m.siteExtensions;
+		// Signed out, / is sign-in (FlockStack Cloud's worker hands it to the website before the app sees it).
 		for (const url of [`${APP_URL}/`, "https://www.flockstack.io/", "https://api.flockstack.io/"]) {
-			assert.deepEqual(outcome(await visit(url)), landingPath ? { rewrite: landingPath } : { status: 307 }, url);
+			assert.deepEqual(outcome(await visit(url)), { status: 307 }, url);
 		}
 		assert.deepEqual(outcome(await visit(`${APP_URL}/signin`)), { next: true });
 

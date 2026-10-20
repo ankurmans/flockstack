@@ -70,9 +70,9 @@ export async function resolve(specifier, context, nextResolve) {
 	return nextResolve(specifier, context);
 }
 
-// Components, pages, layouts and share images are JSX, which Node doesn't read: SWC, the compiler next build uses,
-// turns it into react/jsx-runtime calls. Stylesheets load as nothing.
-const JSX_FILE = /\.jsx$|\/app\/(.*\/)?(page|layout|opengraph-image)\.js$/;
+// Components, pages, layouts and share images (newsletters' too, a route at og/) are JSX, which Node doesn't read: SWC,
+// the compiler next build uses, turns it into react/jsx-runtime calls. Stylesheets load as nothing.
+const JSX_FILE = /\.jsx$|\/app\/(.*\/)?(page|layout|opengraph-image|og\/route)\.js$/;
 let swc;
 
 export async function load(url, context, nextLoad) {

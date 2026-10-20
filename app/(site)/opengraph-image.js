@@ -1,14 +1,15 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { LOGO_SHAPES, LOGO_TILE, LOGO_VIEWBOX } from "@/components/LogoFlockstack";
 import { getAppHost } from "@/lib/config";
+import { getShareFonts } from "@/lib/og-image";
 
-// The docs' card on every server: what they cover and the server's own address. FlockStack Cloud's marketing pages
-// have their own card.
+// The docs' card on every server: what they cover and the server's own address. FlockStack Cloud's marketing
+// website has its own cards.
 export const alt = "FlockStack docs: the REST API and the MCP server";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+// Rendered on request: the card prints the address of the Worker it's on, which a build doesn't know.
+export const dynamic = "force-dynamic";
 
 // Night lime: the app icon's ink and lime, with white text.
 const COLORS = { site: LOGO_TILE.background, text: "#fafafa", muted: "#a3a3a3", lime: LOGO_TILE.lime };
@@ -23,12 +24,7 @@ function Logo() {
 	);
 }
 
-export default async function Image() {
-	const [geistRegular, geistSemiBold] = await Promise.all([
-		readFile(join(process.cwd(), "assets/fonts/Geist-Regular.ttf")),
-		readFile(join(process.cwd(), "assets/fonts/Geist-SemiBold.ttf")),
-	]);
-
+export default function Image() {
 	return new ImageResponse(
 		<div
 			style={{
@@ -56,10 +52,7 @@ export default async function Image() {
 		</div>,
 		{
 			...size,
-			fonts: [
-				{ name: "Geist", data: geistRegular, weight: 400, style: "normal" },
-				{ name: "Geist", data: geistSemiBold, weight: 600, style: "normal" },
-			],
+			fonts: getShareFonts(),
 		}
 	);
 }

@@ -1,5 +1,6 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse } from "next/server";
+import { isAppRoute } from "@/lib/app-routes";
 import { getArchiveHostUrl } from "@/lib/archive-hosts";
 import { isCloud } from "@/lib/config";
 import { resolveArchiveHost } from "@/lib/host-routing";
@@ -23,7 +24,7 @@ const PUBLIC_PATHS = [
 	/^\/oauth\/consent$/,
 	/^\/\.well-known\/(oauth-protected-resource(\/mcp)?|oauth-authorization-server|openid-configuration)$/,
 	/^\/docs(\/.*)?$/,
-	/^\/llms(-full)?\.txt$/,
+	/^\/llms(-full|-docs)?\.txt$/,
 	/^\/mcp$/,
 	/^\/api\/mcp$/,
 	/^\/api\/auth\//,
@@ -146,14 +147,12 @@ export async function proxy(request) {
 
 	// Only whether a session cookie is there: pages, actions and routes check the session itself.
 	const hasSession = Boolean(getSessionCookie(request, { cookiePrefix: getCookiePrefix() }));
-	// FlockStack Cloud's marketing site (site extensions): its landing page shows at / to signed-out visitors, rendered
-	// at landingPath, which never shows in the address bar. A self-hosted server has none of its pages.
-	const { landingPath, publicPages, isPublicPath } = siteRouting;
+	// FlockStack Cloud's pages that open without a session (site extensions). A self-hosted server has none of them.
+	// The marketing website is a separate Worker the app hands its paths to before this runs (worker-entry.mjs).
+	const { publicPages, isPublicPath } = siteRouting;
 	if (isCloud()) {
-		if (pathname === "/" && landingPath) return hasSession ? NextResponse.next() : rewriteTo(request, landingPath);
-		if (pathname === landingPath) return NextResponse.redirect(new URL("/", request.url), 308);
 		if (publicPages.includes(pathname) || isPublicPath(pathname)) return NextResponse.next();
-	} else if (pathname === landingPath || (pathname !== "/" && publicPages.includes(pathname))) {
+	} else if (pathname !== "/" && publicPages.includes(pathname)) {
 		return rewriteTo(request, NOT_FOUND_PATH);
 	}
 	if (PUBLIC_PATHS.some((pattern) => pattern.test(pathname))) return NextResponse.next();
@@ -163,6 +162,9 @@ export async function proxy(request) {
 	if (pathname.startsWith("/api/")) {
 		return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 	}
+	// Anything that isn't a dashboard page is a public page or none: Next.js renders it, or its 404. A signed-out visitor
+	// is sent to sign in only from a page that needs a session.
+	if (!isAppRoute(pathname)) return NextResponse.next();
 	const signin = new URL("/signin", request.url);
 	signin.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
 	return NextResponse.redirect(signin);
