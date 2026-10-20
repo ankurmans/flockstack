@@ -103,7 +103,7 @@ FlockStack Cloud is this same code deployed as two Workers, each with its own da
 | D1 database | `flockstack` | `flockstack-eu`, jurisdiction `eu` |
 | R2 buckets | `flockstack-images`, `-files`, `-exports` | `flockstack-images-eu`, `-files-eu`, `-exports-eu`, jurisdiction `eu` |
 | Amazon SES | `SES_REGION`, `us-east-1` unless set | `eu-west-1` |
-| QStash | the default (US) region | the EU region: its own `QSTASH_URL`, token and signing keys |
+| QStash | the US region (`https://qstash-us-east-1.upstash.io`) | the EU region (`https://qstash-eu-central-1.upstash.io`): its own `QSTASH_URL`, token and signing keys |
 | Session cookie | `better-auth.session_token`, as before regions | `flockstack-eu.session_token` |
 | API keys | `mc_` + 43 characters | `mc_eu_` + 43 characters |
 
@@ -437,7 +437,7 @@ QStash calls `APP_URL/api/jobs/...` to send each batch, so the app has to be rea
 Automations need one schedule, which QStash doesn't create by itself: a cron that calls `APP_URL/api/jobs/run-automations` every 5 minutes. In the Upstash console, open QStash, Schedules, create one with that destination and the cron `*/5 * * * *`, or from a terminal:
 
 ```bash
-curl -X POST "https://qstash.upstash.io/v2/schedules/$APP_URL/api/jobs/run-automations" \
+curl -X POST "$QSTASH_URL/v2/schedules/$APP_URL/api/jobs/run-automations" \
   -H "Authorization: Bearer $QSTASH_TOKEN" \
   -H "Upstash-Cron: */5 * * * *"
 ```
@@ -447,7 +447,7 @@ Each run starts contacts from segments, date fields and stretches without opens,
 Recurring series (an issue made from a feed's new items on a schedule) need their own, the same way: a cron that calls `APP_URL/api/jobs/run-series` every 5 minutes.
 
 ```bash
-curl -X POST "https://qstash.upstash.io/v2/schedules/$APP_URL/api/jobs/run-series" \
+curl -X POST "$QSTASH_URL/v2/schedules/$APP_URL/api/jobs/run-series" \
   -H "Authorization: Bearer $QSTASH_TOKEN" \
   -H "Upstash-Cron: */5 * * * *"
 ```
