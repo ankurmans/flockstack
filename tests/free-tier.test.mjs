@@ -114,7 +114,7 @@ before(async () => {
 		sendingRules: await import("../lib/sending-rules.js"),
 		archiveData: await import("../lib/archive-data.js"),
 		pricing: await import("../lib/pricing.js"),
-		landing: await import("../lib/marketing/landing.js"),
+		faq: await import("../lib/site-faq.js"),
 		disposable: await import("../lib/disposable-domains.js"),
 		config: await import("../lib/config.js"),
 		newsletters: await import("../app/(app)/newsletters/actions.js"),
@@ -125,8 +125,6 @@ before(async () => {
 		sendBatchRoute: await import("../app/api/jobs/send-batch/route.js"),
 		FooterArchive: (await import("../components/FooterArchive.jsx")).default,
 		SliderPricing: (await import("../components/SliderPricing.jsx")).default,
-		SectionPricing: (await import("../components/marketing/SectionPricing.jsx")).default,
-		SectionCompare: (await import("../components/marketing/SectionCompare.jsx")).default,
 		Account: (await import("../models/Account.js")).default,
 		Campaign: (await import("../models/Campaign.js")).default,
 		Contact: (await import("../models/Contact.js")).default,
@@ -612,21 +610,11 @@ describe("what the pages say", () => {
 		assert.doesNotMatch(onFree, /Start for free/);
 	});
 
-	test("(landing page test removed)", async () => {
-		const pricing = textOf(await prerender(await m.SectionPricing()));
-		assert.match(pricing, /(headline removed)/);
-		assert.match(pricing, /Start for free/);
-		assert.doesNotMatch(pricing, /Pick a plan|start your trial/i);
-
-		const compare = textOf(await prerender(await m.SectionCompare()));
-		assert.match(compare, /(comparison removed)/);
-		assert.match(compare, /(comparison removed)/);
-		const free = m.landing.getFreeComparison();
-		assert.deepEqual(free.beehiiv, { subscribers: 2_500, automations: 0 }, "only what (comparison removed)");
-		const faq = m.landing.FAQ.find(({ question }) => question === "Is there a free plan?").answer.join(" ");
+	test("the FAQ says what Free holds, and quotes no other platform", () => {
+		const faq = m.faq.FAQ.find(({ question }) => question === "Is there a free plan?").answer.join(" ");
 		assert.match(faq, /2,500 subscribers, 10,000 emails a month/);
-		assert.match(faq, /(comparison removed)/);
-		assert.match(faq, /(comparison removed)/);
+		assert.match(faq, /FlockStack takes 0% of what you sell/);
+		assert.doesNotMatch(faq, /beehiiv|Substack/);
 	});
 
 	test("no page claims a plan has to be picked before using FlockStack", async () => {

@@ -34,7 +34,7 @@ describe("the corpus", () => {
 		for (const { href } of m.llms.DOC_PAGES) assert.ok(pages.has(href), href);
 		for (const href of m.legal.LEGAL_PATHS) assert.ok(pages.has(href), href);
 		assert.ok(chunks.some(({ href }) => href === "/docs/api#add-domain"));
-		assert.ok(chunks.some(({ href }) => href === "/#pricing"));
+		assert.ok(chunks.some(({ href }) => href === "/pricing"));
 		assert.ok(chunks.some(({ href, title }) => href === "/#faq" && title.startsWith("FAQ: ")));
 		for (const chunk of chunks) {
 			assert.match(chunk.href, /^\/[a-z0-9/#-]*$/, chunk.href);
@@ -90,7 +90,7 @@ describe("retrieval", () => {
 	test("finds the chunk that answers the question", async () => {
 		const cases = [
 			["How do I connect Claude to FlockStack?", /\/docs(\/mcp)?(#|$)/],
-			["How much does the Growth plan cost per month?", /^\/#pricing$/],
+			["How much does the Growth plan cost per month?", /^\/pricing$/],
 			["How can I export all my data?", /^\/docs\/export/],
 			["Can readers comment without an account? How do they sign in?", /^\/docs\/comments/],
 			["Where is my data stored in the EU region?", /^\/docs\/regions|^\/privacy|^\/sub-processors/],

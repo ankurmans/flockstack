@@ -45,7 +45,6 @@ before(async () => {
 		hosts: await import("../lib/archive-hosts.js"),
 		events: await import("../lib/webhook-events.js"),
 		docs: await import("../lib/docs/llms.js"),
-		changelog: await import("../lib/changelog.js"),
 		reference: await import("../lib/docs/reference.js"),
 		plans: await import("../lib/plans.js"),
 		docsPage: await import("../app/(site)/docs/audio/page.js"),
@@ -597,8 +596,8 @@ describe("what's kept, and for how long", () => {
 	});
 });
 
-describe("the docs, the changelog and the API reference", () => {
-	test("have an Audio versions page, a coming-soon entry and eight actions", async () => {
+describe("the docs and the API reference", () => {
+	test("have an Audio versions page and eight actions", async () => {
 		const entry = m.docs.DOC_PAGES.find(({ href }) => href === "/docs/audio");
 		assert.equal(entry.title, "Audio versions");
 		assert.match(m.docs.getLlmsIndex("https://flockstack.io"), /\[Audio versions\]\(https:\/\/flockstack\.io\/docs\/audio\)/);
@@ -610,11 +609,6 @@ describe("the docs, the changelog and the API reference", () => {
 		}
 		for (const plan of m.plans.PLANS) assert.ok(text.includes(m.plans.AUDIO_CHARACTERS_PER_MONTH[plan.id].toLocaleString("en-US")), plan.id);
 		assert.doesNotMatch(text, /elevenlabs|cheap/i);
-
-		const latest = m.changelog.CHANGELOG[0];
-		assert.equal(latest.title, "Audio versions of your issues");
-		assert.match(latest.items.at(-1), /built but not on yet/);
-		assert.doesNotMatch(JSON.stringify(latest), /elevenlabs|cheap/i);
 
 		assert.ok(m.reference.GROUP_DESCRIPTIONS["Audio versions"]);
 		const group = m.reference.getEndpointGroups("https://flockstack.io").find(({ group: name }) => name === "Audio versions");

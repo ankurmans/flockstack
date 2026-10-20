@@ -1,6 +1,5 @@
 import Link from "next/link";
 import HeaderDocs from "@/components/HeaderDocs";
-import { formatReleaseDate } from "@/lib/changelog";
 import { getDocsPageMetadata } from "@/lib/docs/llms";
 import { AUDIO_CHUNK_CHARS, DEFAULT_AUDIO_MODEL, MAX_AUDIO_CHARACTERS } from "@/lib/audio-config";
 import { estimateMinutes } from "@/lib/audio-text";
@@ -9,6 +8,8 @@ import { CHANGE_NOTICE_DAYS, getElevenLabsStartDate } from "@/lib/legal";
 import { AUDIO_CHARACTERS_PER_MONTH, PLANS } from "@/lib/plans";
 
 export const metadata = getDocsPageMetadata("/docs/audio");
+
+const formatReleaseDate = (date) => new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", { timeZone: "UTC", month: "long", day: "numeric", year: "numeric" });
 
 const Anchor = ({ href, children }) => (
 	<Link href={href} className="font-medium text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">

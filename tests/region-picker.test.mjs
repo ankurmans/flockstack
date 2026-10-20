@@ -6,7 +6,7 @@ import { TooltipProvider } from "../components/ui/tooltip.jsx";
 import { as, signIn, startTestApp, withEnv } from "./helpers/app.mjs";
 import { runWithRequest } from "./stubs/next-headers.mjs";
 
-// "Where should your data live?" on the sign-in page and the landing page: what it starts on, where choosing leads, and
+// "Where should your data live?" on the sign-in page: what it starts on, where choosing leads, and
 // how the account and admin pages say which region they are in. This process is the US Worker; withEnv makes it the EU one.
 const US_SIGNIN = "https://flockstack.io/signin";
 const EU_SIGNIN = "https://eu.flockstack.io/signin";
@@ -38,7 +38,6 @@ before(async () => {
 	app = await startTestApp();
 	m = {
 		signin: await import("../app/signin/page.js"),
-		home: await import("../app/(site)/home/page.js"),
 		account: await import("../app/(account)/account/page.js"),
 		adminLayout: await import("../app/admin/layout.js"),
 	};
@@ -138,37 +137,6 @@ describe("sign-in page", () => {
 			assert.doesNotMatch(markup, /other region/);
 			assert.match(markup, /name="email"/);
 		});
-	});
-});
-
-describe("landing page", () => {
-	test("the picker starts on the visitor's region, and the buttons that start sign-up lead to that region's sign-in", async () => {
-		const us = await visit(m.home, {}, { country: "US" });
-		assert.equal(readPicker(us).selected, "us");
-		assert.match(us, /href="\/signin"[^>]*>\s*Start your newsletter/);
-
-		const eu = await visit(m.home, {}, { country: "DE" });
-		assert.equal(readPicker(eu).selected, "eu");
-		assert.match(eu, new RegExp(`href="${EU_SIGNIN}\\?region=eu"[^>]*>\\s*Start your newsletter`));
-		assert.match(eu, new RegExp(`href="${EU_SIGNIN}\\?region=eu"[^>]*>\\s*Create your account`));
-		assert.equal(readPicker(eu).us.href, "/signin?region=us", "the other option leads straight to its sign-in");
-		assert.equal(readPicker(eu).eu.href, `${EU_SIGNIN}?region=eu`);
-	});
-
-	test("?region= wins over the country, and the EU Worker's landing page starts on the European Union", async () => {
-		assert.equal(readPicker(await visit(m.home, { region: "us" }, { country: "DE" })).selected, "us");
-		await withEnv(EU, async () => {
-			const markup = await visit(m.home, {}, { country: "US" });
-			assert.equal(readPicker(markup).selected, "eu");
-			assert.equal(readPicker(markup).us.href, `${US_SIGNIN}?region=us`);
-			assert.match(markup, /href="\/signin"[^>]*>\s*Start your newsletter/);
-		});
-	});
-
-	test("says where the data lives", async () => {
-		const text = (await visit(m.home)).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-		assert.match(text, /in the region you pick when you sign up: the United States or the European Union/);
-		assert.doesNotMatch(text, /EU-resident/);
 	});
 });
 

@@ -30,7 +30,6 @@ before(async () => {
 		layouts: {
 			root: await import("../app/layout.js"),
 			site: await import("../app/(site)/layout.js"),
-			home: await import("../app/(site)/home/layout.js"),
 			docs: await import("../app/(site)/docs/layout.js"),
 			privacy: await import("../app/(site)/privacy/layout.js"),
 			terms: await import("../app/(site)/terms/layout.js"),
@@ -88,7 +87,7 @@ describe("which pages carry the analytics", () => {
 			assert.ok(page, `a page at ${address}`);
 			return page.carriers.length > 0;
 		};
-		for (const address of ["/home", "/docs", "/docs/api", "/docs/regions", "/privacy", "/terms", "/sub-processors", "/signin", "/welcome", "/campaigns", "/contacts", "/newsletters", "/billing", "/account", "/api-keys", "/recommending"]) {
+		for (const address of ["/docs", "/docs/api", "/docs/regions", "/privacy", "/terms", "/sub-processors", "/signin", "/welcome", "/campaigns", "/contacts", "/newsletters", "/billing", "/account", "/api-keys", "/recommending"]) {
 			assert.equal(loads(address), true, address);
 		}
 		assert.doesNotMatch(await read("app/layout.js"), /SiteAnalytics/);
@@ -114,8 +113,7 @@ describe("which pages carry the analytics", () => {
 
 	test("every page agrees with the scrubber about whether it is tracked, so a route change can't carry PostHog into one that isn't", async () => {
 		for (const { file, address, carriers } of await scanPages()) {
-			const addresses = address === "/home" ? ["/", "/home"] : [address];
-			for (const item of addresses) assert.equal(isTrackedPath(item), carriers.length > 0, `${file} (${item}) ${carriers.length > 0 ? "carries" : "doesn't carry"} it`);
+			assert.equal(isTrackedPath(address), carriers.length > 0, `${file} (${address}) ${carriers.length > 0 ? "carries" : "doesn't carry"} it`);
 		}
 	});
 
@@ -131,7 +129,6 @@ describe("which pages carry the analytics", () => {
 		}
 		assert.deepEqual(carriers.sort(), [
 			"app/(site)/docs/layout.js",
-			"app/(site)/home/layout.js",
 			"app/(site)/privacy/layout.js",
 			"app/(site)/sub-processors/layout.js",
 			"app/(site)/terms/layout.js",
@@ -149,7 +146,7 @@ describe("which pages carry the analytics", () => {
 			return node.type === m.extensions.SiteAnalytics || hasAnalytics(node.props?.children);
 		};
 		assert.equal(typeof m.extensions.SiteAnalytics, "function");
-		for (const name of ["home", "docs", "privacy", "terms", "subProcessors"]) {
+		for (const name of ["docs", "privacy", "terms", "subProcessors"]) {
 			assert.equal(hasAnalytics(m.layouts[name].default({ children: createElement("main") })), true, name);
 		}
 		assert.equal(hasAnalytics(m.layouts.site.default({ children: createElement("main") })), false);
@@ -184,9 +181,9 @@ describe("which pages carry the help chat", () => {
 			});
 	}
 
-	test("FlockStack's own pages do: the home page, docs, legal pages, sign-in and the dashboard", async () => {
+	test("FlockStack's own pages do: docs, legal pages, sign-in and the dashboard", async () => {
 		const pages = await scanChatPages();
-		for (const address of ["/home", "/docs", "/docs/api", "/docs/comments", "/privacy", "/terms", "/sub-processors", "/signin", "/welcome", "/campaigns", "/contacts", "/billing", "/account", "/api-keys"]) {
+		for (const address of ["/docs", "/docs/api", "/docs/comments", "/privacy", "/terms", "/sub-processors", "/signin", "/welcome", "/campaigns", "/contacts", "/billing", "/account", "/api-keys"]) {
 			const page = pages.find((item) => item.address === address);
 			assert.ok(page?.carriers.length > 0, address);
 		}
@@ -206,7 +203,7 @@ describe("which pages carry the help chat", () => {
 
 	test("every page with the chat is one the analytics may track, so neither reaches a reader", async () => {
 		for (const { file, address, carriers } of await scanChatPages()) {
-			if (carriers.length > 0) assert.equal(isTrackedPath(address === "/home" ? "/" : address), true, file);
+			if (carriers.length > 0) assert.equal(isTrackedPath(address), true, file);
 		}
 	});
 
@@ -219,7 +216,6 @@ describe("which pages carry the help chat", () => {
 		}
 		assert.deepEqual(carriers.sort(), [
 			"app/(site)/docs/layout.js",
-			"app/(site)/home/layout.js",
 			"app/(site)/privacy/layout.js",
 			"app/(site)/sub-processors/layout.js",
 			"app/(site)/terms/layout.js",

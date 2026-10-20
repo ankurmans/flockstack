@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 // current: the account's plan, and its interval when Stripe bills it: then only that billing period is marked.
 // action: with a plan Stripe bills, the server action that switches to the plan and period picked. Without it, the
 // button subscribes through Checkout.
-// ctaHref, ctaLabel: for pages that don't sell yet (the landing page leads to sign-up), a link in place of Checkout.
+// ctaHref, ctaLabel: for pages that don't sell yet (the marketing website's pricing page leads to sign-up), a link in place of Checkout.
 // children: under the button. The Subscribe link isn't a <Link>: a prefetch would open a Checkout session.
 export default function SliderPricing({ free, plans: planStops, custom, freeMonths, extraPerThousand, initialIndex = 0, initialPeriod = "month", current, action, ctaHref, ctaLabel = "Subscribe", ctaFreeLabel = "Start for free", children }) {
 	const id = useId();

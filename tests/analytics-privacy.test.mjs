@@ -160,7 +160,7 @@ describe("what PostHog collects by itself", () => {
 	test("keeps the text of clicks on the marketing pages, the docs, the legal pages and sign-in", () => {
 		const click = (path, isSignedIn) =>
 			sanitizeEvent({ event: "$autocapture", properties: { $current_url: `https://flockstack.io${path}`, $el_text: "Get started", title: "FlockStack" } }, { isSignedIn }).properties;
-		for (const path of ["/docs", "/docs/api", "/privacy", "/terms", "/sub-processors", "/signin", "/home"]) assert.equal(click(path, false).$el_text, "Get started", path);
+		for (const path of ["/docs", "/docs/api", "/privacy", "/terms", "/sub-processors", "/signin"]) assert.equal(click(path, false).$el_text, "Get started", path);
 		assert.equal(click("/", false).$el_text, "Get started");
 		assert.equal(click("/", true).$el_text, undefined);
 		assert.equal(click("/docs", true).title, "FlockStack");
@@ -182,7 +182,7 @@ describe("what PostHog collects by itself", () => {
 			assert.equal(isTrackedPath(path.split("?")[0]), false, path);
 			assert.equal(sanitizeEvent(pageview(`https://flockstack.io${path}`)), null, path);
 		}
-		for (const path of ["/", "/home", "/docs", "/docs/api", "/privacy", "/signin", "/welcome", "/campaigns", "/contacts", "/recommending", "/billing", "/account", "/api-keys"]) {
+		for (const path of ["/", "/docs", "/docs/api", "/privacy", "/signin", "/welcome", "/campaigns", "/contacts", "/recommending", "/billing", "/account", "/api-keys"]) {
 			assert.equal(isTrackedPath(path), true, path);
 		}
 	});

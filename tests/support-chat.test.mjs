@@ -79,7 +79,7 @@ describe("asking", () => {
 		const index = await getSupportIndex("http://localhost:3000");
 		const earlier = [{ role: "user", content: "Can readers comment without an account?" }, { role: "assistant", content: "Yes [1]." }];
 		const pricing = m.assistant.findExcerpts(index, [...earlier, { role: "user", content: "And how much is the Pro plan?" }]);
-		assert.ok(pricing.slice(0, 3).some(({ href }) => href === "/#pricing"), pricing.map(({ href }) => href).join(", "));
+		assert.ok(pricing.slice(0, 3).some(({ href }) => href === "/pricing"), pricing.map(({ href }) => href).join(", "));
 		const vague = m.assistant.findExcerpts(index, [...earlier, { role: "user", content: "And then?" }]);
 		assert.ok(vague.some(({ href }) => href.startsWith("/docs/comments")));
 		assert.deepEqual(vague.map(({ number }) => number), [1, 2, 3, 4]);

@@ -38,12 +38,11 @@ before(async () => {
 		pricing: await import("../lib/pricing.js"),
 		tier: await import("../lib/custom-tier.js"),
 		choices: await import("../lib/custom-choices.js"),
-		landing: await import("../lib/marketing/landing.js"),
+		faq: await import("../lib/site-faq.js"),
 		corpus: await import("../lib/marketing/support-corpus.js"),
 		search: await import("../lib/marketing/support-search.js"),
 		page: await import("../app/(site)/custom/page.js"),
 		SliderPricing: (await import("../components/SliderPricing.jsx")).default,
-		SectionPricing: (await import("../components/marketing/SectionPricing.jsx")).default,
 		sitemap: (await import("../app/sitemap.js")).default,
 		proxy: (await import("../proxy.js")).proxy,
 		NextRequest: (await import("next/server")).NextRequest,
@@ -87,7 +86,6 @@ describe("the Custom card", () => {
 		const plan = m.tier.getCustomPlan();
 		assert.doesNotMatch(JSON.stringify(plan), m.tier.CUSTOM_UNAVAILABLE);
 		assert.doesNotMatch(textOf(await slider({ initialIndex: 6 })), m.tier.CUSTOM_UNAVAILABLE);
-		assert.doesNotMatch(textOf(await prerender(await m.SectionPricing())).replace(/Do you offer SOC 2[^?]*\?/, ""), m.tier.CUSTOM_UNAVAILABLE);
 	});
 
 	test("on the billing page its button is a link to the form, never a plan switch", async () => {
@@ -98,19 +96,11 @@ describe("the Custom card", () => {
 		const onPro = await slider({ initialIndex: 3, current: { plan: "pro", interval: "month" }, action: async () => {} });
 		assert.match(onPro, /name="plan" value="pro"/, "plans still switch");
 	});
-
-	test("is on the landing page's pricing, which links to the form from the line under it", async () => {
-		const html = await prerender(await m.SectionPricing());
-		assert.ok(html.includes('aria-label="Custom plan, over 2,000,000 emails a month"'));
-		assert.match(html, /data-custom-link/);
-		assert.match(html, /href="\/custom"/);
-		assert.match(textOf(html), /Sending more than 2,000,000 emails a month, or past 400,000 subscribers\? Tell us what you need/);
-	});
 });
 
 describe("the FAQ and the support assistant", () => {
-	test("the landing page answers 'Do you offer SOC 2, SSO or a custom plan?' honestly", () => {
-		const entry = m.landing.FAQ.find(({ question }) => question === "Do you offer SOC 2, SSO or a custom plan?");
+	test("the FAQ answers 'Do you offer SOC 2, SSO or a custom plan?' honestly", () => {
+		const entry = m.faq.FAQ.find(({ question }) => question === "Do you offer SOC 2, SSO or a custom plan?");
 		assert.ok(entry);
 		const answer = entry.answer.join(" ");
 		assert.match(answer, /A custom plan, yes/);
@@ -125,7 +115,7 @@ describe("the FAQ and the support assistant", () => {
 		assert.equal(custom.href, "/custom");
 		assert.ok(custom.text.includes(m.tier.CUSTOM_NOT_YET));
 		assert.match(custom.text, /never say it does/);
-		const pricing = chunks.filter(({ href }) => href === "/#pricing").map(({ text }) => text).join("\n");
+		const pricing = chunks.filter(({ href }) => href === "/pricing").map(({ text }) => text).join("\n");
 		assert.match(pricing, /the Custom plan, "Let's talk"/);
 		assert.doesNotMatch(pricing, /Sending more than .* ask support/);
 
@@ -139,18 +129,6 @@ describe("the FAQ and the support assistant", () => {
 	test("a self-hosted server's corpus has no Custom plan", async () => {
 		const chunks = await withEnv({ FLOCKSTACK_CLOUD: "", APP_URL, LEGAL_PREVIEW: "true" }, () => m.corpus.buildChunks(APP_URL));
 		assert.ok(!chunks.some(({ title, href }) => title === "Custom plan" || href === "/custom"));
-	});
-});
-
-describe("the release note", () => {
-	test("announces the Custom plan, says what FlockStack lacks, and claims nothing else", async () => {
-		const { CHANGELOG } = await import("../lib/changelog.js");
-		const entry = CHANGELOG.find(({ title }) => title === "A Custom plan");
-		assert.ok(entry);
-		assert.deepEqual(entry.link, { href: "/custom", label: "Tell us what you need" });
-		const [lack, ...rest] = [...entry.items].reverse();
-		assert.match(lack, /^FlockStack doesn't have SOC 2, SSO or SAML, SCIM, audit logs, an uptime SLA or team seats yet\./);
-		assert.doesNotMatch(rest.join(" "), m.tier.CUSTOM_UNAVAILABLE);
 	});
 });
 
