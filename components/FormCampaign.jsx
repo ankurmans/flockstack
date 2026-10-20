@@ -80,6 +80,7 @@ export default function FormCampaign({
 	archiveUrlBase,
 	planProblem,
 	emailsLeft,
+	sentWith = false,
 	pace,
 	newContacts,
 	fields = [],
@@ -139,8 +140,9 @@ export default function FormCampaign({
 				subject: deferredValues.subject,
 				previewText: deferredValues.previewText,
 				newsletter,
+				sentWith,
 			}),
-		[format, deferredValues, newsletter]
+		[format, deferredValues, newsletter, sentWith]
 	);
 	// The preview has no reader, so merge tags show their fallbacks.
 	const previewHtml = useMemo(

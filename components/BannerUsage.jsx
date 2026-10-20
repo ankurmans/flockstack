@@ -7,8 +7,9 @@ import { EXTRA_EMAILS } from "@/lib/plans";
 
 // Shown near or over a plan limit: campaign sends stop at the limit, and so do welcome emails; signups don't.
 // isWelcomePaused: the month's emails are used up while a newsletter has its welcome email on.
-export default function BannerUsage({ usage, isWelcomePaused = false }) {
-	const message = getMessage(usage, isWelcomePaused);
+// lapsedPlan: the paid plan that ended (lib/free-plan.js getLapsedPlan): the account is on Free now, with all it made kept.
+export default function BannerUsage({ usage, isWelcomePaused = false, lapsedPlan = null, hasUpgradeLink = true }) {
+	const message = getMessage(usage, isWelcomePaused, lapsedPlan);
 	if (!message) return null;
 
 	return (
@@ -17,14 +18,27 @@ export default function BannerUsage({ usage, isWelcomePaused = false }) {
 				<TriangleAlert className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
 				<span className="text-pretty">{message}</span>
 			</p>
-			<Button asChild size="sm">
-				<Link href="/billing">Upgrade</Link>
-			</Button>
+			{hasUpgradeLink && (
+				<Button asChild size="sm">
+					<Link href="/billing">Upgrade</Link>
+				</Button>
+			)}
 		</div>
 	);
 }
 
-function getMessage(usage, isWelcomePaused) {
+function getMessage(usage, isWelcomePaused, lapsedPlan) {
+	const message = getUsageMessage(usage, isWelcomePaused);
+	if (!lapsedPlan) return message;
+	return (
+		<>
+			<span className="font-medium">Your {lapsedPlan.name} plan ended, so you&apos;re on Free.</span> Everything you made is kept.{" "}
+			{message ?? `Free has ${formatNumber(usage.subscribersLimit)} subscribers and ${formatNumber(usage.emailsLimit)} emails a month.`}
+		</>
+	);
+}
+
+function getUsageMessage(usage, isWelcomePaused) {
 	const { emailsSent, emailsLimit, extraEmailsLimit = 0, subscribers, subscribersLimit } = usage;
 	if (emailsLimit === null) return null;
 	const ceiling = emailsLimit + extraEmailsLimit;
@@ -37,7 +51,7 @@ function getMessage(usage, isWelcomePaused) {
 		);
 	}
 	if (subscribers > subscribersLimit) {
-		return `You have ${formatNumber(subscribers)} subscribers and your plan allows ${formatNumber(subscribersLimit)}. Campaigns can't go out until you upgrade.`;
+		return `You have ${formatNumber(subscribers)} subscribers and your plan allows ${formatNumber(subscribersLimit)}. Campaigns can't go out until you upgrade or get under it, and nothing is deleted.`;
 	}
 	if (emailsSent >= ceiling) {
 		return extraEmailsLimit

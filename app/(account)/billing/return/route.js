@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { hasActiveSubscription } from "@/lib/account-state";
+import { isPaidStatus } from "@/lib/account-state";
 import { requireAccount } from "@/lib/auth";
 import { syncCheckoutReturn } from "@/lib/billing-provider";
 import { isCloud } from "@/lib/config";
@@ -18,6 +18,7 @@ export async function GET(request) {
 	const current = await Account.findById(account._id).lean();
 	// The dedicated IP add-on's checkout comes back to the billing page, which says whether it's on yet.
 	if (new URL(request.url).searchParams.get("addon") === "dedicated_ip") redirect("/billing?addon=dedicated_ip");
-	if (hasActiveSubscription(current)) await siteExtensions.sendGoalOnNextPage("plan_started");
-	redirect(hasActiveSubscription(current) ? "/" : "/billing?checkout=pending");
+	const isPaid = isPaidStatus(current.subscriptionStatus);
+	if (isPaid) await siteExtensions.sendGoalOnNextPage("plan_started");
+	redirect(isPaid ? "/" : "/billing?checkout=pending");
 }

@@ -4,7 +4,8 @@ import LinkInline from "@/components/LinkInline";
 import SectionLegal from "@/components/SectionLegal";
 import { DELETION_GRACE_DAYS } from "@/lib/account-deletion";
 import { EXPORT_LINK_DAYS } from "@/lib/account-export-files";
-import { LIMITS } from "@/lib/config";
+import { FREE_LIMITS, LIMITS } from "@/lib/config";
+import { formatNumber } from "@/lib/format";
 import {
 	GOVERNING_LAW,
 	LEGAL_PAGES,
@@ -19,6 +20,7 @@ import {
 	YEARLY_REFUND_DAYS,
 	isLegalPublished,
 } from "@/lib/legal";
+import { FREE_GUARDS, FREE_PLAN } from "@/lib/plans";
 import { getRegionUrls } from "@/lib/region";
 import { getPageMetadata } from "@/lib/site";
 
@@ -32,6 +34,7 @@ export default function TermsPage() {
 	if (!isLegalPublished()) notFound();
 	const urls = getRegionUrls();
 	const { pause, block } = LIMITS;
+	const free = FREE_LIMITS;
 
 	return (
 		<LayoutLegal
@@ -75,8 +78,22 @@ export default function TermsPage() {
 					billing provider, Polar. Your card details go to them, not to us. Every email you send counts toward the month: issues, tests,
 					welcome emails and confirmation emails. If you reach the limit on a paid plan, sending goes on and we bill extra emails at the
 					price on the home page, with your plan at the end of the period, up to a monthly limit you set on the billing page; confirmation
-					emails are never billed as extra. At that limit, or on a free plan, sending stops with a message and an upgrade link. A dedicated
+					emails are never billed as extra. At that limit, on the Free plan, or on a plan we gave you for free, sending stops with a message
+					and an upgrade link. A dedicated
 					IP is an optional add-on with its own price, which you buy separately. Nothing else is billed on top of your plan. {TAX_NOTE}
+				</p>
+				<p>
+					<strong className="font-medium text-foreground">The Free plan.</strong> Every account starts on the Free plan, which costs
+					nothing and needs no card: up to {formatNumber(FREE_PLAN.subscribers)} active subscribers, {formatNumber(FREE_PLAN.emailsPerMonth)} emails a month,{" "}
+					{FREE_PLAN.newsletters} newsletter and {FREE_PLAN.automations} automations besides the welcome email. It never goes past its
+					limits and is never billed: a send that wouldn&apos;t fit in the month&apos;s emails is refused, with the numbers, until the month
+					resets or you upgrade. Emails and websites on the Free plan carry a small &ldquo;Sent with FlockStack&rdquo; link, which every paid
+					plan removes. To keep the Free plan fair for everyone, your first {FREE_GUARDS.firstCampaigns.count} campaigns go to at most{" "}
+					{formatNumber(FREE_GUARDS.firstCampaigns.recipients)} people each until they have gone out and settled with few complaints, and its
+					bounce and complaint levels are lower (below). We may pause or block an account that abuses the Free plan, for example by sending
+					to people who didn&apos;t ask, or by opening accounts to get around its limits. If a paid plan ends, the account goes back to the
+					Free plan and keeps everything: if it has more subscribers than the Free plan allows, nothing is deleted, but campaigns wait until
+					it is under the limit or you upgrade.
 				</p>
 				<p>
 					<strong className="font-medium text-foreground">Cancelling a monthly plan.</strong> Cancel any time from the billing page, which
@@ -91,8 +108,8 @@ export default function TermsPage() {
 				</p>
 				<p>
 					If a payment fails, the provider tries the card again, and your plan keeps working in the meantime. If it still fails, the plan
-					ends like a cancelled one. A cancelled account keeps its data: sending, signups and the website stop, and everything comes back
-					when you subscribe again. You can export, or delete the account, at any time.
+					ends like a cancelled one. A cancelled account goes back to the Free plan and keeps its data, its website and its signups; what
+					goes beyond the Free plan&apos;s limits waits until you subscribe again. You can export, or delete the account, at any time.
 				</p>
 				<p>
 					<strong className="font-medium text-foreground">Price changes.</strong> We email you at least {PRICE_INCREASE_NOTICE_DAYS} days
@@ -150,6 +167,12 @@ export default function TermsPage() {
 					</li>
 				</ul>
 				<p>
+					On the Free plan the levels are lower: a campaign pauses past {percent(free.pause.bounceRate)} hard bounces (at least{" "}
+					{free.pause.minBounces}) or {percent(free.pause.complaintRate)} complaints (at least {free.pause.minComplaints}), and the account is
+					blocked past {percent(free.block.bounceRate)} (at least {free.block.minBounces}) or {percent(free.block.complaintRate)} (at least{" "}
+					{free.block.minComplaints}).
+				</p>
+				<p>
 					Contacts you have never emailed go out in steps: a first slice, a check of its bounces and complaints 3 hours later, then the rest.
 					Large sends are spread over hours while an account builds a sending history.
 				</p>
@@ -196,7 +219,7 @@ export default function TermsPage() {
 			<SectionLegal id="leaving" title="Leaving, and your export">
 				<p>
 					You can export everything, free, at any time: contacts as CSV, every issue as Markdown and HTML, your images, your suppression list and
-					a manifest. It works even if your account is blocked, paused or has no plan. The download links last {EXPORT_LINK_DAYS} days.
+					a manifest. It works even if your account is blocked or paused. The download links last {EXPORT_LINK_DAYS} days.
 				</p>
 				<p>
 					You can delete your account from the account page. If you pay for a plan, cancel it first, and finish or unschedule any campaign that is

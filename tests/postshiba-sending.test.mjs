@@ -680,14 +680,12 @@ describe("the shared address on PostShiba", () => {
 		assert.equal((await m.Newsletter.findOne({ accountId: user.accountId }).lean()).sharedSender.verified, true);
 	});
 
-	test("a newsletter set up before the plan gets nothing at PostShiba or in DNS, then its subdomain when the plan starts", async () => {
+	test("a newsletter set up on the Free plan gets its subdomain at once, and a plan starting later changes nothing", async () => {
 		const user = await signIn("ps-early@example.com");
-		const before = { tenants: fake.state.tenants.size, domains: fake.state.domains.size, records: dnsRecords.size };
 		await createNewsletter(user, "ps-early");
 		let newsletter = await m.Newsletter.findOne({ accountId: user.accountId }).lean();
 		assert.equal(newsletter.fromEmail, "hello@ps-early.flockstackmail.com");
-		assert.equal(newsletter.sharedSender?.domain, undefined);
-		assert.deepEqual({ tenants: fake.state.tenants.size, domains: fake.state.domains.size, records: dnsRecords.size }, before);
+		assert.equal(newsletter.sharedSender.domain, "ps-early.flockstackmail.com", "the Free plan has the shared address");
 
 		await m.billing.applySubscription(await loadAccount(user), subscription("ps-early"));
 		newsletter = await m.Newsletter.findOne({ accountId: user.accountId }).lean();

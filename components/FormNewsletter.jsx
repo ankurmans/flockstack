@@ -648,13 +648,13 @@ export default function FormNewsletter({
 							"Goes live after your first issue."
 						) : !hasPlan ? (
 							<>
-								It goes online once you pick a plan.{" "}
+								It goes online with a plan.{" "}
 								<button
 									type="button"
 									onClick={() => paywall.open("website")}
 									className="font-medium text-link underline decoration-link/30 underline-offset-2 transition-colors duration-150 hover:decoration-link"
 								>
-									Pick a plan
+									Upgrade
 								</button>
 							</>
 						) : !newsletter?.archiveEnabled ? (

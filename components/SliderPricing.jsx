@@ -6,6 +6,9 @@ import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+// free: the Free plan (lib/pricing.js), the first step before the plans: no price, no checkout. Its button leads to
+// ctaHref on the pages that don't sell yet, is the current plan on Free, and with an action leaves for Free (the form
+// posts plan "free": the billing page opens the portal to cancel).
 // plans: display-ready values from lib/pricing.js, in plan order, with a price for each billing period.
 // custom: the Custom plan (lib/custom-tier.js), a last step after the largest plan with no price and no checkout: its
 // button leads to the request form, whatever action or ctaHref say.
@@ -14,13 +17,14 @@ import { cn } from "@/lib/utils";
 // button subscribes through Checkout.
 // ctaHref, ctaLabel: for pages that don't sell yet (the landing page leads to sign-up), a link in place of Checkout.
 // children: under the button. The Subscribe link isn't a <Link>: a prefetch would open a Checkout session.
-export default function SliderPricing({ plans: planStops, custom, freeMonths, extraPerThousand, initialIndex = 0, initialPeriod = "month", current, action, ctaHref, ctaLabel = "Subscribe", children }) {
+export default function SliderPricing({ free, plans: planStops, custom, freeMonths, extraPerThousand, initialIndex = 0, initialPeriod = "month", current, action, ctaHref, ctaLabel = "Subscribe", ctaFreeLabel = "Start for free", children }) {
 	const id = useId();
 	const [index, setIndex] = useState(initialIndex);
 	const [period, setPeriod] = useState(initialPeriod);
-	const plans = custom ? [...planStops, { ...custom, isCustom: true }] : planStops;
+	const plans = [...(free ? [{ ...free, isFree: true }] : []), ...planStops, ...(custom ? [{ ...custom, isCustom: true }] : [])];
 	const plan = plans[index];
 	const isCustom = Boolean(plan.isCustom);
+	const isFree = Boolean(plan.isFree);
 	const price = plan.prices?.[period];
 	const isYearly = period === "year";
 	const lastIndex = plans.length - 1;
@@ -141,7 +145,7 @@ export default function SliderPricing({ plans: planStops, custom, freeMonths, ex
 						{plan.name}
 						{isCurrent && <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] whitespace-nowrap text-primary-foreground">Current plan</span>}
 					</p>
-					{!isCustom && (
+					{!isCustom && !isFree && (
 						<p className="rounded-full bg-foreground/[0.06] px-2.5 py-0.5 text-xs whitespace-nowrap text-muted-foreground tabular-nums">
 							{price.perThousand} per 1,000 emails
 						</p>
@@ -151,6 +155,17 @@ export default function SliderPricing({ plans: planStops, custom, freeMonths, ex
 					<>
 						<p className="mt-3 text-5xl font-semibold tracking-tight">{plan.price}</p>
 						<p className="mt-1.5 h-5 text-sm text-muted-foreground">{plan.reply}</p>
+					</>
+				) : isFree ? (
+					<>
+						<p className="mt-3 flex items-baseline gap-1.5 tabular-nums">
+							<span className="text-5xl font-semibold tracking-tight">{price.price}</span>
+							<span className="text-muted-foreground">/month</span>
+						</p>
+						<p className="mt-1.5 h-5 text-sm text-muted-foreground">No card needed</p>
+						<p className="mt-1 text-sm text-pretty text-muted-foreground tabular-nums">
+							No extra emails: sending stops at {plan.emails} a month, until the next one or an upgrade
+						</p>
 					</>
 				) : (
 					<>
@@ -167,10 +182,10 @@ export default function SliderPricing({ plans: planStops, custom, freeMonths, ex
 					</>
 				)}
 				<div className="mt-6 border-t border-border/70 pt-6">
-					{isCustom ? (
+					{isCustom || isFree ? (
 						<>
-							<p className="text-xs font-medium text-muted-foreground">A Custom plan has</p>
-							<ul data-custom-plan className="mt-3 flex flex-col gap-2 text-[13px]">
+							<p className="text-xs font-medium text-muted-foreground">{isFree ? "The Free plan has" : "A Custom plan has"}</p>
+							<ul {...(isFree ? { "data-free-plan": true } : { "data-custom-plan": true })} className="mt-3 flex flex-col gap-2 text-[13px]">
 								{plan.bullets.map((label) => (
 									<li key={label} className="flex items-start gap-2">
 										<Check className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" strokeWidth={2.5} />
@@ -201,12 +216,25 @@ export default function SliderPricing({ plans: planStops, custom, freeMonths, ex
 								<ArrowRight data-icon="inline-end" />
 							</a>
 						</Button>
+					) : isFree && !action && !ctaHref ? (
+						isCurrent && (
+							<Button size="lg" variant="outline" disabled className="h-11 w-full text-[15px]">
+								Current plan
+							</Button>
+						)
 					) : action ? (
 						<form action={action}>
 							<input type="hidden" name="plan" value={plan.id} />
 							<input type="hidden" name="interval" value={period} />
-							<ButtonSwitch isCurrent={isCurrent} />
+							<ButtonSwitch isCurrent={isCurrent} label={isFree ? "Downgrade to Free" : "Switch"} />
 						</form>
+					) : isFree ? (
+						<Button asChild size="lg" className="h-11 w-full text-[15px]">
+							<a href={ctaHref} {...{ "data-goal": "free_started" }}>
+								{ctaFreeLabel}
+								<ArrowRight data-icon="inline-end" />
+							</a>
+						</Button>
 					) : (
 						<Button asChild size="lg" className="h-11 w-full text-[15px]">
 							<a
@@ -226,7 +254,7 @@ export default function SliderPricing({ plans: planStops, custom, freeMonths, ex
 	);
 }
 
-function ButtonSwitch({ isCurrent }) {
+function ButtonSwitch({ isCurrent, label = "Switch" }) {
 	const { pending } = useFormStatus();
 
 	return (
@@ -237,7 +265,7 @@ function ButtonSwitch({ isCurrent }) {
 			disabled={isCurrent || pending}
 			className="h-11 w-full text-[15px]"
 		>
-			{isCurrent ? "Current plan" : "Switch"}
+			{isCurrent ? "Current plan" : label}
 			{!isCurrent && (pending ? <Loader2 data-icon="inline-end" className="animate-spin" /> : <ArrowRight data-icon="inline-end" />)}
 		</Button>
 	);

@@ -5,8 +5,8 @@ import SliderPricing from "@/components/SliderPricing";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PaywallContext } from "@/lib/use-paywall";
 
-// The dashboard opens without a plan. What costs something (sending, imports, domains, API keys) opens this
-// instead, with the plans as the pricing page shows them. pricing: lib/pricing.js, on the plan the list fits.
+// What an account without a plan can't do opens this instead, with the plans as the pricing page shows them. Every account
+// on FlockStack Cloud has a plan, Free at least, so hasPlan is true there and it stays shut. pricing: lib/pricing.js.
 export default function ProviderPaywall({ hasPlan, pricing, children }) {
 	const [state, setState] = useState({ isOpen: false, reason: "default" });
 	const value = useMemo(() => ({ hasPlan, open: (reason = "default") => setState({ isOpen: true, reason }) }), [hasPlan]);
@@ -22,7 +22,7 @@ export default function ProviderPaywall({ hasPlan, pricing, children }) {
 								{TITLES[state.reason] ?? TITLES.default}
 							</DialogTitle>
 							<DialogDescription className="text-[15px] text-pretty">
-								Every plan has every feature. Your newsletter and drafts are saved.
+								Your newsletter and drafts are saved.
 							</DialogDescription>
 						</DialogHeader>
 						<SliderPricing {...pricing} />
@@ -34,16 +34,16 @@ export default function ProviderPaywall({ hasPlan, pricing, children }) {
 }
 
 const TITLES = {
-	default: "Pick a plan to start sending",
-	send: "Pick a plan to send your campaign",
-	schedule: "Pick a plan to schedule your campaign",
-	test: "Pick a plan to send test emails",
-	import: "Pick a plan to add subscribers",
-	contact: "Pick a plan to add more contacts",
-	domain: "Pick a plan to send from your own domain",
-	apiKey: "Pick a plan to use the API",
-	webhook: "Pick a plan to use webhooks",
-	upload: "Pick a plan to upload more images",
-	website: "Pick a plan to put your website online",
-	sell: "Pick a plan to sell to your readers",
+	default: "Upgrade to keep going",
+	send: "Upgrade to send your campaign",
+	schedule: "Upgrade to schedule your campaign",
+	test: "Upgrade to send test emails",
+	import: "Upgrade to add subscribers",
+	contact: "Upgrade to add more contacts",
+	domain: "Upgrade to send from your own domain",
+	apiKey: "Upgrade to use the API",
+	webhook: "Upgrade to use webhooks",
+	upload: "Upgrade to upload more images",
+	website: "Upgrade to put your website online",
+	sell: "Upgrade to sell to your readers",
 };

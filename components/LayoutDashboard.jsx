@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import BannerBlocked from "@/components/BannerBlocked";
-import BannerPlan from "@/components/BannerPlan";
 import BannerWatch from "@/components/BannerWatch";
 import LogoWordmark from "@/components/LogoWordmark";
 import MenuUser from "@/components/MenuUser";
@@ -15,21 +14,18 @@ import { SiteAnalytics, SupportChat } from "@/components/SiteExtensions";
 import { getSendingStatus, hasActiveSubscription, isBlocked } from "@/lib/account-state";
 import { isCloud } from "@/lib/config";
 import { isGetStartedOpen } from "@/lib/get-started";
-import { getRecommendedPlanId } from "@/lib/onboarding";
 import { PLANS } from "@/lib/plans";
 import { getSelectedNewsletter } from "@/lib/selected-newsletter";
 import { getPricing } from "@/lib/pricing";
-import { findPlansOnSale } from "@/lib/billing-provider";
 
 export default async function LayoutDashboard({ user, account, isAdmin, children }) {
+	// Every account has a plan, Free at least, so the paywall below never opens; it takes the plans as the pricing page has them.
 	const hasPlan = hasActiveSubscription(account);
-	// Only an account without a plan sees plans here, in the paywall and the banner, so only then is the billing provider read.
-	const plans = hasPlan ? PLANS : await findPlansOnSale();
 	const menu = <MenuUser name={user.name} email={user.email} image={user.image} status={getSendingStatus(account)} hasBilling={isCloud()} />;
 
 	return (
-		<ProviderPaywall hasPlan={hasPlan} pricing={getPricing(getRecommendedPlanId(account, plans), plans)}>
-			{isBlocked(account) ? <BannerBlocked account={account} /> : isCloud() && !hasPlan && <BannerPlan account={account} plans={plans} />}
+		<ProviderPaywall hasPlan={hasPlan} pricing={getPricing(undefined, PLANS)}>
+			{isBlocked(account) && <BannerBlocked account={account} />}
 			<div className="flex min-h-[calc(100dvh-var(--plan-bar-height))] flex-col md:flex-row">
 				<aside className="sticky top-(--plan-bar-height) hidden h-[calc(100dvh-var(--plan-bar-height))] w-60 shrink-0 flex-col border-r border-border/60 px-3 py-4 md:flex">
 					<LogoWordmark href="/" className="mb-4 h-9 px-2.5" />

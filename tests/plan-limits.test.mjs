@@ -237,22 +237,18 @@ describe("blocked and canceled accounts", () => {
 		assert.equal((await usage(user)).emailsSent, 0, "nothing sent, nothing counted");
 	});
 
-	test("a canceled account takes no signups and sends no signup emails; its archive is offline", async () => {
+	test("a canceled account is on Free: it takes signups, its archive stays online and its data is kept", async () => {
 		const user = await setup("canceled@example.com", { emails: 100, subscribers: 100, contacts: 1, welcome: true });
 		await createApiKey(user);
 		await addSentIssue(user);
 		const { getArchiveNewsletter } = await import("../lib/archive-data.js");
 		assert.ok(await getArchiveNewsletter(user.slug), "online before");
 		await m.Account.updateOne({ _id: user.accountId }, { $set: { subscriptionStatus: "canceled" } });
-		assert.equal((await signup(user, "too-late@example.org")).status, 402);
+		assert.equal((await signup(user, "still-welcome@example.org")).status, 201);
 		const formResult = await anonymous(() => m.archive.subscribe(null, form({ newsletter: user.slug, email: "visitor@example.org" })));
-		assert.deepEqual(formResult, { error: "This newsletter is not taking signups" });
-		assert.equal(await getArchiveNewsletter(user.slug), null);
-
-		const newsletter = await (await import("../models/Newsletter.js")).default.findOne({ accountId: user.accountId }).lean();
-		const reader = await m.Contact.findOne({ accountId: user.accountId }).lean();
-		const { queueWelcomeEmail } = await import("../lib/sending.js");
-		assert.deepEqual(await queueWelcomeEmail({ newsletter, contact: { ...reader, status: "active" } }), { skipped: "no active plan" });
+		assert.equal(formResult.ok, true);
+		assert.ok(await getArchiveNewsletter(user.slug), "the archive stays online");
+		assert.equal(await m.Contact.countDocuments({ accountId: user.accountId }) > 1, true, "and the data is kept");
 	});
 });
 

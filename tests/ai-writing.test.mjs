@@ -203,10 +203,11 @@ describe("subject lines, preview text and social posts", () => {
 });
 
 describe("the daily limit", () => {
-	test("is the plan's: 20, 60, 150, 300 and 600 requests a day", () => {
+	test("is the plan's: 5 on Free, then 20, 60, 150, 300 and 600 requests a day", () => {
 		assert.deepEqual(m.plans.PLANS.map(({ id, aiRequestsPerDay }) => [id, aiRequestsPerDay]), [["starter", 20], ["growth", 60], ["pro", 150], ["scale", 300], ["max", 600]]);
 		assert.equal(m.plans.getAiDailyLimit({ plan: "growth", subscriptionStatus: "active" }), 60);
-		assert.equal(m.plans.getAiDailyLimit({}), 0, "no plan, no requests");
+		assert.equal(m.plans.getAiDailyLimit({}), 5, "the Free plan's");
+		assert.equal(m.plans.getAiDailyLimit({ subscriptionStatus: "canceled", plan: "growth" }), 5, "and a lapsed plan falls back to it");
 	});
 
 	test("counts per account per day, refuses past the limit with a clear message and starts over at midnight UTC", async () => {

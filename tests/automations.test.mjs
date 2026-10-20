@@ -438,18 +438,13 @@ describe("limits, blocks and problems", () => {
 		assert.equal(user.mails(before).length, 1);
 	});
 
-	test("an account without a plan or with sending off waits too", async () => {
+	test("an account whose plan ended is on Free and keeps sending its automations", async () => {
 		const user = await customer("auto-noplan@example.com");
-		const automation = await createAutomation(user, { steps: [{ type: "email", subject: "Plan", content: "Plan." }] });
+		await createAutomation(user, { steps: [{ type: "email", subject: "Plan", content: "Plan." }] });
 		await subscribe(user, "a");
 		const before = sesEmails.length;
 		await t.m.Account.updateOne({ _id: user.accountId }, { $set: { subscriptionStatus: "canceled" } });
 		await run(new Date());
-		assert.equal(user.mails(before).length, 0);
-		const [waiting] = await enrollmentsOf(user, automation);
-		assert.deepEqual({ status: waiting.status, later: waiting.nextRunAt.getTime() > Date.now() }, { status: "active", later: true });
-		await t.m.Account.updateOne({ _id: user.accountId }, { $set: { subscriptionStatus: "active" } });
-		await run(new Date(Date.now() + 2 * HOUR_MS));
 		assert.equal(user.mails(before).length, 1);
 	});
 

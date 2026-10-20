@@ -324,7 +324,7 @@ describe("subscription changes", () => {
 		assert.equal((await account(user)).subscriptionStatus, "active");
 	});
 
-	test("deletion ends access: what needs a plan opens the paywall on the dashboard, and the API answers 402", async () => {
+	test("deletion puts the account back on Free: its data and last plan are kept, its limits are Free's", async () => {
 		const { key } = await createKey(user, "Site");
 		subscriptions.set("sub_life", subscription({ id: "sub_life", accountId: user.accountId, customer: "cus_life", status: "canceled", lookupKey: "flockstack_growth_yearly" }));
 		await deliver("customer.subscription.deleted", { id: "sub_life" });
@@ -332,10 +332,13 @@ describe("subscription changes", () => {
 		const ended = await account(user);
 		assert.equal(ended.subscriptionStatus, "canceled");
 		assert.equal(ended.plan, "growth", "the data and the last plan are kept");
-		assert.equal((await createKey(user, "Another")).code, "subscription_required");
-		const response = await callApi("POST", "/api/v1/contacts", { key, body: { newsletter: "x", email: "a@example.com" } });
-		assert.equal(response.status, 402);
-		assert.deepEqual(response.body, { error: { code: "subscription_required", message: "The account has no active plan" } });
+		assert.equal((await createKey(user, "Another")).code, undefined, "an account on Free still makes keys");
+		const response = await callApi("GET", "/api/v1/billing", { key });
+		assert.equal(response.status, 200);
+		assert.deepEqual(
+			{ plan: response.body.plan.id, price: response.body.plan.price, status: response.body.status, lapsedPlan: response.body.lapsedPlan, emails: response.body.usage.emailsLimit, isActive: response.body.isActive },
+			{ plan: "free", price: 0, status: "free", lapsedPlan: "growth", emails: 10000, isActive: true }
+		);
 	});
 });
 

@@ -4,9 +4,8 @@ import { getCleanupSettings } from "../lib/cleanup.js";
 import { activate, anonymous, as, callApi, catchRedirect, form, signIn, startTestApp } from "./helpers/app.mjs";
 import { flushAfter } from "./stubs/next-server.mjs";
 
-// A new account names its newsletter at /welcome, tries the dashboard without a plan, and meets the paywall
-// where something costs: sending, imports, domains and API keys. The REST API and MCP need a plan for everything.
-const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
+// A new account names its newsletter at /welcome and is on the Free plan: the dashboard, the REST API and MCP all work
+// at once, with no plan to pick, up to the Free plan's limits.
 let app;
 let m;
 
@@ -22,7 +21,6 @@ before(async () => {
 		domains: await import("../app/(app)/domains/actions.js"),
 		apiKeys: await import("../app/(app)/api-keys/actions.js"),
 		newsletters: await import("../app/(app)/newsletters/actions.js"),
-		uploadsRoute: await import("../app/api/uploads/route.js"),
 		mcpRoute: await import("../app/mcp/route.js"),
 		Account: (await import("../models/Account.js")).default,
 		Contact: (await import("../models/Contact.js")).default,
@@ -79,13 +77,13 @@ describe("/welcome", () => {
 		assert.equal(await m.Newsletter.countDocuments({ accountId: user.accountId }), 1);
 	});
 
-	test("a name another newsletter has gets a numbered slug; no list starts on the smallest plan", async () => {
+	test("a name another newsletter has gets a numbered slug; no list starts on Free", async () => {
 		const user = await signIn("second@example.com");
 		assert.equal(await welcome(user, { name: "Field notes", listSize: "none", listSource: "Substack" }), "/");
 		assert.equal((await m.Newsletter.findOne({ accountId: user.accountId }).lean()).slug, "field-notes-2");
 		const account = await loadAccount(user);
 		assert.equal(account.onboarding.listSource, undefined, "no list, no source");
-		assert.equal(m.onboarding.getRecommendedPlanId(account), "starter");
+		assert.equal(m.onboarding.getRecommendedPlanId(account), "free");
 		assert.equal(m.onboarding.getRecommendedPlanId({ onboarding: { listSize: "more" } }), "max");
 	});
 
@@ -101,15 +99,18 @@ describe("/welcome", () => {
 		const plan = (id) => m.plans.getPlan(id);
 		// Each step's top is its plan's subscribers, and one issue a week to them (about 4.33 emails per subscriber a month)
 		// fits the plan's emails.
-		for (const [id, top] of [["starter", 5_000], ["growth", 25_000], ["pro", 50_000], ["scale", 100_000]]) {
-			assert.equal(plan(id).subscribers, top, id);
-			assert.ok(Math.ceil(top * 4.33) <= plan(id).emailsPerMonth, `a weekly issue to ${top} fits ${id}`);
+		for (const [id, top] of [["free", 2_500], ["starter", 5_000], ["growth", 25_000], ["pro", 50_000], ["scale", 100_000]]) {
+			const found = id === "free" ? m.plans.FREE_PLAN : plan(id);
+			assert.equal(found.subscribers, top, id);
+			// Free's 10,000 emails hold four issues a month to all 2,500 subscribers, not 4.33.
+			if (id !== "free") assert.ok(Math.ceil(top * 4.33) <= found.emailsPerMonth, `a weekly issue to ${top} fits ${id}`);
 		}
 		assert.deepEqual(
 			m.onboarding.LIST_SIZES.map(({ id, label }) => [label, suggest(id)]),
 			[
-				["Not yet", "starter"],
-				["Under 5,000", "starter"],
+				["Not yet", "free"],
+				["Under 2,500", "free"],
+				["2,500 to 5,000", "starter"],
 				["5,000 to 25,000", "growth"],
 				["25,000 to 50,000", "pro"],
 				["50,000 to 100,000", "scale"],
@@ -121,15 +122,15 @@ describe("/welcome", () => {
 	test("while Max isn't on sale, Over 100,000 suggests the largest plan that is", () => {
 		const onSale = m.plans.PLANS.filter(({ id }) => id !== "max");
 		const suggest = (listSize) => m.onboarding.getRecommendedPlanId({ onboarding: { listSize } }, onSale);
-		assert.deepEqual(["none", "starter", "growth", "pro", "scale", "more"].map(suggest), ["starter", "starter", "growth", "pro", "scale", "scale"]);
+		assert.deepEqual(["none", "free", "starter", "growth", "pro", "scale", "more"].map(suggest), ["free", "free", "starter", "growth", "pro", "scale", "scale"]);
 	});
 
-	test("an answer saved under earlier steps still names its plan, and one that names none starts on the smallest", () => {
+	test("an answer saved under earlier steps still names its plan, and one that names none starts on Free", () => {
 		const suggest = (listSize) => m.onboarding.getRecommendedPlanId({ onboarding: { listSize } });
 		// Accounts keep the id, whatever its label was when they picked it: starter was Under 10,000 for a while.
 		assert.deepEqual(["starter", "growth", "pro", "scale", "more"].map(suggest), ["starter", "growth", "pro", "scale", "max"]);
-		for (const listSize of [undefined, "", "Under 10,000", "enterprise"]) assert.equal(suggest(listSize), "starter", String(listSize));
-		assert.equal(m.onboarding.getRecommendedPlanId({}), "starter", "an account from before onboarding asked");
+		for (const listSize of [undefined, "", "Under 10,000", "enterprise"]) assert.equal(suggest(listSize), "free", String(listSize));
+		assert.equal(m.onboarding.getRecommendedPlanId({}), "free", "an account from before onboarding asked");
 	});
 
 	test("the list's source is beehiiv, Mailchimp, Substack or somewhere else, and a source saved from earlier choices stays", async () => {
@@ -150,60 +151,30 @@ describe("/welcome", () => {
 	});
 });
 
-describe("without a plan", () => {
-	test("the dashboard sets up and writes; sending, imports, domains and API keys answer subscription_required", async () => {
+describe("on the Free plan", () => {
+	test("the dashboard sets up, writes and sends with no plan to pick: nothing answers subscription_required", async () => {
 		const user = await signIn("trying@example.com");
 		await welcome(user, { name: "Trying" });
 		const newsletter = await m.Newsletter.findOne({ accountId: user.accountId }).lean();
-		const saved = await as(user, () => m.newsletters.saveNewsletter(null, form({ id: String(newsletter._id), name: "Trying out", slug: "trying" })));
+		const saved = await as(user, () => m.newsletters.saveNewsletter(null, form({ id: String(newsletter._id), name: "Trying out", slug: "trying", postalAddress: "1 Main St, Paris" })));
 		assert.equal(saved.ok, true);
 		const url = await as(user, () => catchRedirect(m.campaigns.createCampaign(String(newsletter._id))));
 		const id = url.split("/").at(-1);
 		assert.deepEqual(await as(user, () => m.campaigns.saveCampaign(id, { subject: "Hello", previewText: "", body: "<p>Hi</p>" })), { ok: true });
 
-		const blocked = [
+		const results = [
 			await as(user, () => m.campaigns.sendTestCampaign(id)),
-			await as(user, () => m.campaigns.sendCampaign(id)),
-			await as(user, () => m.campaigns.scheduleCampaign(id, { scheduledAt: new Date(Date.now() + 86_400_000).toISOString() })),
 			await as(user, () => m.contacts.importContacts({ newsletterId: newsletter._id, rows: [{ email: "a@example.org" }], consent: true })),
-			await as(user, () => m.domains.addDomainAction(null, form({ domain: "trying.dev" }))),
 			await as(user, () => m.apiKeys.createApiKey(null, form({ name: "Site" }))),
 			await as(user, () => m.newsletters.sendWelcomeTest(newsletter._id)),
 		];
-		for (const [index, result] of blocked.entries()) assert.equal(result.code, "subscription_required", String(index));
-
-		await activate(user);
-		const { key } = await as(user, () => m.apiKeys.createApiKey(null, form({ name: "Site" })));
-		assert.ok(key, "with a plan it opens");
+		for (const [index, result] of results.entries()) assert.notEqual(result?.code, "subscription_required", String(index));
+		assert.deepEqual(results[0], { ok: true }, "a test email goes out");
+		assert.ok(results[2].key, "an API key opens");
+		assert.equal((await loadAccount(user)).subscriptionStatus, undefined, "and the account never paid");
 	});
 
-	test("the dashboard uploads 20 images a day, and the picker lists them", async () => {
-		const user = await signIn("images-trial@example.com");
-		await welcome(user, { name: "Images trial" });
-		const upload = (name) =>
-			as(user, () =>
-				m.uploadsRoute.POST(
-					new Request("http://localhost:3000/api/uploads", { method: "POST", headers: { "content-type": "image/png", "x-file-name": name }, body: PNG })
-				)
-			);
-		for (let index = 0; index < 20; index++) assert.equal((await upload(`trial-${index}`)).status, 200, String(index));
-		const capped = await upload("one-more");
-		assert.equal(capped.status, 402);
-		assert.equal((await capped.json()).code, "subscription_required");
-
-		const library = await as(user, () => m.uploadsRoute.GET(new Request("http://localhost:3000/api/uploads")));
-		const { images, nextCursor } = await library.json();
-		assert.equal(images.length, 20);
-		assert.match(images[0].url, new RegExp(`accounts/${user.accountId}/images/trial-19`), "newest first");
-		assert.equal(nextCursor, null);
-
-		await activate(user);
-		assert.equal((await upload("paid")).status, 200, "a plan lifts the cap");
-		const signedOut = await anonymous(() => m.uploadsRoute.GET(new Request("http://localhost:3000/api/uploads")));
-		assert.equal(signedOut.status, 401);
-	});
-
-	test("the dashboard adds 5 contacts a day by hand, active at once with the signup checks and no email; imports stay paid", async () => {
+	test("the dashboard adds contacts by hand with no cap but the plan's, active at once with the signup checks and no email", async () => {
 		const user = await signIn("contacts-trial@example.com");
 		await welcome(user, { name: "Contacts trial" });
 		const newsletterId = String((await m.Newsletter.findOne({ accountId: user.accountId }).lean())._id);
@@ -211,27 +182,15 @@ describe("without a plan", () => {
 
 		assert.deepEqual(await add("me@example.org", null), { error: "Check that this person agreed to get your emails" }, "a refusal doesn't count");
 		assert.deepEqual(await add("me@example.org"), { email: "me@example.org", status: "active" }, "though new newsletters ask signups to confirm");
-		assert.deepEqual(await add("jane.doe@gmial.com"), { error: "Did you mean jane.doe@gmail.com?" }, "a refused address doesn't count");
+		assert.deepEqual(await add("jane.doe@gmial.com"), { error: "Did you mean jane.doe@gmail.com?" });
 		assert.deepEqual(await add("me@example.org"), { error: "me@example.org is already a contact" });
-		for (const email of ["a@example.org", "b@example.org", "c@example.org"]) assert.equal((await add(email)).status, "active", email);
-		assert.deepEqual(await add("d@example.org"), { error: "Pick a plan to add more contacts", code: "subscription_required" });
+		for (const email of ["a", "b", "c", "d", "e", "f"]) assert.equal((await add(`${email}@example.org`)).status, "active", email);
 		await flushAfter();
-		assert.equal(await m.Message.countDocuments({ accountId: user.accountId }), 0, "sending stays paid: no email");
-		const contacts = await m.Contact.find({ accountId: user.accountId }).sort({ email: 1 }).lean();
-		assert.deepEqual(
-			contacts.map(({ email, source }) => [email, source]),
-			["a", "b", "c", "me"].map((name) => [`${name}@example.org`, "dashboard"])
-		);
-		const rows = [{ email: "e@example.org" }];
-		assert.equal((await as(user, () => m.contacts.importContacts({ newsletterId, rows, consent: true }))).code, "subscription_required");
-
-		await activate(user);
-		assert.equal((await add("d@example.org")).status, "active", "a plan lifts the cap");
-		await flushAfter();
-		assert.equal(await m.Message.countDocuments({ accountId: user.accountId }), 0, "with a plan, still no confirmation email");
+		assert.equal(await m.Message.countDocuments({ accountId: user.accountId }), 0, "no welcome email on, so no email");
+		assert.equal(await m.Contact.countDocuments({ accountId: user.accountId }), 7);
 	});
 
-	test("a contact added by hand gets the welcome email once the account has a plan, never before", async () => {
+	test("a contact added by hand gets the welcome email from the first day", async () => {
 		const user = await signIn("welcome-trial@example.com");
 		await welcome(user, { name: "Welcome trial" });
 		const { _id, name, slug } = await m.Newsletter.findOne({ accountId: user.accountId }).lean();
@@ -242,33 +201,22 @@ describe("without a plan", () => {
 
 		assert.equal((await add("early@example.org")).status, "active");
 		await flushAfter();
-		assert.equal(await m.Message.countDocuments({ accountId: user.accountId }), 0, "a trial account sends nothing");
-
-		// What Stripe's webhook does when the plan starts: the shared address gets set up at the provider.
-		await activate(user);
-		await m.sharedSender.syncSharedSenders(await loadAccount(user));
-		assert.equal((await add("paid@example.org")).status, "active");
-		await flushAfter();
 		const messages = await m.Message.find({ accountId: user.accountId }).lean();
-		assert.deepEqual(messages.map(({ kind, email, status }) => [kind, email, status]), [["welcome", "paid@example.org", "sent"]]);
+		assert.deepEqual(messages.map(({ kind, email, status }) => [kind, email, status]), [["welcome", "early@example.org", "sent"]]);
 	});
 
-	test("the REST API and MCP still need a plan for everything but billing, adding a contact included", async () => {
+	test("the REST API and MCP work on it too, and keep working when a paid plan ends", async () => {
 		const user = await signIn("api-trial@example.com");
 		await welcome(user, { name: "API trial" });
 		await activate(user);
 		const { key } = await as(user, () => m.apiKeys.createApiKey(null, form({ name: "Site" })));
 		await m.Account.updateOne({ _id: user.accountId }, { $set: { subscriptionStatus: "canceled" } });
-		const response = await callApi("GET", "/api/v1/newsletters", { key });
-		assert.equal(response.status, 402);
-		assert.equal(response.body.error.code, "subscription_required");
+		assert.equal((await callApi("GET", "/api/v1/newsletters", { key })).status, 200);
 
 		const signup = await callApi("POST", "/api/v1/contacts", { key, body: { email: "late@example.org" } });
-		assert.equal(signup.status, 402);
-		assert.equal(signup.body.error.code, "subscription_required");
-		const tool = await callTool(key, "add_contact", { email: "late@example.org" });
-		assert.equal(tool.isError, true);
-		assert.equal(JSON.parse(tool.content[0].text).error.code, "subscription_required");
-		assert.equal(await m.Contact.countDocuments({ accountId: user.accountId }), 0);
+		assert.equal(signup.status, 201);
+		const tool = await callTool(key, "add_contact", { email: "later@example.org" });
+		assert.notEqual(tool.isError, true);
+		assert.equal(await m.Contact.countDocuments({ accountId: user.accountId }), 2);
 	});
 });

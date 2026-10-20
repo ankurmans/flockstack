@@ -289,11 +289,13 @@ describe("events", () => {
 		assert.equal(await m.webhooks.emitWebhookEvent({ ...elsewhere, newsletterId: user.newsletterId }), 1);
 	});
 
-	test("nothing goes out for an account without endpoints, or without a plan", async () => {
+	test("nothing goes out for an account without endpoints, or one waiting to be deleted; a lapsed plan is the Free plan, which sends", async () => {
 		const user = await seller();
 		assert.equal(await m.webhooks.emitWebhookEvent({ accountId: user.accountId, type: "subscriber.created", data: () => assert.fail("not loaded") }), 0);
 		await addEndpoint(user);
 		await m.Account.updateOne({ _id: user.accountId }, { $set: { subscriptionStatus: "canceled" } });
+		assert.equal(await m.webhooks.emitWebhookEvent({ accountId: user.accountId, type: "subscriber.created", data: {} }), 1);
+		await m.Account.updateOne({ _id: user.accountId }, { $set: { deletion: { requestedAt: new Date(), purgeAt: new Date(Date.now() + 86_400_000) } } });
 		assert.equal(await m.webhooks.emitWebhookEvent({ accountId: user.accountId, type: "subscriber.created", data: {} }), 0);
 	});
 

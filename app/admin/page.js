@@ -17,7 +17,8 @@ import { getCloudflareDomainsStatus } from "@/lib/custom-hostnames";
 import { getEmailProvider } from "@/lib/email-provider";
 import { formatNumber } from "@/lib/format";
 import { countGlobalSuppressions } from "@/lib/global-suppressions";
-import { isOnFreePlan } from "@/lib/plans";
+import { getLapsedPlan } from "@/lib/free-plan";
+import { isOnFreePlan, isOnFreeTier } from "@/lib/plans";
 import { serialize } from "@/lib/serialize";
 import { cn } from "@/lib/utils";
 import { isObjectIdString } from "@/lib/validation";
@@ -47,9 +48,11 @@ export default async function AdminPage({ searchParams }) {
 		countGlobalSuppressions(),
 		getCloudflareDomainsStatus(),
 	]);
-	// Self-hosted, every account counts as paying.
+	// Self-hosted, every account counts as paying. On FlockStack Cloud an account without a subscription is on the Free plan.
 	const withPlan = accounts.filter(hasActiveSubscription);
 	const onFreePlan = withPlan.filter((account) => isOnFreePlan(account));
+	const onFree = withPlan.filter(isOnFreeTier);
+	const lapsed = onFree.filter((account) => getLapsedPlan(account));
 	const blocked = accounts.filter(isBlocked);
 	const provider = getEmailProvider();
 
@@ -57,13 +60,20 @@ export default async function AdminPage({ searchParams }) {
 		<>
 			<HeaderPage title="Accounts" />
 			<div className="flex flex-col gap-8">
-				<div className={cn("grid gap-3 sm:grid-cols-2 animate-enter", isCloud() ? "lg:grid-cols-4" : "lg:grid-cols-3")}>
+				<div className={cn("grid gap-3 sm:grid-cols-2 animate-enter", isCloud() ? "lg:grid-cols-5" : "lg:grid-cols-3")}>
 					<CardStat label="Accounts" value={formatNumber(accounts.length)} detail="Newest 200 below" />
 					{isCloud() && (
 						<CardStat
 							label="Paying"
-							value={formatNumber(withPlan.length - onFreePlan.length)}
-							detail={onFreePlan.length > 0 && `${formatNumber(onFreePlan.length)} more on a free plan`}
+							value={formatNumber(withPlan.length - onFreePlan.length - onFree.length)}
+							detail={onFreePlan.length > 0 && `${formatNumber(onFreePlan.length)} more on a plan from FlockStack`}
+						/>
+					)}
+					{isCloud() && (
+						<CardStat
+							label="On Free"
+							value={formatNumber(onFree.length)}
+							detail={lapsed.length > 0 && `${formatNumber(lapsed.length)} of them had a paid plan`}
 						/>
 					)}
 					<CardStat
