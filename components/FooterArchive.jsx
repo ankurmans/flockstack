@@ -1,9 +1,10 @@
 import { Rss } from "lucide-react";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import LinksSocial from "@/components/LinksSocial";
+import NavSite from "@/components/NavSite";
 import { currentYear } from "@/lib/format";
 
-export default function FooterArchive({ newsletter, indexHref, feedHref }) {
+export default function FooterArchive({ newsletter, indexHref, feedHref, navLinks = [] }) {
 	return (
 		<footer className="border-t border-border/60">
 			<div className="mx-auto grid max-w-5xl gap-6 px-5 pt-10 pb-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
@@ -15,6 +16,7 @@ export default function FooterArchive({ newsletter, indexHref, feedHref }) {
 					{newsletter.description && (
 						<p className="max-w-sm text-sm text-muted-foreground text-pretty">{newsletter.description}</p>
 					)}
+					<NavSite links={navLinks} className="mt-1" />
 				</div>
 				<LinksSocial links={newsletter.socialLinks} className="-ml-2.5 sm:-mr-2.5 sm:ml-0" />
 			</div>

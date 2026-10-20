@@ -48,6 +48,34 @@ export default function RssPage() {
 					A new issue shows up in the feed within that time.
 				</p>
 			</Section>
+
+			<Section title="Putting someone else's feed in an issue" stagger={4}>
+				<p>
+					The editor&apos;s <Code>/RSS feed</Code> block shows the latest items of any RSS or Atom feed: a link, a date, an excerpt and a
+					picture for each, as many as you choose (up to 10), newest or oldest first. The feed is read when the issue goes out: the block
+					becomes the items themselves in the saved issue, so every reader and the issue&apos;s page show the same ones. A test email reads
+					the feed too, and a feed that can&apos;t be read stops the send before it starts.
+				</p>
+				<p className="mt-4">
+					Feeds are read over https only, from public addresses, up to 1 MB and 8 seconds, and FlockStack keeps what it read for 5 minutes.
+					From the API, put <Code>{`<div data-rss="https://example.com/feed.xml" data-count="3"></div>`}</Code> in a rich campaign, and
+					check a feed with <Code>preview_feed</Code>.
+				</p>
+			</Section>
+
+			<Section title="A series from a feed" stagger={5}>
+				<p>
+					A series turns a feed into an issue on a schedule: every day, on the days of the week you pick, or on a day of the month. When
+					it is due, FlockStack reads the feed, takes the items published since the last issue (the first issue has the newest ones) and
+					makes an issue of your introduction and those items. The subject and the preview text can use <Code>{"{{date}}"}</Code>,{" "}
+					<Code>{"{{first_title}}"}</Code> and <Code>{"{{count}}"}</Code>.
+				</p>
+				<p className="mt-4">
+					Each issue waits as a draft for you to review, and you get an email when it is ready, or it is sent to the whole list by itself.
+					With no new items nothing is made, and every run, skipped ones included, is in the series&apos; history. Create them under Series
+					in the dashboard, or with the <Code>create_series</Code> action.
+				</p>
+			</Section>
 		</>
 	);
 }

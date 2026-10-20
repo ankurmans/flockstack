@@ -10,5 +10,5 @@ import { toReferrerHost } from "@/lib/attribution";
 export async function subscribeWithMagic(_state, formData) {
 	const requestHeaders = await headers();
 	// The page that sent the person here, as the page worked it out; this request's own Referer is the page itself.
-	return subscribeByMagicLink({ formData, ip: getClientIp(requestHeaders), referer: toReferrerHost(formData.get("from")) ?? "" });
+	return subscribeByMagicLink({ formData, ip: getClientIp(requestHeaders), headers: requestHeaders, referer: toReferrerHost(formData.get("from")) ?? "" });
 }

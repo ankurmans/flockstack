@@ -69,6 +69,7 @@ export async function POST(request, { params }) {
 	const result = await signUp({
 		formData: data,
 		ip: getClientIp(request.headers),
+		headers: request.headers,
 		source: `form:${form._id}`,
 		utm: Object.keys(utm).length > 0 ? utm : null,
 		referrer,

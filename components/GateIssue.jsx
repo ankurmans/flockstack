@@ -2,9 +2,10 @@
 
 import { useActionState, useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { Loader2, Lock, MailCheck } from "lucide-react";
+import { unlockIssue } from "@/app/archive/reader-actions";
 import { requestGateSignIn } from "@/app/archive/gate-actions";
+import BodyIssue from "@/components/BodyIssue";
 import FormSubscribe from "@/components/FormSubscribe";
-import FrameIssue from "@/components/FrameIssue";
 import { Button } from "@/components/ui/button";
 import { readerMarkerName } from "@/lib/reader-cookies";
 import { gateReturnKey, storeValue } from "@/lib/storage";
@@ -14,9 +15,9 @@ function noop() {
 }
 
 // An issue the newsletter gates (lib/popup-rules.js): its beginning, then the signup form. A browser with a reader session for
-// the newsletter (an emailed link, or a confirmation) asks for the rest, and the server gives it only to a subscriber who is
-// still active. Anyone else subscribes, or asks for a sign-in link if they already do.
-export default function GateIssue({ preview, newsletter, post }) {
+// the newsletter (an emailed link, or a confirmation) asks for the rest like a paid reader's does (lib/reader-access.js), and the
+// server gives it only to a subscriber who is still active. Anyone else subscribes, or asks for a sign-in link if they already do.
+export default function GateIssue({ preview, newsletter, post, subscribeHref }) {
 	// The marker cookie says this browser has a session for the newsletter; the page is cached, so only the browser can tell.
 	const hasSession = useSyncExternalStore(
 		noop,
@@ -29,14 +30,13 @@ export default function GateIssue({ preview, newsletter, post }) {
 
 	useEffect(() => {
 		if (!hasSession) return;
-		const controller = new AbortController();
-		fetch(`/api/gate?n=${encodeURIComponent(newsletter.slug)}&p=${encodeURIComponent(post)}`, { cache: "no-store", signal: controller.signal })
-			.then((response) => (response.ok ? response.json() : null))
-			.then((data) => (data?.ok ? setFull(data) : setIsRefused(true)))
-			.catch((error) => {
-				if (error.name !== "AbortError") setIsRefused(true);
-			});
-		return () => controller.abort();
+		let isCurrent = true;
+		unlockIssue(newsletter.slug, post)
+			.then((answer) => isCurrent && (answer?.unlocked ? setFull(answer) : setIsRefused(true)))
+			.catch(() => isCurrent && setIsRefused(true));
+		return () => {
+			isCurrent = false;
+		};
 	}, [hasSession, newsletter.slug, post]);
 	const status = full ? "open" : hasSession && !isRefused ? "checking" : "locked";
 
@@ -50,11 +50,7 @@ export default function GateIssue({ preview, newsletter, post }) {
 	);
 
 	if (status === "open") {
-		return full.kind === "frame" ? (
-			<FrameIssue html={full.html} className="-mx-5 mt-10 rounded-none sm:mx-0 sm:rounded-xl" />
-		) : (
-			<div className="prose-issue mt-10 animate-enter" dangerouslySetInnerHTML={{ __html: full.html }} />
-		);
+		return <BodyIssue slug={newsletter.slug} post={post} initial={full} newsletterName={newsletter.name} subscribeHref={subscribeHref} />;
 	}
 
 	return (

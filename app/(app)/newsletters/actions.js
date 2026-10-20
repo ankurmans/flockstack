@@ -29,6 +29,12 @@ function readSettings(formData) {
 		archiveEnabled: formData.get("archiveEnabled") === "on",
 		description: readText(formData, "description"),
 		accentColor: readText(formData, "accentColor"),
+		brand: {
+			theme: readText(formData, "theme") || "classic",
+			fontPair: readText(formData, "fontPair") || "sans",
+			headerUrl: readText(formData, "headerUrl"),
+			emailLogo: formData.get("emailLogo") === "on",
+		},
 		preferencesLink: formData.get("preferencesLink") === "on",
 		utmLinks: formData.get("utmLinks") === "on",
 		author: { bio: readText(formData, "authorBio"), imageUrl: readText(formData, "authorImageUrl") },
@@ -111,6 +117,14 @@ export async function createNewsletter(_state, formData) {
 	await saveSelectedNewsletter(output.id);
 	await siteExtensions.sendGoalOnNextPage("newsletter_created");
 	redirect("/newsletters");
+}
+
+// The newsletter's own structured data for search engines; empty removes it.
+export async function saveJsonLd(newsletterId, text) {
+	const { output, failure } = await runDashboardAction("update_newsletter", { id: String(newsletterId ?? ""), jsonLd: String(text ?? "") });
+	if (failure) return toFormError(failure);
+	revalidatePath("/newsletters");
+	return { ok: true, jsonLd: output.jsonLd };
 }
 
 // The website's redirects, on the settings page.

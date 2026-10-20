@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Workflow } from "lucide-react";
 import BadgeStatus from "@/components/BadgeStatus";
-import ButtonNewAutomation from "@/components/ButtonNewAutomation";
+import DialogNewAutomation from "@/components/DialogNewAutomation";
 import HeaderPage from "@/components/HeaderPage";
 import StateEmpty from "@/components/StateEmpty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,18 +17,19 @@ export default async function AutomationsPage() {
 	const { automations } = selected
 		? await runAction("list_automations", { account, user, via: "dashboard", input: { newsletter: String(selected._id) } })
 		: { automations: [] };
+	const { templates } = await runAction("list_automation_templates", { account, user, via: "dashboard", input: {} });
 
 	return (
 		<>
 			<HeaderPage title="Automations">
-				<ButtonNewAutomation newsletterId={selected ? String(selected._id) : null} />
+				<DialogNewAutomation newsletterId={selected ? String(selected._id) : null} templates={templates} />
 			</HeaderPage>
 
 			{automations.length === 0 ? (
 				<StateEmpty icon={Workflow} title="No automations yet">
 					<p className="max-w-sm text-sm text-pretty text-muted-foreground">
-						An automation sends a series of emails on its own: a welcome series when someone subscribes, a follow-up when they get a
-						tag, a note before a renewal date.
+						An automation sends emails and makes changes on its own: a welcome series when someone subscribes, a thank-you when a reader
+						upgrades, a nudge when they stop opening. Start from a template or from nothing.
 					</p>
 				</StateEmpty>
 			) : (

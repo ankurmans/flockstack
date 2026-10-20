@@ -14,9 +14,11 @@ const PER_IP_RECOMMENDED = { name: "recommend-ip", limit: 6, window: "10 m" };
 // The newsletter's own signup form, on its pages and in its popup. "via" says which; nothing else sets a source.
 export async function subscribe(_state, formData) {
 	const via = String(formData.get("via") ?? "");
+	const requestHeaders = await headers();
 	return signUp({
 		formData,
-		ip: getClientIp(await headers()),
+		ip: getClientIp(requestHeaders),
+		headers: requestHeaders,
 		source: WEBSITE_SOURCES.includes(via) ? via : "website",
 	});
 }

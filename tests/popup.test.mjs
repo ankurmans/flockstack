@@ -4,6 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { buildFeed } from "../lib/archive-feed.js";
 import { POPUP_DEFAULTS, getGateTeaserOptions, getPopupProblem, getPopupSettings, getTriggerProps, isGatedIssue, isPopupOn } from "../lib/popup-rules.js";
+import { SIGNIN_SENT_MESSAGE } from "../lib/reader-limits.js";
 import { EXIT_ARM_MS, armPopup } from "../lib/popup-trigger.js";
 import { makeTeaser } from "../lib/paywall.js";
 import { readerMarkerName } from "../lib/reader-cookies.js";
@@ -27,7 +28,7 @@ before(async () => {
 		homePage: (await import("../app/archive/[slug]/page.js")).default,
 		issuePage: (await import("../app/archive/[slug]/p/[post]/page.js")).default,
 		authorPage: (await import("../app/archive/[slug]/authors/[author]/page.js")).default,
-		gateRoute: await import("../app/api/gate/route.js"),
+		readerActions: await import("../app/archive/reader-actions.js"),
 		gateActions: await import("../app/archive/gate-actions.js"),
 		archive: await import("../app/archive/actions.js"),
 		confirm: await import("../app/confirm/actions.js"),
@@ -347,9 +348,9 @@ describe("a gated issue", () => {
 	});
 });
 
-// The gate route as a visitor with these cookies reaches it.
-function askGate(user, name, jar = new Map(), ip = nextIp()) {
-	return runWithRequest({ jar, headers: { "x-forwarded-for": ip } }, () => m.gateRoute.GET(new m.NextRequest(`https://${user.slug}.flockstackmail.com/api/gate?n=${user.slug}&p=${name.includes("/") ? name : slugOf(user, name)}`, { headers: { "x-forwarded-for": ip } })));
+// What a browser with these cookies is given of an issue behind the gate: the answer of the unlock action.
+function askGate(user, name, jar = new Map()) {
+	return runWithRequest({ jar }, () => m.readerActions.unlockIssue(user.slug, name.includes("/") ? name : slugOf(user, name)));
 }
 
 async function setupGate(name, options) {
@@ -374,20 +375,17 @@ describe("the rest of a gated issue", () => {
 		const user = await setupGate("gate-rest");
 		const { jar } = await signedIn(user, "reader@example.org");
 		const ok = await askGate(user, "older", jar);
-		assert.equal(ok.status, 200);
-		assert.equal(ok.headers.get("cache-control"), "private, no-store");
-		const body = await ok.json();
-		assert.equal(body.ok, true);
-		assert.equal(body.kind, "article");
-		assert.match(body.html, /echo39/);
-		assert.match(body.html, /alpha0/);
+		assert.equal(ok.unlocked, true);
+		assert.equal(ok.kind, "article");
+		assert.match(ok.html, /echo39/);
+		assert.match(ok.html, /alpha0/);
 
 		const nobody = await askGate(user, "older");
-		assert.equal(nobody.status, 401);
-		assert.doesNotMatch(JSON.stringify(await nobody.json()), /alpha/);
-		assert.equal((await askGate(user, "../etc/passwd/")).status, 404);
-		assert.equal((await askGate(user, "no-such-issue")).status, 404);
-		assert.equal((await askGate({ slug: "no-such-news" }, "older")).status, 404);
+		assert.deepEqual(nobody, { unlocked: false, signedIn: false });
+		assert.equal((await askGate(user, "newest", jar)).unlocked, false, "an issue the gate leaves open has nothing more to give");
+		assert.equal((await askGate(user, "../etc/passwd/", jar)).unlocked, false);
+		assert.equal((await askGate(user, "no-such-issue", jar)).unlocked, false);
+		assert.equal((await askGate({ slug: "no-such-news" }, "older", jar)).unlocked, false);
 	});
 
 	test("is refused to a session of another newsletter, a subscriber who left, a forged cookie and a contact who never confirmed", async () => {
@@ -395,41 +393,31 @@ describe("the rest of a gated issue", () => {
 		const other = await setupGate("gate-refuse-other");
 		const { jar: foreign } = await signedIn(other, "foreign@example.org");
 		const fromOther = new Map([[`fs_reader_${user.slug}`, foreign.get(`fs_reader_${other.slug}`)]]);
-		assert.equal((await askGate(user, "older", fromOther)).status, 401, "its signature is for another newsletter");
+		assert.equal((await askGate(user, "older", fromOther)).unlocked, false, "its signature is for another newsletter");
 
 		const { contact, jar } = await signedIn(user, "leaver@example.org");
 		await m.Contact.updateOne({ accountId: user.accountId, _id: contact._id }, { $set: { status: "unsubscribed" } });
-		assert.equal((await askGate(user, "older", jar)).status, 401);
-		assert.equal(jar.has(readerMarkerName(user.slug)), false, "the marker of a session that no longer works is removed");
-		assert.equal((await askGate(user, "older", new Map([[`fs_reader_${user.slug}`, "forged.value"]]))).status, 401);
+		assert.equal((await askGate(user, "older", jar)).unlocked, false);
+		assert.equal((await askGate(user, "older", new Map([[`fs_reader_${user.slug}`, "forged.value"]]))).unlocked, false);
 		const { jar: pendingJar } = await signedIn(user, "pending@example.org", { status: "pending" });
-		assert.equal((await askGate(user, "older", pendingJar)).status, 401);
+		assert.equal((await askGate(user, "older", pendingJar)).unlocked, false);
 	});
 
-	test("never gives a paid issue's full text, and stops a visitor who asks over and over", async () => {
-		const user = await setupGate("gate-limit");
+	test("never gives a paid issue's full text to a free subscriber, and gives a paid subscriber the paid part as before", async () => {
+		const user = await setupGate("gate-paid-access");
 		await addIssue(user, "paid-one", { audience: "paid" });
 		const { jar } = await signedIn(user, "member@example.org");
-		assert.equal((await askGate(user, "paid-one", jar)).status, 403);
-		const ip = nextIp();
-		const statuses = [];
-		for (let index = 0; index < 62; index += 1) statuses.push((await askGate(user, "older", jar, ip)).status);
-		assert.equal(statuses[0], 200);
-		assert.ok(statuses.includes(429));
-	});
-
-	test("opens on the newsletter's host through the proxy", async () => {
-		const user = await setupGate("gate-host");
-		const url = `https://${user.slug}.flockstackmail.com/api/gate?n=${user.slug}&p=${slugOf(user, "older")}`;
-		const response = await m.proxy(new m.NextRequest(url, { headers: { host: new URL(url).host } }));
-		assert.equal(response.headers.get("x-middleware-next"), "1");
+		assert.deepEqual(await askGate(user, "paid-one", jar), { unlocked: false, signedIn: true });
+		const { contact, jar: paidJar } = await signedIn(user, "payer@example.org");
+		await m.Contact.updateOne({ accountId: user.accountId, _id: contact._id }, { $set: { tier: "paid", paidUntil: new Date(Date.now() + 86_400_000) } });
+		assert.equal((await askGate(user, "paid-one", paidJar)).unlocked, true);
 	});
 });
 
 describe("getting in as a subscriber", () => {
 	const requestLink = (user, email, name = "older", ip = nextIp()) =>
 		visitAndFlush(ip, () => m.gateActions.requestGateSignIn(null, form({ newsletter: user.slug, email, p: slugOf(user, name) })));
-	const SENT = { ok: true, message: "If this address is subscribed, a link to read the issue is on its way. It works once, for 30 minutes." };
+	const SENT = { ok: true, message: SIGNIN_SENT_MESSAGE };
 
 	test("a link by email for a subscriber, the same answer for anyone, nothing for an issue that isn't gated", async () => {
 		const user = await setupGate("gate-link", { confirm: false });
@@ -446,7 +434,7 @@ describe("getting in as a subscriber", () => {
 		assert.match(mail[0], /Read older/);
 		const link = /https:[^\s"<>)\\]*reader\/signin\?[^\s"<>)\\]*/.exec(mail[0].replaceAll("\\/", "/").replaceAll("&amp;", "&"))?.[0];
 		assert.ok(link, mail[0].slice(0, 800));
-		assert.equal(new URL(link).searchParams.get("g"), "1");
+		assert.equal(new URL(link).searchParams.get("next"), "issue");
 		assert.equal(new URL(link).searchParams.get("p"), slugOf(user, "older"));
 
 		const open = sesEmails.length;
@@ -461,15 +449,15 @@ describe("getting in as a subscriber", () => {
 		const post = slugOf(user, "older");
 		const reference = { contactId: contact._id, newsletterId: user.newsletterId };
 		const tokenOf = (link) => new URL(link).searchParams.get("token");
-		const gateToken = tokenOf(m.readerLinks.getSignInUrl(reference, newsletter, { issueSlug: post, isGate: true }));
-		const page = await anonymous(() => m.signinPage({ searchParams: Promise.resolve({ token: gateToken, p: post, g: "1" }) }));
+		const gateToken = tokenOf(m.readerLinks.getSignInUrl(reference, newsletter, { issueSlug: post, next: "issue" }));
+		const page = await anonymous(() => m.signinPage({ searchParams: Promise.resolve({ token: gateToken, p: post, next: "issue" }) }));
 		assert.match(text(page), /the full issue opens/);
-		assert.match(html(page), /name="g" value="1"/);
+		assert.match(html(page), /name="next" value="issue"/);
 		const jar = new Map();
-		const destination = await runWithRequest({ jar }, () => catchRedirect(m.signinActions.continueSignIn(form({ token: gateToken, p: post, g: "1" }))));
+		const destination = await runWithRequest({ jar }, () => catchRedirect(m.signinActions.continueSignIn(form({ token: gateToken, p: post, next: "issue" }))));
 		assert.equal(destination, `https://${user.slug}.flockstackmail.com/p/${post}`);
 		assert.ok(jar.has(readerMarkerName(user.slug)), "the browser has a session");
-		assert.equal((await askGate(user, "older", jar)).status, 200);
+		assert.equal((await askGate(user, "older", jar)).unlocked, true);
 
 		// A link works once per subscriber and second, so the comment link is another subscriber's.
 		const other = await m.Contact.create({ accountId: user.accountId, newsletterId: user.newsletterId, email: "other@gmail.com", status: "active", source: "website" });
@@ -489,7 +477,7 @@ describe("getting in as a subscriber", () => {
 		const confirmed = await runWithRequest({ jar }, () => m.confirm.confirmSubscription(token));
 		assert.equal(confirmed.ok, true);
 		assert.ok(jar.has(readerMarkerName(user.slug)), "the confirmation link signed the browser in");
-		assert.equal((await askGate(user, "older", jar)).status, 200);
+		assert.equal((await askGate(user, "older", jar)).unlocked, true);
 		const stranger = new Map();
 		await runWithRequest({ jar: stranger }, () => m.confirm.confirmSubscription("not.a.token"));
 		assert.equal(stranger.size, 0, "a link that doesn't work signs nobody in");

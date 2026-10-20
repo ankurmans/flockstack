@@ -9,4 +9,5 @@ module.exports = [
 	{ type: "subscriber.downgraded", key: "subscriber_downgraded", noun: "Subscriber", label: "Subscriber downgraded to free", description: "Triggers when a paid reader's subscription ends." },
 	{ type: "campaign.sent", key: "campaign_sent", noun: "Campaign", label: "Campaign sent", description: "Triggers when a campaign finishes going out." },
 	{ type: "order.paid", key: "order_paid", noun: "Order", label: "Order paid", description: "Triggers when a reader pays for a digital product." },
+	{ type: "automation.step", key: "automation_step", noun: "Automation step", label: "Automation step", description: "Triggers when a contact reaches a webhook step of an automation." },
 ];

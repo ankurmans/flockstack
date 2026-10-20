@@ -653,7 +653,7 @@ describe("newsletters and images", () => {
 		const first = await api(user.key, "GET", "/images?limit=2");
 		assert.equal(first.status, 200);
 		assert.deepEqual(first.body.images.map(({ url }) => url), urls.slice(0, 2));
-		assert.deepEqual(Object.keys(first.body.images[0]).sort(), ["bytes", "contentType", "createdAt", "id", "url"]);
+		assert.deepEqual(Object.keys(first.body.images[0]).sort(), ["bytes", "contentType", "createdAt", "folder", "id", "url"]);
 		assert.ok(first.body.nextCursor);
 		const second = await api(user.key, "GET", `/images?limit=2&cursor=${encodeURIComponent(first.body.nextCursor)}`);
 		assert.deepEqual(second.body.images.map(({ url }) => url), urls.slice(2));
