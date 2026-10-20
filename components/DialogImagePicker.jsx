@@ -3,20 +3,22 @@
 import { Suspense, use, useEffect, useState, useTransition } from "react";
 import Image from "next/image";
 import { Check, ImageUp, Images, Loader2 } from "lucide-react";
+import PickerStock from "@/components/PickerStock";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CHECKERBOARD } from "@/lib/checkerboard";
 import { formatDate } from "@/lib/format";
 import { toast } from "@/lib/toast";
 import { IMAGE_TYPES, fetchImages, loadImageLibrary, readImageSize, uploadImageFile } from "@/lib/upload-image";
 import { useImageDrop } from "@/lib/use-image-drop";
 import { cn } from "@/lib/utils";
 
-// Transparent images sit on a light checkerboard in both themes: emails are white, so a dark logo has to show.
-export const CHECKERBOARD = { background: "repeating-conic-gradient(#f4f4f5 0 25%, #ffffff 0 50%) 0 0 / 12px 12px" };
 const GRID = "grid grid-cols-3 gap-2 p-4 sm:grid-cols-4";
 
-export default function DialogImagePicker({ open, onOpenChange, onSelect, currentUrl }) {
+// hasStock: also offers Unsplash's free photos (the editor, where a photo's credit goes into the issue).
+export default function DialogImagePicker({ open, onOpenChange, onSelect, currentUrl, hasStock = false }) {
 	function select(image) {
 		onSelect(image);
 		onOpenChange(false);
@@ -25,7 +27,22 @@ export default function DialogImagePicker({ open, onOpenChange, onSelect, curren
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-xl">
-				<PickerImage currentUrl={currentUrl} onSelect={select} />
+				{hasStock ? (
+					<Tabs defaultValue="yours" className="gap-0">
+						<TabsList className="mx-4 mt-4">
+							<TabsTrigger value="yours">Your images</TabsTrigger>
+							<TabsTrigger value="stock">Free photos</TabsTrigger>
+						</TabsList>
+						<TabsContent value="yours">
+							<PickerImage currentUrl={currentUrl} onSelect={select} />
+						</TabsContent>
+						<TabsContent value="stock" className="pt-3">
+							<PickerStock onSelect={select} />
+						</TabsContent>
+					</Tabs>
+				) : (
+					<PickerImage currentUrl={currentUrl} onSelect={select} />
+				)}
 			</DialogContent>
 		</Dialog>
 	);

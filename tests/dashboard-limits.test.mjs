@@ -80,6 +80,7 @@ test("the dashboard counts the hourly limits of what costs something each call",
 			"run_series",
 			"schedule_campaign",
 			"search_recommendable_newsletters",
+			"search_stock_photos",
 			"send_campaign",
 			"send_campaign_to_more",
 			"send_test_email",
@@ -90,6 +91,7 @@ test("the dashboard counts the hourly limits of what costs something each call",
 			"update_recommendation",
 			"upload_file",
 			"upload_image",
+			"use_stock_photo",
 		]
 	);
 	assert.deepEqual(
@@ -100,6 +102,7 @@ test("the dashboard counts the hourly limits of what costs something each call",
 		[
 			"add_redirect",
 			"add_tag",
+			"bulk_update_campaigns",
 			"create_api_key",
 			"create_automation",
 			"create_automation_from_template",

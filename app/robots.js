@@ -14,6 +14,8 @@ const PRIVATE_PATHS = [
 	"/comments",
 	"/contacts",
 	"/domains",
+	"/link-page",
+	"/media",
 	"/mcp",
 	"/newsletters",
 	"/orders",

@@ -3,6 +3,15 @@ import { runAction } from "@/lib/actions/run-action";
 import { getCurrentAccount } from "@/lib/auth";
 import { MAX_UPLOAD_BYTES } from "@/lib/upload-image";
 
+// The media library page uploads into the folder it shows.
+function readFolderHeader(request) {
+	try {
+		return decodeURIComponent(request.headers.get("x-folder") ?? "").slice(0, 60) || undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 // The image picker's library: the account's images, newest first, through the same list_images action as the API.
 export async function GET(request) {
 	const current = await getCurrentAccount();
@@ -37,6 +46,7 @@ export async function POST(request) {
 				base64: bytes.toString("base64"),
 				fileName: request.headers.get("x-file-name")?.slice(0, 200),
 				contentType: request.headers.get("content-type")?.slice(0, 100),
+				folder: readFolderHeader(request),
 			},
 		});
 		return Response.json({ url });

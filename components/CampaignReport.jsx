@@ -11,6 +11,7 @@ import AvatarNewsletter from "@/components/AvatarNewsletter";
 import BadgeStatus from "@/components/BadgeStatus";
 import ButtonCampaignAction from "@/components/ButtonCampaignAction";
 import ButtonCopy from "@/components/ButtonCopy";
+import ButtonSocialPosts from "@/components/ButtonSocialPosts";
 import GatePlan from "@/components/GatePlan";
 import CardStat from "@/components/CardStat";
 import DialogLinkClicks from "@/components/DialogLinkClicks";
@@ -58,6 +59,7 @@ export default function CampaignReport({
 	pace = null,
 	newContacts = 0,
 	polls = [],
+	isAiEnabled = false,
 }) {
 	const { stats } = campaign;
 	const id = campaign._id.toString();
@@ -112,6 +114,7 @@ export default function CampaignReport({
 						</Link>
 					</Button>
 				)}
+				{isAiEnabled && campaign.status === "sent" && <ButtonSocialPosts campaignId={id} subject={campaign.subject} />}
 				{campaign.status === "sending" && (
 					<ButtonCampaignAction action={pauseCampaign} id={id}>
 						<Pause data-icon="inline-start" />

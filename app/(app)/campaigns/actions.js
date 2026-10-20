@@ -264,6 +264,81 @@ export async function listPollVoters(id, option, cursor) {
 	return failure ? toFormError(failure) : output;
 }
 
+// The AI writing tools. Each takes one request of the day (lib/ai-usage.js); the answer comes back as a suggestion the
+// writer accepts or discards, and nothing in any campaign changes here.
+export async function rewriteSelection({ text, style, language } = {}) {
+	const { output, failure } = await runDashboardAction("rewrite_text", {
+		text: String(text ?? ""),
+		style: String(style ?? ""),
+		...(language && { language: String(language) }),
+	});
+	return failure ? { error: failure.message, code: failure.code } : output;
+}
+
+export async function suggestSubjectLines(id) {
+	const { output, failure } = await runDashboardAction("suggest_subject_lines", { campaign: String(id) });
+	return failure ? { error: failure.message, code: failure.code } : output;
+}
+
+export async function suggestPreviewText(id, subject) {
+	const { output, failure } = await runDashboardAction("suggest_preview_text", {
+		campaign: String(id),
+		...(subject && { subject: String(subject).slice(0, MAX_SUBJECT_LENGTH) }),
+	});
+	return failure ? { error: failure.message, code: failure.code } : output;
+}
+
+export async function draftSocialPosts(id, subject) {
+	const { output, failure } = await runDashboardAction("draft_social_posts", {
+		campaign: String(id),
+		...(subject && { subject: String(subject).slice(0, MAX_SUBJECT_LENGTH) }),
+	});
+	return failure ? { error: failure.message, code: failure.code } : output;
+}
+
+// The earlier states kept of a draft, one to read before restoring it, and the restore.
+export async function listCampaignVersions(id) {
+	const { output, failure } = await runDashboardAction("list_campaign_versions", { id: String(id) });
+	return failure ? toFormError(failure) : output;
+}
+
+export async function readCampaignVersion(id, version) {
+	const { output, failure } = await runDashboardAction("get_campaign_version", { id: String(id), version: String(version) });
+	return failure ? toFormError(failure) : output;
+}
+
+export async function restoreCampaignVersion(id, version) {
+	const { failure } = await runDashboardAction("restore_campaign_version", { id: String(id), version: String(version) });
+	if (failure) return toFormError(failure);
+	refresh(id);
+	return { ok: true };
+}
+
+// The editor's stock photo picker (Unsplash): search, and picking one, which reports the use to Unsplash and brings back the
+// credit the photo is shown with.
+export async function searchStock(query, page) {
+	const { output, failure } = await runDashboardAction("search_stock_photos", { query: String(query ?? "").slice(0, 100), page: readCount(page) ?? 1, perPage: 18 });
+	return failure ? toFormError(failure) : output;
+}
+
+export async function pickStockPhoto(id) {
+	const { output, failure } = await runDashboardAction("use_stock_photo", { id: String(id ?? "") });
+	return failure ? toFormError(failure) : output;
+}
+
+// Delete, list, unlist or move several campaigns; the answer says what happened to each.
+export async function bulkUpdateCampaigns(ids, operation, newsletter) {
+	const { output, failure } = await runDashboardAction("bulk_update_campaigns", {
+		ids: Array.isArray(ids) ? ids.map(String) : [],
+		operation: String(operation ?? ""),
+		...(newsletter && { newsletter: String(newsletter) }),
+	});
+	if (failure) return toFormError(failure);
+	revalidatePath("/campaigns");
+	revalidatePath("/");
+	return { ok: true, done: output.done, skipped: output.skipped, reasons: [...new Set(output.results.map(({ reason }) => reason).filter(Boolean))] };
+}
+
 // What search engines and social cards show for the issue's page; empty clears a field.
 export async function setCampaignSeo(id, { title, description, image, noindex } = {}) {
 	const { failure } = await runDashboardAction("update_campaign_archive", {

@@ -93,6 +93,7 @@ export async function proxy(request) {
 		if (pathname === "/feed.xml") return rewriteTo(request, `/archive/${archiveSlug}/feed`);
 		if (pathname === "/shop" || pathname === "/shop/") return rewriteTo(request, `/archive/${archiveSlug}/shop`);
 		if (pathname === "/subscribe" || pathname === "/subscribe/") return rewriteTo(request, `/archive/${archiveSlug}/subscribe`);
+		if (pathname === "/links" || pathname === "/links/") return rewriteTo(request, `/archive/${archiveSlug}/links`);
 		const sitePage = SITE_PAGE_PATHS[pathname.replace(/(.)\/$/, "$1")];
 		if (sitePage) return rewriteTo(request, `/archive/${archiveSlug}/${sitePage}`);
 		const tagSlug = TAG_PATH_PATTERN.exec(pathname)?.[1];
