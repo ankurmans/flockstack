@@ -4,6 +4,7 @@ import HeaderDocs from "@/components/HeaderDocs";
 import { getDocsPageMetadata } from "@/lib/docs/llms";
 import { MAX_FORMS_PER_NEWSLETTER, MAX_FORM_FIELDS } from "@/lib/form-rules";
 import { MAGIC_PER_EMAIL, MAGIC_PER_IP } from "@/lib/magic-links";
+import { POPUP_DEFAULTS, POPUP_LIMITS } from "@/lib/popup-rules";
 
 export const metadata = getDocsPageMetadata("/docs/forms");
 
@@ -79,7 +80,29 @@ export default function FormsPage() {
 				</p>
 			</Section>
 
-			<Section title="Magic Links" stagger={4}>
+			<Section title="The website's pop-up" stagger={4}>
+				<p>
+					A newsletter&apos;s website shows a signup form over an issue. Set when on the{" "}
+					<Link href="/forms/popup" className="font-medium text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
+						Pop-up page
+					</Link>{" "}
+					or with <Code>update_popup_settings</Code>: after some seconds ({POPUP_LIMITS.seconds.min} to {POPUP_LIMITS.seconds.max}), once the reader is a share of the
+					way down the page ({POPUP_DEFAULTS.scrollPercent}% unless you change it), or when the mouse leaves through the top of the window, on desktop only;
+					and on issue pages, the front page, or those and the author&apos;s page. Closing it keeps it away for {POPUP_DEFAULTS.frequencyDays} days unless you set
+					another number. That, and whether the reader already signed up in their browser, are flags in the browser&apos;s own storage: no cookie, and nothing
+					is sent to us. It never opens for someone who signed up there or is signed in to the website. It opens in a dialog that traps the keyboard focus,
+					closes with Escape and doesn&apos;t animate for readers who ask for less motion.
+				</p>
+				<p className="mt-4">
+					<strong className="font-medium text-foreground">Gating issues.</strong> Turn on the gate to show every issue but the newest few (1 by default) as
+					its first part of the text (30% by default, plain text) followed by the signup form. A subscriber who is signed in to the website reads it whole: a
+					reader signs in through the link in the email we send them when they confirm their address, or through &quot;Already subscribed? Email me a link&quot; on the issue.
+					The sign-in works once, for 30 minutes, and then the browser keeps a session for 30 days. The website&apos;s RSS feed carries the same beginning with a link,
+					and a paid issue keeps its own teaser. The gate hides text from search engines and readers who haven&apos;t subscribed; it is not a login for secrets.
+				</p>
+			</Section>
+
+			<Section title="Magic Links" stagger={5}>
 				<p>
 					A Magic Link is one address that subscribes a reader in one click, from a link in <em>another</em> newsletter or in an automation. The
 					other platform fills in each reader&apos;s email address when it sends, so the reader doesn&apos;t type anything. Get yours from the Forms
@@ -109,7 +132,7 @@ export default function FormsPage() {
 				</p>
 			</Section>
 
-			<Section title="Where signups come from" stagger={5}>
+			<Section title="Where signups come from" stagger={6}>
 				<p>
 					Each new contact keeps where it came from: the UTM parameters of the address the visitor arrived by (<Code>utm_source</Code>,{" "}
 					<Code>utm_medium</Code>, <Code>utm_campaign</Code>, <Code>utm_term</Code>, <Code>utm_content</Code>), the host of the page that linked to the

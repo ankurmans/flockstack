@@ -824,3 +824,12 @@ html:has([data-support-chat]) {
     background: color-mix(in oklab, var(--ring) 12%, transparent);
   }
 }
+
+/* Dialogs, the signup pop-up among them, appear without moving for readers who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="dialog-content"],
+  [data-slot="dialog-overlay"] {
+    animation: none !important;
+    transition: none !important;
+  }
+}

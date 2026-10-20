@@ -9,7 +9,7 @@ import InputCustomField from "@/components/InputCustomField";
 import { captureAttribution, captureRecommender, captureReferralCode, storeValue, subscribedKey } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
-export default function FormSubscribe({ newsletterSlug, fields = [], via = "website", className }) {
+export default function FormSubscribe({ newsletterSlug, fields = [], via = "website", onResult, className }) {
 	const [state, action, isPending] = useActionState(subscribe, null);
 	const referralRef = useRef(null);
 	const recommenderRef = useRef(null);
@@ -23,9 +23,12 @@ export default function FormSubscribe({ newsletterSlug, fields = [], via = "webs
 		if (attributionRef.current) attributionRef.current.value = captureAttribution(newsletterSlug);
 	}, [newsletterSlug, state]);
 
+	// Someone who asked to join, confirmed or not, is not shown the pop-up again in this browser.
 	useEffect(() => {
-		if (state?.ok && !state.pending) storeValue(subscribedKey(newsletterSlug), 1);
-	}, [state, newsletterSlug]);
+		if (!state?.ok) return;
+		storeValue(subscribedKey(newsletterSlug), 1);
+		onResult?.(state);
+	}, [state, newsletterSlug, onResult]);
 
 	if (state?.pending) {
 		return (

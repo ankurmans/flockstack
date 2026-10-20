@@ -44,3 +44,20 @@ export async function rotateMagicLink(newsletterId) {
 	revalidatePath("/forms/magic");
 	return { ok: true };
 }
+
+export async function updatePopup(newsletterId, values) {
+	const gate = values?.gate ?? {};
+	const { failure } = await runDashboardAction("update_popup_settings", {
+		newsletter: String(newsletterId ?? ""),
+		enabled: values?.enabled === true,
+		trigger: String(values?.trigger ?? ""),
+		seconds: Number(values?.seconds),
+		scrollPercent: Number(values?.scrollPercent),
+		frequencyDays: Number(values?.frequencyDays),
+		pages: String(values?.pages ?? ""),
+		gate: { enabled: gate.enabled === true, previewPercent: Number(gate.previewPercent), freeLatest: Number(gate.freeLatest) },
+	});
+	if (failure) return toFormError(failure);
+	revalidatePath("/forms/popup");
+	return { ok: true };
+}

@@ -1,4 +1,4 @@
-import { Link2Off, MessageCircle } from "lucide-react";
+import { BookOpen, Link2Off, MessageCircle } from "lucide-react";
 import CardNotice from "@/components/CardNotice";
 import { Button } from "@/components/ui/button";
 import { getArchiveUrls } from "@/lib/archive-hosts";
@@ -18,7 +18,8 @@ export const dynamic = "force-dynamic";
 
 // The page behind the link in the sign-in email. It asks for one click before using the link up.
 export default async function ReaderSignInPage({ searchParams }) {
-	const { token, p } = await searchParams;
+	const { token, p, g } = await searchParams;
+	const isGate = g === "1";
 	const validToken = typeof token === "string" ? token : "";
 	const issueSlug = typeof p === "string" && ARCHIVE_SLUG_PATTERN.test(p) ? p : "";
 	const preview = await getPreview(validToken);
@@ -27,11 +28,12 @@ export default async function ReaderSignInPage({ searchParams }) {
 	return (
 		<main className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
 			{preview.state === "ready" ? (
-				<CardNotice icon={MessageCircle} title={`Sign in to ${preview.newsletter.name}`}>
-					One click and you can join the discussion. Your email address stays private.
+				<CardNotice icon={isGate ? BookOpen : MessageCircle} title={`Sign in to ${preview.newsletter.name}`}>
+					{isGate ? "One click and the full issue opens. Your email address stays private." : "One click and you can join the discussion. Your email address stays private."}
 					<form action={continueSignIn} className="mt-6">
 						<input type="hidden" name="token" value={validToken} />
 						<input type="hidden" name="p" value={issueSlug} />
+						{isGate && <input type="hidden" name="g" value="1" />}
 						<Button type="submit" size="lg" className="w-full">
 							Continue
 						</Button>
@@ -44,7 +46,7 @@ export default async function ReaderSignInPage({ searchParams }) {
 						: "It may have expired: sign-in links last 30 minutes. Ask for a new one on the issue's page."}
 					{urls && (
 						<Button asChild size="lg" variant="outline" className="mt-6 w-full">
-							<a href={`${issueSlug ? urls.absolutePost(issueSlug) : urls.siteIndex}#comments`}>Back to the discussion</a>
+							<a href={`${issueSlug ? urls.absolutePost(issueSlug) : urls.siteIndex}${isGate ? "" : "#comments"}`}>{isGate ? "Back to the issue" : "Back to the discussion"}</a>
 						</Button>
 					)}
 				</CardNotice>

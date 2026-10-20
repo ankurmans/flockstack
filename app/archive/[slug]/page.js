@@ -5,10 +5,12 @@ import FormSubscribe from "@/components/FormSubscribe";
 import LinksSocial from "@/components/LinksSocial";
 import ListRecommendations from "@/components/ListRecommendations";
 import ScriptJsonLd from "@/components/ScriptJsonLd";
+import TriggerSubscribe from "@/components/TriggerSubscribe";
 import { countReaders, getArchiveNewsletter, listArchiveIssues, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getHomeSeo } from "@/lib/archive-seo";
 import { formatNumber } from "@/lib/format";
+import { getPopupSettings, getTriggerProps, isPopupOn } from "@/lib/popup-rules";
 import { cn } from "@/lib/utils";
 import { listLiveRecommendations } from "@/lib/recommendations";
 
@@ -34,6 +36,7 @@ export default async function ArchivePage({ params }) {
 		listLiveRecommendations(newsletter).catch(() => []),
 	]);
 	const urls = getArchiveUrls(newsletter);
+	const popup = getPopupSettings(newsletter);
 	const pinned = issues.filter((issue) => issue.archivePinned);
 	const latest = pinned.length > 0 ? null : issues[0];
 	const rest = pinned.length > 0 ? issues.filter((issue) => !issue.archivePinned) : issues.slice(1);
@@ -124,6 +127,7 @@ export default async function ArchivePage({ params }) {
 				</section>
 			)}
 			<ListRecommendations newsletterSlug={newsletter.slug} items={recommendations} className="pt-12 pb-24" />
+			{isPopupOn(popup, "home") && <TriggerSubscribe newsletterSlug={newsletter.slug} {...getTriggerProps(popup)} />}
 		</>
 	);
 }

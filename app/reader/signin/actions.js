@@ -15,16 +15,18 @@ const PER_IP = { name: "reader-signin-ip", limit: 20, window: "10 m" };
 export async function continueSignIn(formData) {
 	const token = String(formData.get("token") ?? "");
 	const issueSlug = String(formData.get("p") ?? "");
-	if (await isRateLimited({ ...PER_IP, key: getClientIp(await headers()) })) redirect(backTo(token, issueSlug));
+	// A link for a gated issue (lib/popup-rules.js) opens the issue itself, not its comments.
+	const isGate = formData.get("g") === "1";
+	if (await isRateLimited({ ...PER_IP, key: getClientIp(await headers()) })) redirect(backTo(token, issueSlug, isGate));
 	await connectDb();
 	const { newsletter, contact } = await redeemSignInLink(token);
-	if (!contact) redirect(backTo(token, issueSlug));
+	if (!contact) redirect(backTo(token, issueSlug, isGate));
 	const urls = getArchiveUrls(newsletter);
-	redirect(`${ARCHIVE_SLUG_PATTERN.test(issueSlug) ? urls.absolutePost(issueSlug) : urls.siteIndex}#comments`);
+	redirect(`${ARCHIVE_SLUG_PATTERN.test(issueSlug) ? urls.absolutePost(issueSlug) : urls.siteIndex}${isGate ? "" : "#comments"}`);
 }
 
 // The page again, which says what is wrong with the link.
-function backTo(token, issueSlug) {
-	const query = new URLSearchParams({ token, ...(ARCHIVE_SLUG_PATTERN.test(issueSlug) && { p: issueSlug }) });
+function backTo(token, issueSlug, isGate) {
+	const query = new URLSearchParams({ token, ...(ARCHIVE_SLUG_PATTERN.test(issueSlug) && { p: issueSlug }), ...(isGate && { g: "1" }) });
 	return `/reader/signin?${query}`;
 }

@@ -23,7 +23,7 @@ export default function ProviderSubscribe({ newsletter, readers, children }) {
 
 	// A popup that appears mid-read shouldn't throw the phone keyboard over the issue.
 	function onOpenAutoFocus(event) {
-		if (openedBy === "scroll" && window.matchMedia("(pointer: coarse)").matches) event.preventDefault();
+		if ((openedBy === "scroll" || openedBy === "time") && window.matchMedia("(pointer: coarse)").matches) event.preventDefault();
 	}
 
 	return (

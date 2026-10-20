@@ -26,6 +26,7 @@ export default async function ConfirmPage({ searchParams }) {
 				<FormConfirm
 					token={validToken}
 					newsletterName={newsletter.name}
+					slug={newsletter.slug}
 					fromName={newsletter.fromName}
 					fromEmail={newsletter.fromEmail}
 					archiveUrl={newsletter.isArchiveLive ? getArchiveUrls(newsletter).siteIndex : null}

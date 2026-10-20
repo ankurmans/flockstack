@@ -5,6 +5,7 @@ import BadgeViews from "@/components/BadgeViews";
 import CardIssue from "@/components/CardIssue";
 import CardPaywall from "@/components/CardPaywall";
 import FrameIssue from "@/components/FrameIssue";
+import GateIssue from "@/components/GateIssue";
 import LinksShare from "@/components/LinksShare";
 import ListRecommendations from "@/components/ListRecommendations";
 import PitchSubscribe from "@/components/PitchSubscribe";
@@ -13,11 +14,10 @@ import ScriptJsonLd from "@/components/ScriptJsonLd";
 import TrackView from "@/components/TrackView";
 import TriggerSubscribe from "@/components/TriggerSubscribe";
 import { getIssueAuthor } from "@/lib/archive-author";
-import { renderIssueBody } from "@/lib/archive-content";
 import { countReaders, getArchiveIssue, getArchiveNewsletter, getShopPayments, listArchiveIssues, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
-import { getAccent } from "@/lib/editor-blocks";
-import { getPollVoteUrl } from "@/lib/subscriber-links";
+import { getGatePreview, listFreeIssueIds, renderArchiveBody } from "@/lib/archive-gate";
+import { getPopupSettings, getTriggerProps, isGatedIssue, isPopupOn } from "@/lib/popup-rules";
 import { getIssueDate } from "@/lib/archive-issues";
 import { getIssueSeo } from "@/lib/archive-seo";
 import { hasRecommendationsTag } from "@/lib/recommendation-tags";
@@ -59,12 +59,10 @@ export default async function IssuePage({ params }) {
 		hasComments ? listPublicComments(newsletter, issue) : null,
 	]);
 	const urls = getArchiveUrls(newsletter);
-	const body = renderIssueBody(issue, {
-		referralLink: `${urls.siteIndex}#subscribe`,
-		recommendations,
-		accent: getAccent(newsletter),
-		pollUrl: (pollId, option) => getPollVoteUrl(null, newsletter, { pollId, option }),
-	});
+	const body = renderArchiveBody({ newsletter, issue, recommendations });
+	// A gated issue shows its beginning to readers who haven't subscribed; its pop-up would ask the same thing twice.
+	const popup = getPopupSettings(newsletter);
+	const isGated = (body.kind === "article" || body.kind === "frame") && isGatedIssue(popup, issue, await listFreeIssueIds(newsletter, popup));
 	// An issue that places the block itself gets no second one below it.
 	const closing = hasRecommendationsTag(issue.html) || hasRecommendationsTag(issue.markdown) ? [] : recommendations;
 	const canSubscribePaid = Boolean(newsletter.paidTier?.enabled) && payments.ready;
@@ -122,7 +120,9 @@ export default async function IssuePage({ params }) {
 					</div>
 				</header>
 
-				{body.kind === "article" || body.kind === "paywall" ? (
+				{isGated ? (
+					<GateIssue preview={getGatePreview(newsletter, issue)} newsletter={pitch} post={issue.archiveSlug} readers={readers} />
+				) : body.kind === "article" || body.kind === "paywall" ? (
 					<div
 						style={{ "--stagger": 1 }}
 						className="prose-issue mt-10 animate-enter"
@@ -145,11 +145,15 @@ export default async function IssuePage({ params }) {
 				/>
 			)}
 
-			<section id="subscribe" className={cn("mx-auto max-w-2xl scroll-mt-24 px-5 pt-16", more.length === 0 && closing.length === 0 && "pb-24")}>
-				<div className="rounded-2xl bg-card px-6 py-10 shadow-border sm:px-10">
-					<PitchSubscribe newsletter={pitch} readers={readers} />
-				</div>
-			</section>
+			{isGated ? (
+				<div className={cn(more.length === 0 && closing.length === 0 && "pb-24")} />
+			) : (
+				<section id="subscribe" className={cn("mx-auto max-w-2xl scroll-mt-24 px-5 pt-16", more.length === 0 && closing.length === 0 && "pb-24")}>
+					<div className="rounded-2xl bg-card px-6 py-10 shadow-border sm:px-10">
+						<PitchSubscribe newsletter={pitch} readers={readers} />
+					</div>
+				</section>
+			)}
 
 			<ListRecommendations
 				newsletterSlug={newsletter.slug}
@@ -178,7 +182,7 @@ export default async function IssuePage({ params }) {
 				</section>
 			)}
 
-			<TriggerSubscribe newsletterSlug={newsletter.slug} />
+			{!isGated && isPopupOn(popup, "issue") && <TriggerSubscribe newsletterSlug={newsletter.slug} {...getTriggerProps(popup)} />}
 			<TrackView issueId={issue._id.toString()} />
 		</>
 	);
