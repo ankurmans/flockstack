@@ -55,7 +55,7 @@ Two routers, not one with a table per host, because each has a different APP bin
 
 ## What does not go through the router
 
-- **A newsletter's own domain and the shared archive hosts** (`<slug>.<SHARED_DOMAIN>`) keep their Cloudflare for SaaS hostnames and Worker routes straight to the region's app Worker (`lib/custom-hostnames.js`, `lib/cloudflare-api.js`, the `sites.flockstack.io` fallback origin). Nothing in that path changes, and `newsletter.ankur.works` stays a custom domain of the app in `wrangler.jsonc`.
+- **A newsletter's own domain and the shared archive hosts** (`<slug>.<SHARED_DOMAIN>`) keep their Cloudflare for SaaS hostnames and Worker routes straight to the region's app Worker (`lib/custom-hostnames.js`, `lib/cloudflare-api.js`, the `sites.flockstack.io` fallback origin). Nothing in that path changes (`FLOCKSTACK_WORKER_NAME`, if the app has it set, must keep naming the app Worker, never a router), and `newsletter.ankur.works` stays a custom domain of the app in `wrangler.jsonc`.
 - **Cron.** The app's two cron triggers stay on the app Worker and call the app's own handler.
 - **Webhooks, QStash, Polar, Stripe** keep calling `https://flockstack.io/...` and pass through the router to APP as they are.
 

@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { getWorkerName } from "../lib/custom-hostnames.js";
 import { DOC_PAGES } from "../lib/docs/pages.js";
 import { LEGAL_PATHS } from "../lib/legal.js";
 import { PUBLIC_DOC_PATHS, PUBLIC_EXACT_PATHS, PUBLIC_FILE_PATHS, PUBLIC_LEGAL_PATHS, VARIANT_HEADERS, isPlainVisit, isPublicPath } from "../lib/public-routing.js";
@@ -145,6 +146,15 @@ describe("wrangler configurations", () => {
 			assert.equal(config.vars.FLOCKSTACK_REGION, region);
 		}
 		assert.equal(JSON.stringify(publicWorker).includes("FLOCKSTACK_PRERENDER"), false, "the marker mode is the build script's alone");
+	});
+
+	test("a newsletter's own domain and the shared archive hosts still go straight to the app Workers: the Worker routes Cloudflare for SaaS uses name them, not a router", () => {
+		assert.equal(getWorkerName({ FLOCKSTACK_REGION: "us" }), app.name);
+		assert.equal(getWorkerName({ FLOCKSTACK_REGION: "eu" }), app.env.eu.name);
+		assert.equal(getWorkerName({}), app.name);
+		for (const name of [router.name, router.env.eu.name, publicWorker.name, publicWorker.env.eu.name]) assert.notEqual(getWorkerName({ FLOCKSTACK_REGION: "us" }), name);
+		assert.match(strip(read("wrangler.jsonc")), /newsletter\.ankur\.works/, "the owner's own newsletter domain stays a domain of the app");
+		for (const config of [router, router.env.us, router.env.eu, router.env["eu-staged"]]) assert.equal(JSON.stringify(config).includes("newsletter.ankur.works"), false, "no router holds a newsletter's domain");
 	});
 
 	test("the app never turns on the marker mode", () => {
