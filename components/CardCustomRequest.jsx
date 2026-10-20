@@ -18,6 +18,7 @@ import {
 	choiceLabel,
 } from "@/lib/custom-choices";
 import { REGION_NAMES } from "@/lib/region";
+import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 import { toast } from "@/lib/toast";
 
 // One Custom plan request for the admins: who and what they asked, and its status and notes to change.
@@ -95,7 +96,7 @@ export default function CardCustomRequest({ request }) {
 
 			{request.message && <p className="rounded-lg bg-muted/50 p-3 text-sm whitespace-pre-wrap">{request.message}</p>}
 
-			<form action={action} className="flex flex-col gap-3 border-t border-border/60 pt-4">
+			<form action={action} onSubmit={submitKeepingFields(action)} className="flex flex-col gap-3 border-t border-border/60 pt-4">
 				<input type="hidden" name="id" value={request._id} />
 				<div className="flex flex-wrap items-center gap-3">
 					<label className="flex items-center gap-2 text-sm">

@@ -13,6 +13,7 @@ import {
 	CUSTOM_SUBSCRIBER_RANGES,
 	CUSTOM_TIMELINES,
 } from "@/lib/custom-choices";
+import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 
 const FIELD =
 	"h-11 w-full min-w-0 rounded-xl bg-background px-3.5 text-base shadow-border outline-none transition-shadow duration-150 placeholder:text-muted-foreground focus-visible:shadow-border-hover focus-visible:ring-3 focus-visible:ring-ring/25";
@@ -39,7 +40,7 @@ export default function FormCustomRequest() {
 	}
 
 	return (
-		<form action={action} className="flex flex-col gap-8">
+		<form action={action} onSubmit={submitKeepingFields(action)} className="flex flex-col gap-8">
 			<div aria-hidden="true" className="absolute -left-[10000px] size-px overflow-hidden">
 				<input type="text" name="fax" tabIndex={-1} autoComplete="off" />
 			</div>
