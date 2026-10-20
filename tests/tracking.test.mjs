@@ -41,8 +41,8 @@ test("links go through FlockStack except unsubscribe links, and the pixel comes 
 	const tracked = addTracking(html, { baseUrl: BASE, messageId: MESSAGE_ID });
 
 	assert.ok(tracked.startsWith(`<html><body style="margin:0"><img src="${getOpenUrl(BASE, MESSAGE_ID)}"`));
-	assert.ok(tracked.includes(`href="${getClickUrl(BASE, MESSAGE_ID, "https://example.org/?a=1&b=2")}"`));
-	assert.ok(tracked.includes(`href='${getClickUrl(BASE, MESSAGE_ID, "https://x.com/example")}'`));
+	assert.ok(tracked.includes(`href="${getClickUrl(BASE, MESSAGE_ID, "https://example.org/?a=1&b=2", 0)}"`));
+	assert.ok(tracked.includes(`href='${getClickUrl(BASE, MESSAGE_ID, "https://x.com/example", 1)}'`));
 	assert.ok(tracked.includes('href="mailto:hi@example.com"'));
 	assert.ok(tracked.includes('href="#top"'));
 	assert.ok(tracked.includes('href="{{unsubscribe_url}}"'));
@@ -57,7 +57,7 @@ test("sent emails are tracked and keep a direct unsubscribe link", () => {
 		messageId: MESSAGE_ID,
 	});
 	assert.ok(email.html.includes(getOpenUrl(BASE, MESSAGE_ID)));
-	assert.ok(email.html.includes(getClickUrl(BASE, MESSAGE_ID, "https://example.org")));
+	assert.ok(email.html.includes(getClickUrl(BASE, MESSAGE_ID, "https://example.org", 0)));
 	assert.ok(email.html.includes(`href="${email.unsubscribeUrl}"`), "the footer link isn't rewritten");
 	assert.ok(email.text.includes("https://example.org"), "the text part keeps the original links");
 	assert.ok(!email.html.includes("{{unsubscribe_url}}"));

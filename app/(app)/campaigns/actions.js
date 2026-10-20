@@ -38,6 +38,44 @@ export async function saveCampaign(id, values) {
 	return { ok: true };
 }
 
+// Email and web, email only or web only.
+export async function setCampaignPublishTo(id, publishTo) {
+	const { failure } = await runDashboardAction("update_campaign", { id: String(id), publishTo: ["email", "web"].includes(publishTo) ? publishTo : "both" });
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	return { ok: true };
+}
+
+// Shown in the website's list of issues and its feed, or only at its link.
+export async function toggleArchiveListed(id) {
+	const current = await runDashboardAction("get_campaign", { id: String(id) });
+	if (current.failure) return toFormError(current.failure);
+	const { failure } = await runDashboardAction("update_campaign_archive", { id: String(id), listed: !current.output.archiveListed });
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	return { ok: true };
+}
+
+// Contacts in any of these segments, leaving out those in the others; empty lists go back to everyone and nobody.
+export async function setCampaignSegments(id, { include = [], exclude = [] } = {}) {
+	const { failure } = await runDashboardAction("update_campaign", {
+		id: String(id),
+		segments: include.map(String),
+		excludeSegments: exclude.map(String),
+	});
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	return { ok: true };
+}
+
+// This issue's sender name; empty goes back to the newsletter's.
+export async function setCampaignFromName(id, fromName) {
+	const { failure } = await runDashboardAction("update_campaign", { id: String(id), fromName: String(fromName ?? "").slice(0, 100) });
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	return { ok: true };
+}
+
 // Who the issue goes to, saved before the send so the list cleanup's count follows it.
 export async function setCampaignAudience(id, audience) {
 	const { failure } = await runDashboardAction("update_campaign", { id: String(id), audience: readAudience(audience) });
@@ -46,18 +84,12 @@ export async function setCampaignAudience(id, audience) {
 	return { ok: true };
 }
 
-// Everyone, or one of the newsletter's saved segments (null clears it).
-export async function setCampaignSegment(id, segmentId) {
-	const { failure } = await runDashboardAction("update_campaign", { id: String(id), segment: segmentId ? String(segmentId) : null });
+export async function sendTestCampaign(id, to) {
+	const addresses = Array.isArray(to) ? to.map((email) => String(email).trim()).filter(Boolean) : [];
+	const { output, failure } = await runDashboardAction("send_test_email", { id: String(id), ...(addresses.length > 0 && { to: addresses }) });
+	revalidatePath(`/campaigns/${id}`);
 	if (failure) return toFormError(failure);
-	revalidatePath(`/campaigns/${id}`);
-	return { ok: true };
-}
-
-export async function sendTestCampaign(id) {
-	const { failure } = await runDashboardAction("send_test_email", { id: String(id) });
-	revalidatePath(`/campaigns/${id}`);
-	return failure ? toFormError(failure) : { ok: true };
+	return addresses.length > 0 ? { ok: true, sentTo: output.recipients.map(({ email }) => email), skipped: output.skipped.map(({ email }) => email) } : { ok: true };
 }
 
 function readAudience(value) {
@@ -146,6 +178,34 @@ export async function updateArchiveSlug(id, value) {
 	if (failure) return toFormError(failure);
 	refresh(id);
 	return { ok: true, archiveSlug: output.archiveSlug ?? "" };
+}
+
+// One page of who clicked a link of a sent campaign; cursor comes from the page before.
+export async function listLinkClicks(id, link, cursor) {
+	const { output, failure } = await runDashboardAction("list_link_clicks", { id: String(id), link: Number(link), ...(cursor && { cursor: String(cursor) }) });
+	return failure ? toFormError(failure) : output;
+}
+
+// The campaign's subject line test, or null to remove it.
+export async function setCampaignAbTest(id, abTest) {
+	const { failure } = await runDashboardAction("update_campaign", { id: String(id), abTest: abTest ?? null });
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	return { ok: true };
+}
+
+// A copy for the readers who didn't open (or click) a sent campaign, scheduled; its page opens next.
+export async function resendCampaign(id, { subject, previewText, to, scheduledAt } = {}) {
+	const { output, failure } = await runDashboardAction("resend_campaign", {
+		id: String(id),
+		subject: String(subject ?? "").slice(0, MAX_SUBJECT_LENGTH),
+		...(previewText && { previewText: String(previewText).slice(0, MAX_PREVIEW_TEXT_LENGTH) }),
+		to: to === "unclicked" ? "unclicked" : "unopened",
+		...(scheduledAt && { scheduledAt: String(scheduledAt) }),
+	});
+	if (failure) return toFormError(failure);
+	refresh(id);
+	return { ok: true, id: output.id };
 }
 
 // The editor's poll block: { question, options: [{ label, tag }], fieldKey, showResults, followUp }.

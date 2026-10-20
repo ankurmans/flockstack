@@ -397,6 +397,37 @@ export default function FormNewsletter({
 								className="min-h-48 font-mono text-[13px] leading-6"
 							/>
 						</Field>
+						<Field label="Reminder" as="div" hint="Sent once, the same email with Reminder: in its subject, to signups that haven't confirmed by then.">
+							<span className="flex items-center gap-3">
+								<Switch
+									name="confirmationReminderEnabled"
+									checked={draft.isReminderEnabled}
+									onCheckedChange={(isChecked) => set("isReminderEnabled", isChecked)}
+									aria-label="Remind signups that haven't confirmed"
+								/>
+								<Input
+									name="confirmationReminderHours"
+									type="number"
+									min={6}
+									max={168}
+									value={draft.reminderHours}
+									onChange={update("reminderHours")}
+									disabled={!draft.isReminderEnabled}
+									aria-label="Hours after signing up"
+									className="w-24 tabular-nums"
+								/>
+								<span className="text-sm text-muted-foreground">hours after signing up</span>
+							</span>
+						</Field>
+						<Field label="After confirming" hint="Readers land on this page once they confirm. Empty: FlockStack's own page.">
+							<Input
+								name="confirmedRedirectUrl"
+								type="url"
+								value={draft.confirmedRedirectUrl}
+								placeholder="https://"
+								onChange={update("confirmedRedirectUrl")}
+							/>
+						</Field>
 						<div className="p-3">
 							<PreviewEmail
 								html={confirmationHtml}

@@ -267,7 +267,7 @@ describe("the newsletter's emails", () => {
 		assert.match(email.html, /Discuss this issue/);
 		assert.match(email.text, /Discuss this issue: https:\/\//);
 		const tracked = /href="([^"]+)"[^>]*>Discuss this issue/.exec(email.html)[1];
-		const direct = tracked.includes("/c/") ? Buffer.from(tracked.split("/c/")[1].split(".")[2], "base64url").toString("utf8") : tracked;
+		const direct = tracked.includes("/c/") ? Buffer.from(tracked.split("/c/")[1].split(".").at(-1), "base64url").toString("utf8") : tracked;
 		const url = new URL(direct.replaceAll("&amp;", "&"));
 		assert.equal(url.pathname, "/reader/in");
 		assert.deepEqual(m.links.verifyReaderToken("email", url.searchParams.get("token")), { contactId: String(reader._id), newsletterId: user.newsletterId });

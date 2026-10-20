@@ -1,7 +1,11 @@
 "use client";
 
 import { CalendarClock, Loader2, Send } from "lucide-react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { setCampaignFromName, setCampaignPublishTo } from "@/app/(app)/campaigns/actions";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
+import CardAbTest from "@/components/CardAbTest";
 import CardSettings from "@/components/CardSettings";
 import InputCampaignSlug from "@/components/InputCampaignSlug";
 import ListCleanupPreview from "@/components/ListCleanupPreview";
@@ -9,7 +13,7 @@ import NoticeFirstSend from "@/components/NoticeFirstSend";
 import NoticeWarmup from "@/components/NoticeWarmup";
 import PickerSendTime from "@/components/PickerSendTime";
 import RowCampaign from "@/components/RowCampaign";
-import SelectSegment from "@/components/SelectSegment";
+import SelectSegments from "@/components/SelectSegments";
 import TextPlanLimit from "@/components/TextPlanLimit";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +30,7 @@ import { formatCount, formatNumber, formatSendTime } from "@/lib/format";
 import { getPaceHours } from "@/lib/send-spread";
 import { slugify } from "@/lib/slug";
 import { useIsClient } from "@/lib/use-is-client";
+import { useToastError } from "@/lib/use-toast-error";
 import { cn } from "@/lib/utils";
 
 // The send step: who gets the issue and how fast it goes out, then now or at a time. Its button is in the editor's
@@ -53,26 +58,41 @@ export default function PanelSend({
 	const isPaced = Boolean(pace?.warmup) || getPaceHours(pace, { emails: paceEmails, newContacts }) > 0;
 	const isCleanupEnabled = Boolean(newsletter.cleanup?.enabled);
 	const isOverPlan = isNow && emailsLeft !== null && sending.sendEmails > emailsLeft;
-	const from = newsletter.fromName ? `${newsletter.fromName} <${newsletter.fromEmail}>` : newsletter.fromEmail;
+	const isTesting = (campaign.abTest?.variants?.length ?? 0) >= 2;
+	const isWebOnly = campaign.publishTo === "web";
 
 	return (
 		<div className="flex flex-col gap-6">
 			<CardSettings title="Who gets it">
+				{!campaign.resend?.of && (
+					<RowCampaign label="Publish">
+						<ChoicePublishTo campaign={campaign} isWebsiteOn={Boolean(newsletter.archiveEnabled)} />
+					</RowCampaign>
+				)}
 				<RowCampaign label="From">
-					<span className="truncate text-sm">{from}</span>
+					<InputFromName campaign={campaign} newsletter={newsletter} />
 				</RowCampaign>
 				<RowCampaign label="To">
 					<span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
 						<span className="flex min-w-0 items-center gap-2">
 							<AvatarNewsletter newsletter={newsletter} size={18} />
 							<span className="truncate">
-								{newsletter.name}
-								<span className="text-muted-foreground tabular-nums"> · {formatCount(audienceCount, "contact")}</span>
+								{campaign.resend?.of ? `Readers who didn't ${campaign.resend.to === "unclicked" ? "click" : "open"} the first send` : newsletter.name}
+								<span className="text-muted-foreground tabular-nums">
+									{" "}
+									· {campaign.resend?.of && "up to "}
+									{formatCount(audienceCount, "contact")}
+								</span>
 								{sending.audience === "paid" && <span className="text-muted-foreground"> · web page shows a teaser</span>}
 							</span>
 						</span>
-						{(segments.length > 0 || campaign.segmentId) && (
-							<SelectSegment campaignId={campaign._id} segmentId={campaign.segmentId ?? null} segments={segments} />
+						{segments.length > 0 && !campaign.resend?.of && (
+							<SelectSegments
+								campaignId={campaign._id}
+								include={(campaign.segmentIds?.length ? campaign.segmentIds : campaign.segmentId ? [campaign.segmentId] : []).map(String)}
+								exclude={(campaign.excludeSegmentIds ?? []).map(String)}
+								segments={segments}
+							/>
 						)}
 					</span>
 				</RowCampaign>
@@ -113,7 +133,7 @@ export default function PanelSend({
 						<span className="shrink-0 text-xs text-muted-foreground">Most engaged first</span>
 					</span>
 				</RowCampaign>
-				{archiveUrlBase && (
+				{archiveUrlBase && !campaign.resend?.of && (
 					<RowCampaign label="Web page">
 						<InputCampaignSlug
 							campaignId={campaign._id}
@@ -135,7 +155,9 @@ export default function PanelSend({
 					))}
 			</CardSettings>
 
-			<CardSettings title="When" stagger={1}>
+			{!campaign.resend?.of && <CardAbTest campaign={campaign} subject={subject} audienceCount={audienceCount} stagger={1} />}
+
+			<CardSettings title="When" stagger={2}>
 				<div role="radiogroup" aria-label="When" className="grid gap-2 p-3 sm:grid-cols-2">
 					<CardChoice
 						icon={Send}
@@ -186,10 +208,15 @@ export default function PanelSend({
 			<Dialog open={sending.isConfirmOpen} onOpenChange={sending.setIsConfirmOpen}>
 				<DialogContent className="sm:max-w-sm">
 					<DialogHeader>
-						<DialogTitle className="tabular-nums">Send to {formatCount(sending.sendRecipients, "contact")}?</DialogTitle>
+						<DialogTitle className="tabular-nums">
+							{isWebOnly ? "Publish on the website?" : `Send to ${formatCount(sending.sendRecipients, "contact")}?`}
+						</DialogTitle>
 						<DialogDescription>
+							{isWebOnly && "It goes on your website now, with no email. "}
 							{scheduledTime ? `It goes out now instead of ${scheduledTime}.` : "Most engaged contacts receive it first."}
-							{sending.sendRecipients < sending.issueAudience && " Send it to more later from its page."}
+							{isTesting
+								? " The subject line test goes to a slice of them first, and the winner to the rest after the wait."
+								: sending.sendRecipients < sending.issueAudience && " Send it to more later from its page."}
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
@@ -203,6 +230,81 @@ export default function PanelSend({
 				</DialogContent>
 			</Dialog>
 		</div>
+	);
+}
+
+const PUBLISH_CHOICES = [
+	{ value: "both", label: "Email and web" },
+	{ value: "email", label: "Email only" },
+	{ value: "web", label: "Web only" },
+];
+
+// Where the issue goes, saved as it's picked. Web only needs the website on.
+function ChoicePublishTo({ campaign, isWebsiteOn }) {
+	const router = useRouter();
+	const toastError = useToastError();
+	const [isPending, startTransition] = useTransition();
+	const current = campaign.publishTo ?? "both";
+
+	function choose(value) {
+		startTransition(async () => {
+			const result = await setCampaignPublishTo(campaign._id, value);
+			if (result?.error) return toastError(result);
+			router.refresh();
+		});
+	}
+
+	return (
+		<div role="radiogroup" aria-label="Publish" className="flex min-w-0 flex-wrap gap-1.5 py-2">
+			{PUBLISH_CHOICES.map(({ value, label }) => (
+				<button
+					key={value}
+					type="button"
+					role="radio"
+					aria-checked={current === value}
+					disabled={isPending || (value === "web" && !isWebsiteOn)}
+					title={value === "web" && !isWebsiteOn ? "Turn on the newsletter's website first" : undefined}
+					onClick={() => current !== value && choose(value)}
+					className={cn(
+						"h-7 rounded-full px-3 text-xs font-medium outline-none transition-[background-color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60",
+						current === value ? "bg-foreground text-background" : "text-muted-foreground shadow-border hover:bg-muted/60 hover:text-foreground"
+					)}
+				>
+					{label}
+				</button>
+			))}
+		</div>
+	);
+}
+
+// The issue's sender name, saved when the field loses focus; the address is always the newsletter's.
+function InputFromName({ campaign, newsletter }) {
+	const [name, setName] = useState(campaign.fromName ?? "");
+	const [saved, setSaved] = useState(campaign.fromName ?? "");
+	const toastError = useToastError();
+
+	async function save() {
+		const value = name.trim();
+		if (value === saved) return;
+		const result = await setCampaignFromName(campaign._id, value);
+		if (result?.error) return toastError(result);
+		setSaved(value);
+	}
+
+	return (
+		<span className="flex min-w-0 items-center gap-1 text-sm">
+			<input
+				value={name}
+				onChange={(event) => setName(event.target.value)}
+				onBlur={save}
+				placeholder={newsletter.fromName || "Sender name"}
+				aria-label="Sender name"
+				maxLength={100}
+				size={Math.max(8, (name || newsletter.fromName || "").length + 1)}
+				className="h-11 max-w-[60%] min-w-0 bg-transparent outline-none placeholder:text-foreground"
+			/>
+			<span className="truncate text-muted-foreground">&lt;{newsletter.fromEmail}&gt;</span>
+		</span>
 	);
 }
 

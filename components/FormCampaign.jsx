@@ -23,6 +23,7 @@ import BadgeStatus from "@/components/BadgeStatus";
 import CardSettings from "@/components/CardSettings";
 import DialogDiscardCampaign from "@/components/DialogDiscardCampaign";
 import DialogPreviewEmail from "@/components/DialogPreviewEmail";
+import DialogTestEmail from "@/components/DialogTestEmail";
 import EditorRich from "@/components/EditorRich";
 import IconWarmup from "@/components/IconWarmup";
 import ListChecks from "@/components/ListChecks";
@@ -76,6 +77,7 @@ export default function FormCampaign({
 	const [step, setStep] = useState("write");
 	const [isDiscardOpen, setIsDiscardOpen] = useState(false);
 	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+	const [isTestOpen, setIsTestOpen] = useState(false);
 	const format = isHtml ? "html" : "rich";
 	const [initialBody] = useState(() =>
 		campaign.format === "markdown" ? markdownToHtml(campaign.markdown) : campaign.html
@@ -152,14 +154,17 @@ export default function FormCampaign({
 	});
 	const isTestDisabled = hasPlan && !isSendingEnabled;
 
-	function sendTest() {
+	// to: the addresses typed in the test dialog; without them, the owner's.
+	function sendTest(to) {
 		if (!hasPlan) return paywall.open("test");
 		startTesting(async () => {
 			if (isUploading) return void toast.error(UPLOADING_MESSAGE);
 			if (!(await persist())) return;
-			const result = await sendTestCampaign(campaign._id);
-			if (result?.error) toastError(result);
-			else toast.success(`Test sent to ${testEmail}`);
+			const result = await sendTestCampaign(campaign._id, Array.isArray(to) ? to : undefined);
+			if (result?.error) return toastError(result);
+			setIsTestOpen(false);
+			toast.success(`Test sent to ${result.sentTo?.join(", ") ?? testEmail}`);
+			if (result.skipped?.length > 0) toast.error(`Not sent to ${result.skipped.join(", ")}: they can't receive email`);
 		});
 	}
 
@@ -359,8 +364,8 @@ export default function FormCampaign({
 						<ButtonRow
 							icon={FlaskConical}
 							title="Send a test email"
-							description={isTestDisabled ? "Sending is off" : `Goes to ${testEmail}`}
-							onClick={sendTest}
+							description={isTestDisabled ? "Sending is off" : `To ${testEmail} or up to 10 people`}
+							onClick={() => (hasPlan ? setIsTestOpen(true) : paywall.open("test"))}
 							isDisabled={isTestDisabled}
 							isPending={isTesting}
 						/>
@@ -412,6 +417,7 @@ export default function FormCampaign({
 				subject={deferredValues.subject}
 				previewText={deferredValues.previewText}
 			/>
+			<DialogTestEmail isOpen={isTestOpen} onOpenChange={setIsTestOpen} defaultEmail={testEmail} isPending={isTesting} onSend={sendTest} />
 			<DialogDiscardCampaign
 				id={campaign._id}
 				subject={values.subject}

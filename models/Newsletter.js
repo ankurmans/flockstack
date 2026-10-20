@@ -98,6 +98,13 @@ const newsletterSchema = new mongoose.Schema(
 			trialDays: { type: Number, min: 0 },
 			pitch: { type: String, trim: true },
 		},
+		// Confirmed opt-in's extras: one reminder to signups still unconfirmed delayHours after signing up
+		// (lib/confirmation-reminders.js), and the page a reader lands on once confirmed, instead of FlockStack's own.
+		confirmationReminder: {
+			enabled: { type: Boolean, default: false },
+			delayHours: { type: Number, min: 1 },
+		},
+		confirmedRedirectUrl: { type: String, trim: true },
 		// The newsletter's own confirmation email; the built-in one goes out until it has one.
 		confirmation: {
 			subject: { type: String, trim: true },
@@ -110,6 +117,8 @@ const newsletterSchema = new mongoose.Schema(
 
 newsletterSchema.plugin(accountScoped);
 newsletterSchema.index({ accountId: 1, createdAt: 1 });
+// The hourly reminders to confirm read only the newsletters that send them.
+newsletterSchema.index({ "confirmationReminder.enabled": 1 });
 // The directory of newsletters that take recommendations lists only these.
 newsletterSchema.index({ "recommendations.listed": 1 });
 newsletterSchema.index({ archiveHost: 1 }, { unique: true, partialFilterExpression: { archiveHost: { $type: "string" } } });

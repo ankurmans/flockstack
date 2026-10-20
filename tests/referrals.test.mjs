@@ -476,7 +476,7 @@ describe("merge tags in issues", () => {
 			const email = render(user.newsletter, campaign);
 			assert.doesNotMatch(email.html, /referral_link|referral_count|%7B%7B/, format);
 			assert.match(email.html, /\/c\/[0-9a-f]{24}\.[A-Za-z0-9_-]{22}\./, `${format}: links go through the click tracker`);
-			const tracked = [...email.html.matchAll(/\/c\/[0-9a-f]{24}\.[A-Za-z0-9_-]{22}\.([A-Za-z0-9_-]+)/g)].map(([, encoded]) => Buffer.from(encoded, "base64url").toString());
+			const tracked = [...email.html.matchAll(/\/c\/[0-9a-f]{24}\.[A-Za-z0-9_-]{22}\.(?:\d+\.)?([A-Za-z0-9_-]+)/g)].map(([, encoded]) => Buffer.from(encoded, "base64url").toString());
 			assert.ok(tracked.includes(link), `${format}: ${tracked.join(" ")}`);
 			assert.match(email.html, /\b4\b/, `${format}: the count`);
 			assert.doesNotMatch(email.text, /referral_/, format);
