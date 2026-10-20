@@ -13,6 +13,8 @@ import { getClientIp, isRateLimited } from "@/lib/rate-limit";
 import { countSignup, findAttribution, getReaderStep, subscribeToRecommended } from "@/lib/recommendations";
 import { recordReferral } from "@/lib/referrals";
 import { queueConfirmationEmail, queueWelcomeEmail } from "@/lib/sending";
+import { getSurveyUrl } from "@/lib/subscriber-links";
+import { findPlacedSurvey, getPlacedSurveyUrl } from "@/lib/surveys";
 import { normalizeEmail } from "@/lib/validation";
 import CustomField from "@/models/CustomField";
 
@@ -95,11 +97,25 @@ export async function subscribe(_state, formData) {
 			)
 		);
 	}
+	const survey = await getSignupSurvey({ newsletter, contact, created });
 	if (!isPending) {
 		const step = await getStep({ newsletter, contact });
-		return { ok: true, ...(step && { step }) };
+		return { ok: true, ...(step && { step }), ...(survey && { survey }) };
 	}
-	return { ok: true, pending: true, email, inbox: getInbox({ email, fromEmail: newsletter.fromEmail }) };
+	return { ok: true, pending: true, email, inbox: getInbox({ email, fromEmail: newsletter.fromEmail }), ...(survey && { survey }) };
+}
+
+// The newsletter's after-signup survey (lib/surveys.js). Only a contact this signup made answers as themselves, like the
+// form's own fields: typing someone else's address never opens their answers. Never fails the signup.
+async function getSignupSurvey({ newsletter, contact, created }) {
+	try {
+		if (created) return await getPlacedSurveyUrl(newsletter, "afterSignup", contact._id);
+		const survey = await findPlacedSurvey(newsletter, "afterSignup");
+		return survey ? getSurveyUrl(null, newsletter, { surveyId: String(survey._id), from: "signup" }) : null;
+	} catch (error) {
+		console.error(`[subscribe] Survey for ${newsletter.slug} not loaded:`, error.message);
+		return null;
+	}
 }
 
 // The newsletters this one recommends, for the reader who just joined. Never fails the signup.

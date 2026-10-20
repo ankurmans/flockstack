@@ -25,7 +25,14 @@ export default function FormSubscribe({ newsletterSlug, fields = [], className }
 		if (state?.ok && !state.pending) storeValue(subscribedKey(newsletterSlug), 1);
 	}, [state, newsletterSlug]);
 
-	if (state?.pending) return <CardConfirmEmail email={state.email} inbox={state.inbox} className={className} />;
+	if (state?.pending) {
+		return (
+			<div className={cn("w-full", className)}>
+				<CardConfirmEmail email={state.email} inbox={state.inbox} />
+				{state.survey && <LinkSurvey href={state.survey} />}
+			</div>
+		);
+	}
 
 	if (state?.ok) {
 		const joined = (
@@ -39,11 +46,12 @@ export default function FormSubscribe({ newsletterSlug, fields = [], className }
 				You&apos;re in. The next issue lands in your inbox.
 			</p>
 		);
-		if (!state.step) return joined;
+		if (!state.step && !state.survey) return joined;
 		return (
 			<div className={cn("w-full", className)}>
 				{joined}
-				<FormRecommendedSubscribe step={state.step} className="mt-4" />
+				{state.survey && <LinkSurvey href={state.survey} />}
+				{state.step && <FormRecommendedSubscribe step={state.step} className="mt-4" />}
 			</div>
 		);
 	}
@@ -141,5 +149,17 @@ function CardConfirmEmail({ email, inbox, className }) {
 				Not in your inbox? Check Promotions or Spam.
 			</p>
 		</div>
+	);
+}
+
+// The newsletter's after-signup survey, a step the reader can skip.
+function LinkSurvey({ href }) {
+	return (
+		<p className="mt-3 text-center text-sm text-muted-foreground">
+			Got a minute?{" "}
+			<a href={href} className="font-medium text-foreground underline underline-offset-4">
+				Answer a few questions
+			</a>
+		</p>
 	);
 }
