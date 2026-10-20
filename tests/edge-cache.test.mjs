@@ -75,6 +75,8 @@ describe("lib/edge-cache.js: which requests may use the cache", () => {
 		assert.equal(canStoreResponse(response(200, "text/plain; charset=utf-8")), true);
 		assert.equal(canStoreResponse(response(200, "application/json")), true);
 		assert.equal(canStoreResponse(response(200, "application/xml")), true);
+		assert.equal(canStoreResponse(response(200, "application/rss+xml; charset=utf-8")), true, "a newsletter's feed");
+		assert.equal(canStoreResponse(response(200, "application/atom+xml")), true);
 		assert.equal(canStoreResponse(response(404, "text/html")), false);
 		assert.equal(canStoreResponse(response(307, "text/html")), false);
 		assert.equal(canStoreResponse(response(200, "text/html", { "set-cookie": "a=b" })), false);
@@ -240,5 +242,50 @@ describe("lib/edge-cache.js: pages that carry the analytics", () => {
 		for (const pathname of ["/robots.txt", "/sitemap.xml", "/llms.txt", "/llms-full.txt", "/llms-docs.txt", "/api/v1/openapi.json"]) {
 			assert.equal(kind({ pathname, hasAnalytics: true }), "app", pathname);
 		}
+	});
+});
+
+describe("lib/edge-cache.js: a feed reader that already has the copy", () => {
+	function feedSetup() {
+		const cache = fakeCache();
+		const pending = [];
+		const calls = [];
+		const clock = { ms: 5_000_000 };
+		const serve = async (headers = {}) => {
+			const response = await serveWithEdgeCache({
+				request: new Request("https://news.example.com/feed.xml", { headers }),
+				env: { CF_VERSION_METADATA: { id: "v1" } },
+				ctx: { waitUntil: (promise) => pending.push(promise) },
+				cache,
+				render: async () => {
+					calls.push(1);
+					return new Response("<rss/>", { headers: { "content-type": "application/rss+xml; charset=utf-8", etag: '"abc"', "last-modified": "Tue, 20 Oct 2026 10:00:00 GMT", "access-control-allow-origin": "*" } });
+				},
+				now: () => clock.ms,
+				policy: EDGE_CACHE_POLICIES.archive,
+			});
+			const text = await response.text();
+			await Promise.all(pending.splice(0));
+			return { response, text };
+		};
+		return { calls, serve };
+	}
+
+	test("is told it has it, with no body, and a reader without it gets the feed", async () => {
+		const { calls, serve } = feedSetup();
+		assert.equal((await serve()).response.headers.get("x-edge-cache"), "MISS");
+		const full = await serve();
+		assert.equal(full.response.status, 200);
+		assert.equal(full.text, "<rss/>");
+		assert.equal(full.response.headers.get("etag"), '"abc"');
+		const same = await serve({ "if-none-match": '"abc"' });
+		assert.equal(same.response.status, 304);
+		assert.equal(same.text, "");
+		assert.equal(same.response.headers.get("etag"), '"abc"');
+		assert.equal(same.response.headers.get("x-edge-cache"), "HIT");
+		assert.equal(same.response.headers.get("access-control-allow-origin"), "*");
+		assert.equal((await serve({ "if-none-match": 'W/"abc", "other"' })).response.status, 304);
+		assert.equal((await serve({ "if-none-match": '"stale"' })).response.status, 200);
+		assert.equal(calls.length, 1, "the app rendered the feed once");
 	});
 });

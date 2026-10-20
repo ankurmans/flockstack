@@ -64,7 +64,7 @@ Two routers, not one with a table per host, because each has a different APP bin
 A newsletter's public pages also suffer cold starts, and they are customers' websites, so `worker-entry.mjs` keeps them in the data center's cache (`lib/edge-cache.js`, the cache it already used for FlockStack's own docs). The pages: the home page, the list of issues, an issue (`/p/<slug>`), a tag, an author, the links page, `sitemap.xml`, `robots.txt`, `llms.txt`, `feed.xml` and `podcast.xml`. The rules:
 
 - A plain GET with no query and no cookie of the visitor's own (Cloudflare's `__cf_bm`, `_cfuvid` and `cf_clearance` do not count). Any session or reader cookie goes to the app. Forms, shop pages, offers, sign-in, the Subscriber Center and every link an email carries are never cached.
-- Only a 200 of a text, JSON or XML type without `Set-Cookie` is stored. A 404 for an unpublished issue, a redirect and an error are not.
+- Only a 200 of a text, JSON, XML, RSS or Atom type without `Set-Cookie` is stored. A feed reader that sends `If-None-Match` with the ETag of the stored copy gets a 304 with no body, as it does from the app. A 404 for an unpublished issue, a redirect and an error are not.
 - The key is the host, the path and the Worker's version, so a deploy empties the cache.
 - Fresh for 60 seconds. After that the stored copy still answers while a new one is fetched behind it, for up to 10 minutes. The response says `x-edge-cache: HIT`, `STALE`, `MISS` or `BYPASS`.
 
