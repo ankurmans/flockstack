@@ -24,7 +24,7 @@ export default async function LayoutDashboard({ user, account, isAdmin, children
 	const hasPlan = hasActiveSubscription(account);
 	// The Audio link is for plans that have audio; Free has none, and its pages say so where audio would be.
 	const hasAudio = isAudioEnabled() && getAudioLimit(account) !== 0;
-	const menu = <MenuUser name={user.name} email={user.email} image={user.image} status={getSendingStatus(account)} hasBilling={isCloud()} />;
+	const menu = <MenuUser name={user.name} email={user.email} image={user.image} status={getSendingStatus(account)} hasBilling={isCloud()} isAdmin={isAdmin} />;
 
 	return (
 		<ProviderPaywall hasPlan={hasPlan} pricing={getPricing(undefined, PLANS)}>
@@ -37,7 +37,7 @@ export default async function LayoutDashboard({ user, account, isAdmin, children
 							<NavNewsletter />
 						</Suspense>
 					</div>
-					<NavLinks isAdmin={isAdmin} hasAudio={hasAudio} />
+					<NavLinks hasAudio={hasAudio} />
 					<div className="mt-auto pt-4">{menu}</div>
 				</aside>
 				<NavMobile

@@ -36,7 +36,7 @@ export default function NavMobile({ isAdmin, hasAudio = false, switcher, footer 
 				</SheetTrigger>
 				<SheetContent side="left" className="w-64 gap-0 p-3 pt-14">
 					<SheetTitle className="sr-only">Menu</SheetTitle>
-					<NavLinks isAdmin={isAdmin} hasAudio={hasAudio} onNavigate={() => setIsOpen(false)} />
+					<NavLinks hasAudio={hasAudio} onNavigate={() => setIsOpen(false)} />
 					<div className="mt-auto pt-4" onClick={closeAfterLink}>
 						{footer}
 					</div>

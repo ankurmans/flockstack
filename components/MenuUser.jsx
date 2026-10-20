@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import Link from "next/link";
-import { ChevronsUpDown, CreditCard, LogOut, Moon, Sun, UserRound } from "lucide-react";
+import { ChevronsUpDown, CreditCard, Globe, Images, KeyRound, LogOut, Moon, Shield, Sun, UserRound, Webhook } from "lucide-react";
 import { signOut } from "@/app/signin/actions";
 import AvatarUser from "@/components/AvatarUser";
 import { RadioGroupTheme } from "@/components/ButtonThemeToggle";
@@ -21,9 +21,17 @@ import {
 import { askToSignOut } from "@/lib/sign-out";
 import { cn } from "@/lib/utils";
 
+// The account's own pages, shared by every newsletter: they are set up once and used less than the sidebar's.
+const ACCOUNT_PAGES = [
+	{ href: "/media", label: "Media", icon: Images },
+	{ href: "/domains", label: "Domains", icon: Globe },
+	{ href: "/api-keys", label: "API keys", icon: KeyRound },
+	{ href: "/webhooks", label: "Webhooks", icon: Webhook },
+];
+
 // The bottom of the sidebar and of the mobile menu: who's signed in and whether the account sends, with what
 // concerns the whole account rather than one newsletter. status: getSendingStatus (lib/account-state.js).
-export default function MenuUser({ name, email, image, status, hasBilling }) {
+export default function MenuUser({ name, email, image, status, hasBilling, isAdmin = false }) {
 	const [isSigningOut, startSigningOut] = useTransition();
 	const displayName = name?.trim() || email;
 
@@ -70,6 +78,24 @@ export default function MenuUser({ name, email, image, status, hasBilling }) {
 						</Link>
 					</DropdownMenuItem>
 				)}
+				<DropdownMenuSeparator />
+				{ACCOUNT_PAGES.map(({ href, label, icon: Icon }) => (
+					<DropdownMenuItem key={href} asChild>
+						<Link href={href}>
+							<Icon />
+							{label}
+						</Link>
+					</DropdownMenuItem>
+				))}
+				{isAdmin && (
+					<DropdownMenuItem asChild>
+						<Link href="/admin">
+							<Shield />
+							Admin
+						</Link>
+					</DropdownMenuItem>
+				)}
+				<DropdownMenuSeparator />
 				<DropdownMenuSub>
 					<DropdownMenuSubTrigger>
 						<Sun className="dark:hidden" />

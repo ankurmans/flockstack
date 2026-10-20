@@ -173,7 +173,7 @@ describe("the Audio page", () => {
 		await withEnv({ AUDIO_ENABLED: "false" }, async () => {
 			await assert.rejects(render(user, m.audioPage), (error) => /NEXT_HTTP_ERROR_FALLBACK;404|NEXT_NOT_FOUND|not found/i.test(`${error?.digest ?? ""} ${error?.message ?? ""} ${error?.name ?? ""}`));
 		});
-		const links = (hasAudio) => renderToStaticMarkup(createElement(m.NavLinks, { isAdmin: false, hasAudio }));
+		const links = (hasAudio) => renderToStaticMarkup(createElement(m.NavLinks, { hasAudio }));
 		assert.doesNotMatch(links(false), /href="\/audio"/);
 		assert.match(links(true), /href="\/audio"[^>]*>.*Audio/s);
 		const order = [...links(true).matchAll(/href="(\/[a-z-]*)"/g)].map(([, href]) => href);

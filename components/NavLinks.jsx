@@ -3,15 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
-import { BarChart3, ChevronDown, ClipboardList, CreditCard, Filter, FormInput, Gift, Globe, Headphones, Images, KeyRound, LayoutGrid, LayoutTemplate, Link2, Megaphone, MessageSquare, PanelsTopLeft, Receipt, Repeat, Send, Settings, Shield, ShoppingBag, Users, Webhook, Workflow } from "lucide-react";
+import { BarChart3, ChevronDown, ClipboardList, CreditCard, Filter, FormInput, Gift, Headphones, LayoutGrid, LayoutTemplate, Link2, Megaphone, MessageSquare, PanelsTopLeft, Receipt, Repeat, Send, Settings, ShoppingBag, Users, Workflow } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// The sidebar's groups, by the job being done. Each group can be folded; what is folded is remembered in this browser only.
-export default function NavLinks({ isAdmin, hasAudio = false, onNavigate }) {
+// The sidebar's groups, by the job being done. Each group can be folded and the group of the current page is always open; what is folded is remembered in this browser only.
+export default function NavLinks({ hasAudio = false, onNavigate }) {
 	const pathname = usePathname();
 	const closedValue = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 	const closed = closedValue.split(",").filter(Boolean);
-	const groups = getGroups({ isAdmin, hasAudio });
+	const groups = getGroups({ hasAudio });
 
 	return (
 		<nav className="flex flex-col gap-3" aria-label="Dashboard">
@@ -64,8 +64,8 @@ function isActivePath(pathname, href) {
 	return href === "/" ? pathname === href : pathname.startsWith(href);
 }
 
-// The open newsletter's pages come first, then the account's, which every newsletter shares (Orders, Payments, Media and the rest).
-export function getGroups({ isAdmin = false, hasAudio = false } = {}) {
+// The open newsletter's pages by the job being done. The account's own pages (Media, Domains, API keys, Webhooks, Admin) are in the user menu at the bottom.
+export function getGroups({ hasAudio = false } = {}) {
 	return [
 		{
 			id: "home",
@@ -117,22 +117,17 @@ export function getGroups({ isAdmin = false, hasAudio = false } = {}) {
 			],
 		},
 		{
-			id: "manage",
-			label: "Manage",
-			items: [
-				{ href: "/newsletters", label: "Settings", icon: Settings },
-				{ href: "/media", label: "Media", icon: Images },
-				{ href: "/domains", label: "Domains", icon: Globe },
-				{ href: "/api-keys", label: "API keys", icon: KeyRound },
-				{ href: "/webhooks", label: "Webhooks", icon: Webhook },
-				...(isAdmin ? [{ href: "/admin", label: "Admin", icon: Shield }] : []),
-			],
+			id: "settings",
+			label: null,
+			items: [{ href: "/newsletters", label: "Settings", icon: Settings }],
 		},
 	];
 }
 
-// Which groups are folded lives in localStorage, read without a state update in an effect: the server and the first paint show every group open.
+// Which groups are folded lives in localStorage, read without a state update in an effect: the server and the first paint show the defaults.
 const STORAGE_KEY = "fs_nav_closed";
+// A browser that has never folded anything starts with the groups used less often folded.
+const DEFAULT_CLOSED = "site,sell";
 const listeners = new Set();
 
 function subscribe(listener) {
@@ -146,14 +141,14 @@ function subscribe(listener) {
 
 function getSnapshot() {
 	try {
-		return window.localStorage.getItem(STORAGE_KEY) ?? "";
+		return window.localStorage.getItem(STORAGE_KEY) ?? DEFAULT_CLOSED;
 	} catch {
 		return "";
 	}
 }
 
 function getServerSnapshot() {
-	return "";
+	return DEFAULT_CLOSED;
 }
 
 function toggleGroup(id, closedValue) {
@@ -162,7 +157,7 @@ function toggleGroup(id, closedValue) {
 	try {
 		window.localStorage.setItem(STORAGE_KEY, next.join(","));
 	} catch {
-		// A browser that refuses storage keeps every group open.
+		// A browser that refuses storage keeps the defaults.
 	}
 	for (const listener of listeners) listener();
 }
