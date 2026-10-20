@@ -14,6 +14,8 @@
 	"preview_urls": false,
 	"observability": { "enabled": true },
 	"upload_source_maps": false,
+	// The version's ID keys the cached public pages (lib/edge-cache.js), so a deploy never serves an old page from the cache.
+	"version_metadata": { "binding": "CF_VERSION_METADATA" },
 	"routes": [
 		{ "pattern": "flockstack.io", "custom_domain": true },
 		{ "pattern": "newsletter.ankur.works", "custom_domain": true }
@@ -53,6 +55,7 @@
 			"preview_urls": false,
 			"observability": { "enabled": true },
 			"upload_source_maps": false,
+			"version_metadata": { "binding": "CF_VERSION_METADATA" },
 			"routes": [{ "pattern": "eu.flockstack.io", "custom_domain": true }],
 			"triggers": { "crons": ["0 * * * *", "30 6 * * *"] },
 			"account_id": "fe96ffccbfec88e9c8516169adb1fee2",

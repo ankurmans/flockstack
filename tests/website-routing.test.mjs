@@ -81,7 +81,7 @@ describe("worker-entry.mjs", () => {
 		dir = await mkdtemp(join(tmpdir(), "worker-entry-"));
 		await writeFile(
 			join(dir, "open-next.mjs"),
-			'export default { fetch: async (request) => { globalThis.__openNextCalls.push(request.url); return new Response("app"); } };\nexport class BucketCachePurge {}\nexport class DOQueueHandler {}\nexport class DOShardedTagCache {}\n'
+			'export default { fetch: async (request) => { globalThis.__openNextCalls.push(request.url); return new Response("app", { headers: { "content-type": "text/plain" } }); } };\nexport class BucketCachePurge {}\nexport class DOQueueHandler {}\nexport class DOShardedTagCache {}\n'
 		);
 		const stub = pathToFileURL(join(dir, "open-next.mjs")).href;
 		const source = (await readFile(join(ROOT, "worker-entry.mjs"), "utf8"))
@@ -130,6 +130,52 @@ describe("worker-entry.mjs", () => {
 		assert.equal((await answer("https://news.example.com/pricing")).app, true, "a newsletter's own domain");
 		assert.equal((await answer("https://news.example.com/")).app, true, "a newsletter's own domain");
 		assert.equal((await answer("https://flockstack.io/pricing", { method: "POST" })).app, true, "a POST");
+	});
+
+	describe("with a data center cache", () => {
+		const stored = new Map();
+		const fakeCaches = {
+			default: {
+				match: async (request) => stored.get(request.url)?.clone(),
+				put: async (request, response) => void stored.set(request.url, new Response(await response.arrayBuffer(), response)),
+			},
+		};
+		const pending = [];
+		const cachingCtx = { waitUntil: (promise) => pending.push(promise) };
+		const visit = async (url, { cookie, method = "GET" } = {}) => {
+			openNextCalls.length = 0;
+			const response = await worker.fetch(new Request(url, { method, headers: cookie ? { cookie } : {} }), { ...ENV, WEBSITE }, cachingCtx);
+			await response.text();
+			await Promise.all(pending.splice(0));
+			return { app: openNextCalls.length, cache: response.headers.get("x-edge-cache") };
+		};
+
+		before(() => {
+			globalThis.caches = fakeCaches;
+		});
+		after(() => {
+			delete globalThis.caches;
+		});
+
+		test("serves the public pages from it after the first visit, and the rest from the app every time", async () => {
+			assert.deepEqual(await visit("https://flockstack.io/terms"), { app: 1, cache: "MISS" });
+			assert.deepEqual(await visit("https://flockstack.io/terms"), { app: 0, cache: "HIT" });
+			assert.deepEqual(await visit("https://flockstack.io/docs/api"), { app: 1, cache: "MISS" });
+			assert.deepEqual(await visit("https://flockstack.io/docs/api"), { app: 0, cache: "HIT" });
+			for (const path of ["/signin", "/campaigns", "/api/v1/newsletters", "/terms?x=1"]) {
+				assert.deepEqual(await visit(`https://flockstack.io${path}`), { app: 1, cache: null }, path);
+				assert.deepEqual(await visit(`https://flockstack.io${path}`), { app: 1, cache: null }, path);
+			}
+		});
+
+		test("leaves a signed-in visitor, a write and another host to the app", async () => {
+			await visit("https://flockstack.io/privacy");
+			assert.equal((await visit("https://flockstack.io/privacy", { cookie: "__Secure-better-auth.session_token=x" })).app, 1);
+			assert.equal((await visit("https://flockstack.io/privacy", { method: "POST" })).app, 1);
+			await visit("https://news.example.com/robots.txt");
+			assert.deepEqual(await visit("https://news.example.com/robots.txt"), { app: 1, cache: null });
+			assert.equal((await visit("https://flockstack.io/privacy")).cache, "HIT");
+		});
 	});
 });
 

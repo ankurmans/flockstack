@@ -2,6 +2,7 @@
 // outside scheduler (app/api/cron). A trigger calls the route through the same handler with CRON_SECRET.
 import openNext from "./.open-next/worker.js";
 import { isCertificateValidationRequest } from "./lib/certificate-validation.js";
+import { canUseEdgeCache, serveWithEdgeCache } from "./lib/edge-cache.js";
 import { getCookiePrefix } from "./lib/region.js";
 import { hasSessionCookie, shouldForwardToWebsite } from "./lib/website-routing.js";
 
@@ -32,7 +33,26 @@ export default {
 		) {
 			return env.WEBSITE.fetch(request);
 		}
-		return openNext.fetch(request, env, ctx);
+		const render = (req) => openNext.fetch(req, env, ctx);
+		// The public pages that are the same for everyone come from the data center's cache (lib/edge-cache.js), so a crawler's
+		// visit doesn't start the app. A Worker on workers.dev has no cache: there the app answers, as before.
+		if (
+			env.APP_URL &&
+			typeof caches !== "undefined" &&
+			caches.default &&
+			canUseEdgeCache({
+				method: request.method,
+				hostname: url.hostname,
+				appHostname: new URL(env.APP_URL).hostname,
+				pathname: url.pathname,
+				search: url.search,
+				headers: request.headers,
+				hasSession: hasSessionCookie(request.headers.get("cookie"), getCookiePrefix(env)),
+			})
+		) {
+			return serveWithEdgeCache({ request, env, ctx, cache: caches.default, render });
+		}
+		return render(request);
 	},
 
 	async scheduled(event, env, ctx) {
