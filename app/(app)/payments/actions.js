@@ -83,3 +83,32 @@ export async function moveTier(newsletterId, tierIds) {
 	revalidatePath("/payments");
 	return { ok: true };
 }
+
+export async function savePledges(_state, formData) {
+	const { failure } = await runDashboardAction("set_pledges", {
+		id: String(formData.get("newsletterId") ?? ""),
+		enabled: formData.get("enabled") === "on",
+		noticeDays: Number.parseInt(String(formData.get("noticeDays") ?? "7"), 10) || 7,
+	});
+	if (failure) return toFormError(failure);
+	revalidatePath("/payments");
+	return { ok: true };
+}
+
+export async function startPledgeCharging(_state, formData) {
+	const { failure } = await runDashboardAction("start_pledge_charging", {
+		id: String(formData.get("newsletterId") ?? ""),
+		noticeDays: Number.parseInt(String(formData.get("noticeDays") ?? "7"), 10) || 7,
+		honorPledgedPrice: formData.get("honorPledgedPrice") === "on",
+	});
+	if (failure) return toFormError(failure);
+	revalidatePath("/payments");
+	return { ok: true };
+}
+
+export async function stopPledgeCharging(newsletterId) {
+	const { failure } = await runDashboardAction("stop_pledge_charging", { id: String(newsletterId) });
+	if (failure) return toFormError(failure);
+	revalidatePath("/payments");
+	return { ok: true };
+}

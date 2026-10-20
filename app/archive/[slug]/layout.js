@@ -15,9 +15,9 @@ export default async function ArchiveLayout({ children, params }) {
 		getShopPayments(newsletter),
 		listSignupFields(newsletter),
 	]);
-	const { index, shop, feed } = getArchiveUrls(newsletter);
+	const { index, shop, subscribe, feed } = getArchiveUrls(newsletter);
 	const hasProducts = payments.ready && products.length > 0;
-	const shopLink = hasProducts || (payments.ready && newsletter.paidTier?.enabled) ? { href: shop, label: hasProducts ? "Shop" : "Go paid" } : null;
+	const shopLink = hasProducts || (payments.ready && (newsletter.paidTier?.enabled || newsletter.paidTier?.pledges?.enabled)) ? { href: hasProducts || newsletter.paidTier?.enabled ? shop : subscribe, label: hasProducts ? "Shop" : newsletter.paidTier?.enabled ? "Go paid" : "Pledge" } : null;
 	const pitch = {
 		name: newsletter.name,
 		slug: newsletter.slug,

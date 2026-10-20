@@ -124,6 +124,24 @@ export default function SellingPage() {
 					<Code>list_supporters</Code> shows the writer who is listed, and <Code>set_supporter_name</Code> changes a name or takes it off.
 				</p>
 			</Section>
+
+			<Section title="Pledges" stagger={6}>
+				<p>
+					A writer who hasn&apos;t opened the paid tier can turn on pledges (<Code>set_pledges</Code>). A reader picks a tier and a monthly or
+					yearly price on the subscribe page and enters a card, which is saved on your Stripe account with a SetupIntent and <em>not charged</em>.
+					The page says so, the reader gets an email saying the same with a link to cancel, and they stay on the free list. A pledger has no paid
+					access until they are charged. <Code>get_pledge_report</Code> counts the pledges and totals them per tier.
+				</p>
+				<p className="mt-4">
+					<Code>start_pledge_charging</Code> needs the paid tier on. It emails every pledger the day of their first charge, <Code>noticeDays</Code>{" "}
+					ahead (7 by default, 1 to 30), with a link that cancels the pledge with one click. On that day each card is charged off-session by
+					creating a subscription on your Stripe account, at the price they pledged unless <Code>honorPledgedPrice</Code> is false. A pledger who
+					canceled is not charged; a refused card is marked failed and the pledger is told; a pledger whose notice couldn&apos;t be emailed is not
+					charged. The work runs in QStash steps that save their place: a step that fails is retried from where it stopped, a subscription is made
+					once per pledge, and starting again after a failure carries on with the same run. <Code>stop_pledge_charging</Code> stops it until the
+					charge day; <Code>get_pledge_charging</Code> shows where it is.
+				</p>
+			</Section>
 		</>
 	);
 }

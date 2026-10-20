@@ -35,6 +35,9 @@ export function createFakeStripe() {
 	const portalConfigurations = [];
 	const products = new Map();
 	const prices = new Map();
+	const setupIntents = new Map();
+	const paymentMethods = new Map();
+	const declined = new Map();
 	const idempotent = new Map();
 	const failures = new Map();
 
@@ -97,6 +100,23 @@ export function createFakeStripe() {
 			return created;
 		}
 		if (method === "GET" && resource === "checkout" && sub) return sessions.get(sub) ?? stripeError(404, "No such session", "resource_missing");
+		if (method === "POST" && path === "/v1/customers") {
+			const created = { id: next("cus"), object: "customer", name: null, ...params, metadata: params.metadata ?? {} };
+			customers.set(created.id, created);
+			return created;
+		}
+		if (method === "GET" && path === "/v1/subscriptions") {
+			const data = [...subscriptions.values()].filter((subscription) => !params.customer || subscription.customer === params.customer);
+			return { object: "list", data, has_more: false };
+		}
+		if (method === "POST" && path === "/v1/subscriptions") return createSubscription(params);
+		if (method === "GET" && resource === "setup_intents" && id) return setupIntents.get(id) ?? stripeError(404, "No such setup_intent", "resource_missing");
+		if (method === "POST" && resource === "payment_methods" && sub === "detach") {
+			const detached = paymentMethods.get(id);
+			if (!detached) return stripeError(404, "No such payment method", "resource_missing");
+			detached.customer = null;
+			return detached;
+		}
 		if (method === "GET" && resource === "subscriptions" && id) return subscriptions.get(id) ?? stripeError(404, "No such subscription", "resource_missing");
 		if (method === "GET" && resource === "customers" && id) return customers.get(id) ?? stripeError(404, "No such customer", "resource_missing");
 		if (method === "POST" && path === "/v1/products") {
@@ -135,9 +155,38 @@ export function createFakeStripe() {
 		return stripeError(404, `Unrecognized request URL: ${method} ${path}`, "resource_missing");
 	}
 
+	// A subscription as Stripe makes it from POST /v1/subscriptions: off-session on a saved card, or refused with the bank's words.
+	function createSubscription(params) {
+		const item = params.items?.[0] ?? {};
+		const price = item.price ? prices.get(item.price) : null;
+		const recurring = item.price_data?.recurring ?? price?.recurring ?? { interval: "month" };
+		if (declined.has(params.default_payment_method)) return { status: 402, error: { message: declined.get(params.default_payment_method), code: "card_declined", type: "card_error" } };
+		const method = paymentMethods.get(params.default_payment_method);
+		if (!method || method.customer !== params.customer) return stripeError(400, "That payment method isn't attached to the customer", "resource_missing");
+		const now = Math.floor(Date.now() / 1000);
+		const created = {
+			id: next("sub"),
+			object: "subscription",
+			status: "active",
+			customer: params.customer,
+			metadata: params.metadata ?? {},
+			cancel_at_period_end: false,
+			current_period_start: now,
+			current_period_end: now + (recurring.interval === "year" ? 365 : 30) * 86_400,
+			default_payment_method: params.default_payment_method,
+			off_session: params.off_session,
+			payment_behavior: params.payment_behavior,
+			items: { data: [{ id: next("si"), price: { id: item.price ?? null, unit_amount: item.price_data?.unit_amount ?? price?.unit_amount, product: item.price_data?.product ?? price?.product, recurring } }] },
+		};
+		subscriptions.set(created.id, created);
+		return created;
+	}
+
 	return {
 		handler,
 		requests,
+		setupIntents,
+		paymentMethods,
 		accounts,
 		sessions,
 		customers,
@@ -151,6 +200,20 @@ export function createFakeStripe() {
 		},
 		recover(routeKey) {
 			failures.delete(routeKey);
+		},
+		// The pledger gave a card in a setup-mode Checkout Session: Stripe saves it on the customer and the session completes.
+		completeSetup(sessionId, { card = true } = {}) {
+			const session = sessions.get(sessionId);
+			const method = { id: next("pm"), object: "payment_method", type: "card", customer: session.customer };
+			paymentMethods.set(method.id, method);
+			const intent = { id: next("seti"), object: "setup_intent", status: card ? "succeeded" : "requires_payment_method", customer: session.customer, payment_method: card ? method.id : null, metadata: session.setup_intent_data?.metadata ?? {} };
+			setupIntents.set(intent.id, intent);
+			Object.assign(session, { status: "complete", mode: "setup", setup_intent: intent.id, customer_details: { email: customers.get(session.customer)?.email ?? "pledger@example.net" } });
+			return { session, method, intent };
+		},
+		// The bank refuses this card when it is charged.
+		declineCard(paymentMethodId, message = "Your card was declined.") {
+			declined.set(paymentMethodId, message);
 		},
 		completeOnboarding(accountId) {
 			Object.assign(accounts.get(accountId), { charges_enabled: true, payouts_enabled: true, details_submitted: true });

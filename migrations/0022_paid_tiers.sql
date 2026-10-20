@@ -1,1 +1,11 @@
 CREATE INDEX IF NOT EXISTS i_contacts__newsletterId__paidTierId ON c_contacts (json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.paidTierId') ASC) WHERE json_type(data, '$.paidTierId') = 'text';
+CREATE TABLE IF NOT EXISTS c_pledges (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_pledges__accountId ON c_pledges (accountId);
+CREATE INDEX IF NOT EXISTS i_pledges__newsletterId__status__createdAt ON c_pledges (json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.status') ASC, json_extract(data, '$.createdAt') ASC);
+CREATE INDEX IF NOT EXISTS i_pledges__newsletterId__email ON c_pledges (json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.email') ASC);
+CREATE INDEX IF NOT EXISTS i_pledges__conversionId__status ON c_pledges (json_extract(data, '$.conversionId') ASC, json_extract(data, '$.status') ASC) WHERE json_type(data, '$.conversionId') IS NOT NULL;
+CREATE INDEX IF NOT EXISTS i_pledges__stripeSessionId ON c_pledges (json_extract(data, '$.stripeSessionId') ASC) WHERE json_type(data, '$.stripeSessionId') = 'text';
+CREATE TABLE IF NOT EXISTS c_pledgeconversions (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_pledgeconversions__accountId ON c_pledgeconversions (accountId);
+CREATE INDEX IF NOT EXISTS i_pledgeconversions__accountId__newsletterId__status ON c_pledgeconversions (accountId ASC, json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.status') ASC);
+CREATE INDEX IF NOT EXISTS i_pledgeconversions__status__updatedAt ON c_pledgeconversions (json_extract(data, '$.status') ASC, json_extract(data, '$.updatedAt') ASC);

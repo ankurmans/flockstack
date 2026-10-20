@@ -33,6 +33,7 @@ const PUBLIC_PATHS = [
 	/^\/referral$/,
 	/^\/reader\/(in|signin|replies)$/,
 	/^\/(poll|poll\/results|survey|preferences)$/,
+	/^\/(pledge|gift|gifts)$/,
 	/^\/o\//,
 	/^\/c\//,
 	/^\/p\//,
@@ -61,6 +62,8 @@ const ARCHIVE_HOST_PATHS = [
 	/^\/reader\/(in|signin|replies)$/,
 	// Polls, surveys and the preference center (lib/subscriber-links.js).
 	/^\/(poll|poll\/results|survey|preferences)$/,
+	// A pledger's cancel link, and the gift links (lib/paid-links.js).
+	/^\/(pledge|gift|gifts)$/,
 	/^\/o\//,
 	/^\/c\//,
 ];
@@ -89,6 +92,7 @@ export async function proxy(request) {
 		if (pathname === "/feed.xml") return rewriteTo(request, `/archive/${archiveSlug}/feed`);
 		if (pathname === "/shop" || pathname === "/shop/") return rewriteTo(request, `/archive/${archiveSlug}/shop`);
 		if (pathname === "/subscribe" || pathname === "/subscribe/") return rewriteTo(request, `/archive/${archiveSlug}/subscribe`);
+		if (pathname === "/give" || pathname === "/give/") return rewriteTo(request, `/archive/${archiveSlug}/give`);
 		// The newsletter's redirects (lib/redirect-routing.js): old addresses of imported posts, and the owner's own.
 		const redirect = await findRedirect(archiveSlug, pathname);
 		if (redirect) return NextResponse.redirect(new URL(withQuery(redirect, request.nextUrl.search), request.url), 301);

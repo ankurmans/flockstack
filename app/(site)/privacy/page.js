@@ -137,6 +137,11 @@ export default function PrivacyPage() {
 						buyer&apos;s email and name, the product, the amount and the download count.
 					</li>
 					<li>
+						<Strong>Pledges:</Strong> when a reader pledges to a creator&apos;s paid tier, their card is saved on the creator&apos;s Stripe
+						account and nothing is charged. We keep the email, the tier, the price pledged, the pledge&apos;s status and dates, and the IDs of
+						their Stripe customer and saved card, never the card itself. A canceled pledge removes the card at Stripe.
+					</li>
+					<li>
 						<Strong>Comments:</Strong> if the creator turns comments on, a subscriber signs in to a newsletter&apos;s website with a link
 						emailed to them (no password) and a cookie keeps them signed in for that newsletter for 30 days. A comment is stored with a display
 						name that starts as the part of the email address before the @ and is never shown with the address, its text and its status, the

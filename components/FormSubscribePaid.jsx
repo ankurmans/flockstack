@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { subscribePaid } from "@/app/archive/shop-actions";
+import { pledgeSupport, subscribePaid } from "@/app/archive/shop-actions";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/payments/config";
 import { cn } from "@/lib/utils";
@@ -10,11 +10,12 @@ import { cn } from "@/lib/utils";
 // The paid tiers' signup: a tier, a plan and an email, then Stripe's page for the card. tiers: each with its id, name,
 // description, benefits, founding ({ enabled, spotsLeft }, spotsLeft null without a cap) and options ({ option, label, cents,
 // note }), the ways to pay; cents is the least for pay what you want. offer: an offer link's code, which Checkout applies.
-export default function FormSubscribePaid({ newsletterSlug, tiers, currency, trialDays = 0, offer = "", className }) {
+// isPledge: the same form for a pledge, which saves a card and charges nothing; its tiers carry only monthly and yearly.
+export default function FormSubscribePaid({ newsletterSlug, tiers, currency, trialDays = 0, offer = "", isPledge = false, newsletterName = "", className }) {
 	const [tierId, setTierId] = useState(tiers[0]?.id);
 	const tier = tiers.find((candidate) => candidate.id === tierId) ?? tiers[0];
 	const [option, setOption] = useState(tier.options.at(-1)?.option);
-	const [state, action, isPending] = useActionState(subscribePaid, null);
+	const [state, action, isPending] = useActionState(isPledge ? pledgeSupport : subscribePaid, null);
 	const chosen = tier.options.find((candidate) => candidate.option === option) ?? tier.options.at(-1);
 	const isLifetime = chosen?.option === "lifetime";
 
@@ -122,15 +123,27 @@ export default function FormSubscribePaid({ newsletterSlug, tiers, currency, tri
 				className="h-11 w-full rounded-xl bg-background px-3 text-base shadow-border outline-none transition-shadow duration-150 placeholder:text-muted-foreground focus-visible:shadow-border-hover focus-visible:ring-3 focus-visible:ring-ring/25"
 			/>
 			<Button type="submit" size="lg" disabled={isPending || Boolean(state?.url)} className="h-11 rounded-xl">
-				{isPending || state?.url ? <Loader2 className="animate-spin" /> : trialDays > 0 && !isLifetime ? `Start your ${trialDays}-day free trial` : "Continue to payment"}
+				{isPending || state?.url ? (
+					<Loader2 className="animate-spin" />
+				) : isPledge ? (
+					"Pledge, no charge today"
+				) : trialDays > 0 && !isLifetime ? (
+					`Start your ${trialDays}-day free trial`
+				) : (
+					"Continue to payment"
+				)}
 			</Button>
 			{state?.error && (
 				<p role="alert" className="text-sm text-destructive">
 					{state.error}
 				</p>
 			)}
-			<p className="text-xs text-muted-foreground">
-				{isLifetime ? "You pay once through Stripe, and it never renews." : "You pay through Stripe. Cancel anytime from the link at the bottom of each email."}
+			<p className="text-xs text-muted-foreground text-pretty">
+				{isPledge
+					? `You won't be charged now. Your card is saved with Stripe and is only charged after ${newsletterName || "the writer"} starts taking payments, and we email you first, with a link to cancel. You can cancel any time before. You get the free issues meanwhile.`
+					: isLifetime
+						? "You pay once through Stripe, and it never renews."
+						: "You pay through Stripe. Cancel anytime from the link at the bottom of each email."}
 			</p>
 		</form>
 	);

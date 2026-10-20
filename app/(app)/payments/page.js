@@ -1,4 +1,5 @@
 import CardPaidTiers from "@/components/CardPaidTiers";
+import CardPledges from "@/components/CardPledges";
 import CardStripe from "@/components/CardStripe";
 import FormPaidTier from "@/components/FormPaidTier";
 import HeaderPage from "@/components/HeaderPage";
@@ -18,10 +19,12 @@ const ERRORS = {
 // (?connect=return) the status is asked again, since Stripe's own update can still be on its way.
 export default async function PaymentsPage({ searchParams }) {
 	const [{ connect, error }, { account, selected }] = await Promise.all([searchParams, getSelectedNewsletter()]);
-	const [statusResult, tierResult, tiersResult] = await Promise.all([
+	const [statusResult, tierResult, tiersResult, pledgeReport, pledgeCharging] = await Promise.all([
 		runDashboardAction("get_payments_status", { refresh: connect === "return" }),
 		selected ? runDashboardAction("get_paid_tier", { id: String(selected._id) }) : null,
 		selected ? runDashboardAction("list_paid_tiers", { id: String(selected._id) }) : null,
+		selected ? runDashboardAction("get_pledge_report", { id: String(selected._id) }) : null,
+		selected ? runDashboardAction("get_pledge_charging", { id: String(selected._id) }) : null,
 	]);
 	const status = statusResult.output ?? { ...getPaymentsState(account), platformFeePercent: 0 };
 
@@ -37,6 +40,9 @@ export default async function PaymentsPage({ searchParams }) {
 				<CardStripe status={status} />
 				{selected && tierResult?.output && <FormPaidTier newsletter={{ id: String(selected._id), name: selected.name }} tier={tierResult.output} isReady={status.ready} />}
 				{selected && tiersResult?.output && <CardPaidTiers newsletterId={String(selected._id)} tiers={tiersResult.output.tiers} />}
+				{selected && pledgeReport?.output && (
+					<CardPledges newsletterId={String(selected._id)} report={pledgeReport.output} charging={pledgeCharging?.output?.charging ?? null} isPaidOn={Boolean(tierResult?.output?.enabled)} />
+				)}
 			</div>
 		</LayoutNarrow>
 	);
