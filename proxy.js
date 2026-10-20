@@ -33,6 +33,7 @@ const PUBLIC_PATHS = [
 	/^\/referral$/,
 	/^\/reader\/(in|signin|replies)$/,
 	/^\/(poll|poll\/results|survey|preferences)$/,
+	/^\/(pledge|gift|gifts)$/,
 	/^\/o\//,
 	/^\/c\//,
 	/^\/p\//,
@@ -72,11 +73,14 @@ const ARCHIVE_HOST_PATHS = [
 	/^\/reader\/(in|signin|replies)$/,
 	// Polls, surveys and the preference center (lib/subscriber-links.js).
 	/^\/(poll|poll\/results|survey|preferences)$/,
+	// A pledger's cancel link, and the gift links (lib/paid-links.js).
+	/^\/(pledge|gift|gifts)$/,
 	/^\/o\//,
 	/^\/c\//,
 ];
 const ISSUE_PATH_PATTERN = /^\/p\/([a-z0-9][a-z0-9-]{0,119})\/?$/;
 const PRODUCT_PATH_PATTERN = /^\/shop\/([a-z0-9][a-z0-9-]{0,78}[a-z0-9]|[a-z0-9])\/?$/;
+const OFFER_PATH_PATTERN = /^\/offer\/([a-z0-9][a-z0-9-]{1,38}[a-z0-9])\/?$/;
 const AUTHOR_PATH_PATTERN = /^\/authors\/([a-z0-9][a-z0-9-]{0,59})\/?$/;
 const TAG_PATH_PATTERN = /^\/tags\/([a-z0-9][a-z0-9-]{0,59})\/?$/;
 // The list of issues, the reader's sign-in and the Subscriber Center are pages of the newsletter's site, not routes of their own.
@@ -108,6 +112,9 @@ export async function proxy(request) {
 		if (pathname === "/feed.xml") return rewriteTo(request, `/archive/${archiveSlug}/feed`);
 		if (pathname === "/shop" || pathname === "/shop/") return rewriteTo(request, `/archive/${archiveSlug}/shop`);
 		if (pathname === "/subscribe" || pathname === "/subscribe/") return rewriteTo(request, `/archive/${archiveSlug}/subscribe`);
+		if (pathname === "/give" || pathname === "/give/") return rewriteTo(request, `/archive/${archiveSlug}/give`);
+		const offerCode = OFFER_PATH_PATTERN.exec(pathname)?.[1];
+		if (offerCode) return rewriteTo(request, `/archive/${archiveSlug}/offer/${offerCode}`);
 		if (pathname === "/links" || pathname === "/links/") return rewriteTo(request, `/archive/${archiveSlug}/links`);
 		const sitePage = SITE_PAGE_PATHS[pathname.replace(/(.)\/$/, "$1")];
 		if (sitePage) return rewriteTo(request, `/archive/${archiveSlug}/${sitePage}`);

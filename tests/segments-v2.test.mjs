@@ -66,7 +66,8 @@ describe("the new conditions", () => {
 			"Is a paid subscriber and Country is any of US, DE and Referrals is at least 3 and Source is none of api, import"
 		);
 
-		assert.match(check([{ type: "tier", value: "gold" }]).problem, /free, paid/);
+		assert.match(check([{ type: "tier", value: "Gold tier!" }]).problem, /free, paid/);
+		assert.ok(check([{ type: "tier", value: "t_k3m9x2ab" }]).rules, "a paid tier's ID is a value too; validateRules checks the newsletter has it");
 		assert.match(check([{ type: "country", value: "USA" }]).problem, /two-letter/);
 		assert.match(check([{ type: "country", op: "is_any_of" }]).problem, /values/);
 		assert.match(check([{ type: "country", op: "is_any_of", values: [] }]).problem, /1 to 25/);

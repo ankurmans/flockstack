@@ -61,18 +61,38 @@ export default async function AccountPage({ params }) {
 				<Card title="Subscription" stagger={3}>
 					{subscription.isPaid ? (
 						<>
-							<p className="font-medium">Paid subscriber{subscription.interval ? `, billed every ${subscription.interval}` : ""}</p>
+							<p className="font-medium">
+								{subscription.tier && subscription.tier.id !== "paid" ? subscription.tier.name : "Paid"} subscriber
+								{subscription.access === "stripe" && subscription.interval === "lifetime" ? ", paid once for life" : ""}
+								{subscription.access === "stripe" && subscription.interval && subscription.interval !== "lifetime" ? `, billed every ${subscription.interval === "quarter" ? "3 months" : subscription.interval}` : ""}
+								{subscription.access === "comp" ? ", complimentary access" : ""}
+								{subscription.access === "gift" ? ", on a gift" : ""}
+							</p>
 							<p className="mt-1 text-sm text-muted-foreground">
-								{subscription.status === "canceled" || subscription.status === "past_due"
-									? `Access until ${formatDate(subscription.paidUntil)}.`
-									: `Your current period runs to ${formatDate(subscription.paidUntil)}.`}{" "}
-								You read every issue on the website while you are signed in.
+								{subscription.interval === "lifetime"
+									? ""
+									: subscription.access !== "stripe"
+										? `Your access runs to ${formatDate(subscription.paidUntil)}. `
+										: subscription.status === "canceled" || subscription.status === "past_due"
+											? `Access until ${formatDate(subscription.paidUntil)}. `
+											: `Your current period runs to ${formatDate(subscription.paidUntil)}. `}
+								You read every issue of your tier on the website while you are signed in.
 							</p>
 						</>
 					) : (
 						<>
 							<p className="font-medium">Free subscriber</p>
 							<p className="mt-1 text-sm text-muted-foreground">You get the free issues by email and on the website.</p>
+							{center.pledge && (
+								<p className="mt-3 text-sm text-pretty">
+									You pledged {center.pledge.amount}
+									{center.pledge.tierName ? ` for the ${center.pledge.tierName} tier` : ""}. Nothing is charged yet
+									{center.pledge.chargeAt ? `: your first charge is on ${formatDate(center.pledge.chargeAt)}` : ", and we email you before it is"}.{" "}
+									<a href={center.pledge.cancelUrl} className="underline underline-offset-4 transition-colors duration-150 hover:text-foreground">
+										Cancel your pledge
+									</a>
+								</p>
+							)}
 						</>
 					)}
 					<div className="mt-4 flex flex-wrap gap-2">
@@ -83,7 +103,7 @@ export default async function AccountPage({ params }) {
 						)}
 						{subscription.upgradeUrl && (
 							<Button asChild>
-								<a href={subscription.upgradeUrl}>Become a paid subscriber</a>
+								<a href={subscription.upgradeUrl}>{center.pledge ? "See the plans" : "Become a paid subscriber"}</a>
 							</Button>
 						)}
 					</div>

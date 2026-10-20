@@ -150,6 +150,16 @@ export default function PrivacyPage() {
 						buyer&apos;s email and name, the product, the amount and the download count.
 					</li>
 					<li>
+						<Strong>Pledges:</Strong> when a reader pledges to a creator&apos;s paid tier, their card is saved on the creator&apos;s Stripe
+						account and nothing is charged. We keep the email, the tier, the price pledged, the pledge&apos;s status and dates, and the IDs of
+						their Stripe customer and saved card, never the card itself. A canceled pledge removes the card at Stripe.
+					</li>
+					<li>
+						<Strong>Gifts:</Strong> when someone buys a gift subscription, the creator&apos;s Stripe account takes the payment. We keep the
+						buyer&apos;s email and name, the recipient&apos;s email, the message, the tier, the months, the amount and the gift&apos;s dates and
+						status. The recipient gets one email from the newsletter, with the message, and isn&apos;t subscribed unless they redeem the gift.
+					</li>
+					<li>
 						<Strong>Signing in to a newsletter&apos;s website:</Strong> a subscriber can sign in with a link emailed to them (no password),
 						from the website&apos;s Sign in page or, where the creator has comments on, from an issue. A cookie keeps them signed in for that
 						newsletter for 30 days. While they are signed in, a paid subscriber reads paid issues on the website and every subscriber has an
