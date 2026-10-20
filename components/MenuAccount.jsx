@@ -55,7 +55,8 @@ export default function MenuAccount({
 		startTransition(async () => {
 			const result = await setDedicatedIp(accountId, !hasDedicatedIp);
 			if (result?.error) toast.error(result.error);
-			else toast.success(hasDedicatedIp ? "Back on shared IPs" : "Dedicated IP on");
+			else if (hasDedicatedIp) toast.success("Back on shared IPs, and the IP is free again");
+			else toast.success(`${result.ip} assigned: its warm-up starts now. It costs AWS's lease whether the account pays or not`);
 		});
 	}
 
@@ -83,7 +84,7 @@ export default function MenuAccount({
 					{canSetDedicatedIp && (
 						<DropdownMenuItem onSelect={toggleDedicatedIp}>
 							<Network />
-							{hasDedicatedIp ? "Back to shared IPs" : "Give a dedicated IP"}
+							{hasDedicatedIp ? "Take the IP back" : "Assign an IP"}
 						</DropdownMenuItem>
 					)}
 					{canGiveFreePlan && (

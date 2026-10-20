@@ -9,7 +9,10 @@ import { grantFreePlan, revokeFreePlan } from "@/lib/billing";
 import { isCloud } from "@/lib/config";
 import { deleteCustomRequest, updateCustomRequest } from "@/lib/custom-requests";
 import { getGlobalSuppression, removeGlobalSuppression } from "@/lib/global-suppressions";
+import { followDedicatedIps } from "@/lib/dedicated-ip";
 import { getEmailProvider } from "@/lib/email-provider";
+import { convertManagedPools } from "@/lib/ip-assignment";
+import { addIp, importIpsFromAws, retireIp } from "@/lib/ip-inventory";
 import { getPlan } from "@/lib/plans";
 import { normalizeEmail } from "@/lib/validation";
 
@@ -70,21 +73,80 @@ export async function setSpread(accountId, isOn) {
 	return { ok: true };
 }
 
-// Shared IPs are the default; a dedicated IP costs extra at the provider, so an admin gives it to an account that pays for it.
+// Shared IPs are the default. "Assign an IP" gives the account one of the leased IPs in the inventory, for an account that
+// pays for it or a test; it costs the lease whether the account sends or not. The account's warm-up starts at once.
 export async function setDedicatedIp(accountId, isOn) {
 	const admin = await requireAdmin();
 	if (!isValidObjectId(accountId)) return { error: "Account not found" };
 	const provider = getEmailProvider();
 	if (!provider.setDedicatedIp) return { error: `${provider.name} has no dedicated IPs here` };
+	let result;
 	try {
-		if (!(await provider.setDedicatedIp(accountId, isOn === true))) return { error: "Account not found" };
+		result = await provider.setDedicatedIp(accountId, isOn === true);
 	} catch (error) {
 		console.error(`[admin] ${provider.name} didn't ${isOn ? "give" : "take away"} the dedicated IP of account ${accountId}:`, error);
 		return { error: error.message };
 	}
+	if (!result) return { error: "Account not found" };
+	if (result.status === "waiting") return { error: "No IP is free in the inventory. Lease one in AWS and add it under Dedicated IPs below, then try again" };
 	console.info(`[admin] ${admin.email} ${isOn === true ? "gave" : "took away"} the dedicated IP of account ${accountId}`);
 	revalidatePath("/admin");
-	return { ok: true };
+	return { ok: true, ip: result.ip ?? null };
+}
+
+// The inventory: IPs the AWS account leased, which an account's add-on or an admin gives out (lib/ip-inventory.js).
+// An account whose add-on was paid with none free gets the new IP at once.
+export async function addIpAction(ip, notes = "") {
+	const admin = await requireAdmin();
+	let result;
+	try {
+		result = await addIp({ ip, notes: String(notes).slice(0, 300), by: admin.email });
+	} catch (error) {
+		console.error(`[admin] Couldn't add the IP ${ip}:`, error);
+		return { error: error.message };
+	}
+	if (result.error) return result;
+	const assigned = await followDedicatedIps();
+	revalidatePath("/admin");
+	return { ok: true, ip: result.ip, assigned };
+}
+
+export async function importIpsAction() {
+	const admin = await requireAdmin();
+	let result;
+	try {
+		result = await importIpsFromAws({ by: admin.email });
+	} catch (error) {
+		console.error("[admin] Couldn't import the IPs from AWS:", error);
+		return { error: error.message };
+	}
+	const assigned = await followDedicatedIps();
+	revalidatePath("/admin");
+	return { ok: true, ...result, assigned };
+}
+
+export async function retireIpAction(ip) {
+	await requireAdmin();
+	const result = await retireIp(String(ip));
+	if (result.error) return result;
+	revalidatePath("/admin");
+	return { ok: true, ip: result.ip };
+}
+
+// Accounts that still have a managed pool from before standard IPs: AWS bills $15 a month for it whether it sends or not.
+export async function convertManagedPoolsAction() {
+	const admin = await requireAdmin();
+	let result;
+	try {
+		result = await convertManagedPools();
+	} catch (error) {
+		console.error("[admin] Couldn't delete the managed pools:", error);
+		return { error: error.message };
+	}
+	console.info(`[admin] ${admin.email} deleted ${result.converted} managed pool(s)`);
+	const assigned = await followDedicatedIps();
+	revalidatePath("/admin");
+	return { ok: true, ...result, assigned };
 }
 
 export async function saveLimits(_state, formData) {

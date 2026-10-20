@@ -61,9 +61,26 @@ const accountSchema = new mongoose.Schema(
 			tenantStatus: { type: String },
 			tenantStatusAt: { type: Date },
 			lastFinding: { type: String },
-			// The managed dedicated IP pool the configuration set sends from, while an admin has given the account one.
+			// The account's own standard SES pool and the leased IP in it (lib/ip-assignment.js), while it has one. A pool without
+			// an address is a managed pool from before standard IPs: the admin page deletes it.
 			dedicatedPool: { type: String },
 			dedicatedPoolAt: { type: Date },
+			dedicatedIpAddress: { type: String },
+			// The second configuration set, pointed at that pool: SES has no pool per message, so each email picks one of the two.
+			// Set once the IP is in the pool, and unset first when it leaves, which is what routes mail back to shared IPs.
+			dedicatedConfigurationSet: { type: String },
+			// The IP's warm-up (lib/ip-warmup-rules.js): the share of the account's email that goes through the pool, in percent,
+			// which the hourly job raises a day at a time while bounces and complaints stay low.
+			ipWarmup: {
+				startedAt: { type: Date },
+				day: { type: Number },
+				share: { type: Number },
+				advancedAt: { type: Date },
+				completedAt: { type: Date },
+				holds: { type: Number },
+				heldAt: { type: Date },
+				holdReason: { type: String },
+			},
 		},
 		// The account's PostShiba tenant (slug mc-<accountId>) and SMTP credentials, created when its plan starts
 		// (lib/email-provider/postshiba.js).
@@ -134,6 +151,8 @@ const accountSchema = new mongoose.Schema(
 			currentPeriodEnd: { type: Date },
 			cancelAt: { type: Date },
 			turnedOnAt: { type: Date },
+			// When the add-on was paid with no free IP in the inventory (lib/ip-inventory.js): it turns on by itself once one is added.
+			waitingAt: { type: Date },
 			error: { type: String, trim: true },
 		},
 		// A paid plan's choice to carry the "Sent with FlockStack" link (lib/free-plan.js); unset is off. The Free plan always

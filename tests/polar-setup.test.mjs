@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { getCatalog, getProductKey, hasExtraEmailsPrice, isPricedRight } from "../lib/polar-catalog.js";
-import { PLANS, getDedicatedIpPrice, getPrice } from "../lib/plans.js";
+import { getCatalog, getProductKey, hasExtraEmailsPrice, isLegacyAddon, isPricedRight } from "../lib/polar-catalog.js";
+import { DEDICATED_IP_AT_COST, DEDICATED_IP_PRICE, PLANS, getPrice } from "../lib/plans.js";
 import { setupPolar } from "../scripts/polar-setup.mjs";
 
 // scripts/polar-setup.mjs against a stub of Polar's API that keeps products and meters like Polar: archived products stay,
@@ -66,6 +66,12 @@ function oldProduct(id, planId, interval, amount) {
 	};
 }
 
+// The dedicated IP add-ons from before the at-cost price: one per plan and interval, and a yearly one without a plan.
+function oldAddon(id, planId, interval, amount) {
+	const product = oldProduct(id, planId ?? "none", interval, amount);
+	return { ...product, name: planId ? `FlockStack dedicated IP for ${planId}` : "FlockStack dedicated IP (yearly)", metadata: { ...(planId && { flockstack_plan: planId }), interval, flockstack_addon: "dedicated_ip" } };
+}
+
 // What FlockStack sold before: Starter at $12 and Pro at $55, with Scale and Max at today's prices and no extra emails.
 const OLD_PRODUCTS = [
 	oldProduct("prod_starter_m", "starter", "month", 1200),
@@ -73,17 +79,20 @@ const OLD_PRODUCTS = [
 	oldProduct("prod_pro_m", "pro", "month", 5500),
 	oldProduct("prod_scale_m", "scale", "month", 10_900),
 	oldProduct("prod_max_y", "max", "year", 299_000),
+	oldAddon("prod_ip_pro_m", "pro", "month", 3500),
+	oldAddon("prod_ip_scale_y", "scale", "year", 69_000),
+	oldAddon("prod_ip_yearly", null, "year", 32_400),
 	{ id: "prod_other", name: "Something else", is_archived: false, recurring_interval: "month", prices: [], metadata: {} },
 ];
 
 describe("the catalog", () => {
-	test("5 plans and 3 add-ons, monthly and yearly, at lib/plans.js's prices, the plans with extra emails at 0.015 cents an email", () => {
+	test("5 plans monthly and yearly and one monthly add-on, at lib/plans.js's prices, the plans with extra emails at 0.015 cents an email", () => {
 		const catalog = getCatalog();
-		assert.equal(catalog.length, 16);
+		assert.equal(catalog.length, 11);
 		for (const item of catalog) {
 			const body = item.getBody("meter_1");
 			assert.equal(getProductKey(body), item.key, item.key);
-			assert.equal(body.prices[0].price_amount, item.kind === "plan" ? getPrice(item.plan, item.interval) * 100 : getDedicatedIpPrice(item.plan.id, item.interval) * 100);
+			assert.equal(body.prices[0].price_amount, item.kind === "plan" ? getPrice(item.plan, item.interval) * 100 : DEDICATED_IP_PRICE * 100);
 			assert.equal(body.recurring_interval, item.interval);
 			if (item.kind === "plan") {
 				assert.deepEqual(body.prices[1], {
@@ -97,26 +106,27 @@ describe("the catalog", () => {
 			} else {
 				assert.equal(body.prices.length, 1);
 				assert.equal(body.metadata.flockstack_addon, "dedicated_ip");
+				assert.equal(body.metadata.flockstack_plan, undefined, "no plan: one product for every plan from Pro up");
+				assert.ok(body.description.startsWith(DEDICATED_IP_AT_COST), "the product says it is at cost");
 			}
 		}
 		assert.deepEqual(
-			catalog.filter(({ kind }) => kind === "addon").map(({ plan, interval, amount }) => [plan.id, interval, amount]),
-			[
-				["pro", "month", 3500],
-				["pro", "year", 35_000],
-				["scale", "month", 6900],
-				["scale", "year", 69_000],
-				["max", "month", 26_900],
-				["max", "year", 269_000],
-			]
+			catalog.filter(({ kind }) => kind === "addon").map(({ plan, interval, amount }) => [plan, interval, amount]),
+			[[null, "month", 2700]],
+			"one add-on, $27 a month, no yearly one"
 		);
-		assert.equal(PLANS.length * 2 + 6, catalog.length);
+		assert.equal(PLANS.length * 2 + 1, catalog.length);
 	});
 
 	test("a product is ours by its metadata, and priced right by its one fixed price; metered prices may sit next to it", () => {
 		assert.equal(getProductKey({ metadata: { flockstack_plan: "growth", interval: "year" } }), "growth:year");
-		assert.equal(getProductKey({ metadata: { flockstack_plan: "growth", interval: "year", flockstack_addon: "dedicated_ip" } }), null, "no add-on below Pro");
-		assert.equal(getProductKey({ metadata: { flockstack_plan: "max", interval: "month", flockstack_addon: "dedicated_ip" } }), "dedicated_ip:max:month");
+		assert.equal(getProductKey({ metadata: { interval: "month", flockstack_addon: "dedicated_ip" } }), "dedicated_ip:month");
+		assert.equal(getProductKey({ metadata: { interval: "year", flockstack_addon: "dedicated_ip" } }), null, "no yearly add-on");
+		assert.equal(getProductKey({ metadata: { flockstack_plan: "max", interval: "month", flockstack_addon: "dedicated_ip" } }), null, "no per-plan add-on");
+		assert.equal(isLegacyAddon({ metadata: { flockstack_plan: "max", interval: "month", flockstack_addon: "dedicated_ip" } }), true);
+		assert.equal(isLegacyAddon({ metadata: { interval: "year", flockstack_addon: "dedicated_ip" } }), true);
+		assert.equal(isLegacyAddon({ metadata: { interval: "month", flockstack_addon: "dedicated_ip" } }), false, "the one on sale");
+		assert.equal(isLegacyAddon({ metadata: { flockstack_plan: "pro", interval: "month" } }), false, "a plan");
 		assert.equal(getProductKey({ metadata: { flockstack_plan: "enterprise", interval: "month" } }), null);
 		const product = oldProduct("p", "growth", "month", 2900);
 		assert.equal(isPricedRight(product, 2900, "month"), true);
@@ -151,13 +161,10 @@ describe("scripts/polar-setup.mjs", () => {
 			"FlockStack Pro (yearly)",
 			"FlockStack Scale (yearly)",
 			"FlockStack Max (monthly)",
-			"FlockStack dedicated IP for Pro (monthly)",
-			"FlockStack dedicated IP for Pro (yearly)",
-			"FlockStack dedicated IP for Scale (monthly)",
-			"FlockStack dedicated IP for Scale (yearly)",
-			"FlockStack dedicated IP for Max (monthly)",
-			"FlockStack dedicated IP for Max (yearly)",
+			"FlockStack dedicated IP (monthly)",
 		]);
+		assert.deepEqual(by("archive").toSorted(), ["Old add-on: FlockStack dedicated IP (yearly)", "Old add-on: FlockStack dedicated IP for pro", "Old add-on: FlockStack dedicated IP for scale"], "a line for each old add-on");
+		assert.match(steps.find(({ name }) => name.endsWith("for pro")).detail, /^prod_ip_pro_m, metadata pro \/ month: stops being sold, subscriptions on it go on$/);
 		assert.match(warning, /Allow multiple subscriptions/);
 	});
 
@@ -165,7 +172,11 @@ describe("scripts/polar-setup.mjs", () => {
 		const polar = createPolar({ products: OLD_PRODUCTS, allowMultiple: true });
 		const first = await setupPolar({ request: polar.request, isDryRun: false });
 		assert.equal(first.warning, null);
-		assert.equal(polar.state.products.some(({ is_archived }) => is_archived), false, "no product archived");
+		assert.deepEqual(
+			polar.state.products.filter(({ is_archived }) => is_archived).map(({ id }) => id).toSorted(),
+			["prod_ip_pro_m", "prod_ip_scale_y", "prod_ip_yearly"],
+			"only the old add-ons are archived"
+		);
 		assert.equal(polar.state.writes.some(({ method }) => method === "DELETE"), false);
 		const [meter] = polar.state.meters;
 		assert.deepEqual([meter.name, meter.aggregation, meter.filter.clauses[0]], ["Extra emails", { func: "sum", property: "count" }, { property: "name", operator: "eq", value: "flockstack_extra_emails" }]);
@@ -189,7 +200,7 @@ describe("scripts/polar-setup.mjs", () => {
 		assert.equal(maxYearly.cap_amount, 2_000_000 * 10 * 12 * 0.015);
 
 		const live = polar.state.products.filter((product) => !product.is_archived && getProductKey(product));
-		assert.equal(live.length, 16);
+		assert.equal(live.length, 11);
 		for (const item of getCatalog()) {
 			const product = live.find((candidate) => getProductKey(candidate) === item.key);
 			assert.ok(isPricedRight(product, item.amount, item.interval), item.key);
@@ -200,7 +211,7 @@ describe("scripts/polar-setup.mjs", () => {
 		const second = await setupPolar({ request: polar.request, isDryRun: false });
 		assert.equal(polar.state.writes.length, writes, "nothing to do the second time");
 		assert.equal(second.steps.every(({ action }) => action === "exists"), true);
-		assert.equal(second.steps.length, 17);
+		assert.equal(second.steps.length, 12);
 	});
 
 	test("a product on the wrong interval can't be updated into another: it's reported, never replaced", async () => {

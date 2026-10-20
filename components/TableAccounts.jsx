@@ -173,10 +173,15 @@ function Tenant({ tenant }) {
 			<span className={cn("truncate", isStopped ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
 				{TENANT_STATUSES[tenant.status] ?? tenant.status ?? "Status unknown"}
 			</span>
-			{tenant.dedicatedIp && <span className="truncate text-muted-foreground">Dedicated IP</span>}
+			{tenant.dedicatedIp && <span className="truncate text-muted-foreground">{describeDedicatedIp(tenant.dedicatedIp)}</span>}
 			{tenant.detail && <span className="truncate text-muted-foreground">{tenant.detail}</span>}
 		</span>
 	);
+}
+
+function describeDedicatedIp({ isManaged, ip, day, share, isDone }) {
+	if (isManaged) return "Old managed IP pool: delete it under Dedicated IPs";
+	return `Dedicated IP ${ip}, ${isDone ? "warmed up" : `day ${day ?? 1}, ${share ?? 0}%`}`;
 }
 
 const TENANT_STATUSES = {

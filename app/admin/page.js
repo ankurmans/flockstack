@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { Users } from "lucide-react";
+import CardIpInventory from "@/components/CardIpInventory";
 import CardPostmaster from "@/components/CardPostmaster";
 import CardStat from "@/components/CardStat";
 import CardUndeliverable from "@/components/CardUndeliverable";
@@ -18,7 +19,9 @@ import { getEmailProvider } from "@/lib/email-provider";
 import { formatNumber } from "@/lib/format";
 import { countGlobalSuppressions } from "@/lib/global-suppressions";
 import { getLapsedPlan } from "@/lib/free-plan";
-import { isOnFreePlan, isOnFreeTier } from "@/lib/plans";
+import { findManagedPoolAccounts } from "@/lib/ip-assignment";
+import { getInventory } from "@/lib/ip-inventory";
+import { DEDICATED_IP_AWS_MONTHLY_COST, isOnFreePlan, isOnFreeTier } from "@/lib/plans";
 import { serialize } from "@/lib/serialize";
 import { cn } from "@/lib/utils";
 import { isObjectIdString } from "@/lib/validation";
@@ -42,11 +45,14 @@ export default async function AdminPage({ searchParams }) {
 	await requireAdmin();
 	const { postmaster, account } = await searchParams;
 	const pinnedId = isObjectIdString(account) ? account : null;
-	const [accounts, pinned, undeliverable, cloudflare] = await Promise.all([
+	const hasIps = getEmailProvider().id === "ses";
+	const [accounts, pinned, undeliverable, cloudflare, inventory, managedPools] = await Promise.all([
 		listAccountsForAdmin(),
 		pinnedId ? listAccountsForAdmin({ accountId: pinnedId }) : [],
 		countGlobalSuppressions(),
 		getCloudflareDomainsStatus(),
+		hasIps ? getInventory() : null,
+		hasIps ? findManagedPoolAccounts() : [],
 	]);
 	// Self-hosted, every account counts as paying. On FlockStack Cloud an account without a subscription is on the Free plan.
 	const withPlan = accounts.filter(hasActiveSubscription);
@@ -123,7 +129,14 @@ export default async function AdminPage({ searchParams }) {
 					<Suspense fallback={<SkeletonSesAccount />}>{provider.id === "ses" ? <StripSesAccount /> : <StripPostshibaClusters />}</Suspense>
 				</section>
 
-				<section style={{ "--stagger": 5 }} className="flex flex-col gap-3 animate-enter">
+				{inventory && (
+					<section style={{ "--stagger": 5 }} className="flex flex-col gap-3 animate-enter">
+						<h2 className="text-sm font-medium text-muted-foreground">Dedicated IPs</h2>
+						<CardIpInventory inventory={serialize(inventory)} managedPools={managedPools.length} awsMonthlyCost={DEDICATED_IP_AWS_MONTHLY_COST} />
+					</section>
+				)}
+
+				<section style={{ "--stagger": 6 }} className="flex flex-col gap-3 animate-enter">
 					<h2 className="text-sm font-medium text-muted-foreground">Gmail spam rates</h2>
 					<Suspense fallback={<SkeletonSesAccount />}>
 						<CardPostmaster notice={typeof postmaster === "string" ? postmaster : undefined} />

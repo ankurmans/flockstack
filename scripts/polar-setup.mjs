@@ -3,7 +3,10 @@
 //   1. The "Extra emails" meter: the sum of `count` on flockstack_extra_emails events, which lib/extra-emails.js sends.
 //   2. Each plan, monthly and yearly: its fixed price and the extra emails metered price ($0.15 per 1,000, 0.015 cents an
 //      email). Yearly plans settle extra emails every month.
-//   3. The dedicated IP add-on for Pro, Scale and Max, monthly and yearly.
+//   3. The dedicated IP add-on, sold at cost: one monthly product ($27, no yearly one) for every plan from Pro up, with no
+//      plan in its metadata.
+//   4. Every other dedicated IP add-on product (one per plan, and any yearly one: metadata flockstack_addon) is archived, so
+//      nothing sells it any more; a subscription on one goes on until it ends.
 // A product that exists (found by its metadata: flockstack_plan, interval, flockstack_addon) is updated in place, so its
 // id stays: its name and description, and its prices replaced by the new fixed price and the extra emails price. Polar
 // archives the prices left out; subscriptions on them go on until they're changed. Only a missing product is created.
@@ -22,6 +25,7 @@ import {
 	getMeterBody,
 	getProductKey,
 	hasExtraEmailsPrice,
+	isLegacyAddon,
 } from "../lib/polar-catalog.js";
 
 function getBase(env) {
@@ -98,7 +102,7 @@ function getUpdate(product, item, meterId) {
 }
 
 // The whole run, against any `request` (tests give a stub). Returns the steps, each { action, name, detail }, where
-// action is one of exists, create, created, update, updated, ignored, problem; and a warning when the organization can't
+// action is one of exists, create, created, update, updated, archive, archived, ignored, problem; and a warning when the organization can't
 // hold an add-on next to a plan.
 export async function setupPolar({ request, isDryRun, organizationId, hasToken = true }) {
 	const steps = [];
@@ -155,6 +159,17 @@ export async function setupPolar({ request, isDryRun, organizationId, hasToken =
 		}
 	}
 
+	// 4. The per-plan add-ons that were sold before the one price stop being sold. Archiving keeps their subscriptions.
+	for (const product of products.filter(isLegacyAddon)) {
+		const name = `Old add-on: ${product.name}`;
+		const detail = `${product.id}, metadata ${product.metadata.flockstack_plan ?? "no plan"} / ${product.metadata.interval}: stops being sold, subscriptions on it go on`;
+		if (isDryRun) step("archive", name, detail);
+		else {
+			await request(`/v1/products/${product.id}`, { method: "PATCH", body: { is_archived: true } });
+			step("archived", name, detail);
+		}
+	}
+
 	// An add-on is a second subscription next to the plan's, which Polar only allows once the organization says so.
 	let warning = null;
 	const orgId = organizationId ?? meter?.organization_id ?? products[0]?.organization_id;
@@ -175,6 +190,8 @@ const LABELS = {
 	created: "created",
 	update: "would update",
 	updated: "updated",
+	archive: "would archive",
+	archived: "archived",
 	ignored: "ignored",
 	problem: "PROBLEM",
 };
@@ -199,7 +216,7 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
 	for (const { action, name, detail } of steps) console.log(`${name.padEnd(width)}  ${LABELS[action].padEnd(32)}  ${detail}`);
 	const count = (...actions) => steps.filter(({ action }) => actions.includes(action)).length;
 	console.log(
-		`\n${count("created", "create")} ${isDryRun ? "to create" : "created"}, ${count("updated", "update")} ${isDryRun ? "to update" : "updated"}, ${count("exists")} already right, ${count("problem")} to fix by hand.`
+		`\n${count("created", "create")} ${isDryRun ? "to create" : "created"}, ${count("updated", "update")} ${isDryRun ? "to update" : "updated"}, ${count("archived", "archive")} ${isDryRun ? "to archive" : "archived"}, ${count("exists")} already right, ${count("problem")} to fix by hand.`
 	);
 	if (warning) console.log(`\n${warning}`);
 	if (count("problem")) process.exitCode = 1;
