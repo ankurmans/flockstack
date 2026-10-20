@@ -38,3 +38,11 @@ test("reads wrangler.jsonc, comments and all", () => {
 	assert.equal(typeof config.compatibility_date, "string");
 	assert.ok(config.compatibility_flags.includes("nodejs_compat"));
 });
+
+test("asks Wrangler's bundler not to keep function names: the handler is already minified, and the helper that keeps them broke the theme script in the pages", () => {
+	const source = readFileSync(join(ROOT, "scripts/bundle-worker.mjs"), "utf8");
+	assert.match(source, /keep_names: false/);
+	// next-themes prints one of its functions into every page as an inline script; a `__name(...)` call left in it throws in the browser.
+	assert.equal(esbuild.transformSync("function k(){return 1}\n(0, k)()", { minifyWhitespace: true, keepNames: false }).code.includes("__name"), false);
+	assert.equal(esbuild.transformSync("function k(){return 1}\n(0, k)()", { minifyWhitespace: true, keepNames: true }).code.includes("__name"), true);
+});
