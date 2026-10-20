@@ -13,6 +13,7 @@ import { listCustomFields } from "@/lib/custom-fields";
 import { findPolls } from "@/lib/editor-blocks";
 import { getClickMapHtml, listCampaignLinks } from "@/lib/link-clicks";
 import { MESSAGE_STATS_GROUP } from "@/lib/message-stats";
+import { getUnsplashKey } from "@/lib/unsplash";
 import { getPostalAddress } from "@/lib/postal-address";
 import { isResend } from "@/lib/resend-rules";
 import { countResendAudience } from "@/lib/resends";
@@ -105,6 +106,7 @@ export default async function CampaignPage({ params }) {
 			fields={fields.map(({ key, label, type }) => ({ key, label, type }))}
 			segments={segments.map(({ _id, name }) => ({ id: String(_id), name }))}
 			isAiEnabled={isAiEnabled}
+			hasStockPhotos={Boolean(getUnsplashKey())}
 		/>
 	);
 }

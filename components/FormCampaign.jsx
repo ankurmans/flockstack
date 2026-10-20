@@ -82,6 +82,7 @@ export default function FormCampaign({
 	fields = [],
 	segments = [],
 	isAiEnabled = false,
+	hasStockPhotos = false,
 }) {
 	const isHtml = campaign.format === "html";
 	const [step, setStep] = useState("write");
@@ -389,7 +390,7 @@ export default function FormCampaign({
 								</p>
 							</div>
 						) : (
-							<EditorRich content={initialBody} onChange={updateBody} fields={fields} newsletterId={newsletter._id} campaignId={campaign._id} isAiEnabled={isAiEnabled} />
+							<EditorRich content={initialBody} onChange={updateBody} fields={fields} newsletterId={newsletter._id} campaignId={campaign._id} isAiEnabled={isAiEnabled} hasStockPhotos={hasStockPhotos} />
 						)}
 					</div>
 				</section>

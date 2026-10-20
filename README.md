@@ -226,6 +226,14 @@ The editor's AI tools run on Workers AI, the same way as the support assistant b
 
 **Not checked:** a real Workers AI call. The tests stub the binding, so the quality of each tool's output, the prompts' effect on Qwen3 and gpt-oss and the counts of tokens a request costs are untested against Cloudflare.
 
+## Stock photos
+
+The editor's image picker has a "Free photos" tab, [Unsplash](https://unsplash.com/developers)'s free API, when `UNSPLASH_ACCESS_KEY` is set; without it the tab is hidden and `search_stock_photos` and `use_stock_photo` answer `unavailable`. The key stays on the server: the browser only calls FlockStack.
+
+- **Unsplash's rules** (`lib/unsplash.js`): photos are hotlinked from the URLs the API returns, never copied; picking one reports the download to Unsplash (`use_stock_photo` reads the photo by its ID from the API first, so a client can't send a URL or a download address); the photo is credited under the picture, "Photo by <photographer> on Unsplash", both linked with `utm_source` (the app's name, `UNSPLASH_APP_NAME`, default `flockstack`) and `utm_medium=referral`; and the results name their photographer.
+- **Privacy.** The search words go to Unsplash. A reader's email app or browser loads the photo from Unsplash's servers, which see that request and the reader's IP address: `lib/subprocessors.js` and `lib/docs/regions.js` say so. Copying the file into FlockStack's own storage would avoid it, but Unsplash's guidelines ask for hotlinks.
+- **Limits.** 120 searches and 60 picks an hour per key and account. Unsplash's demo tier allows 50 requests an hour across the whole application until Unsplash approves the application for production.
+
 ## Legal pages
 
 FlockStack Cloud's terms of service (`/terms`), privacy policy (`/privacy`) and sub-processors (`/sub-processors`) are first drafts written from what the code and the infrastructure do. They are not legal advice: have a lawyer read them. They are linked from the landing page's footer and the sign-in page (whose "By continuing you agree" line is the sign-up step), listed in the sitemap and `llms.txt`, and 404 on a self-hosted server. Everything about the company that the code can't know lives in `lib/legal.js` as constants whose placeholders start with `TODO:`, and the pages read from it. While any placeholder is left the pages are hidden: they answer 404, and the footer, the sign-in page, the consent banner, the sitemap, `llms.txt` and the support assistant leave them out (`isLegalPublished()` in `lib/legal.js`). `LEGAL_PREVIEW=true` shows them anyway, for tests and local review only: never set it in production. To see what is left, run

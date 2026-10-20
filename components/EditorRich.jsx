@@ -21,6 +21,7 @@ import { Callout } from "@/lib/editor-callout";
 import { FindReplace } from "@/lib/editor-find";
 import { createBlockExtensions } from "@/lib/editor-nodes";
 import { toast } from "@/lib/toast";
+import { creditContent } from "@/lib/unsplash-client";
 import { useAiRun } from "@/lib/use-ai-run";
 import { IMAGE_TYPES, getDisplaySize, prepareImage, uploadAttachment, uploadImage } from "@/lib/upload-image";
 
@@ -28,7 +29,8 @@ const MIN_HEIGHT = "min-h-[560px]";
 
 // newsletterId and campaignId: where a poll made in this editor belongs. Without a newsletter, there's no poll block.
 // isAiEnabled: the selection's AI menu (rewrite, shorten, tone, translate), only where the server has Workers AI.
-export default function EditorRich({ content, onChange, fields = [], newsletterId = null, campaignId = null, isAiEnabled = false }) {
+// hasStockPhotos: the image picker also searches Unsplash, only where the server has an Unsplash key.
+export default function EditorRich({ content, onChange, fields = [], newsletterId = null, campaignId = null, isAiEnabled = false, hasStockPhotos = false }) {
 	const [isEditingLink, setIsEditingLink] = useState(false);
 	const [isPickingImage, setIsPickingImage] = useState(false);
 	// Find and replace: the bar's open, starting from this text (the selection when it was opened).
@@ -157,6 +159,7 @@ export default function EditorRich({ content, onChange, fields = [], newsletterI
 				open={isPickingImage}
 				onOpenChange={setIsPickingImage}
 				onSelect={(image) => insertImage(editor, image)}
+				hasStock={hasStockPhotos}
 			/>
 			<DialogEditorBlock
 				block={block}
@@ -211,10 +214,12 @@ async function insertAttachment(editor, file) {
 }
 
 // Where the slash command was typed: the editor keeps its selection while the picker has focus.
-function insertImage(editor, { url, width, height }) {
+// A stock photo comes with its credit line under it.
+function insertImage(editor, { url, width, height, alt = "", credit = null }) {
 	if (editor.isDestroyed) return;
 	const size = width && height ? getDisplaySize({ width, height }) : {};
-	editor.chain().focus().insertContent({ type: "image", attrs: { src: url, alt: "", ...size } }).run();
+	const image = { type: "image", attrs: { src: url, alt, ...size } };
+	editor.chain().focus().insertContent(credit ? [image, creditContent(credit)] : image).run();
 }
 
 // Each picture shows right away from the local file and switches to its CDN URL once uploaded. The

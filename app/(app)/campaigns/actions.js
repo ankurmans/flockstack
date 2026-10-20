@@ -297,3 +297,15 @@ export async function restoreCampaignVersion(id, version) {
 	refresh(id);
 	return { ok: true };
 }
+
+// The editor's stock photo picker (Unsplash): search, and picking one, which reports the use to Unsplash and brings back the
+// credit the photo is shown with.
+export async function searchStock(query, page) {
+	const { output, failure } = await runDashboardAction("search_stock_photos", { query: String(query ?? "").slice(0, 100), page: readCount(page) ?? 1, perPage: 18 });
+	return failure ? toFormError(failure) : output;
+}
+
+export async function pickStockPhoto(id) {
+	const { output, failure } = await runDashboardAction("use_stock_photo", { id: String(id ?? "") });
+	return failure ? toFormError(failure) : output;
+}
