@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { activate, addSentIssue, as, callApi, catchRedirect, form, signIn } from "./app.mjs";
 import { runWithRequest } from "../stubs/next-headers.mjs";
 import { flushAfter } from "../stubs/next-server.mjs";
@@ -57,6 +58,25 @@ export async function visitAndFlush(ip, run, headers) {
 	const result = await visit(ip, run, headers);
 	await flushAfter();
 	return result;
+}
+
+// The REST API with every answer checked against the action's output schema.
+export async function api(key, method, path, body) {
+	const rest = await import("../../lib/api/rest.js");
+	const response = await callApi(method, `/api/v1${path}`, { key, body });
+	if (response.status < 300) {
+		const segments = new URL(path, "http://x").pathname.split("/").filter(Boolean).map(decodeURIComponent);
+		const { action } = rest.matchRoute(method, segments);
+		const checked = action.output.safeParse(response.body);
+		assert.ok(checked.success, `${action.name} answered outside its schema: ${checked.error?.message}`);
+	}
+	return response;
+}
+
+export function assertError(response, status, code) {
+	assert.equal(response.status, status, JSON.stringify(response.body));
+	assert.equal(response.body.error.code, code, response.body.error.message);
+	return response.body.error.message;
 }
 
 export { callApi };

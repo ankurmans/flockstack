@@ -40,6 +40,9 @@ const PUBLIC_PATHS = [
 	/^\/api\/unsubscribe$/,
 	/^\/api\/views$/,
 	/^\/api\/recommendations\/impression$/,
+	/^\/embed\/[a-f0-9]{24}$/i,
+	/^\/f\/[a-f0-9]{24}$/i,
+	/^\/subscribe\/magic$/,
 	/^\/recommendations$/,
 	/^\/api\/shop\/(download|portal)$/,
 	/^\/api\/v1\//,
@@ -54,6 +57,11 @@ const ARCHIVE_HOST_PATHS = [
 	/^\/api\/unsubscribe$/,
 	/^\/api\/views$/,
 	/^\/api\/recommendations\/impression$/,
+	// Signup forms for other sites (lib/forms.js): the frame's page, the address a form posts to, the script that frames it,
+	// and Magic Links (lib/magic-links.js).
+	/^\/embed\/[a-f0-9]{24}$/i,
+	/^\/f\/[a-f0-9]{24}$/i,
+	/^\/subscribe\/magic$/,
 	/^\/api\/shop\/(download|portal)$/,
 	/^\/confirm$/,
 	/^\/keep$/,
@@ -78,6 +86,10 @@ function rewriteTo(request, pathname) {
 
 export async function proxy(request) {
 	const { pathname } = request.nextUrl;
+
+	// The script that frames a signup form (lib/embed-script.js) is /embed.js on every host. Its route is under /api: a folder
+	// named embed.js would look like a file to every tool that walks the source.
+	if (pathname === "/embed.js") return rewriteTo(request, "/api/embed-script");
 
 	const { isArchiveHost, slug: archiveSlug } = await resolveArchiveHost(request.headers.get("host"));
 	if (isArchiveHost) {
