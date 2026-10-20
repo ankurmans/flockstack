@@ -55,4 +55,7 @@ const STATUS_TONES = {
 	shutdown: "red",
 	deleting: "red",
 	blocked: "red",
+	new: "blue",
+	contacted: "amber",
+	won: "green",
 };

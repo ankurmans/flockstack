@@ -7,6 +7,7 @@ import { setLimitOverrides, setSendSpread } from "@/lib/accounts";
 import { requireAdmin } from "@/lib/auth";
 import { grantFreePlan, revokeFreePlan } from "@/lib/billing";
 import { isCloud } from "@/lib/config";
+import { deleteCustomRequest, updateCustomRequest } from "@/lib/custom-requests";
 import { getGlobalSuppression, removeGlobalSuppression } from "@/lib/global-suppressions";
 import { getEmailProvider } from "@/lib/email-provider";
 import { getPlan } from "@/lib/plans";
@@ -145,4 +146,25 @@ export async function removeUndeliverableAddress(email) {
 	console.info(`[admin] ${admin.email} took an address off the never-email list: ${removed.restored} contacts active again`);
 	revalidatePath("/admin");
 	return { ok: true, restored: removed.restored };
+}
+
+// A Custom plan request's status and the admins' notes (lib/custom-requests.js).
+export async function saveCustomRequest(_state, formData) {
+	const admin = await requireAdmin();
+	const id = String(formData.get("id") ?? "");
+	if (!isValidObjectId(id)) return { error: "Request not found" };
+	const { problem } = await updateCustomRequest(id, { status: formData.get("status"), notes: formData.get("notes") });
+	if (problem) return { error: problem };
+	console.info(`[admin] ${admin.email} updated Custom plan request ${id}`);
+	revalidatePath("/admin/custom");
+	return { ok: true, savedAt: Date.now() };
+}
+
+// For a person who asked us to delete theirs (the privacy policy says they can).
+export async function removeCustomRequest(id) {
+	const admin = await requireAdmin();
+	if (!(await deleteCustomRequest(String(id ?? "")))) return { error: "Request not found" };
+	console.info(`[admin] ${admin.email} deleted Custom plan request ${id}`);
+	revalidatePath("/admin/custom");
+	return { ok: true };
 }

@@ -87,7 +87,7 @@ describe("the legal pages", () => {
 		assert.ok(terms.includes(`${m.legal.PRICE_INCREASE_NOTICE_DAYS} days`));
 		assert.ok(terms.includes(`within ${m.legal.YEARLY_REFUND_DAYS} days of buying`));
 		const privacy = textOf(renderPage("privacy"));
-		for (const value of [m.legal.PRIVACY_EMAIL, m.legal.LOG_RETENTION, m.legal.BACKUP_RETENTION, m.legal.PRIVACY_REQUEST_RESPONSE, m.legal.ANALYTICS_RULE, m.legal.ANALYTICS_RETENTION, m.legal.SUPPORT_CHAT_STORED, m.legal.SUPPORT_CHAT_RETENTION, m.legal.TERMS_CHANGE_NOTICE]) {
+		for (const value of [m.legal.PRIVACY_EMAIL, m.legal.LOG_RETENTION, m.legal.BACKUP_RETENTION, m.legal.PRIVACY_REQUEST_RESPONSE, m.legal.ANALYTICS_RULE, m.legal.ANALYTICS_RETENTION, m.legal.SUPPORT_CHAT_STORED, m.legal.SUPPORT_CHAT_RETENTION, m.legal.CUSTOM_REQUEST_STORED, m.legal.CUSTOM_REQUEST_RETENTION, m.legal.TERMS_CHANGE_NOTICE]) {
 			assert.ok(privacy.includes(value), value);
 		}
 		for (const { name, text, source } of m.legal.TRANSFER_SAFEGUARDS) assert.ok(privacy.includes(text) && privacy.includes(name), name);
@@ -219,6 +219,21 @@ describe("the legal pages", () => {
 			assert.ok(text.includes(phrase), phrase);
 		}
 		assert.doesNotMatch(text, /EU[- ]resident/i);
+	});
+
+	test("the privacy policy says what the Custom plan's request form stores, what for, how long, and that support deletes it on request", async () => {
+		const text = textOf(renderPage("privacy"));
+		assert.ok(text.includes("The Custom plan request form: anyone can fill it in at /custom"));
+		assert.match(m.legal.CUSTOM_REQUEST_STORED, /name, work email address, newsletter or company, website, current platform/);
+		assert.match(m.legal.CUSTOM_REQUEST_STORED, /reply to you and to decide what to build, and for nothing else/);
+		assert.match(m.legal.CUSTOM_REQUEST_RETENTION, /while we are talking and for 2 years after the last change/);
+		assert.match(m.legal.CUSTOM_REQUEST_RETENTION, new RegExp(`write to ${m.legal.PRIVACY_EMAIL.replace(".", "\\.")}: we delete it on request`));
+		assert.ok(text.includes("Custom plan requests: We keep a request while we are talking"));
+
+		const regions = await import("../lib/docs/regions.js");
+		assert.ok(regions.REGION_DATA.some(({ what }) => what.startsWith("Custom plan requests")));
+		const ses = m.subprocessors.SUBPROCESSORS.find(({ name }) => name.startsWith("Amazon SES"));
+		assert.match(ses.purpose, /confirmation of a Custom plan request/);
 	});
 
 	test("the sub-processors table lists every service with its regions, optional ones apart", () => {
