@@ -5,7 +5,7 @@ import ButtonCopy from "@/components/ButtonCopy";
 import HeaderDocs from "@/components/HeaderDocs";
 import { API_BASE_PATH } from "@/lib/api/rest";
 import { getAppUrl } from "@/lib/config";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 import { getClaudeCodeCommand, getMcpUrl } from "@/lib/docs/mcp-clients";
 import { getEndpointGroups } from "@/lib/docs/reference";
 

@@ -3,7 +3,7 @@ import BlockCode from "@/components/BlockCode";
 import HeaderDocs from "@/components/HeaderDocs";
 import { API_BASE_PATH } from "@/lib/api/rest";
 import { getAppUrl } from "@/lib/config";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 import { FREE_PLAN, PLANS } from "@/lib/plans";
 import { WEBHOOK_EVENTS } from "@/lib/webhook-events";
 import { MAX_ATTEMPTS, MAX_DELIVERIES_PER_ENDPOINT } from "@/lib/webhook-rules";

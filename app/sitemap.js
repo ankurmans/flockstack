@@ -1,5 +1,5 @@
 import { getAppUrl, isCloud } from "@/lib/config";
-import { DOC_PAGES } from "@/lib/docs/llms";
+import { DOC_PAGES } from "@/lib/docs/pages";
 import { siteExtensions } from "@/lib/site-extensions";
 import { isSiteIndexedElsewhere } from "@/lib/site-origin";
 

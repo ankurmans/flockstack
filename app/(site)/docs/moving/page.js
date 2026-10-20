@@ -2,7 +2,7 @@ import Link from "next/link";
 import BlockCode from "@/components/BlockCode";
 import HeaderDocs from "@/components/HeaderDocs";
 import { API_BASE_PATH } from "@/lib/api/rest";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 import { formatNumber } from "@/lib/format";
 import { FREE_PLAN, PLANS } from "@/lib/plans";
 import { MAX_IMAGES_PER_IMPORT, MAX_IMPORT_FILE_BYTES } from "@/lib/post-import-report";

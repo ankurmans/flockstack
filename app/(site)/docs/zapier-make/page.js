@@ -1,7 +1,7 @@
 import Link from "next/link";
 import BlockCode from "@/components/BlockCode";
 import HeaderDocs from "@/components/HeaderDocs";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 import { SOURCE_URL } from "@/lib/site";
 import { WEBHOOK_EVENTS } from "@/lib/webhook-events";
 

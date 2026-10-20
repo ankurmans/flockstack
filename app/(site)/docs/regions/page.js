@@ -1,6 +1,6 @@
 import HeaderDocs from "@/components/HeaderDocs";
 import { isCloud } from "@/lib/config";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 import { REGION_DATA, REGION_LEAVES } from "@/lib/docs/regions";
 import { REGION_NAMES, REGION_PLACES, getRegion, getRegionUrls } from "@/lib/region";
 

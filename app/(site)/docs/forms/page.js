@@ -1,7 +1,7 @@
 import Link from "next/link";
 import BlockCode from "@/components/BlockCode";
 import HeaderDocs from "@/components/HeaderDocs";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 import { MAX_FORMS_PER_NEWSLETTER, MAX_FORM_FIELDS } from "@/lib/form-rules";
 import { MAGIC_PER_EMAIL, MAGIC_PER_IP } from "@/lib/magic-links";
 import { POPUP_DEFAULTS, POPUP_LIMITS } from "@/lib/popup-rules";

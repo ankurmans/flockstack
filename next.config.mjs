@@ -39,6 +39,9 @@ const SITE_EXTENSIONS = Object.entries({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
 	poweredByHeader: false,
+	// One Worker holds every route, so a module that several routes share should sit in a chunk of its own, loaded once, not be
+	// copied into each route's chunks: this takes 5 MB out of the 43 MB handler, and the memory V8 keeps its source in.
+	experimental: { turbopackServerSideNestedAsyncChunking: true },
 	turbopack: { resolveAlias: Object.fromEntries(SITE_EXTENSIONS) },
 	images: {
 		remotePatterns: [

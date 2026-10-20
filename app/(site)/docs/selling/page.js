@@ -3,7 +3,7 @@ import BlockCode from "@/components/BlockCode";
 import HeaderDocs from "@/components/HeaderDocs";
 import { API_BASE_PATH } from "@/lib/api/rest";
 import { getAppUrl } from "@/lib/config";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 import { DOWNLOAD_LINK_DAYS, MAX_DOWNLOADS_PER_ORDER } from "@/lib/download-link";
 import { MAX_PRODUCT_FILE_BYTES } from "@/lib/products";
 

@@ -2,8 +2,6 @@ import { notFound } from "next/navigation";
 import LayoutLegal from "@/components/LayoutLegal";
 import LinkInline from "@/components/LinkInline";
 import SectionLegal from "@/components/SectionLegal";
-import { DELETION_GRACE_DAYS } from "@/lib/account-deletion";
-import { EXPORT_LINK_DAYS } from "@/lib/account-export-files";
 import { FREE_LIMITS, LIMITS } from "@/lib/config";
 import { formatNumber } from "@/lib/format";
 import {
@@ -22,6 +20,7 @@ import {
 } from "@/lib/legal";
 import { FREE_GUARDS, FREE_PLAN } from "@/lib/plans";
 import { getRegionUrls } from "@/lib/region";
+import { DELETION_GRACE_DAYS, EXPORT_LINK_DAYS } from "@/lib/retention";
 import { getPageMetadata } from "@/lib/site";
 
 const { title, description, href } = LEGAL_PAGES.find((page) => page.href === "/terms");

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import BlockCode from "@/components/BlockCode";
 import HeaderDocs from "@/components/HeaderDocs";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 import { MAX_PITCH_LENGTH, MAX_RECOMMENDATIONS, REGION_RULE } from "@/lib/recommendation-rules";
 import { RECOMMENDATIONS_TAG } from "@/lib/recommendation-tags";
 

@@ -7,7 +7,7 @@ import { ACTIONS } from "@/lib/actions/registry";
 import { API_BASE_PATH, REQUESTS_PER_KEY } from "@/lib/api/rest";
 import { API_KEY_SCAN_REGEX } from "@/lib/api-key-tokens";
 import { getAppUrl, isCloud } from "@/lib/config";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 import { formatNumber, formatUsdCents, formatWindow } from "@/lib/format";
 import { EXTRA_EMAILS, FREE_GUARDS, FREE_PLAN } from "@/lib/plans";
 import { getRegionUrls } from "@/lib/region";

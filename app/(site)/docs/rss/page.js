@@ -1,7 +1,7 @@
 import BlockCode from "@/components/BlockCode";
 import HeaderDocs from "@/components/HeaderDocs";
 import { getAppUrl } from "@/lib/config";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 
 export const metadata = getDocsPageMetadata("/docs/rss");
 

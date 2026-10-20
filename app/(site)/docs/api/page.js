@@ -2,7 +2,7 @@ import CardEndpoint from "@/components/CardEndpoint";
 import HeaderDocs from "@/components/HeaderDocs";
 import { API_BASE_PATH } from "@/lib/api/rest";
 import { getAppUrl } from "@/lib/config";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 import { getEndpointGroups } from "@/lib/docs/reference";
 
 export const metadata = getDocsPageMetadata("/docs/api");
