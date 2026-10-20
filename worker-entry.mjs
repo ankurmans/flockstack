@@ -2,7 +2,7 @@
 // outside scheduler (app/api/cron). A trigger calls the route through the same handler with CRON_SECRET.
 import openNext from "./.open-next/worker.js";
 import { isCertificateValidationRequest } from "./lib/certificate-validation.js";
-import { canUseEdgeCache, serveWithEdgeCache } from "./lib/edge-cache.js";
+import { EDGE_CACHE_POLICIES, getEdgeCacheKind, serveWithEdgeCache } from "./lib/edge-cache.js";
 import { getCookiePrefix } from "./lib/region.js";
 import { hasSessionCookie, shouldForwardToWebsite } from "./lib/website-routing.js";
 
@@ -61,23 +61,22 @@ export default {
 		}
 		const render = (req) => openNext.fetch(req, env, ctx);
 		// The public pages that are the same for everyone come from the data center's cache (lib/edge-cache.js), so a crawler's
-		// visit doesn't start the app. A Worker on workers.dev has no cache: there the app answers, as before.
-		if (
-			env.APP_URL &&
-			typeof caches !== "undefined" &&
-			caches.default &&
-			canUseEdgeCache({
-				method: request.method,
-				hostname: url.hostname,
-				appHostname: new URL(env.APP_URL).hostname,
-				pathname: url.pathname,
-				search: url.search,
-				headers: request.headers,
-				hasSession: hasSessionCookie(request.headers.get("cookie"), getCookiePrefix(env)),
-			})
-		) {
-			return serveWithEdgeCache({ request, env, ctx, cache: caches.default, render });
-		}
+		// visit doesn't start the app: FlockStack's own docs and files, and a newsletter's public pages on its own host. A Worker
+		// on workers.dev has no cache: there the app answers, as before.
+		const cacheKind =
+			env.APP_URL && typeof caches !== "undefined" && caches.default
+				? getEdgeCacheKind({
+						method: request.method,
+						hostname: url.hostname,
+						appHostname: new URL(env.APP_URL).hostname,
+						pathname: url.pathname,
+						search: url.search,
+						headers: request.headers,
+						hasSession: hasSessionCookie(request.headers.get("cookie"), getCookiePrefix(env)),
+						hasAnalytics: Boolean(String(env.POSTHOG_KEY ?? "").trim()),
+					})
+				: null;
+		if (cacheKind) return serveWithEdgeCache({ request, env, ctx, cache: caches.default, render, policy: EDGE_CACHE_POLICIES[cacheKind] });
 		return render(request);
 	},
 

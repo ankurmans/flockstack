@@ -217,9 +217,42 @@ describe("worker-entry.mjs", () => {
 			await visit("https://flockstack.io/privacy");
 			assert.equal((await visit("https://flockstack.io/privacy", { cookie: "__Secure-better-auth.session_token=x" })).app, 1);
 			assert.equal((await visit("https://flockstack.io/privacy", { method: "POST" })).app, 1);
-			await visit("https://news.example.com/robots.txt");
-			assert.deepEqual(await visit("https://news.example.com/robots.txt"), { app: 1, cache: null });
+			await visit("https://news.example.com/terms");
+			assert.deepEqual(await visit("https://news.example.com/terms"), { app: 1, cache: null }, "FlockStack's pages are not a newsletter's");
 			assert.equal((await visit("https://flockstack.io/privacy")).cache, "HIT");
+		});
+
+		test("keeps a newsletter's public pages on its own host for a visitor without a cookie, and the reader's own pages out", async () => {
+			assert.deepEqual(await visit("https://news.example.com/p/an-issue"), { app: 1, cache: "MISS" });
+			assert.deepEqual(await visit("https://news.example.com/p/an-issue"), { app: 0, cache: "HIT" });
+			assert.deepEqual(await visit("https://news.example.com/"), { app: 1, cache: "MISS" });
+			assert.deepEqual(await visit("https://news.example.com/robots.txt"), { app: 1, cache: "MISS" });
+			assert.deepEqual(await visit("https://news.example.com/robots.txt"), { app: 0, cache: "HIT" });
+			assert.deepEqual(await visit("https://other.example.org/p/an-issue"), { app: 1, cache: "MISS" }, "each host has its own copy");
+			assert.deepEqual(await visit("https://news.example.com/p/an-issue", { cookie: "fs_reader_news=abc" }), { app: 1, cache: null }, "a reader's cookie");
+			assert.deepEqual(await visit("https://news.example.com/p/an-issue", { cookie: "fs_reader_news_on=1" }), { app: 1, cache: null });
+			assert.deepEqual(await visit("https://news.example.com/p/an-issue", { cookie: "__Secure-better-auth.session_token=x" }), { app: 1, cache: null }, "a session");
+			assert.deepEqual(await visit("https://news.example.com/p/an-issue?ref=abc"), { app: 1, cache: null }, "a query");
+			assert.deepEqual(await visit("https://news.example.com/subscribe"), { app: 1, cache: null });
+			assert.deepEqual(await visit("https://news.example.com/unsubscribe"), { app: 1, cache: null });
+			assert.deepEqual(await visit("https://news.example.com/p/an-issue", { method: "POST" }), { app: 1, cache: null });
+			assert.deepEqual(await visit("https://news.example.com/p/an-issue"), { app: 0, cache: "HIT" }, "the cookies did not touch the stored copy");
+		});
+
+		test("does not keep the HTML of the docs where the analytics are on, because it differs per visitor", async () => {
+			const withAnalytics = { ...ENV, WEBSITE, POSTHOG_KEY: "phc_testkeytestkey" };
+			const visitWith = async (url) => {
+				openNextCalls.length = 0;
+				const response = await worker.fetch(new Request(url), withAnalytics, cachingCtx);
+				await response.text();
+				await Promise.all(pending.splice(0));
+				return { app: openNextCalls.length, cache: response.headers.get("x-edge-cache") };
+			};
+			assert.deepEqual(await visitWith("https://flockstack.io/docs/webhooks"), { app: 1, cache: null });
+			assert.deepEqual(await visitWith("https://flockstack.io/docs/webhooks"), { app: 1, cache: null });
+			assert.deepEqual(await visitWith("https://flockstack.io/openapi-not"), { app: 1, cache: null });
+			assert.deepEqual(await visitWith("https://flockstack.io/api/v1/openapi.json"), { app: 1, cache: "MISS" });
+			assert.deepEqual(await visitWith("https://flockstack.io/api/v1/openapi.json"), { app: 0, cache: "HIT" });
 		});
 	});
 });
