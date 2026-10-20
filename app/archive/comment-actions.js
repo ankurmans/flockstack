@@ -10,15 +10,11 @@ import { connectDb } from "@/lib/db";
 import { findOpenNewsletter } from "@/lib/public-newsletters";
 import { getClientIp, isRateLimited } from "@/lib/rate-limit";
 import { limitKey } from "@/lib/reader-links";
+import { SIGNIN_PER_ADDRESS, SIGNIN_PER_IP, SIGNIN_SENT_MESSAGE } from "@/lib/reader-limits";
 import { endReaderSession, findSessionReader, sendSignInEmail } from "@/lib/reader-session";
 import { ARCHIVE_SLUG_PATTERN } from "@/lib/slug";
 import { normalizeEmail } from "@/lib/validation";
 
-// One request is one email: a flood from a network, or at one address, stops early. Both count whether or not the
-// address is subscribed, so a limit never tells the two apart.
-const SIGNIN_PER_IP = { name: "reader-link-ip", limit: 5, window: "10 m" };
-const SIGNIN_PER_ADDRESS = { name: "reader-link-address", limit: 3, window: "1 h" };
-const SIGNIN_SENT_MESSAGE = "If this address is subscribed, a sign-in link is on its way. It works once, for 30 minutes.";
 const SIGNED_OUT = { error: "Sign in with your email to comment.", code: "signed-out" };
 const NO_COMMENTS = { error: "This issue isn't taking comments.", code: "off" };
 

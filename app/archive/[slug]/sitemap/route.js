@@ -1,5 +1,5 @@
 import { getArchiveAuthor } from "@/lib/archive-author";
-import { getArchiveNewsletter, getShopPayments, listArchiveIssues, listShopProducts } from "@/lib/archive-data";
+import { getArchiveNewsletter, getShopPayments, listArchiveIssues, listIssueTags, listPublishedPages, listShopProducts } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getIssueModified } from "@/lib/archive-issues";
 
@@ -26,7 +26,13 @@ export async function GET(_request, { params }) {
 	if (!newsletter) return new Response("Not found", { status: 404 });
 
 	const urls = getArchiveUrls(newsletter);
-	const [listed, products, payments] = await Promise.all([listArchiveIssues(newsletter), listShopProducts(newsletter), getShopPayments(newsletter)]);
+	const [listed, products, payments, pages, tags] = await Promise.all([
+		listArchiveIssues(newsletter),
+		listShopProducts(newsletter),
+		getShopPayments(newsletter),
+		listPublishedPages(newsletter),
+		listIssueTags(newsletter),
+	]);
 	const issues = listed.filter((issue) => !issue.seo?.noindex);
 	const latestDate = latest(issues.map(getIssueModified));
 	const shopped = payments.ready ? products : [];
@@ -35,7 +41,10 @@ export async function GET(_request, { params }) {
 		'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
 		entry(urls.siteIndex, latestDate),
 		entry(urls.absoluteAuthor(getArchiveAuthor(newsletter).slug), latestDate),
+		entry(urls.absoluteIssues, latestDate),
 		...issues.map((issue) => entry(urls.absolutePost(issue.archiveSlug), getIssueModified(issue))),
+		...pages.map((page) => entry(urls.absolutePost(page.slug), page.updatedAt)),
+		...tags.map((tag) => entry(urls.absoluteTag(tag.slug), latestDate)),
 		...(shopped.length > 0 ? [entry(urls.absoluteShop, latest(shopped.map(({ updatedAt }) => updatedAt))), ...shopped.map((product) => entry(urls.absoluteProduct(product.slug), product.updatedAt))] : []),
 		"</urlset>",
 	].join("\n");

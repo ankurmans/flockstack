@@ -121,9 +121,13 @@ describe("hosts", () => {
 		assert.deepEqual(outcome(await visit("https://weekly.flockstack.io/")), { rewrite: "/archive/weekly" });
 		assert.deepEqual(outcome(await visit("https://weekly.flockstack.io/p/first-issue")), { rewrite: "/archive/weekly/p/first-issue" });
 		assert.deepEqual(outcome(await visit("https://weekly.flockstack.io/unsubscribe?token=t")), { next: true });
-		for (const path of ["/signin", "/api/auth/get-session", "/api/uploads", "/campaigns", "/mcp", "/api/v1/newsletters"]) {
+		for (const path of ["/api/auth/get-session", "/api/uploads", "/campaigns", "/mcp", "/api/v1/newsletters", "/website", "/website/pages/x"]) {
 			assert.deepEqual(outcome(await visit(`https://weekly.flockstack.io${path}`)), { status: 404 }, path);
 		}
+		// Its /signin is the reader's, a page of the newsletter's site, never the dashboard's sign-in.
+		assert.deepEqual(outcome(await visit("https://weekly.flockstack.io/signin")), { rewrite: "/archive/weekly/signin" });
+		assert.deepEqual(outcome(await visit("https://weekly.flockstack.io/account")), { rewrite: "/archive/weekly/account" });
+		assert.deepEqual(outcome(await visit("https://weekly.flockstack.io/issues")), { rewrite: "/archive/weekly/issues" });
 		assert.equal(m.archiveHosts.getArchiveHostUrl("/archive/weekly/p/first-issue", ""), "https://weekly.flockstack.io/p/first-issue");
 	});
 });

@@ -29,6 +29,12 @@ function readSettings(formData) {
 		archiveEnabled: formData.get("archiveEnabled") === "on",
 		description: readText(formData, "description"),
 		accentColor: readText(formData, "accentColor"),
+		brand: {
+			theme: readText(formData, "theme") || "classic",
+			fontPair: readText(formData, "fontPair") || "sans",
+			headerUrl: readText(formData, "headerUrl"),
+			emailLogo: formData.get("emailLogo") === "on",
+		},
 		preferencesLink: formData.get("preferencesLink") === "on",
 		author: { bio: readText(formData, "authorBio"), imageUrl: readText(formData, "authorImageUrl") },
 		socialLinks: readText(formData, "socialLinks").split(/[\s,]+/).filter(Boolean),

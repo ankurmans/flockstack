@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardList, CreditCard, Filter, Gift, Globe, KeyRound, LayoutGrid, LayoutTemplate, Megaphone, MessageSquare, Receipt, Repeat, Send, Settings, Shield, ShoppingBag, Users, Webhook, Workflow } from "lucide-react";
+import { ClipboardList, CreditCard, Filter, Gift, Globe, KeyRound, LayoutGrid, LayoutTemplate, Megaphone, MessageSquare, PanelsTopLeft, Receipt, Repeat, Send, Settings, Shield, ShoppingBag, Users, Webhook, Workflow } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // The open newsletter's pages, then the account's, which every newsletter shares.
@@ -53,6 +53,7 @@ const NEWSLETTER_ITEMS = [
 	{ href: "/referrals", label: "Referrals", icon: Gift },
 	{ href: "/recommending", label: "Recommendations", icon: Megaphone },
 	{ href: "/comments", label: "Comments", icon: MessageSquare },
+	{ href: "/website", label: "Website", icon: PanelsTopLeft },
 	{ href: "/products", label: "Products", icon: ShoppingBag },
 	{ href: "/newsletters", label: "Settings", icon: Settings },
 ];
