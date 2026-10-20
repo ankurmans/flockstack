@@ -14,6 +14,8 @@ import ScriptJsonLd from "@/components/ScriptJsonLd";
 import TrackView from "@/components/TrackView";
 import TriggerSubscribe from "@/components/TriggerSubscribe";
 import { getIssueAuthor } from "@/lib/archive-author";
+import { getIssueAudio } from "@/lib/audio";
+import { isAudioEnabled } from "@/lib/audio-config";
 import { renderPageBody } from "@/lib/archive-content";
 import { countReaders, getArchiveIssue, getArchiveNewsletter, getArchivePage, getShopPayments, listArchiveIssues, listSignupFields } from "@/lib/archive-data";
 import { getGatePreview, listFreeIssueIds } from "@/lib/archive-gate";
@@ -91,19 +93,29 @@ async function renderPage({ newsletter, page }) {
 async function renderIssue({ newsletter, issue }) {
 
 	const hasComments = areCommentsOn(newsletter, issue);
-	const [more, readers, payments, signupFields, recommendations, comments] = await Promise.all([
+	const [more, readers, payments, signupFields, recommendations, comments, audio] = await Promise.all([
 		listArchiveIssues(newsletter, { limit: 3, excludeId: issue._id }),
 		countReaders(newsletter),
 		getShopPayments(newsletter),
 		listSignupFields(newsletter),
 		listLiveRecommendations(newsletter).catch(() => []),
 		hasComments ? listPublicComments(newsletter, issue) : null,
+		isAudioEnabled() ? getIssueAudio(newsletter, issue).catch(() => null) : null,
 	]);
 	const urls = getArchiveUrls(newsletter);
 	const body = renderWebIssue({ newsletter, issue, recommendations });
 	// A gated issue shows its beginning to readers who haven't subscribed; its pop-up would ask the same thing twice.
 	const popup = getPopupSettings(newsletter);
 	const isGated = (body.kind === "article" || body.kind === "frame") && isGatedIssue(popup, issue, await listFreeIssueIds(newsletter, popup));
+	// The player: everyone hears the public audio of an issue that is open; an issue the gate holds opens it for a subscriber who
+	// is signed in, and a paid issue for a reader whose tier can read it. The audio route says the same (lib/reader-access.js).
+	const audioPlayer = audio && {
+		...audio,
+		scope: issue.audience === "paid" ? "paid" : audio.scope,
+		isGated,
+		title: issue.subject,
+		storageKey: `${newsletter.slug}:${issue.archiveSlug}`,
+	};
 	// An issue that places the block itself gets no second one below it.
 	const closing = hasRecommendationsTag(issue.html) || hasRecommendationsTag(issue.markdown) ? [] : recommendations;
 	const canSubscribePaid = Boolean(newsletter.paidTier?.enabled) && payments.ready;
@@ -172,6 +184,7 @@ async function renderIssue({ newsletter, issue }) {
 						newsletter={pitch}
 						post={issue.archiveSlug}
 						subscribeHref={canSubscribePaid ? urls.subscribe : null}
+						audio={audioPlayer}
 					/>
 				) : (
 					<BodyIssue
@@ -180,6 +193,7 @@ async function renderIssue({ newsletter, issue }) {
 						initial={body}
 						newsletterName={newsletter.name}
 						subscribeHref={canSubscribePaid ? urls.subscribe : null}
+						audio={audioPlayer}
 					/>
 				)}
 			</article>

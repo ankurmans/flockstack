@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { CornerDownLeft, File, Loader2, Mail, Plus, Search, User } from "lucide-react";
 import { createCampaign } from "@/app/(app)/campaigns/actions";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { ADMIN_PAGE, BILLING_PAGE, MIN_SEARCH_LENGTH, PAGES, buildSections, isPaletteShortcut, moveIndex } from "@/lib/palette";
+import { ADMIN_PAGE, AUDIO_PAGE, BILLING_PAGE, MIN_SEARCH_LENGTH, PAGES, buildSections, isPaletteShortcut, moveIndex } from "@/lib/palette";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +14,7 @@ const SEARCH_DELAY_MS = 200;
 
 // Cmd+K (Ctrl+K) opens a search over the dashboard: jump to a page, start a new issue, find an issue by its subject or a
 // contact by the start of their address. Arrow keys move, Enter opens, Escape closes. It adds nothing the pages don't have.
-export default function PaletteCommands({ newsletterId, hasBilling, isAdmin }) {
+export default function PaletteCommands({ newsletterId, hasBilling, hasAudio = false, isAdmin }) {
 	const router = useRouter();
 	const listId = useId();
 	const [isOpen, setIsOpen] = useState(false);
@@ -55,7 +55,7 @@ export default function PaletteCommands({ newsletterId, hasBilling, isAdmin }) {
 		return () => clearTimeout(timer);
 	}, [query, isOpen]);
 
-	const pages = [...PAGES, ...(hasBilling ? [BILLING_PAGE] : []), ...(isAdmin ? [ADMIN_PAGE] : [])];
+	const pages = [...PAGES, ...(hasAudio ? [AUDIO_PAGE] : []), ...(hasBilling ? [BILLING_PAGE] : []), ...(isAdmin ? [ADMIN_PAGE] : [])];
 	const shownFound = query.trim().length >= MIN_SEARCH_LENGTH ? found : { campaigns: [], contacts: [] };
 	const sections = buildSections(query, { pages, canCreate: Boolean(newsletterId), found: shownFound });
 	const items = sections.flatMap((section) => section.items);

@@ -7,16 +7,25 @@ const bucket = {
 		const bytes = value instanceof Uint8Array ? value : new Uint8Array(await new Response(value).arrayBuffer());
 		files.set(key, { bytes, contentType: options.httpMetadata?.contentType });
 	},
-	async get(key) {
+	async get(key, options = {}) {
 		const stored = files.get(key);
 		if (!stored) return null;
+		const { offset = 0, length = stored.bytes.length - offset } = options.range ?? {};
+		const bytes = stored.bytes.subarray(offset, offset + length);
 		return {
 			key,
 			size: stored.bytes.length,
 			httpMetadata: { contentType: stored.contentType },
-			body: new Response(stored.bytes).body,
-			arrayBuffer: async () => stored.bytes.buffer.slice(stored.bytes.byteOffset, stored.bytes.byteOffset + stored.bytes.length),
+			body: new Response(bytes).body,
+			arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length),
 		};
+	},
+	async head(key) {
+		const stored = files.get(key);
+		return stored ? { key, size: stored.bytes.length, httpMetadata: { contentType: stored.contentType } } : null;
+	},
+	async list({ prefix = "" } = {}) {
+		return { objects: [...files.keys()].filter((key) => key.startsWith(prefix)).map((key) => ({ key })), truncated: false };
 	},
 	async delete(keys) {
 		for (const key of Array.isArray(keys) ? keys : [keys]) files.delete(key);

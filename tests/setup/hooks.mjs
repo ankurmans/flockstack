@@ -30,6 +30,7 @@ const STUBS = {
 	"@/lib/dns-broker": stub("dns-broker.mjs"),
 	"@/lib/cloudflare-api": stub("cloudflare-api.mjs"),
 	"@/lib/remote-image": stub("remote-image.mjs"),
+	"@/lib/elevenlabs": stub("elevenlabs.mjs"),
 };
 
 // FlockStack Cloud's marketing site extends the shared pages through these modules where their files exist, as in

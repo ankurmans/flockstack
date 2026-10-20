@@ -1,12 +1,14 @@
 import { isValidObjectId } from "@/lib/docdb";
 import { notFound } from "next/navigation";
 import CampaignReport from "@/components/CampaignReport";
+import CardAudio from "@/components/CardAudio";
 import FormCampaign from "@/components/FormCampaign";
 import { scoped } from "@/lib/account-scope";
 import { getAiBinding } from "@/lib/ai";
 import { getAccountSendProblem, hasActiveSubscription, isBlocked } from "@/lib/account-state";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { runAction } from "@/lib/actions/run-action";
+import { getAudioCardProps } from "@/lib/audio-dashboard";
 import { countNewContacts, getSendVolumes, sendTimesPipeline } from "@/lib/campaign-queries";
 import { isSendingEnabled } from "@/lib/config";
 import { listCustomFields } from "@/lib/custom-fields";
@@ -46,6 +48,8 @@ export default async function CampaignPage({ params }) {
 	const newsletter = { ...stored, postalAddress: getPostalAddress(stored, siteExtensions.defaultPostalAddress) };
 	const [plan, ai] = await Promise.all([getPlanState(account), getAiBinding()]);
 	const isAiEnabled = Boolean(ai) && hasActiveSubscription(account);
+	const audioProps = await getAudioCardProps({ account, user, campaign, newsletter });
+	const audioCard = audioProps && <CardAudio {...audioProps} />;
 
 	if (!["draft", "scheduled"].includes(campaign.status)) {
 		const [providers, remainingCount, links, polls] = await Promise.all([
@@ -75,6 +79,7 @@ export default async function CampaignPage({ params }) {
 				polls={polls}
 				sentWith={showsSentWithLink(account)}
 				isAiEnabled={isAiEnabled}
+				audioCard={audioCard}
 			/>
 		);
 	}
@@ -112,6 +117,7 @@ export default async function CampaignPage({ params }) {
 			isAiEnabled={isAiEnabled}
 			hasStockPhotos={Boolean(getUnsplashKey())}
 			snippets={snippets.map(({ name, content }) => ({ name, content }))}
+			audioCard={audioCard}
 		/>
 	);
 }

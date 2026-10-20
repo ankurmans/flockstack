@@ -38,6 +38,7 @@ export default function MenuAccount({
 	freePlan,
 	overrides,
 	planLimits,
+	audioPlanLimit = null,
 }) {
 	const [dialog, setDialog] = useState(null);
 	const [isPending, startTransition] = useTransition();
@@ -119,7 +120,7 @@ export default function MenuAccount({
 						<FormUnblock accountId={accountId} email={email} blockedBy={blockedBy} blockReason={blockReason} onDone={() => setDialog(null)} />
 					)}
 					{dialog === "limits" && (
-						<FormLimits accountId={accountId} overrides={overrides} planLimits={planLimits} onDone={() => setDialog(null)} />
+						<FormLimits accountId={accountId} overrides={overrides} planLimits={planLimits} audioPlanLimit={audioPlanLimit} onDone={() => setDialog(null)} />
 					)}
 				</DialogContent>
 			</Dialog>
@@ -200,7 +201,7 @@ function FormUnblock({ accountId, email, blockedBy, blockReason, onDone }) {
 	);
 }
 
-function FormLimits({ accountId, overrides, planLimits, onDone }) {
+function FormLimits({ accountId, overrides, planLimits, audioPlanLimit, onDone }) {
 	const [state, action, isPending] = useActionState(saveLimits, null);
 
 	useEffect(() => {
@@ -218,6 +219,7 @@ function FormLimits({ accountId, overrides, planLimits, onDone }) {
 			</DialogHeader>
 			<FieldLimit label="Emails a month" name="emailsPerMonth" value={overrides.emailsPerMonth} planValue={planLimits?.emailsPerMonth} />
 			<FieldLimit label="Subscribers" name="subscribers" value={overrides.subscribers} planValue={planLimits?.subscribers} />
+			{audioPlanLimit !== null && <FieldLimit label="Audio characters a month" name="audioCharactersPerMonth" value={overrides.audioCharactersPerMonth} planValue={audioPlanLimit} />}
 			{state?.error && <p className="text-sm text-destructive">{state.error}</p>}
 			<DialogFooter>
 				<DialogClose asChild>

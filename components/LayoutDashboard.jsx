@@ -12,15 +12,18 @@ import ProviderPaywall from "@/components/ProviderPaywall";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SiteAnalytics, SupportChat } from "@/components/SiteExtensions";
 import { getSendingStatus, hasActiveSubscription, isBlocked } from "@/lib/account-state";
+import { isAudioEnabled } from "@/lib/audio-config";
 import { isCloud } from "@/lib/config";
 import { isGetStartedOpen } from "@/lib/get-started";
-import { PLANS } from "@/lib/plans";
+import { PLANS, getAudioLimit } from "@/lib/plans";
 import { getSelectedNewsletter } from "@/lib/selected-newsletter";
 import { getPricing } from "@/lib/pricing";
 
 export default async function LayoutDashboard({ user, account, isAdmin, children }) {
 	// Every account has a plan, Free at least, so the paywall below never opens; it takes the plans as the pricing page has them.
 	const hasPlan = hasActiveSubscription(account);
+	// The Audio link is for plans that have audio; Free has none, and its pages say so where audio would be.
+	const hasAudio = isAudioEnabled() && getAudioLimit(account) !== 0;
 	const menu = <MenuUser name={user.name} email={user.email} image={user.image} status={getSendingStatus(account)} hasBilling={isCloud()} />;
 
 	return (
@@ -34,11 +37,12 @@ export default async function LayoutDashboard({ user, account, isAdmin, children
 							<NavNewsletter />
 						</Suspense>
 					</div>
-					<NavLinks isAdmin={isAdmin} />
+					<NavLinks isAdmin={isAdmin} hasAudio={hasAudio} />
 					<div className="mt-auto pt-4">{menu}</div>
 				</aside>
 				<NavMobile
 					isAdmin={isAdmin}
+					hasAudio={hasAudio}
 					switcher={
 						<Suspense fallback={<Skeleton className="h-8 w-32 rounded-lg" />}>
 							<NavNewsletter isCompact />
@@ -54,7 +58,7 @@ export default async function LayoutDashboard({ user, account, isAdmin, children
 				</main>
 			</div>
 			<Suspense fallback={null}>
-				<PaletteForNewsletter hasBilling={isCloud()} isAdmin={isAdmin} />
+				<PaletteForNewsletter hasBilling={isCloud()} hasAudio={hasAudio} isAdmin={isAdmin} />
 			</Suspense>
 			{isGetStartedOpen(account) && (
 				<Suspense fallback={null}>
@@ -72,7 +76,7 @@ export default async function LayoutDashboard({ user, account, isAdmin, children
 }
 
 // The palette's "New issue" starts a draft in the open newsletter, which only a server component can read.
-async function PaletteForNewsletter({ hasBilling, isAdmin }) {
+async function PaletteForNewsletter({ hasBilling, hasAudio, isAdmin }) {
 	const { selected } = await getSelectedNewsletter();
-	return <PaletteCommands newsletterId={selected ? String(selected._id) : null} hasBilling={hasBilling} isAdmin={isAdmin} />;
+	return <PaletteCommands newsletterId={selected ? String(selected._id) : null} hasBilling={hasBilling} hasAudio={hasAudio} isAdmin={isAdmin} />;
 }

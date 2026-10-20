@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { after, before, describe, test } from "node:test";
 import { anonymous, as } from "./helpers/app.mjs";
 import { setupAudienceTests } from "./helpers/audience.mjs";
-import { ADMIN_PAGE, BILLING_PAGE, PAGES, buildSections, filterItems, isPaletteShortcut, moveIndex, scoreMatch } from "../lib/palette.js";
+import { ADMIN_PAGE, AUDIO_PAGE, BILLING_PAGE, PAGES, buildSections, filterItems, isPaletteShortcut, moveIndex, scoreMatch } from "../lib/palette.js";
 
 // The command palette: what it lists for a query, the shortcut, and the search behind it.
 let t;
@@ -28,8 +28,9 @@ describe("the pages", () => {
 	test("are the sidebar's, so the palette goes everywhere the menu does", async () => {
 		const nav = await readFile(new URL("../components/NavLinks.jsx", import.meta.url), "utf8");
 		const hrefs = [...nav.matchAll(/href: "([^"]+)", label:/g)].map(([, href]) => href).filter((href) => href !== ADMIN_PAGE.href);
+		const pages = [...PAGES, AUDIO_PAGE];
 		assert.ok(hrefs.length >= 15);
-		for (const href of hrefs) assert.ok(PAGES.some((page) => page.href === href), `${href} is in the palette`);
+		for (const href of hrefs) assert.ok(pages.some((page) => page.href === href), `${href} is in the palette`);
 		assert.equal(new Set(PAGES.map(({ href }) => href)).size, PAGES.length);
 		assert.equal(BILLING_PAGE.href, "/billing");
 	});

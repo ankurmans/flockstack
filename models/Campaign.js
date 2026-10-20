@@ -69,6 +69,11 @@ const campaignSchema = new mongoose.Schema(
 		testSentAt: { type: Date },
 		archiveSlug: { type: String, trim: true, lowercase: true },
 		thumbnailUrl: { type: String, trim: true },
+		// Set while the issue has audio and its writer ticked "Listen to this issue" (lib/audio.js): emails link to the player
+		// on the web page, with the audio's length.
+		listen: {
+			minutes: { type: Number },
+		},
 		// Unlisted issues keep their /p/slug page but stay off the archive index.
 		archiveListed: { type: Boolean, default: true },
 		// Email only issues are also unlisted, and have no page at all; web only ones are published without an email.

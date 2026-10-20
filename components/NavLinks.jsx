@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, ClipboardList, CreditCard, Filter, FormInput, Gift, Globe, Images, KeyRound, LayoutGrid, LayoutTemplate, Link2, Megaphone, MessageSquare, PanelsTopLeft, Receipt, Repeat, Send, Settings, Shield, ShoppingBag, Users, Webhook, Workflow } from "lucide-react";
+import { BarChart3, ClipboardList, CreditCard, Filter, FormInput, Gift, Globe, Headphones, Images, KeyRound, LayoutGrid, LayoutTemplate, Link2, Megaphone, MessageSquare, PanelsTopLeft, Receipt, Repeat, Send, Settings, Shield, ShoppingBag, Users, Webhook, Workflow } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // The open newsletter's pages, then the account's, which every newsletter shares.
-export default function NavLinks({ isAdmin, onNavigate }) {
+export default function NavLinks({ isAdmin, hasAudio = false, onNavigate }) {
 	const pathname = usePathname();
-	const groups = [NEWSLETTER_ITEMS, [...ACCOUNT_ITEMS, ...(isAdmin ? [ADMIN_ITEM] : [])]];
+	const newsletterItems = hasAudio ? NEWSLETTER_ITEMS.flatMap((item) => (item.href === "/comments" ? [item, AUDIO_ITEM] : [item])) : NEWSLETTER_ITEMS;
+	const groups = [newsletterItems, [...ACCOUNT_ITEMS, ...(isAdmin ? [ADMIN_ITEM] : [])]];
 
 	return (
 		<nav className="flex flex-col gap-3">
@@ -60,6 +61,8 @@ const NEWSLETTER_ITEMS = [
 	{ href: "/link-page", label: "Link page", icon: Link2 },
 	{ href: "/newsletters", label: "Settings", icon: Settings },
 ];
+
+const AUDIO_ITEM = { href: "/audio", label: "Audio", icon: Headphones };
 
 const ACCOUNT_ITEMS = [
 	{ href: "/orders", label: "Orders", icon: Receipt },

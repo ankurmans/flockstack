@@ -60,6 +60,7 @@ export default function CampaignReport({
 	pace = null,
 	newContacts = 0,
 	polls = [],
+	audioCard = null,
 	isAiEnabled = false,
 }) {
 	const { stats } = campaign;
@@ -236,6 +237,8 @@ export default function CampaignReport({
 						detail={formatNumber(stats.unsubscribed)}
 					/>
 				</div>
+
+				{audioCard}
 
 				{campaign.publishTo === "web" && (
 					<p className="rounded-xl bg-muted/60 px-4 py-3 text-sm text-pretty animate-enter">Published on the website only: no email went out.</p>

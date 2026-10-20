@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 // The newsletter menu stays in the top bar, so a phone always shows which newsletter is open.
-export default function NavMobile({ isAdmin, switcher, footer }) {
+export default function NavMobile({ isAdmin, hasAudio = false, switcher, footer }) {
 	const [isOpen, setIsOpen] = useState(false);
 
 	// The account menu's items render in a portal, but React still bubbles their clicks up to the footer.
@@ -36,7 +36,7 @@ export default function NavMobile({ isAdmin, switcher, footer }) {
 				</SheetTrigger>
 				<SheetContent side="left" className="w-64 gap-0 p-3 pt-14">
 					<SheetTitle className="sr-only">Menu</SheetTitle>
-					<NavLinks isAdmin={isAdmin} onNavigate={() => setIsOpen(false)} />
+					<NavLinks isAdmin={isAdmin} hasAudio={hasAudio} onNavigate={() => setIsOpen(false)} />
 					<div className="mt-auto pt-4" onClick={closeAfterLink}>
 						{footer}
 					</div>

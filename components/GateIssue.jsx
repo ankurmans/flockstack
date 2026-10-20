@@ -17,7 +17,7 @@ function noop() {
 // An issue the newsletter gates (lib/popup-rules.js): its beginning, then the signup form. A browser with a reader session for
 // the newsletter (an emailed link, or a confirmation) asks for the rest like a paid reader's does (lib/reader-access.js), and the
 // server gives it only to a subscriber who is still active. Anyone else subscribes, or asks for a sign-in link if they already do.
-export default function GateIssue({ preview, newsletter, post, subscribeHref }) {
+export default function GateIssue({ preview, newsletter, post, subscribeHref, audio = null }) {
 	// The marker cookie says this browser has a session for the newsletter; the page is cached, so only the browser can tell.
 	const hasSession = useSyncExternalStore(
 		noop,
@@ -50,7 +50,7 @@ export default function GateIssue({ preview, newsletter, post, subscribeHref }) 
 	);
 
 	if (status === "open") {
-		return <BodyIssue slug={newsletter.slug} post={post} initial={full} newsletterName={newsletter.name} subscribeHref={subscribeHref} />;
+		return <BodyIssue slug={newsletter.slug} post={post} initial={full} newsletterName={newsletter.name} subscribeHref={subscribeHref} audio={audio} isOpened />;
 	}
 
 	return (

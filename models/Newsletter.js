@@ -153,6 +153,18 @@ const newsletterSchema = new mongoose.Schema(
 			notifyOwner: { type: Boolean },
 			digestSentAt: { type: Date },
 		},
+		// Audio versions of issues (lib/audio.js). voiceId: the default voice, one of the owner's curated ones. podcast: the public
+		// podcast feed of the issues that have audio (lib/audio-feed.js), off until its owner turns it on; ownerEmail is
+		// printed in the feed, so it is optional.
+		audio: {
+			voiceId: { type: String, trim: true },
+			podcast: {
+				enabled: { type: Boolean, default: false },
+				category: { type: String, trim: true },
+				explicit: { type: Boolean, default: false },
+				ownerEmail: { type: String, trim: true, lowercase: true },
+			},
+		},
 		// The paid tier (lib/payments/subscriptions.js): readers subscribe through Stripe Checkout on the creator's own Stripe
 		// account. The newsletter-wide settings are here; the tiers themselves are in paidTiers. monthlyCents and yearlyCents
 		// are the prices of a newsletter from before tiers (lib/tier-rules.js shows them as its one tier) and follow the

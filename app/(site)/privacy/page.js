@@ -8,6 +8,8 @@ import { REGION_LEAVES } from "@/lib/docs/regions";
 import {
 	ANALYTICS_RETENTION,
 	ANALYTICS_RULE,
+	AUDIO_VERSIONS_RETENTION,
+	AUDIO_VERSIONS_STORED,
 	WEB_ANALYTICS_RULE,
 	BACKUP_RETENTION,
 	CUSTOM_REQUEST_RETENTION,
@@ -25,6 +27,7 @@ import {
 	SUPPORT_CHAT_STORED,
 	TERMS_CHANGE_NOTICE,
 	TRANSFER_SAFEGUARDS,
+	getElevenLabsStatus,
 	isLegalPublished,
 } from "@/lib/legal";
 import { REGION_NAMES } from "@/lib/region";
@@ -107,6 +110,9 @@ export default function PrivacyPage() {
 						<Strong>The AI writing tools:</Strong> in the editor you can ask for a rewrite of the text you selected, subject lines, preview
 						text and drafts of social posts. They run on Cloudflare Workers AI, which runs on Cloudflare&apos;s global network, so what you
 						send may be processed outside your region. Stored: {AI_WRITING_STORED}. How long: {AI_WRITING_RETENTION}
+					</li>
+					<li>
+						<Strong>Audio versions:</Strong> Stored and sent: {AUDIO_VERSIONS_STORED}. How long: {AUDIO_VERSIONS_RETENTION}. {getElevenLabsStatus()}
 					</li>
 					<li>
 						<Strong>The Custom plan request form:</Strong> anyone can fill it in at /custom, with or without an account. Stored: {CUSTOM_REQUEST_STORED}.
@@ -235,7 +241,9 @@ export default function PrivacyPage() {
 					</li>
 					<li>
 						FlockStack sends no subscriber&apos;s data to any AI service. The AI features are the support assistant, which sees what you type
-						to it, and the writing tools in the editor, which see only the text you select or the issue you ask about. If you connect your own AI assistant to your account, that is your choice, and its provider&apos;s terms apply.
+						to it, and the writing tools in the editor, which see only the text you select or the issue you ask about. The text of an issue
+						also goes to a text-to-speech service, ElevenLabs, but only when you create that issue&apos;s audio version. If you connect your own AI
+						assistant to your account, that is your choice, and its provider&apos;s terms apply.
 					</li>
 				</ul>
 			</SectionLegal>
@@ -273,7 +281,7 @@ export default function PrivacyPage() {
 					<li>
 						<Strong>Deleting an account</Strong> (account page, with a code sent to your email) stops it at once, signs you out everywhere and
 						revokes keys and apps. You can restore it by signing in within {DELETION_GRACE_DAYS} days. After that we delete the user and
-						sessions, contacts, issues, sent-email records and events, API keys, images, product files, exports, domains and the sending
+						sessions, contacts, issues, sent-email records and events, API keys, images, audio versions, product files, exports, domains and the sending
 						set-up at our email provider. A paid plan has to be cancelled first.
 					</li>
 					<li>

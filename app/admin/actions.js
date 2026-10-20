@@ -3,7 +3,7 @@
 import { isValidObjectId } from "@/lib/docdb";
 import { revalidatePath } from "next/cache";
 import { blockAccount, unblockAccount } from "@/lib/account-blocks";
-import { setLimitOverrides, setSendSpread } from "@/lib/accounts";
+import { setAudioLimitOverride, setLimitOverrides, setSendSpread } from "@/lib/accounts";
 import { requireAdmin } from "@/lib/auth";
 import { grantFreePlan, revokeFreePlan } from "@/lib/billing";
 import { isCloud } from "@/lib/config";
@@ -92,10 +92,12 @@ export async function saveLimits(_state, formData) {
 	const accountId = String(formData.get("accountId") ?? "");
 	if (!isValidObjectId(accountId)) return { error: "Account not found" };
 	const limits = { emailsPerMonth: readLimit(formData.get("emailsPerMonth")), subscribers: readLimit(formData.get("subscribers")) };
-	if (Object.values(limits).some(Number.isNaN)) return { error: "Use whole numbers, or leave empty for the plan's" };
+	const audio = formData.has("audioCharactersPerMonth") ? readLimit(formData.get("audioCharactersPerMonth")) : null;
+	if (Object.values(limits).some(Number.isNaN) || Number.isNaN(audio)) return { error: "Use whole numbers, or leave empty for the plan's" };
 
 	if (!(await setLimitOverrides(accountId, limits))) return { error: "Account not found" };
-	console.info(`[admin] ${admin.email} set limits for account ${accountId}: ${JSON.stringify(limits)}`);
+	if (audio !== null) await setAudioLimitOverride(accountId, audio);
+	console.info(`[admin] ${admin.email} set limits for account ${accountId}: ${JSON.stringify({ ...limits, ...(audio !== null && { audioCharactersPerMonth: audio }) })}`);
 	revalidatePath("/admin");
 	return { ok: true, savedAt: Date.now() };
 }
