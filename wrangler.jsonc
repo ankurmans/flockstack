@@ -6,6 +6,9 @@
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
 	"assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
 	"workers_dev": true,
+	// The OpenNext handler is 43 MB, 63 MB once Wrangler reformats it. A Worker that large never gets its isolate back for a
+	// second request: every request loaded the script again, seconds of cold start. Minified it stays alive between requests.
+	"minify": true,
 	// Hourly: PostShiba status, Telegram, expired exports, comment digests. Daily: Gmail spam rates (worker-entry.mjs).
 	"triggers": { "crons": ["0 * * * *", "30 6 * * *"] },
 	"preview_urls": false,
@@ -46,6 +49,7 @@
 			"assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
 			// No workers.dev address: sessions, passkeys and links belong to eu.flockstack.io.
 			"workers_dev": false,
+			"minify": true,
 			"preview_urls": false,
 			"observability": { "enabled": true },
 			"upload_source_maps": false,
