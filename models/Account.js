@@ -140,6 +140,7 @@ const accountSchema = new mongoose.Schema(
 		limitOverrides: {
 			emailsPerMonth: { type: Number, min: 0 },
 			subscribers: { type: Number, min: 0 },
+			audioCharactersPerMonth: { type: Number, min: 0 },
 		},
 		// A free plan an admin gave from /admin (lib/billing.js grantFreePlan): the plan's limits without Stripe, from
 		// grantedAt until `until`, or with no end. Ending it sets `until`. by: the admin's email.
