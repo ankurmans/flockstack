@@ -1,7 +1,10 @@
 import { CircleAlert, Link2Off, MailCheck, MailX } from "lucide-react";
+import FormSurveyResponse from "@/components/FormSurveyResponse";
 import { Button } from "@/components/ui/button";
 import { connectDb } from "@/lib/db";
 import { findNewsletterAnywhere } from "@/lib/public-newsletters";
+import { createSubscriberToken } from "@/lib/subscriber-links";
+import { findPlacedSurvey } from "@/lib/surveys";
 import { verifyUnsubscribeToken } from "@/lib/unsubscribe";
 import Contact from "@/models/Contact";
 
@@ -22,9 +25,11 @@ export default async function UnsubscribePage({ searchParams }) {
 	const view = getView({ reference, status, subscription });
 	const { icon: Icon, title, description } = getCopy(view, subscription?.newsletterName);
 	const hasForm = view === "confirm" || view === "error";
+	// Once they've left, the newsletter's unsubscribe survey asks why, as that subscriber.
+	const survey = view === "done" && subscription?.newsletter ? await getLeavingSurvey(subscription.newsletter) : null;
 
 	return (
-		<main className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
+		<main className="theme-neutral flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-16">
 			<div className="w-full max-w-sm rounded-xl bg-card p-6 text-center shadow-border sm:p-8">
 				<div className="mx-auto flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
 					<Icon className="size-5" aria-hidden="true" />
@@ -43,6 +48,18 @@ export default async function UnsubscribePage({ searchParams }) {
 					</form>
 				)}
 			</div>
+			{survey && (
+				<div className="mt-4 w-full max-w-sm rounded-xl bg-card p-6 shadow-border sm:p-8">
+					<h2 className="text-base font-semibold tracking-tight text-balance">{survey.title}</h2>
+					{survey.intro && <p className="mt-1.5 text-sm text-pretty text-muted-foreground">{survey.intro}</p>}
+					<FormSurveyResponse
+						survey={{ id: String(survey._id), questions: survey.questions }}
+						token={createSubscriberToken("survey", reference)}
+						source="unsubscribe"
+						className="mt-5"
+					/>
+				</div>
+			)}
 		</main>
 	);
 }
@@ -57,12 +74,22 @@ async function getSubscription({ contactId, newsletterId }) {
 				.select({ status: 1 })
 				.lean());
 		return {
+			newsletter,
 			newsletterName: newsletter?.name,
 			isSubscribed: !contact || SUBSCRIBED_STATUSES.includes(contact.status),
 		};
 	} catch (error) {
 		console.error("[unsubscribe] Could not load the subscription:", error.message);
 		return { isSubscribed: true };
+	}
+}
+
+async function getLeavingSurvey(newsletter) {
+	try {
+		return await findPlacedSurvey(newsletter, "onUnsubscribe");
+	} catch (error) {
+		console.error("[unsubscribe] Could not load the survey:", error.message);
+		return null;
 	}
 }
 

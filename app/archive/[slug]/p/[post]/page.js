@@ -16,6 +16,8 @@ import { getIssueAuthor } from "@/lib/archive-author";
 import { renderIssueBody } from "@/lib/archive-content";
 import { countReaders, getArchiveIssue, getArchiveNewsletter, getShopPayments, listArchiveIssues, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
+import { getAccent } from "@/lib/editor-blocks";
+import { getPollVoteUrl } from "@/lib/subscriber-links";
 import { getIssueDate } from "@/lib/archive-issues";
 import { getIssueSeo } from "@/lib/archive-seo";
 import { hasRecommendationsTag } from "@/lib/recommendation-tags";
@@ -57,7 +59,12 @@ export default async function IssuePage({ params }) {
 		hasComments ? listPublicComments(newsletter, issue) : null,
 	]);
 	const urls = getArchiveUrls(newsletter);
-	const body = renderIssueBody(issue, { referralLink: `${urls.siteIndex}#subscribe`, recommendations });
+	const body = renderIssueBody(issue, {
+		referralLink: `${urls.siteIndex}#subscribe`,
+		recommendations,
+		accent: getAccent(newsletter),
+		pollUrl: (pollId, option) => getPollVoteUrl(null, newsletter, { pollId, option }),
+	});
 	// An issue that places the block itself gets no second one below it.
 	const closing = hasRecommendationsTag(issue.html) || hasRecommendationsTag(issue.markdown) ? [] : recommendations;
 	const canSubscribePaid = Boolean(newsletter.paidTier?.enabled) && payments.ready;
@@ -124,7 +131,9 @@ export default async function IssuePage({ params }) {
 				) : (
 					<FrameIssue html={body.html} className="-mx-5 mt-10 rounded-none sm:mx-0 sm:rounded-xl" />
 				)}
-				{body.kind === "paywall" && <CardPaywall newsletterName={newsletter.name} href={canSubscribePaid ? urls.subscribe : null} />}
+				{body.kind === "paywall" && (
+					<CardPaywall newsletterName={newsletter.name} href={canSubscribePaid ? urls.subscribe : null} isPartial={body.isPartial} />
+				)}
 			</article>
 
 			{comments && (

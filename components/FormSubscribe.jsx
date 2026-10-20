@@ -5,6 +5,7 @@ import { Check, Loader2, MailOpen } from "lucide-react";
 import { subscribe } from "@/app/archive/actions";
 import { Button } from "@/components/ui/button";
 import FormRecommendedSubscribe from "@/components/FormRecommendedSubscribe";
+import InputCustomField from "@/components/InputCustomField";
 import { captureRecommender, captureReferralCode, storeValue, subscribedKey } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +25,14 @@ export default function FormSubscribe({ newsletterSlug, fields = [], className }
 		if (state?.ok && !state.pending) storeValue(subscribedKey(newsletterSlug), 1);
 	}, [state, newsletterSlug]);
 
-	if (state?.pending) return <CardConfirmEmail email={state.email} inbox={state.inbox} className={className} />;
+	if (state?.pending) {
+		return (
+			<div className={cn("w-full", className)}>
+				<CardConfirmEmail email={state.email} inbox={state.inbox} />
+				{state.survey && <LinkSurvey href={state.survey} />}
+			</div>
+		);
+	}
 
 	if (state?.ok) {
 		const joined = (
@@ -38,11 +46,12 @@ export default function FormSubscribe({ newsletterSlug, fields = [], className }
 				You&apos;re in. The next issue lands in your inbox.
 			</p>
 		);
-		if (!state.step) return joined;
+		if (!state.step && !state.survey) return joined;
 		return (
 			<div className={cn("w-full", className)}>
 				{joined}
-				<FormRecommendedSubscribe step={state.step} className="mt-4" />
+				{state.survey && <LinkSurvey href={state.survey} />}
+				{state.step && <FormRecommendedSubscribe step={state.step} className="mt-4" />}
 			</div>
 		);
 	}
@@ -57,7 +66,17 @@ export default function FormSubscribe({ newsletterSlug, fields = [], className }
 			</div>
 			{fields?.length > 0 && (
 				<div className="mb-2 flex flex-col gap-2">
-					{fields.map(({ key, label, type }) => (
+					{fields.map(({ key, label, type, ...field }) =>
+						type === "list" || type === "boolean" || type === "datetime" ? (
+							<label key={key} className="flex flex-col gap-1.5 text-left text-sm">
+								<span className="text-muted-foreground">{label} (optional)</span>
+								<InputCustomField
+									field={{ key, label, type, ...field }}
+									name={`field_${key}`}
+									className="h-11 rounded-xl border-0 bg-background px-3.5 shadow-border"
+								/>
+							</label>
+						) : (
 						<input
 							key={key}
 							type={type === "number" ? "number" : type === "date" ? "date" : "text"}
@@ -68,7 +87,8 @@ export default function FormSubscribe({ newsletterSlug, fields = [], className }
 							maxLength={type === "text" ? 500 : undefined}
 							className="h-11 w-full min-w-0 rounded-xl bg-background px-3.5 text-base shadow-border outline-none transition-shadow duration-150 placeholder:text-muted-foreground focus-visible:shadow-border-hover focus-visible:ring-3 focus-visible:ring-ring/25"
 						/>
-					))}
+						)
+					)}
 				</div>
 			)}
 			<div className="flex items-center gap-1.5 rounded-xl bg-background p-1.5 shadow-border transition-shadow duration-150 focus-within:shadow-border-hover focus-within:ring-3 focus-within:ring-ring/25">
@@ -129,5 +149,17 @@ function CardConfirmEmail({ email, inbox, className }) {
 				Not in your inbox? Check Promotions or Spam.
 			</p>
 		</div>
+	);
+}
+
+// The newsletter's after-signup survey, a step the reader can skip.
+function LinkSurvey({ href }) {
+	return (
+		<p className="mt-3 text-center text-sm text-muted-foreground">
+			Got a minute?{" "}
+			<a href={href} className="font-medium text-foreground underline underline-offset-4">
+				Answer a few questions
+			</a>
+		</p>
 	);
 }

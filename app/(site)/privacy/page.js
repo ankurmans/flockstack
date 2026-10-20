@@ -148,6 +148,22 @@ export default function PrivacyPage() {
 					<li>
 						<Strong>Web pages:</Strong> a newsletter&apos;s website counts a view per issue, browser and day, with no personal data.
 					</li>
+					<li>
+						<Strong>Embeds and files:</Strong> a creator can embed a video or post from YouTube, X, Instagram, TikTok, Bluesky, Spotify or
+						Apple Podcasts in an issue. On the website it loads from that service, in the reader&apos;s browser, under the service&apos;s own
+						privacy policy (YouTube through its privacy-enhanced address). Emails show a picture or a link instead, and the YouTube picture loads
+						from YouTube. Files a creator attaches are stored with their images.
+					</li>
+					<li>
+						<Strong>Surveys and preferences:</Strong> a subscriber who answers a survey from a link has their answers stored with their
+						subscription, and in the survey&apos;s responses with their email address for the creator to see; a reader without a link answers
+						anonymously. A signed link in each email opens a page where the subscriber changes the details the creator opened to them.
+					</li>
+					<li>
+						<Strong>Polls:</Strong> a subscriber who votes from an email has their answer, and what they write to the poll&apos;s follow-up
+						question, stored with their subscription, so the creator sees who picked what. A vote on the website is anonymous: it is counted
+						with a keyed hash of the reader&apos;s IP address, so one address votes once, and the address itself isn&apos;t kept.
+					</li>
 				</ul>
 				<p>
 					<Strong>Never-email list.</Strong> Across all accounts we keep one list of addresses that are known not to exist (hard bounces,

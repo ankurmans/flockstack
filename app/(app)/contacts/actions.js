@@ -67,12 +67,13 @@ export async function removeContactTag(id, tag) {
 	return { ok: true, tags: output.tags };
 }
 
-// An empty value clears the field.
+// An empty value clears the field. A list field with several choices sends an array, a true/false field a boolean.
 export async function setContactField(id, field, value) {
+	const isEmpty = value === null || value === undefined || (Array.isArray(value) ? value.length === 0 : String(value).trim() === "");
 	const { output, failure } = await runDashboardAction("set_contact_field", {
 		id: String(id),
 		field: String(field ?? ""),
-		value: value === null || value === undefined || String(value).trim() === "" ? null : String(value),
+		value: isEmpty ? null : Array.isArray(value) ? value.map(String) : typeof value === "boolean" ? value : String(value),
 	});
 	if (failure) return toFormError(failure);
 	revalidatePath("/contacts");
@@ -87,23 +88,26 @@ export async function deleteTag(newsletterId, tag) {
 	return { ok: true, contacts: output.contacts, inBackground: output.inBackground };
 }
 
-export async function createCustomField({ newsletterId, label, type, onSignupForm }) {
+export async function createCustomField({ newsletterId, label, type, options, multiple, onSignupForm, readerEditable }) {
 	const { output, failure } = await runDashboardAction("create_custom_field", {
 		newsletter: String(newsletterId ?? ""),
 		label: String(label ?? ""),
 		type: String(type ?? ""),
+		...(type === "list" && { options: Array.isArray(options) ? options.map(String) : [], multiple: multiple === true }),
 		onSignupForm: onSignupForm === true,
+		readerEditable: readerEditable === true,
 	});
 	if (failure) return toFormError(failure);
 	revalidatePath("/contacts");
 	return { ok: true, field: output };
 }
 
-export async function updateCustomField({ newsletterId, key, onSignupForm }) {
+export async function updateCustomField({ newsletterId, key, onSignupForm, readerEditable }) {
 	const { failure } = await runDashboardAction("update_custom_field", {
 		newsletter: String(newsletterId ?? ""),
 		key: String(key ?? ""),
-		onSignupForm: onSignupForm === true,
+		...(onSignupForm !== undefined && { onSignupForm: onSignupForm === true }),
+		...(readerEditable !== undefined && { readerEditable: readerEditable === true }),
 	});
 	if (failure) return toFormError(failure);
 	revalidatePath("/contacts");

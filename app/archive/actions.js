@@ -13,6 +13,8 @@ import { getClientIp, isRateLimited } from "@/lib/rate-limit";
 import { countSignup, findAttribution, getReaderStep, subscribeToRecommended } from "@/lib/recommendations";
 import { recordReferral } from "@/lib/referrals";
 import { queueConfirmationEmail, queueWelcomeEmail } from "@/lib/sending";
+import { getSurveyUrl } from "@/lib/subscriber-links";
+import { findPlacedSurvey, getPlacedSurveyUrl } from "@/lib/surveys";
 import { normalizeEmail } from "@/lib/validation";
 import CustomField from "@/models/CustomField";
 
@@ -46,10 +48,11 @@ export async function subscribe(_state, formData) {
 	// Visitors only ever fill in the fields the form asks for, and never tags.
 	const definitions = await CustomField.find({ accountId: newsletter.accountId, newsletterId: newsletter._id, onSignupForm: true }).lean();
 	const values = {};
-	for (const { key, label, type } of definitions) {
-		const value = String(formData.get(`field_${key}`) ?? "").trim();
-		if (!value) continue;
-		const { problem } = parseFieldValue(type, value);
+	for (const definition of definitions) {
+		const { key, label, type, multiple } = definition;
+		const value = type === "list" && multiple ? formData.getAll(`field_${key}`).map(String) : String(formData.get(`field_${key}`) ?? "").trim();
+		if (value.length === 0) continue;
+		const { problem } = parseFieldValue(type, value, definition);
 		if (problem) return { error: `${label} ${problem}` };
 		values[key] = value;
 	}
@@ -94,11 +97,25 @@ export async function subscribe(_state, formData) {
 			)
 		);
 	}
+	const survey = await getSignupSurvey({ newsletter, contact, created });
 	if (!isPending) {
 		const step = await getStep({ newsletter, contact });
-		return { ok: true, ...(step && { step }) };
+		return { ok: true, ...(step && { step }), ...(survey && { survey }) };
 	}
-	return { ok: true, pending: true, email, inbox: getInbox({ email, fromEmail: newsletter.fromEmail }) };
+	return { ok: true, pending: true, email, inbox: getInbox({ email, fromEmail: newsletter.fromEmail }), ...(survey && { survey }) };
+}
+
+// The newsletter's after-signup survey (lib/surveys.js). Only a contact this signup made answers as themselves, like the
+// form's own fields: typing someone else's address never opens their answers. Never fails the signup.
+async function getSignupSurvey({ newsletter, contact, created }) {
+	try {
+		if (created) return await getPlacedSurveyUrl(newsletter, "afterSignup", contact._id);
+		const survey = await findPlacedSurvey(newsletter, "afterSignup");
+		return survey ? getSurveyUrl(null, newsletter, { surveyId: String(survey._id), from: "signup" }) : null;
+	} catch (error) {
+		console.error(`[subscribe] Survey for ${newsletter.slug} not loaded:`, error.message);
+		return null;
+	}
 }
 
 // The newsletters this one recommends, for the reader who just joined. Never fails the signup.

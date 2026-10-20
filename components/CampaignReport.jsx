@@ -39,8 +39,9 @@ import { FIRST_SEND, LIMITS, isSendingEnabled } from "@/lib/config";
 import { formatCount, formatDate, formatNumber, formatRate } from "@/lib/format";
 import { rateTone } from "@/lib/health";
 import { PROVIDER_DOMAINS, PROVIDER_LABELS } from "@/lib/providers";
-import { UNSUBSCRIBE_PLACEHOLDER, renderEmail, withResponsiveImages } from "@/lib/render-email";
+import { renderEmail, withPreviewLinks, withResponsiveImages } from "@/lib/render-email";
 import { getAudienceLabel } from "@/lib/tiers";
+import CardPollResults from "@/components/CardPollResults";
 
 export default function CampaignReport({
 	campaign,
@@ -54,6 +55,7 @@ export default function CampaignReport({
 	isBlocked = false,
 	pace = null,
 	newContacts = 0,
+	polls = [],
 }) {
 	const { stats } = campaign;
 	const id = campaign._id.toString();
@@ -326,6 +328,10 @@ export default function CampaignReport({
 					</div>
 				)}
 
+				{polls.map((poll) => (
+					<CardPollResults key={poll.id} poll={poll} />
+				))}
+
 				{newsletter.archiveEnabled && campaign.archiveSlug && (
 					<div
 						style={{ "--stagger": 4 }}
@@ -348,7 +354,7 @@ export default function CampaignReport({
 						sender={newsletter}
 						subject={campaign.subject}
 						previewText={campaign.previewText}
-						html={withResponsiveImages(clickMapHtml ?? html.replaceAll(UNSUBSCRIBE_PLACEHOLDER, "#"))}
+						html={withResponsiveImages(clickMapHtml ?? withPreviewLinks(html))}
 						// Rendered next to PreviewEmail's own children, so dev React asks for a key.
 						toolbar={
 							<span key="toolbar" className="truncate text-xs text-muted-foreground">

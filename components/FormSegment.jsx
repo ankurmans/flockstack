@@ -20,7 +20,14 @@ const TYPE_LABELS = {
 	source: "Source",
 	engagement: "Engagement",
 	imported: "Imported",
+	poll: "Poll answer",
 };
+const POLL_OPS = [
+	["is", "answered"],
+	["is_not", "didn't answer"],
+	["is_set", "voted"],
+	["is_not_set", "didn't vote"],
+];
 const ENGAGEMENT_LABELS = {
 	opened: "Opened in the last",
 	clicked: "Clicked in the last",
@@ -56,6 +63,32 @@ const FIELD_OPS = {
 		["is_set", "has a value"],
 		["is_not_set", "has no value"],
 	],
+	datetime: [
+		["gt", "is after"],
+		["gte", "is at or after"],
+		["lt", "is before"],
+		["lte", "is at or before"],
+		["is_set", "has a value"],
+		["is_not_set", "has no value"],
+	],
+	boolean: [
+		["eq", "is"],
+		["neq", "is not"],
+		["is_set", "has a value"],
+		["is_not_set", "has no value"],
+	],
+	list: [
+		["eq", "is"],
+		["neq", "is not"],
+		["is_set", "has a value"],
+		["is_not_set", "has no value"],
+	],
+	multiple: [
+		["includes", "includes"],
+		["excludes", "doesn't include"],
+		["is_set", "has a value"],
+		["is_not_set", "has no value"],
+	],
 };
 const DEBOUNCE_MS = 450;
 
@@ -74,6 +107,7 @@ function cleanCondition(condition) {
 	if (type === "signup_date") return { type, ...(condition.from && { from: condition.from }), ...(condition.to && { to: condition.to }) };
 	if (type === "engagement") return { type, kind: condition.kind, ...(condition.kind !== "never_opened" && { days: Number(condition.days) || undefined }) };
 	if (type === "imported") return { type, value: condition.value !== false };
+	if (type === "poll") return { type, poll: condition.poll, op: condition.op, ...(["is", "is_not"].includes(condition.op) && { option: Number(condition.option) }) };
 	return { type, op: condition.op, value: condition.value };
 }
 
@@ -89,7 +123,8 @@ function fromRules(rules) {
 }
 
 // A segment's name and its rules, with the contacts they match counted as they change.
-export default function FormSegment({ newsletter, segment, fields, tags }) {
+// polls: the newsletter's, { id, question, options }, for conditions on what subscribers answered.
+export default function FormSegment({ newsletter, segment, fields, tags, polls = [] }) {
 	const router = useRouter();
 	const [name, setName] = useState(segment?.name ?? "");
 	const [description, setDescription] = useState(segment?.description ?? "");
@@ -161,11 +196,12 @@ export default function FormSegment({ newsletter, segment, fields, tags }) {
 									group={item}
 									fields={fields}
 									tags={tags}
+									polls={polls}
 									onChange={(group) => setItem(index, group)}
 									onRemove={() => removeItem(index)}
 								/>
 							) : (
-								<Condition key={index} condition={item} fields={fields} tags={tags} onChange={(condition) => setItem(index, condition)} onRemove={() => removeItem(index)} />
+								<Condition key={index} condition={item} fields={fields} tags={tags} polls={polls} onChange={(condition) => setItem(index, condition)} onRemove={() => removeItem(index)} />
 							)
 						)}
 						<div className="flex flex-wrap gap-2">
@@ -214,7 +250,7 @@ function MatchSelect({ value, onChange }) {
 	);
 }
 
-function Group({ group, fields, tags, onChange, onRemove }) {
+function Group({ group, fields, tags, polls, onChange, onRemove }) {
 	function setCondition(index, condition) {
 		onChange({ ...group, conditions: group.conditions.map((existing, position) => (position === index ? condition : existing)) });
 	}
@@ -235,6 +271,7 @@ function Group({ group, fields, tags, onChange, onRemove }) {
 					condition={condition}
 					fields={fields}
 					tags={tags}
+					polls={polls}
 					onChange={(next) => setCondition(index, next)}
 					onRemove={group.conditions.length > 1 ? () => onChange({ ...group, conditions: group.conditions.filter((_, position) => position !== index) }) : null}
 				/>
@@ -247,7 +284,7 @@ function Group({ group, fields, tags, onChange, onRemove }) {
 	);
 }
 
-function defaultsFor(type, fields) {
+function defaultsFor(type, fields, polls = []) {
 	switch (type) {
 		case "status":
 			return { type, op: "is", value: "active" };
@@ -256,30 +293,39 @@ function defaultsFor(type, fields) {
 		case "source":
 			return { type, op: "is", value: "" };
 		case "field":
-			return { type, field: fields[0]?.key ?? "", op: "eq", value: "" };
+			return fieldCondition(fields[0]);
 		case "signup_date":
 			return { type, from: "", to: "" };
 		case "engagement":
 			return { type, kind: "opened", days: 30 };
+		case "poll":
+			return { type, poll: polls[0]?.id ?? "", op: "is", option: 0 };
 		default:
 			return { type, value: true };
 	}
 }
 
-function Condition({ condition, fields, tags, onChange, onRemove }) {
+// A new condition on a field starts with the first op its type takes.
+function fieldCondition(field) {
+	const ops = FIELD_OPS[field?.multiple ? "multiple" : (field?.type ?? "text")];
+	return { type: "field", field: field?.key ?? "", op: ops[0][0], value: "" };
+}
+
+function Condition({ condition, fields, tags, polls = [], onChange, onRemove }) {
 	const listId = useId();
 	const field = fields.find(({ key }) => key === condition.field);
+	const poll = polls.find(({ id }) => id === condition.poll);
 	const set = (changes) => onChange({ ...condition, ...changes });
 
 	return (
 		<div className="flex flex-wrap items-center gap-2">
-			<Select value={condition.type} onValueChange={(type) => onChange(defaultsFor(type, fields))}>
+			<Select value={condition.type} onValueChange={(type) => onChange(defaultsFor(type, fields, polls))}>
 				<SelectTrigger size="sm" className="w-36" aria-label="Condition">
 					<SelectValue />
 				</SelectTrigger>
 				<SelectContent>
 					{Object.entries(TYPE_LABELS)
-						.filter(([type]) => type !== "field" || fields.length > 0)
+						.filter(([type]) => (type !== "field" || fields.length > 0) && (type !== "poll" || polls.length > 0))
 						.map(([type, label]) => (
 							<SelectItem key={type} value={type}>
 								{label}
@@ -335,7 +381,7 @@ function Condition({ condition, fields, tags, onChange, onRemove }) {
 
 			{condition.type === "field" && (
 				<>
-					<Select value={condition.field} onValueChange={(key) => onChange({ type: "field", field: key, op: "eq", value: "" })}>
+					<Select value={condition.field} onValueChange={(key) => onChange(fieldCondition(fields.find((item) => item.key === key)))}>
 						<SelectTrigger size="sm" className="w-36" aria-label="Field">
 							<SelectValue />
 						</SelectTrigger>
@@ -347,12 +393,26 @@ function Condition({ condition, fields, tags, onChange, onRemove }) {
 							))}
 						</SelectContent>
 					</Select>
-					<OpSelect value={condition.op} onChange={(op) => set({ op })} options={FIELD_OPS[field?.type ?? "text"]} />
-					{!["is_set", "is_not_set"].includes(condition.op) && (
+					<OpSelect value={condition.op} onChange={(op) => set({ op })} options={FIELD_OPS[field?.multiple ? "multiple" : (field?.type ?? "text")]} />
+					{!["is_set", "is_not_set"].includes(condition.op) && (field?.type === "boolean" || field?.type === "list") && (
+						<Select value={String(condition.value ?? "")} onValueChange={(value) => set({ value: field.type === "boolean" ? value === "true" : value })}>
+							<SelectTrigger size="sm" className="w-40" aria-label="Value">
+								<SelectValue placeholder="Pick one" />
+							</SelectTrigger>
+							<SelectContent>
+								{(field.type === "boolean" ? ["true", "false"] : field.options).map((option) => (
+									<SelectItem key={option} value={option}>
+										{option}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					)}
+					{!["is_set", "is_not_set"].includes(condition.op) && field?.type !== "boolean" && field?.type !== "list" && (
 						<Input
-							type={field?.type === "number" ? "number" : field?.type === "date" ? "date" : "text"}
+							type={field?.type === "number" ? "number" : field?.type === "date" ? "date" : field?.type === "datetime" ? "datetime-local" : "text"}
 							step={field?.type === "number" ? "any" : undefined}
-							value={condition.value ?? ""}
+							value={field?.type === "datetime" ? String(condition.value ?? "").slice(0, 16) : (condition.value ?? "")}
 							onChange={(event) => set({ value: event.target.value })}
 							aria-label="Value"
 							className="h-8 w-40"
@@ -397,6 +457,38 @@ function Condition({ condition, fields, tags, onChange, onRemove }) {
 							/>
 							<span className="text-sm text-muted-foreground">days</span>
 						</>
+					)}
+				</>
+			)}
+
+			{condition.type === "poll" && (
+				<>
+					<Select value={condition.poll} onValueChange={(id) => onChange({ type: "poll", poll: id, op: condition.op, option: 0 })}>
+						<SelectTrigger size="sm" className="w-48" aria-label="Poll">
+							<SelectValue placeholder="Pick a poll" />
+						</SelectTrigger>
+						<SelectContent>
+							{polls.map(({ id, question }) => (
+								<SelectItem key={id} value={id}>
+									{question}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+					<OpSelect value={condition.op} onChange={(op) => set({ op })} options={POLL_OPS} />
+					{["is", "is_not"].includes(condition.op) && poll && (
+						<Select value={String(condition.option ?? 0)} onValueChange={(option) => set({ option: Number(option) })}>
+							<SelectTrigger size="sm" className="w-40" aria-label="Answer">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{poll.options.map((label, index) => (
+									<SelectItem key={label} value={String(index)}>
+										{label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					)}
 				</>
 			)}

@@ -68,7 +68,7 @@ export default function FormNewsletter({
 	const [discardCount, setDiscardCount] = useState(0);
 	const [isSaving, startSaving] = useTransition();
 	const [isTesting, startTesting] = useTransition();
-	const { name, description, slug, fromName, fromLocal, fromDomain, imageUrl, postalAddress, isConfirmationRequired, confirmationEdits, isWelcomeEnabled, welcome, isArchiveEnabled, isCleanupEnabled, cleanup } = draft;
+	const { name, description, accentColor, isPreferencesLinked, slug, fromName, fromLocal, fromDomain, imageUrl, postalAddress, isConfirmationRequired, confirmationEdits, isWelcomeEnabled, welcome, isArchiveEnabled, isCleanupEnabled, cleanup } = draft;
 	const savedCleanup = getCleanupSettings(newsletter);
 	const deferredWelcome = useDeferredValue(welcome);
 	const deferredPostalAddress = useDeferredValue(postalAddress);
@@ -251,6 +251,18 @@ export default function FormNewsletter({
 						onChange={(value) => set("imageUrl", value)}
 					/>
 				</Field>
+				<Field label="Accent color" hint="Buttons, poll answers and file links in your issues" as="div">
+					<span className="flex items-center gap-2">
+						<input
+							type="color"
+							value={/^#[0-9a-f]{6}$/i.test(accentColor) ? accentColor : "#18181b"}
+							onChange={(event) => set("accentColor", event.target.value)}
+							aria-label="Pick the accent color"
+							className="size-9 shrink-0 cursor-pointer rounded-lg border border-input bg-transparent p-1"
+						/>
+						<Input name="accentColor" value={accentColor} onChange={update("accentColor")} placeholder="#18181b" maxLength={7} className="w-32 font-mono" aria-label="Accent color" />
+					</span>
+				</Field>
 			</Section>
 
 			<Section title="Sender" stagger={1}>
@@ -331,6 +343,12 @@ export default function FormNewsletter({
 						className="scroll-mt-28"
 						onChange={update("postalAddress")}
 					/>
+				</Field>
+				<Field label="Preferences link" hint="Readers change the fields marked Readers edit, and unsubscribe, on their own page. {{preferences_url}} puts the link in a body." as="div">
+					<span className="flex items-center gap-2 text-sm">
+						<Switch name="preferencesLink" checked={isPreferencesLinked} onCheckedChange={(isChecked) => set("isPreferencesLinked", isChecked)} aria-label="Link to the preference center in every email's footer" />
+						In every email&apos;s footer
+					</span>
 				</Field>
 			</Section>
 

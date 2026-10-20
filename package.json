@@ -27,6 +27,7 @@
     "@opennextjs/cloudflare": "^1.20.12",
     "@tiptap/extension-file-handler": "^3.31.4",
     "@tiptap/extension-image": "^3.31.4",
+    "@tiptap/extension-table": "^3.31.4",
     "@tiptap/extensions": "^3.31.4",
     "@tiptap/pm": "^3.31.4",
     "@tiptap/react": "^3.31.4",

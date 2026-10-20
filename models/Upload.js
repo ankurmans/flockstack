@@ -9,6 +9,9 @@ const uploadSchema = new mongoose.Schema(
 		pathname: { type: String, required: true },
 		contentType: { type: String, required: true },
 		bytes: { type: Number, required: true },
+		// A file attachment (lib/attachment-files.js) rather than a picture, with the name it was uploaded under.
+		kind: { type: String, enum: ["image", "file"] },
+		name: { type: String, trim: true },
 		// Where a post import downloaded it from: the same picture in another post, or the same import run again, uses
 		// this file instead of storing it twice.
 		sourceUrl: { type: String },

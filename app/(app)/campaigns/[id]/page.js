@@ -5,9 +5,11 @@ import FormCampaign from "@/components/FormCampaign";
 import { scoped } from "@/lib/account-scope";
 import { getAccountSendProblem, hasActiveSubscription, isBlocked } from "@/lib/account-state";
 import { getArchiveUrls } from "@/lib/archive-hosts";
+import { runAction } from "@/lib/actions/run-action";
 import { countNewContacts, getSendVolumes, sendTimesPipeline } from "@/lib/campaign-queries";
 import { isSendingEnabled } from "@/lib/config";
 import { listCustomFields } from "@/lib/custom-fields";
+import { findPolls } from "@/lib/editor-blocks";
 import { getClickMapHtml, listCampaignLinks } from "@/lib/link-clicks";
 import { MESSAGE_STATS_GROUP } from "@/lib/message-stats";
 import { getPostalAddress } from "@/lib/postal-address";
@@ -42,10 +44,11 @@ export default async function CampaignPage({ params }) {
 	const plan = await getPlanState(account);
 
 	if (!["draft", "scheduled"].includes(campaign.status)) {
-		const [providers, remainingCount, links] = await Promise.all([
+		const [providers, remainingCount, links, polls] = await Promise.all([
 			getProviderBreakdown(campaign),
 			countRemaining(campaign),
 			listCampaignLinks(campaign),
+			getCampaignPolls(account, campaign),
 		]);
 		const clickMapHtml = links.length > 0 ? await getClickMapHtml(campaign, newsletter, links) : null;
 		const resendCounts = canResend(campaign) ? await countResendTargets(campaign) : null;
@@ -65,6 +68,7 @@ export default async function CampaignPage({ params }) {
 				isBlocked={isBlocked(account)}
 				pace={getPace(account, volumes)}
 				newContacts={newContacts}
+				polls={polls}
 			/>
 		);
 	}
@@ -95,7 +99,7 @@ export default async function CampaignPage({ params }) {
 			emailsLeft={plan.emailsLeft}
 			pace={getPace(account, volumes)}
 			newContacts={newContacts}
-			fields={fields.map(({ key, label }) => ({ key, label }))}
+			fields={fields.map(({ key, label, type }) => ({ key, label, type }))}
 			segments={segments.map(({ _id, name }) => ({ id: String(_id), name }))}
 		/>
 	);
@@ -139,6 +143,13 @@ async function countRemaining(campaign) {
 	const active = await countCampaignAudience(campaign);
 	const reached = (campaign.stats?.recipients ?? 0) + (campaign.lastChance?.recipients ?? 0);
 	return Math.max(0, active - reached);
+}
+
+// The polls the issue has, with their results, through get_poll as the API reads them.
+async function getCampaignPolls(account, campaign) {
+	const ids = [...new Set(findPolls(campaign.format === "rich" ? campaign.html : "").map(({ id }) => id))];
+	const results = await Promise.all(ids.map((id) => runAction("get_poll", { account, input: { id }, via: "dashboard" }).catch(() => null)));
+	return results.filter(Boolean);
 }
 
 // A sent campaign can be resent once, unless it is a resend or its subject line test is still running.
