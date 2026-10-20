@@ -58,6 +58,7 @@ FlockStack is a newsletter app: write an issue, send it to your list, publish it
 - **Referral program**: every subscriber gets a link of their own; a signup that confirms counts for them, rewards unlock at numbers you set (a link or a message, on the subscriber's referral page and in an email), `{{referral_link}}` and `{{referral_count}}` work in issues, and self-referrals, repeats of one inbox or network and floods don't count.
 - **Newsletter recommendations**, free, with no paid placement and no cut of anyone's revenue: a newsletter recommends up to 10 others by slug with a pitch in its own words. After a reader subscribes (or confirms), a "You might also like" step offers them with nothing ticked, and each one they tick is a normal signup to that newsletter with its own confirmation email; a reader's email never reaches a newsletter they didn't tick. The website shows a "Recommended newsletters" section, `{{recommendations}}` prints the block in issues, and each recommendation counts shown, signed-up and confirmed readers. A newsletter can turn incoming recommendations off or decline one with a reason its recommender reads, and can list itself in a directory at `/recommendations`. They work between newsletters of the same region ([docs](https://flockstack.io/docs/recommendations)).
 - **Comments from your subscribers**, on each issue's web page, with no accounts or passwords: a reader proves they subscribe with a signed link in your emails (`{{comment_link}}`, and a "Discuss this issue" link in the footer) or a one-time link sent to their address, and other readers never see their email. Off by default; for everyone subscribed or paid subscribers only; one level of replies; you choose whether comments with links, or all comments, wait for your review. Whatever you hide, remove or hold, its author reads your reason. Reports, blocking a commenter (they stay subscribed), one digest email an hour at most, and comments in your export ([Comments](#comments)).
+- **Audio versions of issues.** Any issue, a draft or a sent one, can be read aloud in a voice you pick from a list the server's owner curates: a player on the issue's page (play, 15 seconds back and forward, 1x to 2x, remembers where you stopped in the browser and tells nobody), a "Listen to this issue (12 min)" link at the top of its email, and a podcast feed at `/podcast.xml` for Apple Podcasts and Spotify. Text to speech is the server owner's own ElevenLabs account, counted by the character, with a monthly allowance per plan and no overage ([Audio versions](#audio-versions)).
 - **Sell to your readers, with no cut for FlockStack.** Digital products (a file readers buy once, kept in a private bucket and delivered by a signed, expiring download link) and paid subscriptions (monthly and yearly prices, an optional free trial). Readers pay through Stripe Checkout straight to your own Stripe account, and only Stripe's processing fee comes off: FlockStack sets no application fee. Each newsletter gets a shop and product pages on its website. A campaign can go to everyone, free readers or paid readers; a paid issue is a teaser on the web and whole in the email, and paid readers manage their billing from a link in every email. Refunds and chargebacks stop the download link by themselves ([Selling](#selling-products-and-paid-subscriptions)).
 - **Several newsletters**: up to 3 per account, each with its own contacts, campaigns and website.
 - **Signups and stats**: signup forms and a signup API, welcome emails, a reminder to signups that haven't confirmed and a page of your own after confirming, open and click tracking that leaves link scanners out, clicks per link with a click map and who clicked each link, subscribers over time, and reports by inbox provider (Gmail, Outlook, Yahoo, iCloud...).
@@ -212,6 +213,62 @@ A "Help" button on FlockStack's own pages opens a chat that answers from FlockSt
 | `SUPPORT_EMAIL` | Where "Email a human" sends. Default `hello@flockstack.io`, the address on the legal pages. |
 
 **Not checked:** a real Workers AI call. The tests replace the binding with a stub, so the answer's quality, the exact output shape of each model (the code reads `response`, `choices` and the Responses API's `output`), Qwen3's `/no_think` switch on Workers AI and the gateway's options are untested against Cloudflare.
+
+## Audio versions
+
+An issue's text is read aloud by ElevenLabs, with the server owner's own account: nothing here is billed to the writer past their plan, and nothing is sent anywhere until a writer clicks Create audio version. The code is `lib/audio.js` (the job), `lib/audio-text.js` (the text), `lib/elevenlabs.js` (the only module that calls ElevenLabs; tests replace it with `tests/stubs/elevenlabs.mjs`), `lib/audio-quota.js`, `lib/audio-serve.js` (byte ranges), `lib/audio-feed.js` (the podcast) and `lib/actions/audio.js` (eight actions, so REST, MCP, OpenAPI, the docs and `/llms-full.txt` have them).
+
+**API shape**, read from ElevenLabs' docs on 2026-10-20: `POST /v1/text-to-speech/{voice_id}?output_format=mp3_44100_128` with `xi-api-key`, a body of `text`, `model_id`, `previous_request_ids` (3 at most), `previous_text` (ignored when ids are sent) and `next_text`. A response's `request-id` header names the request for request stitching, which wants ids no older than two hours and doesn't exist for `eleven_v3`. Characters per request: 10,000 for `eleven_multilingual_v2` and `eleven_v4`, 40,000 for `eleven_flash_v2_5`, 5,000 for `eleven_v3`; FlockStack sends at most 2,500 a request (`AUDIO_CHUNK_CHARS`).
+
+### How it works
+
+1. **Create.** `create_audio_version` prepares the text (headings and list items as sentences, links as their words, web addresses as the site, footnotes at the end, pictures, tables, code, embeds, polls and files left out, with one line at the end saying some parts are only in the web version when something real was dropped; an issue with a paywall break is read up to it, with a line saying the rest is for paid subscribers, unless the whole issue is for paid subscribers). It cuts the text between sentences into parts, **reserves** their characters from the month's quota (refused up front with how many are left), keeps the parts in the private `EXPORTS` bucket and publishes the first QStash step.
+2. **Steps** (`app/api/jobs/make-audio`). Each step claims the job, reads one part (one request to ElevenLabs, one R2 write, a few database writes), saves where it got to and publishes the next, so a step is short and a step run twice adds nothing: a part already kept isn't read again. Each part is tied to the three before it with their `request-id`s, and hears the start of the part after it (`next_text`); when an id is missing or older than 105 minutes it hears the end of the part before it (`previous_text`) instead.
+3. **Failures.** A busy service (429), a 5xx or a network failure is thrown to QStash, which tries again with its backoff, four deliveries in all; the fourth fails the job with `Part 3 of 8 failed: ...`. A refusal no retry changes (a bad key, no credit, text it won't take) fails at once, and a refused key or no credit also alerts the admins (`audio-setup`). Whatever the end, the quota is settled once: the characters really read are used for good, the rest go back. A failed job keeps its parts for up to 7 days, and creating it again with the same text, voice and model goes on from them.
+4. **Join.** When every part is kept, one step joins them, byte by byte (every part has the same format and bit rate), into one MP3 in the private `FILES` bucket, streamed through a `FixedLengthStream` so it never sits in the Worker's memory. The length is the size over the bit rate. The old file is deleted once the new one is in, so re-creating an issue after an edit keeps playing the old audio until the new one is ready. The issue's page is refreshed, the `audio.ready` webhook goes out and the email link is set up if the writer ticked it.
+
+### Setting it up (the server's owner)
+
+| | |
+| --- | --- |
+| `ELEVENLABS_API_KEY` | The secret: `npx wrangler secret put ELEVENLABS_API_KEY`, and again with `--env eu`. Never in the repository or a `var`. |
+| `ELEVENLABS_VOICES` | JSON, a list of `{ "id", "name", "description", "previewUrl" }`: the voices writers can pick, each with a sample that costs nothing to play. Unset, the feature is hidden everywhere. |
+| `ELEVENLABS_MODEL` | Default `eleven_multilingual_v2`. `eleven_flash_v2_5` is half the price per character. |
+| `ELEVENLABS_OUTPUT_FORMAT` | Default `mp3_44100_128`. Only `mp3_*` formats, since the parts are joined byte by byte. |
+| `AUDIO_ENABLED` | FlockStack Cloud only: `true` turns it on, once the notice below is over. A self-hosted server needs only the voices and the key. |
+
+Run `migrations/0023_audio.sql` (two tables, `audioversions` and `audiousages`) on each region's database. It uses the buckets you have already: `EXPORTS` for the parts of a job and `FILES` for the finished files, both private; a file leaves them only through `/audio/<slug>.mp3` on the newsletter's host, which checks who may hear it. Account deletion deletes an account's audio.
+
+### What it costs
+
+ElevenLabs bills by the character. On [its API pricing page](https://elevenlabs.io/pricing/api) (read 2026-10-20, in US dollars, taxes excluded) text to speech is $0.08 per 1,000 characters for Multilingual v2, v3 and v4 and $0.04 for Flash and Turbo; about 1,000 characters is a minute. Some third-party price comparisons say $0.10 and $0.05; the page of ElevenLabs is the source used here, and the quotas stay inside 10% either way, since the dearer rate is the one they are sized on.
+
+A plan's whole quota may cost the owner about 10% of the plan's monthly price: `price x 0.10 / 0.00008 = price x 1,250` characters, rounded down (`AUDIO_CHARACTERS_PER_MONTH` in `lib/plans.js`, one number a plan):
+
+| Plan | Monthly price | 10% of it | Characters (about minutes) | Cost at $0.08 per 1,000 |
+| --- | --- | --- | --- | --- |
+| Starter | $9 | $0.90 | 11,000 (13 min) | $0.88 (9.8%) |
+| Growth | $29 | $2.90 | 36,000 (44 min) | $2.88 (9.9%) |
+| Pro | $59 | $5.90 | 73,000 (88 min) | $5.84 (9.9%) |
+| Scale | $109 | $10.90 | 136,000 (165 min) | $10.88 (10.0%) |
+| Max | $299 | $29.90 | 373,000 (452 min) | $29.84 (10.0%) |
+
+A yearly plan gets the same each month, so its share of what the customer pays per month is about 12%. No plan means no audio. Characters are counted per account per calendar month in UTC, never above the plan's number: an audio version that doesn't fit is refused before anything is read, and an admin can set an account's own number from `/admin` (**Change limits**, `limitOverrides.audioCharactersPerMonth`). On Flash the same quotas cost half. A self-hosted server has no plans and no limit.
+
+**Bring your own ElevenLabs key: not built.** The code base has an encrypted-credential pattern (`lib/credentials.js`), but it holds secrets FlockStack makes or an admin connects (a tenant's SMTP password, Postmaster Tools' refresh token), never a key a customer types in for a third party: Stripe is Connect and keeps none. A customer's key would be a new kind of secret to store, rotate and explain, so it is left out until the owner decides it is wanted.
+
+### FlockStack Cloud: the sub-processor notice
+
+The terms promise at least 30 days' notice by email before a new sub-processor handles data, and ElevenLabs is one: it gets the text of issues writers choose to convert. So audio versions are off on FlockStack Cloud until the owner does these, in order:
+
+1. Email account owners about ElevenLabs (text of an issue the writer chooses to convert, the United States, text to speech) and deploy this code: `/sub-processors` already lists it, with the date once it is set.
+2. Set `ELEVENLABS_NOTICE_SENT_ON` in `lib/legal.js` to the day the email went out (`"2026-11-02"`), and deploy. The page then says it handles data from that day plus 30, the docs page and the privacy policy follow, and `tests/audio-notice.test.mjs` knows the date.
+3. After that day plus 30: set `AUDIO_ENABLED=true` (a var on both Workers), `ELEVENLABS_VOICES` and `ELEVENLABS_API_KEY`, and deploy. Until then the dashboard shows nothing of it, the API answers `unavailable`, the audio and feed routes answer 404, and the flag does nothing: `isAudioEnabled()` also needs the notice to be over by `ELEVENLABS_NOTICE_SENT_ON`. `npm test` fails if `AUDIO_ENABLED` is `true` in `wrangler.jsonc` or the environment without a notice date that is 30 days old.
+4. Change the changelog entry's title from "coming soon" and its last line when it is live.
+
+### Not checked
+
+No call to ElevenLabs was made: the tests stub it. So the exact bytes of a real response, whether a real MP3's frames play when joined byte by byte (they should: one format, one bit rate, no tags in between), the `request-id` header's presence, the stitching's effect on the voice, the 429 behaviour and the length of a part's request in real time are untested. The `FixedLengthStream` path is tested with a stand-in, not R2, and so are R2's range reads. The feed passes the strict parser in `tests/helpers/xml.mjs` and `xmllint`, but wasn't submitted to Apple Podcasts or Spotify.
 
 ## Legal pages
 

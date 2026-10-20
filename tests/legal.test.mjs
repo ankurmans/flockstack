@@ -128,7 +128,7 @@ describe("the legal pages", () => {
 			assert.ok(text.length > 40, name);
 			assert.doesNotMatch(text, /^TODO/);
 		}
-		assert.deepEqual(m.legal.TRANSFER_SAFEGUARDS.map(({ name }) => name), ["Cloudflare", "Amazon Web Services", "Upstash", "Polar", "Stripe", "PostHog", "Google"]);
+		assert.deepEqual(m.legal.TRANSFER_SAFEGUARDS.map(({ name }) => name), ["Cloudflare", "Amazon Web Services", "Upstash", "Polar", "Stripe", "PostHog", "ElevenLabs", "Google"]);
 	});
 
 	test("the pages describe the analytics, the support assistant and Google sign-in as they will be live", () => {
@@ -239,7 +239,7 @@ describe("the legal pages", () => {
 	test("the sub-processors table lists every service with its regions, optional ones apart", () => {
 		const text = textOf(renderPage("sub-processors"));
 		const names = [...m.subprocessors.SUBPROCESSORS, ...m.subprocessors.OPTIONAL_SUBPROCESSORS].map(({ name }) => name);
-		assert.deepEqual(names, ["Cloudflare", "Amazon SES (Amazon Web Services)", "Upstash QStash", "Polar", "Stripe", "PostHog", "Google (sign-in)", "Apple (sign-in)", "Google Postmaster Tools", "Telegram", "Upstash Redis", "Vercel"]);
+		assert.deepEqual(names, ["Cloudflare", "Amazon SES (Amazon Web Services)", "Upstash QStash", "Polar", "Stripe", "PostHog", "ElevenLabs", "Google (sign-in)", "Apple (sign-in)", "Google Postmaster Tools", "Telegram", "Upstash Redis", "Vercel"]);
 		for (const { name, purpose, us, eu, link } of [...m.subprocessors.SUBPROCESSORS, ...m.subprocessors.OPTIONAL_SUBPROCESSORS]) {
 			assert.ok(text.includes(name) && text.includes(purpose) && text.includes(us) && text.includes(eu), name);
 			assert.match(link, /^https:\/\//, name);
