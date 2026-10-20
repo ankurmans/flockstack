@@ -62,6 +62,20 @@ export default function RssPage() {
 					check a feed with <Code>preview_feed</Code>.
 				</p>
 			</Section>
+
+			<Section title="A series from a feed" stagger={5}>
+				<p>
+					A series turns a feed into an issue on a schedule: every day, on the days of the week you pick, or on a day of the month. When
+					it is due, FlockStack reads the feed, takes the items published since the last issue (the first issue has the newest ones) and
+					makes an issue of your introduction and those items. The subject and the preview text can use <Code>{"{{date}}"}</Code>,{" "}
+					<Code>{"{{first_title}}"}</Code> and <Code>{"{{count}}"}</Code>.
+				</p>
+				<p className="mt-4">
+					Each issue waits as a draft for you to review, and you get an email when it is ready, or it is sent to the whole list by itself.
+					With no new items nothing is made, and every run, skipped ones included, is in the series&apos; history. Create them under Series
+					in the dashboard, or with the <Code>create_series</Code> action.
+				</p>
+			</Section>
 		</>
 	);
 }

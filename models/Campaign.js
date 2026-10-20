@@ -51,6 +51,8 @@ const campaignSchema = new mongoose.Schema(
 		segmentIds: { type: [mongoose.Schema.Types.ObjectId], default: undefined },
 		excludeSegmentIds: { type: [mongoose.Schema.Types.ObjectId], default: undefined },
 		source: { type: String, default: "dashboard" },
+		// The series (models/SeriesPlan.js) that made this issue.
+		seriesId: { type: mongoose.Schema.Types.ObjectId, ref: "SeriesPlan" },
 		scheduledAt: { type: Date },
 		startedAt: { type: Date },
 		// A send spread over hours (lib/send-spread.js): about when its last batch goes out, and the hours its size gave
