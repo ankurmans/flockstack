@@ -131,3 +131,11 @@ export async function retryRemoval(id) {
 	const { output, failure } = await runDashboardAction("retry_removal", { id: String(id ?? "") });
 	return failure ? toFormError(failure) : { removal: output };
 }
+
+// The color a tag is drawn in on the contacts page; an empty color goes back to the plain gray.
+export async function setTagColor(newsletterId, tag, color) {
+	const { failure } = await runDashboardAction("set_tag_color", { newsletter: String(newsletterId ?? ""), tag: String(tag ?? ""), color: color ? String(color) : null });
+	if (failure) return toFormError(failure);
+	revalidatePath("/contacts");
+	return { ok: true };
+}

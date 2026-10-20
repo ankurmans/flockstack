@@ -48,8 +48,8 @@ describe("tags", () => {
 		t.assertError(await t.api(user.key, "POST", `/contacts/${first.id}/tags`, { tag: "<script>" }), 400, "validation_failed");
 
 		assert.deepEqual((await t.api(user.key, "GET", "/tags")).body.tags, [
-			{ name: "beta", contacts: 1 },
-			{ name: "vip", contacts: 2 },
+			{ name: "beta", color: null, contacts: 1 },
+			{ name: "vip", color: null, contacts: 2 },
 		]);
 		const byTag = await t.api(user.key, "GET", "/contacts?tag=vip");
 		assert.equal(byTag.body.contacts.length, 2);
@@ -63,7 +63,7 @@ describe("tags", () => {
 
 		const deleted = await t.api(user.key, "DELETE", "/tags?tag=vip");
 		assert.deepEqual(deleted.body, { tag: "vip", contacts: 1, inBackground: false });
-		assert.deepEqual((await t.api(user.key, "GET", "/tags")).body.tags, [{ name: "beta", contacts: 1 }]);
+		assert.deepEqual((await t.api(user.key, "GET", "/tags")).body.tags, [{ name: "beta", color: null, contacts: 1 }]);
 		t.assertError(await t.api(user.key, "DELETE", "/tags?tag=vip"), 404, "not_found");
 	});
 
