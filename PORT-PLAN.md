@@ -1,6 +1,6 @@
 # Cloudflare port of FlockStack (forked from MailCheap)
 
-Fork of marclou/mailcheap (AGPL-3.0, remote `upstream`), branch `cf-port`. Goal: a self-hosted beehiiv-style newsletter at newsletter.ankur.works on our stack, at near-$0.
+Fork of marclou/mailcheap (AGPL-3.0, remote `upstream`), branch `cf-port`. Goal: a beehiiv-style newsletter on Cloudflare's stack that runs for almost nothing.
 
 ## What was built
 
