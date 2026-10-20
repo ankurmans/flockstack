@@ -2,8 +2,6 @@ import { notFound } from "next/navigation";
 import LayoutLegal from "@/components/LayoutLegal";
 import LinkInline from "@/components/LinkInline";
 import SectionLegal from "@/components/SectionLegal";
-import { DELETION_GRACE_DAYS } from "@/lib/account-deletion";
-import { EXPORT_LINK_DAYS } from "@/lib/account-export-files";
 import { REGION_LEAVES } from "@/lib/docs/regions";
 import {
 	ANALYTICS_RETENTION,
@@ -31,6 +29,7 @@ import {
 	isLegalPublished,
 } from "@/lib/legal";
 import { REGION_NAMES } from "@/lib/region";
+import { DELETION_GRACE_DAYS, EXPORT_LINK_DAYS } from "@/lib/retention";
 import { getPageMetadata } from "@/lib/site";
 
 const { title, description, href } = LEGAL_PAGES.find((page) => page.href === "/privacy");

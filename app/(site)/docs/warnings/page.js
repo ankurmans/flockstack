@@ -1,5 +1,5 @@
 import HeaderDocs from "@/components/HeaderDocs";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 import { getWarningsGuide } from "@/lib/docs/warnings";
 
 export const metadata = getDocsPageMetadata("/docs/warnings");

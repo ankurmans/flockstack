@@ -1,6 +1,6 @@
 import Link from "next/link";
 import HeaderDocs from "@/components/HeaderDocs";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 import { AUDIO_CHUNK_CHARS, DEFAULT_AUDIO_MODEL, MAX_AUDIO_CHARACTERS } from "@/lib/audio-config";
 import { estimateMinutes } from "@/lib/audio-text";
 import { formatNumber } from "@/lib/format";

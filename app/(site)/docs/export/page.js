@@ -1,9 +1,9 @@
 import Link from "next/link";
 import BlockCode from "@/components/BlockCode";
 import HeaderDocs from "@/components/HeaderDocs";
-import { EXPORT_LINK_DAYS } from "@/lib/account-export-files";
 import { EXPORT_COLUMNS } from "@/lib/contacts-csv";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
+import { EXPORT_LINK_DAYS } from "@/lib/retention";
 
 export const metadata = getDocsPageMetadata("/docs/export");
 

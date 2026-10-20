@@ -11,13 +11,13 @@ import LogoWordmark from "@/components/LogoWordmark";
 import RegionPicker from "@/components/RegionPicker";
 import { FooterCookies, SigninAside, SiteAnalytics, SupportChat } from "@/components/SiteExtensions";
 import { Button } from "@/components/ui/button";
-import { DELETION_GRACE_DAYS } from "@/lib/account-deletion";
 import { getSession, getSignupError, isAppleEnabled, isGoogleEnabled } from "@/lib/auth";
 import { isCloud } from "@/lib/config";
 import { getPublishedLegalPages } from "@/lib/legal";
 import { readOAuthRequest } from "@/lib/oauth";
 import { REGION_PLACES, getOtherRegion, getRegion, getRegionOptions, getSigninUrl } from "@/lib/region";
 import { readRegionChoice } from "@/lib/region-choice";
+import { DELETION_GRACE_DAYS } from "@/lib/retention";
 import { toSafeNextPath } from "@/lib/validation";
 
 export const metadata = { title: "Sign in" };

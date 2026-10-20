@@ -1,7 +1,7 @@
 import BlockCode from "@/components/BlockCode";
 import HeaderDocs from "@/components/HeaderDocs";
 import { ERRORS } from "@/lib/actions/errors";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 
 export const metadata = getDocsPageMetadata("/docs/errors");
 

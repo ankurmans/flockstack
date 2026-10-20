@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import NavDocs from "@/components/NavDocs";
 import { SiteAnalytics, SupportChat } from "@/components/SiteExtensions";
 import { getAppUrl } from "@/lib/config";
-import { DOC_PAGES } from "@/lib/docs/llms";
+import { DOC_PAGES } from "@/lib/docs/pages";
 import { getEndpointGroups } from "@/lib/docs/reference";
 
 export const metadata = {

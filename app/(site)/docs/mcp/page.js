@@ -3,7 +3,7 @@ import BlockCode from "@/components/BlockCode";
 import HeaderDocs from "@/components/HeaderDocs";
 import { ACTION_GROUPS, ACTIONS } from "@/lib/actions/registry";
 import { getAppUrl } from "@/lib/config";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 import { getMcpClients, getMcpConnectors, getMcpUrl } from "@/lib/docs/mcp-clients";
 import { getSlug } from "@/lib/docs/reference";
 import { MCP_SCOPE } from "@/lib/oauth-rules";

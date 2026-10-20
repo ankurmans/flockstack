@@ -1,6 +1,6 @@
 import Link from "next/link";
 import HeaderDocs from "@/components/HeaderDocs";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 import { COMMENT_LINK_TAG } from "@/lib/comment-tags";
 import { EDIT_WINDOW_MS } from "@/lib/comment-rules";
 import { MAX_COMMENT_CHARS, MAX_COMMENT_LINKS } from "@/lib/comment-body";

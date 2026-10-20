@@ -1,6 +1,6 @@
 import Link from "next/link";
 import HeaderDocs from "@/components/HeaderDocs";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 import { MAX_REPORT_DAYS } from "@/lib/report-rules";
 import { MAX_COMPARED } from "@/lib/reports";
 

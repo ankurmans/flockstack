@@ -1,7 +1,7 @@
 import BlockCode from "@/components/BlockCode";
 import HeaderDocs from "@/components/HeaderDocs";
 import { AUDIENCE_GUIDE } from "@/lib/docs/audience-guide";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 
 export const metadata = getDocsPageMetadata("/docs/audiences");
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import BlockCode from "@/components/BlockCode";
 import HeaderDocs from "@/components/HeaderDocs";
-import { getDocsPageMetadata } from "@/lib/docs/llms";
+import { getDocsPageMetadata } from "@/lib/docs/pages";
 import { MAX_REWARDS, MAX_REWARD_REFERRALS } from "@/lib/referral-rules";
 import { REFERRAL_COUNT_TAG, REFERRAL_LINK_TAG, SHARE_BLOCK_HTML } from "@/lib/referral-tags";
 
