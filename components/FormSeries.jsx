@@ -9,27 +9,13 @@ import CardSettings, { RowSettings } from "@/components/CardSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { escapeText, decodeEntities } from "@/lib/editor-blocks";
+import { richToText, textToRich } from "@/lib/rich-text";
 import { toast } from "@/lib/toast";
 import { useIsClient } from "@/lib/use-is-client";
 
 const SELECT = "h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
-
-// The intro is written as plain paragraphs here and kept as the paragraphs of a rich issue.
-function introToText(html) {
-	return decodeEntities(String(html ?? "").replace(/<\/p>\s*/gi, "\n\n").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]*>/g, "")).trim();
-}
-
-function textToIntro(text) {
-	return text
-		.split(/\n{2,}/)
-		.map((paragraph) => paragraph.trim())
-		.filter(Boolean)
-		.map((paragraph) => `<p>${escapeText(paragraph).replaceAll("\n", "<br>")}</p>`)
-		.join("");
-}
 
 function fromSeries(series, defaultTimeZone) {
 	return {
@@ -48,7 +34,7 @@ function fromSeries(series, defaultTimeZone) {
 		image: series?.image ?? true,
 		excerpt: series?.excerpt ?? true,
 		date: series?.date ?? true,
-		intro: introToText(series?.intro),
+		intro: richToText(series?.intro),
 		active: series?.active ?? false,
 	};
 }
@@ -57,7 +43,6 @@ function fromSeries(series, defaultTimeZone) {
 export default function FormSeries({ newsletterId, series, defaultTimeZone = "UTC" }) {
 	const router = useRouter();
 	const [draft, setDraft] = useState(() => fromSeries(series, defaultTimeZone));
-	const [initialIntro] = useState(draft.intro);
 	const [feed, setFeed] = useState(null);
 	const [isPending, startTransition] = useTransition();
 	const set = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
@@ -66,8 +51,7 @@ export default function FormSeries({ newsletterId, series, defaultTimeZone = "UT
 
 	function save(event) {
 		event.preventDefault();
-		// An intro that wasn't touched keeps the formatting it was saved with.
-		const values = { ...draft, intro: draft.intro === initialIntro && series ? series.intro : textToIntro(draft.intro) };
+		const values = { ...draft, intro: textToRich(draft.intro) };
 		startTransition(async () => {
 			const result = series ? await updateSeries(series.id, values) : await createSeries(newsletterId, values);
 			if (result?.error) return void toast.error(result.error);
@@ -211,7 +195,7 @@ export default function FormSeries({ newsletterId, series, defaultTimeZone = "UT
 				<RowSettings label="Preview text" isLabel>
 					<Input value={draft.previewText} onChange={(event) => set("previewText", event.target.value)} maxLength={300} />
 				</RowSettings>
-				<RowSettings label="Introduction" hint="Optional, above the items. Leave a blank line between paragraphs." isLabel>
+				<RowSettings label="Introduction" hint="Optional, above the items. Paragraphs with a blank line between them, or HTML." isLabel>
 					<Textarea value={draft.intro} onChange={(event) => set("intro", event.target.value)} rows={3} maxLength={5000} />
 				</RowSettings>
 				<RowSettings label="Items" hint="At most this many new items, when the feed has more" isLabel>

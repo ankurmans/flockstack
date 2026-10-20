@@ -27,6 +27,7 @@ const PRIVATE_PATHS = [
 	"/segments",
 	"/series",
 	"/surveys",
+	"/templates",
 	"/poll",
 	"/survey",
 	"/preferences",

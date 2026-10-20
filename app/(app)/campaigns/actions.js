@@ -17,8 +17,12 @@ function refresh(id) {
 	if (id) revalidatePath(`/campaigns/${id}`);
 }
 
-export async function createCampaign(newsletterId) {
-	const { output, failure } = await runDashboardAction("create_campaign", { newsletter: String(newsletterId ?? "") });
+// templateId: start from a saved template; without one, the newsletter's default style.
+export async function createCampaign(newsletterId, templateId) {
+	const { output, failure } = await runDashboardAction("create_campaign", {
+		newsletter: String(newsletterId ?? ""),
+		...(templateId && { template: String(templateId) }),
+	});
 	if (failure) return toFormError(failure);
 	revalidatePath("/campaigns");
 	redirect(`/campaigns/${output.id}`);
@@ -246,6 +250,14 @@ export async function listPollVoters(id, option, cursor) {
 		...(cursor && { cursor: String(cursor) }),
 	});
 	return failure ? toFormError(failure) : output;
+}
+
+// Any issue, draft or sent, as a template for new ones.
+export async function saveCampaignAsTemplate(id, name) {
+	const { output, failure } = await runDashboardAction("create_template", { campaign: String(id ?? ""), name: String(name ?? "") });
+	if (failure) return toFormError(failure);
+	revalidatePath("/templates");
+	return { ok: true, template: output };
 }
 
 // The editor's RSS block shows what the feed has now.

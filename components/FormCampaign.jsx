@@ -12,6 +12,7 @@ import {
 	Copy,
 	Eye,
 	FlaskConical,
+	LayoutTemplate,
 	Loader2,
 	MoreHorizontal,
 	Send,
@@ -23,6 +24,7 @@ import BadgeStatus from "@/components/BadgeStatus";
 import CardSettings from "@/components/CardSettings";
 import DialogDiscardCampaign from "@/components/DialogDiscardCampaign";
 import DialogPreviewEmail from "@/components/DialogPreviewEmail";
+import DialogSaveTemplate from "@/components/DialogSaveTemplate";
 import DialogTestEmail from "@/components/DialogTestEmail";
 import EditorRich from "@/components/EditorRich";
 import IconWarmup from "@/components/IconWarmup";
@@ -72,12 +74,14 @@ export default function FormCampaign({
 	newContacts,
 	fields = [],
 	segments = [],
+	snippets = [],
 }) {
 	const isHtml = campaign.format === "html";
 	const [step, setStep] = useState("write");
 	const [isDiscardOpen, setIsDiscardOpen] = useState(false);
 	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 	const [isTestOpen, setIsTestOpen] = useState(false);
+	const [isTemplateOpen, setIsTemplateOpen] = useState(false);
 	const format = isHtml ? "html" : "rich";
 	const [initialBody] = useState(() =>
 		campaign.format === "markdown" ? markdownToHtml(campaign.markdown) : campaign.html
@@ -280,6 +284,7 @@ export default function FormCampaign({
 		<MenuMore
 			isWorking={isWorking}
 			onDuplicate={() => runAction(duplicateCampaign)}
+			onSaveTemplate={() => setIsTemplateOpen(true)}
 			onDiscard={() => setIsDiscardOpen(true)}
 		/>
 	);
@@ -340,7 +345,7 @@ export default function FormCampaign({
 								/>
 							</div>
 						) : (
-							<EditorRich content={initialBody} onChange={updateBody} fields={fields} newsletterId={newsletter._id} campaignId={campaign._id} />
+							<EditorRich content={initialBody} onChange={updateBody} fields={fields} snippets={snippets} newsletterId={newsletter._id} campaignId={campaign._id} />
 						)}
 					</div>
 				</section>
@@ -418,6 +423,7 @@ export default function FormCampaign({
 				previewText={deferredValues.previewText}
 			/>
 			<DialogTestEmail isOpen={isTestOpen} onOpenChange={setIsTestOpen} defaultEmail={testEmail} isPending={isTesting} onSend={sendTest} />
+			<DialogSaveTemplate id={campaign._id} subject={values.subject} isOpen={isTemplateOpen} onOpenChange={setIsTemplateOpen} onBeforeSave={persist} />
 			<DialogDiscardCampaign
 				id={campaign._id}
 				subject={values.subject}
@@ -462,7 +468,7 @@ function TitleCampaign({ title, newsletter, status }) {
 	);
 }
 
-function MenuMore({ isWorking, onDuplicate, onDiscard }) {
+function MenuMore({ isWorking, onDuplicate, onSaveTemplate, onDiscard }) {
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
@@ -474,6 +480,10 @@ function MenuMore({ isWorking, onDuplicate, onDiscard }) {
 				<DropdownMenuItem onSelect={onDuplicate}>
 					<Copy />
 					Duplicate
+				</DropdownMenuItem>
+				<DropdownMenuItem onSelect={onSaveTemplate}>
+					<LayoutTemplate />
+					Save as template
 				</DropdownMenuItem>
 				<DropdownMenuItem variant="destructive" onSelect={onDiscard}>
 					<Trash2 />

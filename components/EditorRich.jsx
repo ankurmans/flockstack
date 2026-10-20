@@ -19,7 +19,7 @@ import { IMAGE_TYPES, getDisplaySize, prepareImage, uploadAttachment, uploadImag
 const MIN_HEIGHT = "min-h-[560px]";
 
 // newsletterId and campaignId: where a poll made in this editor belongs. Without a newsletter, there's no poll block.
-export default function EditorRich({ content, onChange, fields = [], newsletterId = null, campaignId = null }) {
+export default function EditorRich({ content, onChange, fields = [], snippets = [], newsletterId = null, campaignId = null }) {
 	const [isEditingLink, setIsEditingLink] = useState(false);
 	const [isPickingImage, setIsPickingImage] = useState(false);
 	// The block whose dialog is open: { kind, attrs, pos }, pos null for a new one.
@@ -60,6 +60,7 @@ export default function EditorRich({ content, onChange, fields = [], newsletterI
 				onBlock: (kind) => setBlock({ kind, attrs: {}, pos: null }),
 				onPickFile: () => document.getElementById(fileInputId)?.click(),
 				fields,
+				snippets,
 				canPoll: Boolean(newsletterId),
 			}),
 		],

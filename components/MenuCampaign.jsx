@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { ChartColumn, Copy, ExternalLink, Link2, Loader2, MoreHorizontal, PenLine, Trash2 } from "lucide-react";
+import { ChartColumn, Copy, ExternalLink, LayoutTemplate, Link2, Loader2, MoreHorizontal, PenLine, Trash2 } from "lucide-react";
 import { duplicateCampaign } from "@/app/(app)/campaigns/actions";
 import DialogDiscardCampaign from "@/components/DialogDiscardCampaign";
+import DialogSaveTemplate from "@/components/DialogSaveTemplate";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -19,6 +20,7 @@ const EDITABLE_STATUSES = ["draft", "scheduled"];
 
 export default function MenuCampaign({ id, status, subject, scheduledAt, pageUrl }) {
 	const [isDiscardOpen, setIsDiscardOpen] = useState(false);
+	const [isTemplateOpen, setIsTemplateOpen] = useState(false);
 	const [isDuplicating, startDuplicating] = useTransition();
 	const isEditable = EDITABLE_STATUSES.includes(status);
 
@@ -63,6 +65,10 @@ export default function MenuCampaign({ id, status, subject, scheduledAt, pageUrl
 						<Copy />
 						Duplicate
 					</DropdownMenuItem>
+					<DropdownMenuItem onSelect={() => setIsTemplateOpen(true)}>
+						<LayoutTemplate />
+						Save as template
+					</DropdownMenuItem>
 					{pageUrl && (
 						<>
 							<DropdownMenuSeparator />
@@ -89,6 +95,7 @@ export default function MenuCampaign({ id, status, subject, scheduledAt, pageUrl
 					)}
 				</DropdownMenuContent>
 			</DropdownMenu>
+			<DialogSaveTemplate id={id} subject={subject} isOpen={isTemplateOpen} onOpenChange={setIsTemplateOpen} />
 			{isEditable && (
 				<DialogDiscardCampaign
 					id={id}

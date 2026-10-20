@@ -10,3 +10,9 @@ CREATE TABLE IF NOT EXISTS c_seriesruns (_id TEXT PRIMARY KEY NOT NULL, accountI
 CREATE INDEX IF NOT EXISTS i_seriesruns__accountId ON c_seriesruns (accountId);
 CREATE UNIQUE INDEX IF NOT EXISTS u_seriesruns__seriesId__slot ON c_seriesruns (json_extract(data, '$.seriesId') ASC, json_extract(data, '$.slot') ASC);
 CREATE INDEX IF NOT EXISTS i_seriesruns__seriesId__createdAt_d ON c_seriesruns (json_extract(data, '$.seriesId') ASC, json_extract(data, '$.createdAt') DESC);
+CREATE TABLE IF NOT EXISTS c_issuetemplates (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_issuetemplates__accountId ON c_issuetemplates (accountId);
+CREATE INDEX IF NOT EXISTS i_issuetemplates__newsletterId__name ON c_issuetemplates (json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.name') ASC);
+CREATE TABLE IF NOT EXISTS c_snippets (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_snippets__accountId ON c_snippets (accountId);
+CREATE INDEX IF NOT EXISTS i_snippets__newsletterId__name ON c_snippets (json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.name') ASC);
