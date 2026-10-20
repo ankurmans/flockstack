@@ -24,6 +24,9 @@ const automationSchema = new mongoose.Schema(
 		evaluationCursor: { type: String },
 		// A segment trigger set to leave out the contacts already in the segment records them the first time it looks.
 		baselineAt: { type: Date },
+		// How many contacts each step has run for, by step ID, and each path of a branch or split has taken, by "p:" and the
+		// step's ID and the path's place (lib/automations.js flushCounts): the numbers on the automation's page.
+		stepCounts: { type: mongoose.Schema.Types.Mixed },
 		source: { type: String, default: "dashboard" },
 	},
 	{ timestamps: true }
