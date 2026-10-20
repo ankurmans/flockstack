@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -51,13 +50,5 @@ test("narrows the handler files of a folder and skips the copies Wrangler never 
 		assert.equal(await readFile(join(dir, "assets", "client.js"), "utf8"), "const a = '’';");
 	} finally {
 		await rm(dir, { recursive: true, force: true });
-	}
-});
-
-test("both Workers run it before Wrangler bundles", () => {
-	const config = JSON.parse(readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8").replace(/^\s*\/\/.*$/gm, ""));
-	for (const worker of [config, config.env.eu]) {
-		assert.equal(worker.minify, true);
-		assert.equal(worker.build.command, "node scripts/narrow-bundle.mjs");
 	}
 });

@@ -1,16 +1,16 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "flockstack",
-	"main": "worker-entry.mjs",
+	// worker-entry.mjs bundled by scripts/bundle-worker.mjs, which Wrangler runs first (build below). The OpenNext handler is
+	// 40 MB: bundled by Wrangler itself it was 63 MB, took 130 MB of an isolate's 128, and the isolate was thrown away after
+	// every request, so every page paid the cold start of the whole app. The script takes out the whitespace and nothing else.
+	"main": ".worker/worker-entry.js",
+	"no_bundle": true,
+	"build": { "command": "node scripts/bundle-worker.mjs" },
 	"compatibility_date": "2026-09-01",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
 	"assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
 	"workers_dev": true,
-	// The OpenNext handler is 43 MB, 63 MB once Wrangler reformats it. A Worker that large never gets its isolate back for a
-	// second request: every request loaded the script again, seconds of cold start. Minified it stays alive between requests.
-	"minify": true,
-	// Writes the few characters above U+00FF in the handler as \u escapes, which halves the memory V8 keeps its source in.
-	"build": { "command": "node scripts/narrow-bundle.mjs" },
 	// Hourly: PostShiba status, Telegram, expired exports, comment digests. Daily: Gmail spam rates (worker-entry.mjs).
 	"triggers": { "crons": ["0 * * * *", "30 6 * * *"] },
 	"preview_urls": false,
@@ -47,14 +47,14 @@
 	"env": {
 		"eu": {
 			"name": "flockstack-eu",
-			"main": "worker-entry.mjs",
+			"main": ".worker/worker-entry.js",
+			"no_bundle": true,
+			"build": { "command": "node scripts/bundle-worker.mjs" },
 			"compatibility_date": "2026-09-01",
 			"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
 			"assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
 			// No workers.dev address: sessions, passkeys and links belong to eu.flockstack.io.
 			"workers_dev": false,
-			"minify": true,
-			"build": { "command": "node scripts/narrow-bundle.mjs" },
 			"preview_urls": false,
 			"observability": { "enabled": true },
 			"upload_source_maps": false,

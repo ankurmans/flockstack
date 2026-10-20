@@ -9,8 +9,13 @@ const entry = read("worker-entry.mjs");
 const jobs = Object.fromEntries([...entry.matchAll(/"([^"]+)":\s*"(\/api\/cron\/[a-z-]+)"/g)].map(([, cron, path]) => [cron, path]));
 
 test("both Workers run the cron jobs worker-entry.mjs knows, and each job is a real route", () => {
-	assert.equal(config.main, "worker-entry.mjs");
-	assert.equal(config.env.eu.main, "worker-entry.mjs");
+	// Both Workers upload scripts/bundle-worker.mjs's bundle of worker-entry.mjs.
+	for (const worker of [config, config.env.eu]) {
+		assert.equal(worker.main, ".worker/worker-entry.js");
+		assert.equal(worker.no_bundle, true);
+		assert.equal(worker.build.command, "node scripts/bundle-worker.mjs");
+	}
+	assert.ok(existsSync(new URL("../worker-entry.mjs", import.meta.url)));
 	for (const crons of [config.triggers.crons, config.env.eu.triggers.crons]) {
 		assert.deepEqual([...crons].sort(), Object.keys(jobs).sort());
 	}
