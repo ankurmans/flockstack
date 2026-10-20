@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { CalendarDays, List, Send } from "lucide-react";
+import BarBulkCampaigns from "@/components/BarBulkCampaigns";
 import ButtonNewCampaign from "@/components/ButtonNewCampaign";
 import HeaderPage from "@/components/HeaderPage";
+import ProviderCampaignSelection from "@/components/ProviderCampaignSelection";
 import StateEmpty from "@/components/StateEmpty";
 import TableCampaigns from "@/components/TableCampaigns";
 import { Button } from "@/components/ui/button";
@@ -12,7 +14,7 @@ import { getSelectedNewsletter } from "@/lib/selected-newsletter";
 export const metadata = { title: "Campaigns" };
 
 export default async function CampaignsPage() {
-	const { account, selected } = await getSelectedNewsletter();
+	const { account, selected, newsletters } = await getSelectedNewsletter();
 	const campaigns = selected ? await listNewsletterCampaigns(account, selected._id, 200) : [];
 	const pageUrls = Object.fromEntries(
 		campaigns
@@ -43,9 +45,12 @@ export default async function CampaignsPage() {
 			{campaigns.length === 0 ? (
 				<StateEmpty icon={Send} title="No campaigns yet" />
 			) : (
-				<div className="animate-enter">
-					<TableCampaigns campaigns={campaigns} newsletter={selected} hasActions pageUrls={pageUrls} />
-				</div>
+				<ProviderCampaignSelection>
+					<div className="animate-enter">
+						<TableCampaigns campaigns={campaigns} newsletter={selected} hasActions pageUrls={pageUrls} />
+					</div>
+					<BarBulkCampaigns newsletters={newsletters.map(({ _id, name }) => ({ id: String(_id), name }))} currentNewsletterId={String(selected._id)} />
+				</ProviderCampaignSelection>
 			)}
 		</>
 	);

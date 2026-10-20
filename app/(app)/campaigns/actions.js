@@ -309,3 +309,16 @@ export async function pickStockPhoto(id) {
 	const { output, failure } = await runDashboardAction("use_stock_photo", { id: String(id ?? "") });
 	return failure ? toFormError(failure) : output;
 }
+
+// Delete, list, unlist or move several campaigns; the answer says what happened to each.
+export async function bulkUpdateCampaigns(ids, operation, newsletter) {
+	const { output, failure } = await runDashboardAction("bulk_update_campaigns", {
+		ids: Array.isArray(ids) ? ids.map(String) : [],
+		operation: String(operation ?? ""),
+		...(newsletter && { newsletter: String(newsletter) }),
+	});
+	if (failure) return toFormError(failure);
+	revalidatePath("/campaigns");
+	revalidatePath("/");
+	return { ok: true, done: output.done, skipped: output.skipped, reasons: [...new Set(output.results.map(({ reason }) => reason).filter(Boolean))] };
+}
