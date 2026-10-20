@@ -23,9 +23,12 @@
 		// Account exports wait here for their download (lib/export-storage.js). Private, with a lifecycle rule that deletes objects after 8 days.
 		{ "binding": "EXPORTS", "bucket_name": "flockstack-exports" }
 	],
-	// Workers AI for the support assistant (lib/marketing/support-assistant.js), through AI Gateway's "default" gateway.
+	// Workers AI for the help chat's assistant, through AI Gateway's "default" gateway (README, Support assistant).
 	// Without it the help chat doesn't render.
 	"ai": { "binding": "AI" },
+	// The marketing website, a separate Worker: worker-entry.mjs hands it the paths in lib/website-routing.js. Deploy it first,
+	// since a deploy that binds a Worker which does not exist fails. Without the binding those paths fall through to the app.
+	"services": [{ "binding": "WEBSITE", "service": "flockstack-website" }],
 	"vars": {
 		"IMAGES_STORAGE": "r2",
 		"FLOCKSTACK_CLOUD": "true",
@@ -56,6 +59,7 @@
 				{ "binding": "EXPORTS", "bucket_name": "flockstack-exports-eu", "jurisdiction": "eu" }
 			],
 			"ai": { "binding": "AI" },
+			"services": [{ "binding": "WEBSITE", "service": "flockstack-website" }],
 			"vars": {
 				"IMAGES_STORAGE": "r2",
 				"FLOCKSTACK_CLOUD": "true",

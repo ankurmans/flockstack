@@ -2,6 +2,8 @@
 // outside scheduler (app/api/cron). A trigger calls the route through the same handler with CRON_SECRET.
 import openNext from "./.open-next/worker.js";
 import { isCertificateValidationRequest } from "./lib/certificate-validation.js";
+import { getCookiePrefix } from "./lib/region.js";
+import { hasSessionCookie, shouldForwardToWebsite } from "./lib/website-routing.js";
 
 export { BucketCachePurge, DOQueueHandler, DOShardedTagCache } from "./.open-next/worker.js";
 
@@ -12,7 +14,26 @@ export const CRON_JOBS = {
 };
 
 export default {
-	fetch: (request, env, ctx) => (isCertificateValidationRequest(request, env) ? fetch(request) : openNext.fetch(request, env, ctx)),
+	fetch: (request, env, ctx) => {
+		if (isCertificateValidationRequest(request, env)) return fetch(request);
+		const url = new URL(request.url);
+		// The marketing website is its own Worker (a private repository), reached through the WEBSITE service binding. It is
+		// FlockStack Cloud's: no binding, no APP_URL, no forwarding (a self-hosted server, or a Worker without the binding).
+		if (
+			env.WEBSITE &&
+			env.APP_URL &&
+			shouldForwardToWebsite({
+				method: request.method,
+				hostname: url.hostname,
+				appHostname: new URL(env.APP_URL).hostname,
+				pathname: url.pathname,
+				hasSession: hasSessionCookie(request.headers.get("cookie"), getCookiePrefix(env)),
+			})
+		) {
+			return env.WEBSITE.fetch(request);
+		}
+		return openNext.fetch(request, env, ctx);
+	},
 
 	async scheduled(event, env, ctx) {
 		const path = CRON_JOBS[event.cron];
