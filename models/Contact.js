@@ -121,6 +121,8 @@ contactSchema.index({ newsletterId: 1, stripeCustomerId: 1 }, { partialFilterExp
 // Counting and sending to a newsletter's paid readers.
 contactSchema.index({ newsletterId: 1, tier: 1, status: 1 });
 contactSchema.index({ newsletterId: 1, paidTierId: 1 }, { partialFilterExpression: { paidTierId: { $type: "string" } } });
+// The hourly check for comps and gifts that ran out (lib/grant-access.js).
+contactSchema.index({ "grant.until": 1 }, { partialFilterExpression: { "grant.until": { $exists: true } } });
 // The list cleanup totals in newsletter settings.
 contactSchema.index({ newsletterId: 1, lastChanceAt: 1 }, { partialFilterExpression: { lastChanceAt: { $exists: true } } });
 // An admin taking an address off the never-email list finds the contacts it stopped, in every account.

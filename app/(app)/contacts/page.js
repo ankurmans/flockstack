@@ -30,6 +30,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { scoped } from "@/lib/account-scope";
+import { isGrantDriving } from "@/lib/grants";
 import { isPaidContact } from "@/lib/tiers";
 import { listRemovals } from "@/lib/bulk-removal";
 import { getAppUrl } from "@/lib/config";
@@ -187,7 +188,7 @@ export default async function ContactsPage({ searchParams }) {
 										<TableCell>
 											<span className="flex items-center gap-1.5">
 												<BadgeStatus status={contact.status} label={contact.undeliverableAt && "Undeliverable"} />
-												{isPaidContact(contact) && <Badge variant="secondary">Paid</Badge>}
+												{isPaidContact(contact) && <Badge variant="secondary">{isGrantDriving(contact) ? (contact.grant.kind === "gift" ? "Gift" : "Comp") : "Paid"}</Badge>}
 											</span>
 										</TableCell>
 										<TableCell className="hidden text-right lg:table-cell">

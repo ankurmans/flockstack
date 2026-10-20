@@ -171,3 +171,25 @@ export async function saveGifts(_state, formData) {
 	revalidatePath("/payments");
 	return { ok: true };
 }
+
+export async function giveComp(_state, formData) {
+	const ends = String(formData.get("endsAt") ?? "").trim();
+	if (!ends) return { error: "Pick the day the access ends" };
+	const { failure } = await runDashboardAction("grant_comp_access", {
+		id: String(formData.get("newsletterId") ?? ""),
+		contact: String(formData.get("contact") ?? "").trim(),
+		endsAt: new Date(`${ends}T23:59:59Z`).toISOString(),
+		...(formData.get("tier") && { tier: String(formData.get("tier")) }),
+		...(String(formData.get("note") ?? "").trim() && { note: String(formData.get("note")).trim() }),
+	});
+	if (failure) return toFormError(failure);
+	revalidatePath("/payments");
+	return { ok: true };
+}
+
+export async function takeCompAway(newsletterId, contactId) {
+	const { failure } = await runDashboardAction("revoke_comp_access", { id: String(newsletterId), contactId: String(contactId) });
+	if (failure) return toFormError(failure);
+	revalidatePath("/payments");
+	return { ok: true };
+}

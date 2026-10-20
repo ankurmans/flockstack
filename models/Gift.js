@@ -40,6 +40,7 @@ giftSchema.plugin(accountScoped);
 giftSchema.index({ newsletterId: 1, status: 1, createdAt: -1 });
 giftSchema.index({ newsletterId: 1, buyerEmail: 1 });
 giftSchema.index({ status: 1, deliverOn: 1 });
+giftSchema.index({ status: 1, expiresAt: 1 });
 giftSchema.index({ paymentIntentId: 1 }, { partialFilterExpression: { paymentIntentId: { $type: "string" } } });
 
 export default mongoose.models.Gift || mongoose.model("Gift", giftSchema);

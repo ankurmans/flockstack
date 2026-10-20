@@ -176,6 +176,21 @@ export default function SellingPage() {
 					<Code>resend_gift</Code> sends one again, to another address if the first didn&apos;t reach.
 				</p>
 			</Section>
+
+			<Section title="Comp access and the paid report" stagger={9}>
+				<p>
+					<Code>grant_comp_access</Code> gives a contact paid access by hand until a day, in a tier: for press, partners or a favor. The contact
+					has to be on the list and active already, because paid issues are email they would otherwise not have asked for. The access ends on its
+					day by itself (an hourly check clears it and tells webhooks), or sooner with <Code>revoke_comp_access</Code>. A comp is shown apart: a
+					contact&apos;s <Code>paidAccess</Code> says <Code>stripe</Code>, <Code>comp</Code> or <Code>gift</Code>, and a reader who also pays with
+					a Stripe subscription keeps paying while the comp waits behind it.
+				</p>
+				<p className="mt-4">
+					<Code>get_paid_report</Code> counts paying readers, comps and gifts per tier. Only paying readers count towards its monthly revenue,
+					which is an estimate at list prices: it leaves out comps, gifts, lifetime payments and discounts. Your Stripe dashboard has the exact
+					figures.
+				</p>
+			</Section>
 		</>
 	);
 }

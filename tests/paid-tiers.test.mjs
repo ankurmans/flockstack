@@ -66,8 +66,8 @@ describe("tier CRUD", () => {
 	test("needs a price, and prices of at least the minimum", async () => {
 		const user = await seller();
 		assertError(await api(user, "POST", `/newsletters/${user.slug}/tiers`, { name: "Free" }), 400, "validation_failed");
-		const cheap = await api(user, "POST", `/newsletters/${user.slug}/tiers`, { name: "Tiny", monthlyCents: 50 });
-		assert.match(assertError(cheap, 400, "validation_failed"), /monthlyCents|at least 100/);
+		const tiny = await api(user, "POST", `/newsletters/${user.slug}/tiers`, { name: "Tiny", monthlyCents: 50 });
+		assert.match(assertError(tiny, 400, "validation_failed"), /monthlyCents|at least 100/);
 		const pwyw = await addTier(user, { name: "Name it", yearlyCents: undefined, payWhatYouWant: { minCents: 300, interval: "month" } });
 		assert.deepEqual(pwyw.payWhatYouWant, { minCents: 300, interval: "month" });
 	});

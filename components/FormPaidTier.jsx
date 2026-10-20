@@ -91,7 +91,10 @@ export default function FormPaidTier({ newsletter, tier, isReady }) {
 						<ButtonCopy value={tier.subscribeUrl} label="Copy link" />
 					</div>
 				)}
-				<p className="px-4 py-3 text-sm text-muted-foreground tabular-nums">{formatCount(tier.paidSubscribers, "paid subscriber")}. Send an issue to paid readers only from the campaign&apos;s send step.</p>
+				<p className="px-4 py-3 text-sm text-muted-foreground tabular-nums">
+					{formatCount(tier.paidSubscribers, "paid subscriber")}
+					{tier.compSubscribers + tier.giftSubscribers > 0 && `: ${tier.payingSubscribers} paying, ${tier.compSubscribers} on a comp, ${tier.giftSubscribers} on a gift`}. Send an issue to paid readers only from the campaign&apos;s send step.
+				</p>
 			</CardSettings>
 			{state?.error && <p className="mt-2 text-sm text-destructive">{state.error}</p>}
 		</form>
