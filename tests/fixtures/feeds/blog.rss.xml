@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:media="http://search.yahoo.com/mrss/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<channel>
+<title>Field Notes &amp; Letters</title>
+<link>https://blog.example.com/</link>
+<description>Notes from the field</description>
+<item>
+<title><![CDATA[Third post: what <b>changed</b>]]></title>
+<link>https://blog.example.com/third</link>
+<guid isPermaLink="false">post-3</guid>
+<pubDate>Wed, 21 Oct 2026 08:30:00 GMT</pubDate>
+<description><![CDATA[<p>The third post, with <em>markup</em> and a <a href="https://blog.example.com/x">link</a> in its summary.</p>]]></description>
+<media:thumbnail url="https://cdn.example.com/third.jpg"/>
+</item>
+<item>
+<title>Second post</title>
+<link>/second</link>
+<guid>post-2</guid>
+<pubDate>Mon, 19 Oct 2026 09:00:00 GMT</pubDate>
+<description>A plain summary &amp; its ampersand.</description>
+<content:encoded><![CDATA[<p>Body of the second post.</p><img src="https://blog.example.com/inline.png" alt="">]]></content:encoded>
+</item>
+<item>
+<title>First post</title>
+<link>https://blog.example.com/first</link>
+<guid>post-1</guid>
+<pubDate>Fri, 16 Oct 2026 10:00:00 GMT</pubDate>
+<description>The first one.</description>
+<enclosure url="https://cdn.example.com/first.png" type="image/png" length="1234"/>
+</item>
+<item>
+<title>Undated post</title>
+<link>https://blog.example.com/undated</link>
+<guid>post-0</guid>
+<description>No date on this one.</description>
+</item>
+</channel>
+</rss>

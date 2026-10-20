@@ -18,7 +18,7 @@ import { countReaders, getArchiveIssue, getArchiveNewsletter, getArchivePage, ge
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getBrand } from "@/lib/brand";
 import { getIssueDate } from "@/lib/archive-issues";
-import { getIssueSeo, getPageSeo } from "@/lib/archive-seo";
+import { getCustomJsonLd, getIssueSeo, getPageSeo } from "@/lib/archive-seo";
 import { getTagSlug } from "@/lib/issue-tags";
 import { renderWebIssue } from "@/lib/web-issue";
 import { hasRecommendationsTag } from "@/lib/recommendation-tags";
@@ -114,6 +114,9 @@ async function renderIssue({ newsletter, issue }) {
 	return (
 		<>
 			<ScriptJsonLd data={getIssueSeo(newsletter, issue).jsonLd} />
+			{getCustomJsonLd(newsletter).map((block, index) => (
+				<ScriptJsonLd key={index} data={block} />
+			))}
 			<article className="mx-auto max-w-2xl px-5 pt-12 sm:pt-16">
 				<header className="animate-enter">
 					<h1 className="site-title text-4xl font-semibold tracking-tight text-balance sm:text-[2.75rem] sm:leading-[1.1]">

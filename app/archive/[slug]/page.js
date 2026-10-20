@@ -9,7 +9,7 @@ import ListRecommendations from "@/components/ListRecommendations";
 import ScriptJsonLd from "@/components/ScriptJsonLd";
 import { HOME_ISSUES, countReaders, getArchiveNewsletter, listHomeIssues, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
-import { getHomeSeo } from "@/lib/archive-seo";
+import { getCustomJsonLd, getHomeSeo } from "@/lib/archive-seo";
 import { getBrand } from "@/lib/brand";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -48,6 +48,9 @@ export default async function ArchivePage({ params }) {
 	return (
 		<>
 			<ScriptJsonLd data={getHomeSeo(newsletter).jsonLd} />
+			{getCustomJsonLd(newsletter).map((block, index) => (
+				<ScriptJsonLd key={index} data={block} />
+			))}
 			{brand.headerUrl && (
 				<div className="mx-auto max-w-5xl px-5 pt-6">
 					<div className="relative aspect-[3/1] overflow-hidden rounded-xl bg-muted outline -outline-offset-1 outline-black/10 dark:outline-white/10">

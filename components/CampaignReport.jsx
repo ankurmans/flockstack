@@ -19,6 +19,7 @@ import DialogSendMore from "@/components/DialogSendMore";
 import HeaderPage from "@/components/HeaderPage";
 import IconWarmup from "@/components/IconWarmup";
 import ImageFavicon from "@/components/ImageFavicon";
+import CardSeo from "@/components/CardSeo";
 import InputCampaignSlug from "@/components/InputCampaignSlug";
 import InputIssueTags from "@/components/InputIssueTags";
 import PreviewEmail from "@/components/PreviewEmail";
@@ -357,6 +358,10 @@ export default function CampaignReport({
 						<span className="text-sm text-muted-foreground">Tags</span>
 						<InputIssueTags campaignId={id} initialTags={campaign.tags ?? []} />
 					</div>
+				)}
+
+				{newsletter.archiveEnabled && campaign.archiveSlug && campaign.publishTo !== "email" && (
+					<CardSeo campaignId={id} seo={campaign.seo} subject={campaign.subject} previewText={campaign.previewText} stagger={5} />
 				)}
 
 				<div style={{ "--stagger": 5 }} className="animate-enter">
