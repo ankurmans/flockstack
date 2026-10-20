@@ -14,7 +14,7 @@ export default function ButtonSigninGoogle({ next, oauthQuery }) {
 	);
 }
 
-function IconGoogle() {
+export function IconGoogle() {
 	return (
 		<svg viewBox="0 0 24 24" aria-hidden="true">
 			<path

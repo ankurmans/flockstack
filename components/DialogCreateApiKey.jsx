@@ -16,6 +16,7 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 
 export default function DialogCreateApiKey() {
 	const [isOpen, setIsOpen] = useState(false);
@@ -70,7 +71,7 @@ function FormApiKey() {
 	}
 
 	return (
-		<form action={action} className="flex flex-col gap-4">
+		<form action={action} onSubmit={submitKeepingFields(action)} className="flex flex-col gap-4">
 			<DialogHeader>
 				<DialogTitle>New API key</DialogTitle>
 				<DialogDescription>For the REST API and the MCP server.</DialogDescription>

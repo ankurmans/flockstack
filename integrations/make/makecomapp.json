@@ -1,0 +1,113 @@
+{
+  "fileVersion": 1,
+  "generalCodeFiles": {
+    "base": "general/base.iml.json",
+    "common": null,
+    "readme": null,
+    "groups": null
+  },
+  "components": {
+    "connection": {
+      "flockstack": {
+        "label": "FlockStack",
+        "connectionType": "basic",
+        "codeFiles": {
+          "communication": "connections/flockstack/api.iml.json",
+          "params": "connections/flockstack/parameters.iml.json"
+        }
+      }
+    },
+    "webhook": {
+      "flockstack": {
+        "label": "FlockStack events",
+        "webhookType": "dedicated",
+        "connection": "flockstack",
+        "codeFiles": {
+          "communication": "webhooks/flockstack/api.iml.json",
+          "params": "webhooks/flockstack/parameters.iml.json",
+          "attach": "webhooks/flockstack/attach.iml.json",
+          "detach": "webhooks/flockstack/detach.iml.json"
+        }
+      }
+    },
+    "module": {
+      "watchEvents": {
+        "label": "Watch events",
+        "description": "Triggers when the event you pick happens in FlockStack.",
+        "moduleType": "instant_trigger",
+        "webhook": "flockstack",
+        "connection": "flockstack",
+        "codeFiles": {
+          "interface": "modules/watchEvents/interface.iml.json",
+          "samples": "modules/watchEvents/samples.iml.json"
+        }
+      },
+      "addSubscriber": {
+        "label": "Add a subscriber",
+        "description": "Signs someone up to your newsletter, as your signup form would.",
+        "moduleType": "action",
+        "actionCrud": "create",
+        "connection": "flockstack",
+        "codeFiles": {
+          "communication": "modules/addSubscriber/api.iml.json",
+          "mappableParams": "modules/addSubscriber/expect.iml.json",
+          "interface": "modules/addSubscriber/interface.iml.json"
+        }
+      },
+      "updateSubscriber": {
+        "label": "Add or update a subscriber",
+        "description": "Adds tags and sets custom fields on a subscriber, found by email. Someone who isn't subscribed yet is signed up.",
+        "moduleType": "action",
+        "actionCrud": "update",
+        "connection": "flockstack",
+        "codeFiles": {
+          "communication": "modules/updateSubscriber/api.iml.json",
+          "mappableParams": "modules/updateSubscriber/expect.iml.json",
+          "interface": "modules/addSubscriber/interface.iml.json"
+        }
+      },
+      "addTag": {
+        "label": "Add a tag to a subscriber",
+        "description": "Gives a subscriber a tag, which can start an automation.",
+        "moduleType": "action",
+        "actionCrud": "update",
+        "connection": "flockstack",
+        "codeFiles": {
+          "communication": "modules/addTag/api.iml.json",
+          "mappableParams": "modules/addTag/expect.iml.json",
+          "interface": "modules/addTag/interface.iml.json"
+        }
+      },
+      "findSubscriber": {
+        "label": "Find a subscriber",
+        "description": "Finds a subscriber by email address.",
+        "moduleType": "search",
+        "connection": "flockstack",
+        "codeFiles": {
+          "communication": "modules/findSubscriber/api.iml.json",
+          "mappableParams": "modules/findSubscriber/expect.iml.json",
+          "interface": "modules/findSubscriber/interface.iml.json"
+        }
+      }
+    },
+    "rpc": {
+      "listNewsletters": {
+        "label": "List newsletters",
+        "connection": "flockstack",
+        "codeFiles": {
+          "communication": "rpcs/listNewsletters/api.iml.json"
+        }
+      }
+    }
+  },
+  "app": {
+    "name": "flockstack",
+    "label": "FlockStack",
+    "description": "The newsletter app you run from your AI agent. Watch subscribers, campaigns and orders, and add subscribers and tags.",
+    "version": "1.0.0",
+    "theme": "#0b0d0e",
+    "language": "en",
+    "countries": null,
+    "audience": "countries"
+  }
+}

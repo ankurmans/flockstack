@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 import { toast } from "@/lib/toast";
 
 const CODE_PATTERN = /^\d{6}$/;
@@ -78,7 +79,7 @@ function StepsDelete({ email, graceDays }) {
 	}
 
 	return (
-		<form action={action} className="grid gap-4">
+		<form action={action} onSubmit={submitKeepingFields(action)} className="grid gap-4">
 			<DialogHeader>
 				<DialogTitle>Confirm it&apos;s you</DialogTitle>
 				<DialogDescription>

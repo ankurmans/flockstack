@@ -12,6 +12,7 @@ import PreviewNewsletter from "@/components/PreviewNewsletter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MAX_DESCRIPTION_LENGTH } from "@/lib/newsletters";
+import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 import { cn } from "@/lib/utils";
 
 // A new account's first stop: a few questions that need no DNS or verification, one at a time, with the
@@ -30,7 +31,7 @@ export default function FormOnboarding({ defaultFromName, image, listSizes, list
 	}
 
 	function onSubmit(event) {
-		if (isLast) return;
+		if (isLast) return submitKeepingFields(action)(event);
 		event.preventDefault();
 		setStep(step + 1);
 	}

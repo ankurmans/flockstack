@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MAX_DESCRIPTION_LENGTH, NEWSLETTER_LIMIT_MESSAGE } from "@/lib/newsletters";
 import { getSharedAddress } from "@/lib/sender-rules";
 import { slugify } from "@/lib/slug";
+import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 
 // A name and a line about it, like /welcome; the rest is in its settings, which open next. Without a shared
 // domain, a newsletter needs an address on one of the account's domains from the start. Only a link opens the
@@ -37,7 +38,7 @@ export default function FormAddNewsletter({ sharedDomain, domains, startsFrom, i
 	}
 
 	return (
-		<form action={action} className="flex flex-col gap-5">
+		<form action={action} onSubmit={submitKeepingFields(action)} className="flex flex-col gap-5">
 			<DialogHeader>
 				<DialogTitle>Add a newsletter</DialogTitle>
 				<DialogDescription className="text-pretty">

@@ -1,17 +1,17 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Search, Trash2 } from "lucide-react";
+import { RotateCcw, Search, Trash2 } from "lucide-react";
 import {
 	addRecommendation,
 	decideRecommendation,
-	removeRecommendation,
 	savePitch,
 	saveRecommendationSettings,
 	searchNewsletters,
 } from "@/app/(app)/recommending/actions";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import CardSettings, { RowSettings } from "@/components/CardSettings";
+import DialogRemoveRecommendation from "@/components/DialogRemoveRecommendation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,8 @@ function describeCounts({ impressions, signups, confirmed }, { sent }) {
 // recommend it, which its owner can decline with a reason the recommender reads.
 export default function FormRecommendations({ newsletterId, data }) {
 	const [isSaving, startSaving] = useTransition();
+	const recommending = data.outgoing.filter(({ status }) => status !== "removed").length;
+	const isFull = recommending >= data.limit;
 
 	function saveSettings(patch) {
 		const next = { ...data.settings, ...patch };
@@ -72,7 +74,7 @@ export default function FormRecommendations({ newsletterId, data }) {
 				</RowSettings>
 			</CardSettings>
 
-			<CardSettings title={`Newsletters you recommend (${data.outgoing.filter(({ status }) => status !== "removed").length} of ${data.limit})`} stagger={2}>
+			<CardSettings title={`Newsletters you recommend (${recommending} of ${data.limit})`} stagger={2}>
 				{data.outgoing.length === 0 && (
 					<p className="px-4 py-3 text-sm text-pretty text-muted-foreground">
 						Readers see these after they subscribe, on your website and wherever an issue has{" "}
@@ -81,9 +83,9 @@ export default function FormRecommendations({ newsletterId, data }) {
 					</p>
 				)}
 				{data.outgoing.map((item) => (
-					<RowOutgoing key={`${item.id}:${item.pitch}`} newsletterId={newsletterId} item={item} />
+					<RowOutgoing key={`${item.id}:${item.pitch}:${item.status}`} newsletterId={newsletterId} item={item} isFull={isFull} />
 				))}
-				<FormAdd newsletterId={newsletterId} isFull={data.outgoing.filter(({ status }) => status !== "removed").length >= data.limit} />
+				<FormAdd newsletterId={newsletterId} isFull={isFull} />
 			</CardSettings>
 
 			<CardSettings title="Newsletters that recommend yours" stagger={3}>
@@ -100,10 +102,14 @@ export default function FormRecommendations({ newsletterId, data }) {
 	);
 }
 
-function RowOutgoing({ newsletterId, item }) {
+// One the owner removed comes back from its row with the pitch it had. One the other newsletter declined, or that no
+// longer exists, can't.
+function RowOutgoing({ newsletterId, item, isFull }) {
 	const [pitch, setPitch] = useState(item.pitch);
+	const [isRemoving, setIsRemoving] = useState(false);
 	const [isPending, startTransition] = useTransition();
 	const isRemoved = item.status === "removed";
+	const canRecommendAgain = isRemoved && item.removedBy === "recommender" && Boolean(item.newsletter);
 
 	function act(run) {
 		startTransition(async () => {
@@ -126,17 +132,32 @@ function RowOutgoing({ newsletterId, item }) {
 						className="ml-auto text-muted-foreground"
 						aria-label={`Stop recommending ${item.newsletter?.name ?? "this newsletter"}`}
 						disabled={isPending}
-						onClick={() => act(() => removeRecommendation({ newsletterId, id: item.id }))}
+						onClick={() => setIsRemoving(true)}
 					>
 						<Trash2 />
 					</Button>
 				)}
+				{canRecommendAgain && (
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						className="ml-auto"
+						disabled={isPending || isFull}
+						onClick={() => act(() => addRecommendation({ newsletterId, slug: item.newsletter.slug, pitch: item.pitch }))}
+					>
+						<RotateCcw data-icon="inline-start" />
+						Recommend again
+					</Button>
+				)}
 			</div>
+			{!isRemoved && <DialogRemoveRecommendation newsletterId={newsletterId} item={item} isOpen={isRemoving} onOpenChange={setIsRemoving} />}
 			{item.reason && (
 				<p className="text-sm text-pretty text-amber-700 dark:text-amber-400" role="status">
 					{item.reason}
 				</p>
 			)}
+			{canRecommendAgain && <p className="text-sm text-pretty text-muted-foreground">{item.pitch}</p>}
 			{!isRemoved && (
 				<div className="flex items-center gap-2">
 					<Input value={pitch} maxLength={MAX_PITCH_LENGTH} onChange={(event) => setPitch(event.target.value)} aria-label={`Pitch for ${item.newsletter?.name ?? "this newsletter"}`} />

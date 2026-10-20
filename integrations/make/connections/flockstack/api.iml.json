@@ -1,0 +1,17 @@
+{
+  "url": "{{ifempty(parameters.serverUrl; if(parameters.region = \"eu\"; \"https://eu.flockstack.io\"; \"https://flockstack.io\"))}}/api/v1/newsletters",
+  "method": "GET",
+  "headers": {
+    "Authorization": "Bearer {{parameters.apiKey}}"
+  },
+  "response": {
+    "error": {
+      "message": "[{{statusCode}}] {{body.error.message}}"
+    }
+  },
+  "log": {
+    "sanitize": [
+      "request.headers.authorization"
+    ]
+  }
+}

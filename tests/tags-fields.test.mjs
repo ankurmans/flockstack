@@ -62,7 +62,7 @@ describe("tags", () => {
 		assert.equal((await t.api(user.key, "DELETE", `/contacts/${second.id}/tags?tag=vip`)).body.changed, false);
 
 		const deleted = await t.api(user.key, "DELETE", "/tags?tag=vip");
-		assert.deepEqual(deleted.body, { tag: "vip", contacts: 1 });
+		assert.deepEqual(deleted.body, { tag: "vip", contacts: 1, inBackground: false });
 		assert.deepEqual((await t.api(user.key, "GET", "/tags")).body.tags, [{ name: "beta", contacts: 1 }]);
 		t.assertError(await t.api(user.key, "DELETE", "/tags?tag=vip"), 404, "not_found");
 	});
@@ -166,7 +166,7 @@ describe("custom fields", () => {
 		const renamed = await t.api(user.key, "PATCH", "/custom-fields/first_name", { label: "Given name", onSignupForm: true });
 		assert.deepEqual({ label: renamed.body.label, onSignupForm: renamed.body.onSignupForm, type: renamed.body.type }, { label: "Given name", onSignupForm: true, type: "text" });
 
-		assert.deepEqual((await t.api(user.key, "DELETE", "/custom-fields/renews_on")).body, { key: "renews_on", deleted: true });
+		assert.deepEqual((await t.api(user.key, "DELETE", "/custom-fields/renews_on")).body, { key: "renews_on", deleted: true, contacts: 1, inBackground: false });
 		assert.deepEqual((await t.api(user.key, "GET", `/contacts/${id}`)).body.fields, { first_name: "Jane" }, "its values go with it");
 		t.assertError(await t.api(user.key, "DELETE", "/custom-fields/renews_on"), 404, "not_found");
 	});

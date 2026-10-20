@@ -1,0 +1,11 @@
+{
+  "url": "/newsletters",
+  "method": "GET",
+  "response": {
+    "iterate": "{{body.newsletters}}",
+    "output": {
+      "label": "{{item.name}}",
+      "value": "{{item.id}}"
+    }
+  }
+}

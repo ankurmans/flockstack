@@ -13,11 +13,14 @@ export default function CardPasskeys() {
 	const [isBusy, setIsBusy] = useState(false);
 	const [error, setError] = useState(null);
 
-	const load = useCallback(async () => {
-		const { data, error: failure } = await authClient.passkey.listUserPasskeys();
-		if (failure) setError("Couldn't load your passkeys.");
-		else setPasskeys(data ?? []);
-	}, []);
+	const load = useCallback(
+		() =>
+			authClient.passkey.listUserPasskeys().then(({ data, error: failure }) => {
+				if (failure) setError("Couldn't load your passkeys.");
+				else setPasskeys(data ?? []);
+			}),
+		[],
+	);
 
 	useEffect(() => {
 		load();

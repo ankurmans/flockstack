@@ -3,6 +3,7 @@ import { after, before, beforeEach, describe, test } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { as, catchRedirect, form, startTestApp } from "./helpers/app.mjs";
+import { findWhere, renderShallow } from "./helpers/shallow.mjs";
 import { WEBHOOK_SECRET, api, buy, createProduct, createSeller, installFakeStripe, payForSession } from "./helpers/shop.mjs";
 import { published } from "./stubs/qstash.mjs";
 import { sent as emails } from "./stubs/ses.mjs";
@@ -38,6 +39,8 @@ before(async () => {
 		TooltipProvider: (await import("../components/ui/tooltip.jsx")).TooltipProvider,
 		Contact: (await import("../models/Contact.js")).default,
 		Product: (await import("../models/Product.js")).default,
+		FormProduct: (await import("../components/FormProduct.jsx")).default,
+		productSlug: await import("../lib/product-slug.js"),
 	};
 });
 
@@ -63,8 +66,9 @@ describe("products", () => {
 		const saved = await as(user, () => m.products.saveProduct(null, form({ id, title: "Guide v2", description: "Better.", price: "24", currency: "eur", slug: "guide-v2", imageUrl: "" })));
 		assert.deepEqual(saved, { ok: true, slug: "guide-v2" });
 		const fields = { id, title: "Guide v2", description: "Better.", price: "24", currency: "eur", slug: "guide-v2", imageUrl: "" };
-		assert.deepEqual(await as(user, () => m.products.saveProduct(null, form({ ...fields, slug: "Guide two!" }))), {
-			error: "Page address: use lowercase letters, digits and dashes, 80 at most",
+		assert.deepEqual(await as(user, () => m.products.saveProduct(null, form({ ...fields, slug: "Guide two!" }))), { ok: true, slug: "guide-two" });
+		assert.deepEqual(await as(user, () => m.products.saveProduct(null, form({ ...fields, slug: "!!!" }))), {
+			error: "Page address: use letters or digits, like bird-stickers",
 		});
 		assert.deepEqual(await as(user, () => m.products.saveProduct(null, form({ ...fields, imageUrl: "http://example.com/cover.png" }))), { error: "Cover image: use an https:// link" });
 		assert.match((await as(user, () => m.products.publishProduct(id))).error, /^Upload the file/, "no file, no sale");
@@ -78,6 +82,41 @@ describe("products", () => {
 		assert.deepEqual(await as(user, () => m.products.archiveProduct(id)), { ok: true });
 		assert.equal((await api(user, "GET", `/products/${id}`)).body.status, "archived");
 		assert.deepEqual(await as(user, () => m.products.unpublishProduct(id)), { ok: true }, "restored");
+	});
+
+	test("a page address typed as words becomes one; a reserved or taken one is refused in plain words", async () => {
+		const user = await seller();
+		const first = await createProduct(user, { title: "Stickers", priceCents: 500 });
+		const second = await createProduct(user, { title: "Posters", priceCents: 900 });
+		const fields = (product, slug) => form({ id: product.id, title: product.title, description: "", price: "9", currency: "usd", slug, imageUrl: "" });
+		const save = (product, slug) => as(user, () => m.products.saveProduct(null, fields(product, slug)));
+
+		assert.deepEqual(await save(first, "  Bird Stickers Two "), { ok: true, slug: "bird-stickers-two" });
+		assert.equal((await api(user, "GET", `/products/${first.id}`)).body.slug, "bird-stickers-two");
+		assert.deepEqual(await save(first, "Café Crème — Édition 2"), { ok: true, slug: "cafe-creme-edition-2" });
+		assert.deepEqual(await save(second, "Café crème, édition 2"), { error: "Another product of this newsletter uses the page address /shop/cafe-creme-edition-2" });
+		assert.deepEqual(await save(second, "Checkout"), { error: "Page address: /shop/checkout is kept for the shop's own pages. Pick another address" });
+		assert.equal((await api(user, "GET", `/products/${second.id}`)).body.slug, "posters", "a refused address changes nothing");
+
+		const reserved = await api(user, "PATCH", `/products/${second.id}`, { slug: "cart" });
+		assert.equal(reserved.status, 400);
+		assert.equal(reserved.body.error.message, "slug: /shop/cart is kept for the shop's own pages. Pick another address");
+		const taken = await api(user, "POST", "/products", { newsletter: user.newsletterId, title: "Copy", priceCents: 500, slug: "cafe-creme-edition-2" });
+		assert.deepEqual([taken.status, taken.body.error.message], [409, "Another product of this newsletter uses the slug cafe-creme-edition-2"]);
+		const named = await api(user, "POST", "/products", { newsletter: user.newsletterId, title: "Cart", priceCents: 500 });
+		assert.equal(named.body.slug, "cart-2", "a title that makes a reserved address gets a number");
+	});
+
+	test("the page address field shows the address it makes, and makes it when it's left", async () => {
+		const product = { id: "p1", title: "Stickers", description: "", priceCents: 500, currency: "usd", slug: "Bird Stickers Two", status: "draft", sales: 0, revenueCents: 0 };
+		const { tree, updates } = renderShallow(createElement(m.FormProduct, { product, payments: { ready: true }, maxFileMb: 15 }), { expand: ["InputSlug"] });
+		const [input] = findWhere(tree, (node) => node.props?.name === "slug");
+		const [preview] = findWhere(tree, (node) => node.props?.["data-slug-preview"]);
+		assert.equal([preview.props.children].flat().join(""), "/shop/bird-stickers-two");
+		input.props.onBlur();
+		assert.deepEqual(updates, ["bird-stickers-two"]);
+		assert.equal(m.productSlug.toProductSlug("Bird Stickers Two"), "bird-stickers-two");
+		assert.equal(m.productSlug.getProductSlugProblem("bird-stickers-two"), null);
 	});
 
 	test("show on their pages, with what they sold", async () => {

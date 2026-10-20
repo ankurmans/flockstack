@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
+import CardRedirects from "@/components/CardRedirects";
 import FormNewsletter from "@/components/FormNewsletter";
 import HeaderPage from "@/components/HeaderPage";
 import LayoutNarrow from "@/components/LayoutNarrow";
 import { scoped } from "@/lib/account-scope";
 import { getWelcomePauseNotice } from "@/lib/account-state";
+import { runDashboardAction } from "@/lib/actions/dashboard";
 import { hasPublishedIssue } from "@/lib/archive-data";
 import { cleanupTotalsPipeline } from "@/lib/cleanup";
 import { getAppUrl, getArchiveCnameTarget, getSharedDomain, isSendingEnabled } from "@/lib/config";
@@ -23,12 +25,13 @@ export const metadata = { title: "Settings" };
 export default async function SettingsPage() {
 	const { user, account, selected } = await getSelectedNewsletter();
 	if (!selected) redirect(ADD_NEWSLETTER_PATH);
-	const [newsletter, domains, cleanupTotals, usage, hasSentIssue] = await Promise.all([
+	const [newsletter, domains, cleanupTotals, usage, hasSentIssue, { output: redirects }] = await Promise.all([
 		Newsletter.findOne(scoped(account, { _id: selected._id })).lean(),
 		findAccountDomains(account._id),
 		getCleanupTotals(account, selected._id),
 		getUsage(account),
 		hasPublishedIssue({ accountId: account._id, _id: selected._id }),
+		runDashboardAction("list_redirects", { newsletter: String(selected._id) }),
 	]);
 
 	return (
@@ -48,6 +51,7 @@ export default async function SettingsPage() {
 				cleanupTotals={cleanupTotals}
 				welcomePause={usage.welcomeEmailsPaused ? getWelcomePauseNotice(usage) : null}
 			/>
+			<CardRedirects key={`redirects-${newsletter._id}`} newsletterId={String(newsletter._id)} initial={redirects ?? null} className="mt-4" />
 		</LayoutNarrow>
 	);
 }
