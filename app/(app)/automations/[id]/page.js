@@ -4,10 +4,11 @@ import HeaderPage from "@/components/HeaderPage";
 import { scoped } from "@/lib/account-scope";
 import { toActionError } from "@/lib/actions/errors";
 import { runAction } from "@/lib/actions/run-action";
-import { listCustomFields } from "@/lib/custom-fields";
+import { loadSegmentChoices } from "@/lib/segment-choices";
 import { getSelectedNewsletter, openNewsletter } from "@/lib/selected-newsletter";
+import Automation from "@/models/Automation";
+import Product from "@/models/Product";
 import Segment from "@/models/Segment";
-import Tag from "@/models/Tag";
 
 export const metadata = { title: "Automation" };
 
@@ -21,10 +22,11 @@ export default async function AutomationPage({ params }) {
 	const { automation } = report;
 	openNewsletter(view, automation.newsletterId, `/automations/${id}`);
 	const newsletterId = automation.newsletterId;
-	const [fields, segments, tags] = await Promise.all([
-		listCustomFields(account, newsletterId),
-		Segment.find(scoped(account, { newsletterId })).sort({ name: 1 }).select({ name: 1 }).lean(),
-		Tag.find(scoped(account, { newsletterId })).sort({ name: 1 }).select({ name: 1 }).lean(),
+	const [choices, segments, automations, products] = await Promise.all([
+		loadSegmentChoices(account, newsletterId),
+		Segment.find(scoped(account, { newsletterId, $or: [{ buildStatus: null }, { buildStatus: "ready" }] })).sort({ name: 1 }).select({ name: 1 }).lean(),
+		Automation.find(scoped(account, { newsletterId, status: { $ne: "deleted" }, _id: { $ne: automation.id } })).sort({ name: 1 }).select({ name: 1 }).lean(),
+		Product.find(scoped(account, { newsletterId })).sort({ title: 1 }).select({ title: 1 }).lean(),
 	]);
 
 	return (
@@ -34,10 +36,10 @@ export default async function AutomationPage({ params }) {
 				key={`${automation.id}:${automation.updatedAt}:${automation.status}`}
 				automation={automation}
 				report={report}
+				choices={choices}
 				segments={segments.map(({ _id, name }) => ({ id: String(_id), name }))}
-				dateFields={fields.filter(({ type }) => type === "date").map(({ key, label }) => ({ key, label }))}
-				fields={fields.map(({ key, label }) => ({ key, label }))}
-				tags={tags.map(({ name }) => name)}
+				automations={automations.map(({ _id, name }) => ({ id: String(_id), name }))}
+				products={products.map(({ _id, title }) => ({ id: String(_id), title }))}
 			/>
 		</>
 	);

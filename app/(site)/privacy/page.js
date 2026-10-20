@@ -115,8 +115,10 @@ export default function PrivacyPage() {
 				<ul>
 					<li>
 						<Strong>The list:</Strong> each subscriber&apos;s email address, status (active, pending, unsubscribed, bounced, complained or
-						dormant), where they signed up from, the dates they signed up, confirmed and left, and the tags and fields the creator sets.
-						Imports can carry the engagement a subscriber had on the previous platform.
+						dormant), where they signed up from, the country they signed up from when the visitor&apos;s network is known (two letters,
+						read from the request by Cloudflare; the IP address isn&apos;t kept for it), the dates they signed up, confirmed and left, and the
+						tags and fields the creator sets. Imports can carry the engagement a subscriber had on the previous platform. A creator can
+						save a segment as a list, which keeps which subscribers it matched on the day it was saved.
 					</li>
 					<li>
 						<Strong>Emails sent:</Strong> a record of each email (recipient, kind, status, and when it was sent, delivered, opened, clicked,

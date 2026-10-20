@@ -12,6 +12,7 @@ import { findSignupNewsletter } from "@/lib/public-newsletters";
 import { getClientIp, isRateLimited } from "@/lib/rate-limit";
 import { countSignup, findAttribution, getReaderStep, subscribeToRecommended } from "@/lib/recommendations";
 import { recordReferral } from "@/lib/referrals";
+import { getHeaderCountry } from "@/lib/signup-country";
 import { queueConfirmationEmail, queueWelcomeEmail } from "@/lib/sending";
 import { getSurveyUrl } from "@/lib/subscriber-links";
 import { findPlacedSurvey, getPlacedSurveyUrl } from "@/lib/surveys";
@@ -73,7 +74,14 @@ export async function subscribe(_state, formData) {
 	const ip = getClientIp(await headers());
 	// A visitor who followed another newsletter's recommendation: the signup is counted for it (lib/recommendations.js).
 	const recommended = await findAttribution({ newsletter, slug: String(formData.get("rec") ?? "") }).catch(() => null);
-	const { contact, created } = await upsertContact({ newsletter, email, source: recommended?.source ?? "website", resubscribe: true, fieldUpdate });
+	const { contact, created } = await upsertContact({
+		newsletter,
+		email,
+		source: recommended?.source ?? "website",
+		resubscribe: true,
+		fieldUpdate,
+		country: getHeaderCountry(await headers()),
+	});
 	if (recommended && created && contact.status !== "unsubscribed" && contact.status !== "bounced" && contact.status !== "complained") {
 		await countSignup({ recommender: recommended.recommender, recommendedId: newsletter._id, isConfirmed: contact.status === "active" }).catch((error) =>
 			console.error(`[subscribe] Recommendation signup for ${contact._id} not counted:`, error.message)

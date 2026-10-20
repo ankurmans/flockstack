@@ -77,6 +77,8 @@ messageSchema.index({ campaignId: 1, status: 1 });
 messageSchema.index({ accountId: 1, campaignId: 1 }, { partialFilterExpression: { status: "queued" } });
 // Who clicked a campaign's links (list_link_clicks) reads only its clicked emails.
 messageSchema.index({ campaignId: 1, clickedAt: 1 }, { partialFilterExpression: { clickedAt: { $exists: true } } });
+// Who opened an issue: a segment condition on it (lib/segments.js) reads only its opened emails.
+messageSchema.index({ campaignId: 1, openedAt: 1 }, { partialFilterExpression: { openedAt: { $exists: true } } });
 // The account-level check on the last days of sends (lib/account-health.js).
 messageSchema.index({ accountId: 1, sentAt: -1 });
 

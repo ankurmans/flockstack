@@ -11,6 +11,9 @@ const contactSchema = new mongoose.Schema(
 		email: { type: String, required: true, lowercase: true, trim: true },
 		status: { type: String, enum: CONTACT_STATUSES, default: "active" },
 		source: { type: String, trim: true },
+		// Two-letter country of the network they signed up from, Cloudflare's cf-ipcountry (lib/signup-country.js): segments
+		// filter on it. Set once, at signup, and not on contacts that joined before it was kept.
+		country: { type: String, trim: true },
 		// Free-form labels, normalized by lib/tags.js. Filters on them run in SQL (lib/docdb/sql.js, arrays of scalars).
 		tags: { type: [String], default: undefined },
 		// The newsletter's custom fields by key (lib/custom-fields.js): text, a number, a date (YYYY-MM-DD), a date and time,
