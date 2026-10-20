@@ -37,6 +37,20 @@ const newsletterSchema = new mongoose.Schema(
 		// Every email's footer links to the reader's preference center (lib/preferences.js).
 		preferencesLink: { type: Boolean },
 		socialLinks: [{ type: String, trim: true }],
+		// The link-in-bio page at /links on the newsletter's host (lib/link-page.js): a title, a short bio and the links the
+		// writer lists, in order.
+		linkPage: {
+			enabled: { type: Boolean, default: false },
+			title: { type: String, trim: true },
+			bio: { type: String, trim: true },
+			links: [
+				{
+					_id: false,
+					label: { type: String, trim: true },
+					url: { type: String, trim: true },
+				},
+			],
+		},
 		// The archive's author page; the author's name is fromName.
 		author: {
 			bio: { type: String, trim: true },

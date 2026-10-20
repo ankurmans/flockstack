@@ -89,6 +89,7 @@ export async function proxy(request) {
 		if (pathname === "/feed.xml") return rewriteTo(request, `/archive/${archiveSlug}/feed`);
 		if (pathname === "/shop" || pathname === "/shop/") return rewriteTo(request, `/archive/${archiveSlug}/shop`);
 		if (pathname === "/subscribe" || pathname === "/subscribe/") return rewriteTo(request, `/archive/${archiveSlug}/subscribe`);
+		if (pathname === "/links" || pathname === "/links/") return rewriteTo(request, `/archive/${archiveSlug}/links`);
 		// The newsletter's redirects (lib/redirect-routing.js): old addresses of imported posts, and the owner's own.
 		const redirect = await findRedirect(archiveSlug, pathname);
 		if (redirect) return NextResponse.redirect(new URL(withQuery(redirect, request.nextUrl.search), request.url), 301);
