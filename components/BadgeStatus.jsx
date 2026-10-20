@@ -31,6 +31,7 @@ const DOT_TONES = {
 
 const STATUS_TONES = {
 	active: "green",
+	free: "blue",
 	trialing: "green",
 	past_due: "amber",
 	incomplete: "amber",

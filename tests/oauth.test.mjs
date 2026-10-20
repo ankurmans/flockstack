@@ -461,9 +461,9 @@ describe("connecting with the official MCP client", () => {
 		});
 		assert.equal(token.status, 200, JSON.stringify(token.body));
 		const billing = await callTool(token.body.access_token, "get_billing");
-		assert.equal(billing.structuredContent.status, "no_plan", "billing tools work before a plan, so the app can open checkout");
+		assert.equal(billing.structuredContent.status, "free", "a new account is on the Free plan, and billing tools show it");
 		const contacts = await callTool(token.body.access_token, "list_contacts");
-		assert.equal(toolError(contacts).code, "subscription_required", "the rest answers what an API key would without a plan");
+		assert.deepEqual(contacts.structuredContent.contacts, [], "and the rest works as it does for an API key");
 
 		const google = { jar: new Map(), ip: `198.51.100.${++visitor}` };
 		const googleStart = await as(google, () => m.authRoute.GET(new Request(authorizationUrl(AGENT, { challenge }))));
@@ -823,9 +823,9 @@ describe("tokens", () => {
 		assert.equal((await callTool(token, "list_contacts")).structuredContent.contacts.length, 1, "reads still work");
 
 		await m.Account.updateOne({ _id: user.accountId }, { $set: { status: "active", subscriptionStatus: "canceled" } });
-		const canceledByKey = toolError(await callTool(key, "list_contacts"));
-		assert.equal(canceledByKey.code, "subscription_required");
-		assert.deepEqual(toolError(await callTool(token, "list_contacts")), canceledByKey);
+		const canceledByKey = await callTool(key, "list_contacts");
+		assert.equal(canceledByKey.structuredContent.contacts.length, 1, "a canceled plan is the Free plan: everything still answers");
+		assert.deepEqual((await callTool(token, "list_contacts")).structuredContent, canceledByKey.structuredContent);
 	});
 
 	test("an app's signups count against its account with its keys and contacts added by hand: 600 an hour, and the owner hears of it", async () => {

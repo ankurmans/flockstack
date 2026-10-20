@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
 import { describeWatch, getActiveWatch } from "@/lib/account-watch-rules";
+import { getRateLimits } from "@/lib/rate-levels";
 
 // Above every dashboard page while the account is past an early warning (lib/account-watch.js): what was measured, where
 // the block is, and the docs page on what to do. Nothing is stopped yet; a blocked account gets BannerBlocked instead.
@@ -11,7 +12,7 @@ export default function BannerWatch({ account, now = new Date() }) {
 	return (
 		<div data-watch-banner role="status" className="mb-6 flex flex-col gap-2 rounded-xl bg-amber-500/10 px-4 py-3 text-sm animate-enter">
 			{issues.map((item) => {
-				const { title, summary } = describeWatch(item);
+				const { title, summary } = describeWatch(item, getRateLimits(account));
 				return (
 					<p key={item.issue} data-watch-issue={item.issue} className="flex min-w-0 items-start gap-2.5">
 						<TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />

@@ -287,14 +287,13 @@ describe("errors", () => {
 		assert.equal((await api(stranger.key, "POST", "/api-keys", { name: "Theirs", level: "signups" })).status, 201, "another account counts on its own");
 	});
 
-	test("an account without an active plan only reaches billing", async () => {
+	test("an account whose plan ended is on Free, and the API keeps answering", async () => {
 		const user = await customer("canceled-api@example.com");
 		await m.Account.updateOne({ _id: user.accountId }, { $set: { subscriptionStatus: "canceled" } });
-		assertError(await api(user.key, "GET", "/campaigns"), 402, "subscription_required");
-		assertError(await api(user.signupsKey, "POST", "/contacts", { email: "late@example.org" }), 402, "subscription_required");
+		assert.equal((await api(user.key, "GET", "/campaigns")).status, 200);
 		const billing = await api(user.key, "GET", "/billing");
 		assert.equal(billing.status, 200);
-		assert.deepEqual({ status: billing.body.status, isActive: billing.body.isActive }, { status: "canceled", isActive: false });
+		assert.deepEqual({ status: billing.body.status, isActive: billing.body.isActive, plan: billing.body.plan.id }, { status: "free", isActive: true, plan: "free" });
 	});
 });
 

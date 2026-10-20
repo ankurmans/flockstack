@@ -328,7 +328,7 @@ describe("a deleted account", () => {
 				assert.equal(await m.archive.getArchiveNewsletter(user.slug), null, "the archive is offline");
 				const contact = await m.Contact.create({ accountId: user.accountId, newsletterId: user.newsletterId, email: `late-${cloud || "self"}@example.org` });
 				const welcome = { ...newsletter, welcome: { enabled: true, subject: "Hi", markdown: "Welcome" } };
-				assert.deepEqual(await m.sending.queueWelcomeEmail({ newsletter: welcome, contact }), { skipped: "no active plan" });
+				assert.deepEqual(await m.sending.queueWelcomeEmail({ newsletter: welcome, contact }), { skipped: "account is being deleted" });
 			});
 		}
 

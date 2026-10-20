@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { DialogClose, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MAX_DESCRIPTION_LENGTH, NEWSLETTER_LIMIT_MESSAGE } from "@/lib/newsletters";
+import { MAX_DESCRIPTION_LENGTH } from "@/lib/newsletters";
 import { getSharedAddress } from "@/lib/sender-rules";
 import { slugify } from "@/lib/slug";
 import { submitKeepingFields } from "@/lib/submit-keeping-fields";
@@ -16,7 +16,7 @@ import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 // A name and a line about it, like /welcome; the rest is in its settings, which open next. Without a shared
 // domain, a newsletter needs an address on one of the account's domains from the start. Only a link opens the
 // dialog at the limit, and then it says so.
-export default function FormAddNewsletter({ sharedDomain, domains, startsFrom, isAtLimit }) {
+export default function FormAddNewsletter({ sharedDomain, domains, startsFrom, isAtLimit, limitMessage }) {
 	const id = useId();
 	const [state, action, isPending] = useActionState(createNewsletter, null);
 	const [name, setName] = useState("");
@@ -29,7 +29,7 @@ export default function FormAddNewsletter({ sharedDomain, domains, startsFrom, i
 		return (
 			<>
 				<DialogHeader>
-					<DialogTitle>{NEWSLETTER_LIMIT_MESSAGE}</DialogTitle>
+					<DialogTitle>{limitMessage}</DialogTitle>
 					<DialogDescription className="text-pretty">They share your plan&apos;s emails and subscribers.</DialogDescription>
 				</DialogHeader>
 				<DialogFooter showCloseButton />

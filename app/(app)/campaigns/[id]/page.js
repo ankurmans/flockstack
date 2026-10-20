@@ -10,6 +10,7 @@ import { countNewContacts, getSendVolumes, sendTimesPipeline } from "@/lib/campa
 import { isSendingEnabled } from "@/lib/config";
 import { listCustomFields } from "@/lib/custom-fields";
 import { findPolls } from "@/lib/editor-blocks";
+import { showsSentWithLink } from "@/lib/free-plan";
 import { getClickMapHtml, listCampaignLinks } from "@/lib/link-clicks";
 import { MESSAGE_STATS_GROUP } from "@/lib/message-stats";
 import { getPostalAddress } from "@/lib/postal-address";
@@ -69,6 +70,7 @@ export default async function CampaignPage({ params }) {
 				pace={getPace(account, volumes)}
 				newContacts={newContacts}
 				polls={polls}
+				sentWith={showsSentWithLink(account)}
 			/>
 		);
 	}
@@ -97,6 +99,7 @@ export default async function CampaignPage({ params }) {
 			archiveUrlBase={newsletter.archiveEnabled ? getArchiveUrls(newsletter).absolutePost("") : null}
 			planProblem={plan.problem}
 			emailsLeft={plan.emailsLeft}
+			sentWith={showsSentWithLink(account)}
 			pace={getPace(account, volumes)}
 			newContacts={newContacts}
 			fields={fields.map(({ key, label, type }) => ({ key, label, type }))}
@@ -106,7 +109,7 @@ export default async function CampaignPage({ params }) {
 }
 
 // What the send dialogs need: emails left after the sends already going out (null: no limit), and what
-// blocks any send. Without a plan, the send buttons open the paywall instead.
+// blocks any send.
 async function getPlanState(account) {
 	if (!hasActiveSubscription(account)) return { emailsLeft: null, problem: null };
 	const [usage, inFlight] = await Promise.all([getUsage(account), countEmailsInFlight(account._id)]);

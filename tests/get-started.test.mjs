@@ -118,12 +118,10 @@ describe("the steps", () => {
 		assert.equal((await check(user)).draftId, older);
 	});
 
-	test("subscribers: any contact, which an account adds once it has a plan", async () => {
+	test("subscribers: any contact, which an account adds from the start: the Free plan needs no payment", async () => {
 		const user = await customer("gs-readers@example.com");
-		assert.equal((await addReader(user)).code, "subscription_required");
 		assert.deepEqual(await doneSteps(user), []);
-		await activate(user);
-		await addReader(user);
+		assert.equal((await addReader(user)).code, undefined);
 		assert.deepEqual(await doneSteps(user), ["subscribers"]);
 	});
 

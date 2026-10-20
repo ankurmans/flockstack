@@ -184,9 +184,9 @@ describe("adding a recommendation", () => {
 		const reason = (await recommend(a, blocked)).body.error.message;
 		assert.doesNotMatch(reason, /blocked|paused|spam/i, "another account's block isn't told");
 
-		const unpaid = await creator("rec-refuse-unpaid");
-		await m.Account.updateOne({ _id: unpaid.accountId }, { $set: { subscriptionStatus: "canceled" } });
-		await refuse(unpaid, /can't take new subscribers right now/, "no plan");
+		const leaving = await creator("rec-refuse-leaving");
+		await m.Account.updateOne({ _id: leaving.accountId }, { $set: { deletion: { requestedAt: new Date(), purgeAt: new Date(Date.now() + 86_400_000) } } });
+		await refuse(leaving, /can't take new subscribers right now/, "waiting to be deleted");
 
 		const unverified = await creator("rec-refuse-sender");
 		await m.Newsletter.updateOne({ accountId: unverified.accountId, _id: unverified.newsletterId }, { $set: { fromEmail: "hi@not-verified.example.com" } });

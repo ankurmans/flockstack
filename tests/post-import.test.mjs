@@ -410,11 +410,12 @@ describe("importing posts", () => {
 		assert.equal((await m.Redirect.findOne({ accountId: riley.accountId, path: "/notes-on-a-slow-web" }).lean()).to, "/p/notes-on-a-slow-web");
 	});
 
-	test("an account without a plan can't import, and one import runs at a time", async () => {
-		const noPlan = await signIn("noplan-import@example.com");
+	test("an account on the Free plan reaches the import with no plan to pick, and one import runs at a time", async () => {
+		const free = await signIn("free-import@example.com");
 		await assert.rejects(
-			m.runAction("create_post_import", { account: noPlan.account, via: "api", input: { base64: Buffer.from("x").toString("base64") } }),
-			{ code: "subscription_required" }
+			m.runAction("create_post_import", { account: free.account, via: "api", input: { base64: Buffer.from("x").toString("base64") } }),
+			{ code: "not_found" },
+			"past the plan check, it only misses a newsletter"
 		);
 
 		const first = await importFile(jane, fixture("wordpress.xml"));

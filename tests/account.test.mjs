@@ -107,7 +107,7 @@ describe("the profile", () => {
 describe("the account menu", () => {
 	test("shows whether the account sends, and what to do when it doesn't", async () => {
 		const user = await signIn("status@example.com");
-		assert.deepEqual(m.state.getSendingStatus(user.account), { label: "No plan", hint: "Pick a plan to send", tone: "gray" });
+		assert.deepEqual(m.state.getSendingStatus(user.account), { label: "Sending on", hint: null, tone: "green" }, "a new account is on the Free plan, which sends");
 		const paid = await activate(user);
 		assert.deepEqual(m.state.getSendingStatus(paid), { label: "Sending on", hint: null, tone: "green" });
 		assert.deepEqual(m.state.getSendingStatus({ ...paid, status: "paused", pauseReason: "Review" }), {

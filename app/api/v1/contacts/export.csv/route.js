@@ -22,7 +22,7 @@ export async function GET(request) {
 
 	await connectDb();
 	const account = await Account.findById(link.accountId).lean();
-	if (!hasActiveSubscription(account)) return fail(402, ERROR_CODES.subscriptionRequired, "The account has no active plan");
+	if (!hasActiveSubscription(account)) return fail(402, ERROR_CODES.subscriptionRequired, "The account is being deleted");
 	const newsletters = new Map(
 		(await Newsletter.find(scoped(account)).select({ slug: 1 }).lean()).map(({ _id, slug }) => [String(_id), slug])
 	);

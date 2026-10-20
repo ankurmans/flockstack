@@ -52,6 +52,7 @@ export default function CampaignReport({
 	resendCounts = null,
 	remainingCount = 0,
 	emailsLeft = 0,
+	sentWith = false,
 	isBlocked = false,
 	pace = null,
 	newContacts = 0,
@@ -69,6 +70,7 @@ export default function CampaignReport({
 		subject: campaign.subject,
 		previewText: campaign.previewText,
 		newsletter,
+		sentWith,
 	});
 
 	return (

@@ -54,16 +54,16 @@ before(async () => {
 after(() => app?.stop());
 
 describe("the Custom card", () => {
-	test("is a sixth step after Max, whose limits it starts from", async () => {
+	test("is a step after Max, whose limits it starts from", async () => {
 		const html = await slider({});
 		const labels = [...html.matchAll(/aria-label="([^"]*emails a month)"/g)].map(([, label]) => label);
-		assert.deepEqual(labels, ["25,000 emails a month", "125,000 emails a month", "250,000 emails a month", "500,000 emails a month", "2,000,000 emails a month", "Custom plan, over 2,000,000 emails a month"]);
-		assert.match(html, /type="range"[^>]*max="5"/);
+		assert.deepEqual(labels, ["10,000 emails a month", "25,000 emails a month", "125,000 emails a month", "250,000 emails a month", "500,000 emails a month", "2,000,000 emails a month", "Custom plan, over 2,000,000 emails a month"]);
+		assert.match(html, /type="range"[^>]*max="6"/);
 		assert.equal(m.pricing.getPricing("growth", m.plans.PLANS).plans.length, 5, "the five plans stay five");
 	});
 
 	test("says what it has today: limits beyond Max, a dedicated IP, migration help and a direct line", async () => {
-		const html = await slider({ initialIndex: 5 });
+		const html = await slider({ initialIndex: 6 });
 		const text = textOf(html);
 		for (const phrase of [
 			"Custom",
@@ -86,16 +86,16 @@ describe("the Custom card", () => {
 	test("never claims SOC 2, SSO, audit logs, SLAs or seats", async () => {
 		const plan = m.tier.getCustomPlan();
 		assert.doesNotMatch(JSON.stringify(plan), m.tier.CUSTOM_UNAVAILABLE);
-		assert.doesNotMatch(textOf(await slider({ initialIndex: 5 })), m.tier.CUSTOM_UNAVAILABLE);
+		assert.doesNotMatch(textOf(await slider({ initialIndex: 6 })), m.tier.CUSTOM_UNAVAILABLE);
 		assert.doesNotMatch(textOf(await prerender(await m.SectionPricing())).replace(/Do you offer SOC 2[^?]*\?/, ""), m.tier.CUSTOM_UNAVAILABLE);
 	});
 
 	test("on the billing page its button is a link to the form, never a plan switch", async () => {
-		const html = await slider({ initialIndex: 5, current: { plan: "pro", interval: "month" }, action: async () => {} });
+		const html = await slider({ initialIndex: 6, current: { plan: "pro", interval: "month" }, action: async () => {} });
 		assert.match(html, /href="\/custom"/);
 		assert.doesNotMatch(html, /name="plan" value="custom"/);
 		assert.doesNotMatch(html, /Current plan/);
-		const onPro = await slider({ initialIndex: 2, current: { plan: "pro", interval: "month" }, action: async () => {} });
+		const onPro = await slider({ initialIndex: 3, current: { plan: "pro", interval: "month" }, action: async () => {} });
 		assert.match(onPro, /name="plan" value="pro"/, "plans still switch");
 	});
 

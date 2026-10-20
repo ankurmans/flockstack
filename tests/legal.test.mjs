@@ -191,7 +191,7 @@ describe("the legal pages", () => {
 			"0% of what you sell",
 			"Stripe's own processing fees apply",
 			"export everything, free, at any time",
-			"It works even if your account is blocked, paused or has no plan",
+			"It works even if your account is blocked or paused",
 			"AGPL-3.0",
 			"You are the controller of your subscribers' personal data, and FlockStack is your processor",
 		]) {

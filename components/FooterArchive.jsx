@@ -2,6 +2,7 @@ import { Rss } from "lucide-react";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import LinksSocial from "@/components/LinksSocial";
 import { currentYear } from "@/lib/format";
+import { SENT_WITH_TEXT, SENT_WITH_URL } from "@/lib/site";
 
 export default function FooterArchive({ newsletter, indexHref, feedHref }) {
 	return (
@@ -31,6 +32,13 @@ export default function FooterArchive({ newsletter, indexHref, feedHref }) {
 					RSS feed
 				</a>
 			</div>
+			{newsletter.sentWith && (
+				<p className="mx-auto max-w-5xl px-5 pb-8 text-xs text-muted-foreground">
+					<a href={SENT_WITH_URL} data-sent-with className="underline underline-offset-4 transition-colors duration-150 hover:text-foreground">
+						{SENT_WITH_TEXT}
+					</a>
+				</p>
+			)}
 		</footer>
 	);
 }
