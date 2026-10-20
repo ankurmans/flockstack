@@ -101,7 +101,7 @@ describe("which pages carry the analytics", () => {
 			assert.ok(matching.length > 0, `a page at ${address}`);
 			return matching.filter((item) => item.carriers.length > 0).map((item) => item.file);
 		};
-		for (const address of ["/archive/x", "/recommendations", "/unsubscribe", "/confirm", "/keep", "/referral", "/reader/signin", "/reader/replies", "/admin", "/oauth/consent", "/restore"]) {
+		for (const address of ["/archive/x", "/recommendations", "/unsubscribe", "/confirm", "/keep", "/poll", "/survey", "/preferences", "/referral", "/reader/signin", "/reader/replies", "/admin", "/oauth/consent", "/restore"]) {
 			assert.deepEqual(loads(address), [], address);
 		}
 	});
@@ -196,7 +196,7 @@ describe("which pages carry the help chat", () => {
 
 	test("a newsletter's pages, the pages readers use, the shop and the admin do not", async () => {
 		const pages = await scanChatPages();
-		for (const address of ["/archive/x", "/recommendations", "/unsubscribe", "/confirm", "/keep", "/referral", "/reader/signin", "/reader/replies", "/admin", "/oauth/consent", "/restore"]) {
+		for (const address of ["/archive/x", "/recommendations", "/unsubscribe", "/confirm", "/keep", "/poll", "/survey", "/preferences", "/referral", "/reader/signin", "/reader/replies", "/admin", "/oauth/consent", "/restore"]) {
 			const matching = pages.filter((item) => item.address === address || item.address.startsWith(`${address}/`));
 			assert.ok(matching.length > 0, `a page at ${address}`);
 			assert.deepEqual(matching.filter((item) => item.carriers.length > 0).map((item) => item.file), [], address);
