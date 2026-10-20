@@ -177,7 +177,7 @@ describe("the Audio page", () => {
 		assert.doesNotMatch(links(false), /href="\/audio"/);
 		assert.match(links(true), /href="\/audio"[^>]*>.*Audio/s);
 		const order = [...links(true).matchAll(/href="(\/[a-z-]*)"/g)].map(([, href]) => href);
-		assert.equal(order[order.indexOf("/audio") - 1], "/comments");
+		assert.equal(order[order.indexOf("/audio") - 1], "/templates", "Audio sits with the Write group, after Templates");
 	});
 });
 
