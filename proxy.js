@@ -86,6 +86,7 @@ export async function proxy(request) {
 		if (pathname === "/") return rewriteTo(request, `/archive/${archiveSlug}`);
 		if (pathname === "/sitemap.xml") return rewriteTo(request, `/archive/${archiveSlug}/sitemap`);
 		if (pathname === "/robots.txt") return rewriteTo(request, `/archive/${archiveSlug}/robots`);
+		if (pathname === "/llms.txt") return rewriteTo(request, `/archive/${archiveSlug}/llms`);
 		if (pathname === "/feed.xml") return rewriteTo(request, `/archive/${archiveSlug}/feed`);
 		if (pathname === "/shop" || pathname === "/shop/") return rewriteTo(request, `/archive/${archiveSlug}/shop`);
 		if (pathname === "/subscribe" || pathname === "/subscribe/") return rewriteTo(request, `/archive/${archiveSlug}/subscribe`);

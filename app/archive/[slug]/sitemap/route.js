@@ -1,7 +1,7 @@
 import { getArchiveAuthor } from "@/lib/archive-author";
 import { getArchiveNewsletter, getShopPayments, listArchiveIssues, listShopProducts } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
-import { getIssueDate } from "@/lib/archive-issues";
+import { getIssueModified } from "@/lib/archive-issues";
 
 export const revalidate = 3600;
 
@@ -14,21 +14,29 @@ function entry(loc, date) {
 	return `<url><loc>${escapeXml(loc)}</loc>${lastmod}</url>`;
 }
 
+function latest(dates) {
+	return dates.filter(Boolean).map((date) => new Date(date)).sort((a, b) => b - a)[0] ?? null;
+}
+
+// Every page has the moment it last changed: an issue's is its date, or the owner's later change to its search settings;
+// the home and author pages change with the newest issue and the shop with its newest product. An issue marked noindex
+// is left out, as search engines are asked to.
 export async function GET(_request, { params }) {
 	const newsletter = await getArchiveNewsletter((await params).slug);
 	if (!newsletter) return new Response("Not found", { status: 404 });
 
 	const urls = getArchiveUrls(newsletter);
-	const [issues, products, payments] = await Promise.all([listArchiveIssues(newsletter), listShopProducts(newsletter), getShopPayments(newsletter)]);
-	const latestDate = getIssueDate(issues[0]);
+	const [listed, products, payments] = await Promise.all([listArchiveIssues(newsletter), listShopProducts(newsletter), getShopPayments(newsletter)]);
+	const issues = listed.filter((issue) => !issue.seo?.noindex);
+	const latestDate = latest(issues.map(getIssueModified));
 	const shopped = payments.ready ? products : [];
 	const xml = [
 		'<?xml version="1.0" encoding="UTF-8"?>',
 		'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
 		entry(urls.siteIndex, latestDate),
 		entry(urls.absoluteAuthor(getArchiveAuthor(newsletter).slug), latestDate),
-		...issues.map((issue) => entry(urls.absolutePost(issue.archiveSlug), getIssueDate(issue))),
-		...(shopped.length > 0 ? [entry(urls.absoluteShop), ...shopped.map((product) => entry(urls.absoluteProduct(product.slug)))] : []),
+		...issues.map((issue) => entry(urls.absolutePost(issue.archiveSlug), getIssueModified(issue))),
+		...(shopped.length > 0 ? [entry(urls.absoluteShop, latest(shopped.map(({ updatedAt }) => updatedAt))), ...shopped.map((product) => entry(urls.absoluteProduct(product.slug), product.updatedAt))] : []),
 		"</urlset>",
 	].join("\n");
 

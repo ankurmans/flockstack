@@ -252,6 +252,20 @@ export async function listPollVoters(id, option, cursor) {
 	return failure ? toFormError(failure) : output;
 }
 
+// What search engines and social cards show for the issue's page; empty clears a field.
+export async function setCampaignSeo(id, { title, description, image, noindex } = {}) {
+	const { failure } = await runDashboardAction("update_campaign_archive", {
+		id: String(id),
+		seoTitle: String(title ?? ""),
+		seoDescription: String(description ?? ""),
+		socialImage: String(image ?? ""),
+		noindex: noindex === true,
+	});
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	return { ok: true };
+}
+
 // Any issue, draft or sent, as a template for new ones.
 export async function saveCampaignAsTemplate(id, name) {
 	const { output, failure } = await runDashboardAction("create_template", { campaign: String(id ?? ""), name: String(name ?? "") });

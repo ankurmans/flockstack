@@ -112,6 +112,14 @@ export async function createNewsletter(_state, formData) {
 	redirect("/newsletters");
 }
 
+// The newsletter's own structured data for search engines; empty removes it.
+export async function saveJsonLd(newsletterId, text) {
+	const { output, failure } = await runDashboardAction("update_newsletter", { id: String(newsletterId ?? ""), jsonLd: String(text ?? "") });
+	if (failure) return toFormError(failure);
+	revalidatePath("/newsletters");
+	return { ok: true, jsonLd: output.jsonLd };
+}
+
 // The website's redirects, on the settings page.
 export async function listRedirects(newsletterId, cursor) {
 	const { output, failure } = await runDashboardAction("list_redirects", { newsletter: String(newsletterId ?? ""), ...(cursor && { cursor: String(cursor) }) });

@@ -21,6 +21,7 @@ import {
 import { duplicateCampaign, saveCampaign, sendTestCampaign } from "@/app/(app)/campaigns/actions";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import BadgeStatus from "@/components/BadgeStatus";
+import CardSeo from "@/components/CardSeo";
 import CardSettings from "@/components/CardSettings";
 import DialogDiscardCampaign from "@/components/DialogDiscardCampaign";
 import DialogPreviewEmail from "@/components/DialogPreviewEmail";
@@ -381,6 +382,9 @@ export default function FormCampaign({
 							onClick={openPreview}
 						/>
 					</CardSettings>
+					{newsletter.archiveEnabled && campaign.publishTo !== "email" && (
+						<CardSeo campaignId={campaign._id} seo={campaign.seo} subject={values.subject} previewText={values.previewText} stagger={2} />
+					)}
 				</section>
 
 				<section aria-label="Send" hidden={step !== "send"}>

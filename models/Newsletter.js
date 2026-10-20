@@ -36,6 +36,9 @@ const newsletterSchema = new mongoose.Schema(
 		accentColor: { type: String, trim: true, lowercase: true },
 		// Every email's footer links to the reader's preference center (lib/preferences.js).
 		preferencesLink: { type: Boolean },
+		// The newsletter's own structured data for search engines: compact JSON of one block or a list (lib/seo-rules.js
+		// checkJsonLd), added to the archive's home page and every issue's page.
+		jsonLd: { type: String },
 		// What a new issue starts with (lib/templates.js): rich HTML above and below where the writer starts. The accent
 		// above is the third part of a newsletter's style.
 		defaultStyle: {

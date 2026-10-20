@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import CardRedirects from "@/components/CardRedirects";
+import CardSearch from "@/components/CardSearch";
 import FormNewsletter from "@/components/FormNewsletter";
 import HeaderPage from "@/components/HeaderPage";
 import LayoutNarrow from "@/components/LayoutNarrow";
@@ -7,10 +8,12 @@ import { scoped } from "@/lib/account-scope";
 import { getWelcomePauseNotice } from "@/lib/account-state";
 import { runDashboardAction } from "@/lib/actions/dashboard";
 import { hasPublishedIssue } from "@/lib/archive-data";
+import { getArchiveUrls } from "@/lib/archive-hosts";
 import { cleanupTotalsPipeline } from "@/lib/cleanup";
 import { getAppUrl, getArchiveCnameTarget, getSharedDomain, isSendingEnabled } from "@/lib/config";
 import { ADD_NEWSLETTER_PATH } from "@/lib/newsletters";
 import { findAccountDomains } from "@/lib/sender";
+import { formatJsonLd } from "@/lib/seo-rules";
 import { getSelectedNewsletter } from "@/lib/selected-newsletter";
 import { serialize } from "@/lib/serialize";
 import { siteExtensions } from "@/lib/site-extensions";
@@ -50,6 +53,13 @@ export default async function SettingsPage() {
 				testEmail={user.email}
 				cleanupTotals={cleanupTotals}
 				welcomePause={usage.welcomeEmailsPaused ? getWelcomePauseNotice(usage) : null}
+			/>
+			<CardSearch
+				key={`search-${newsletter._id}`}
+				newsletterId={String(newsletter._id)}
+				urls={newsletter.archiveEnabled ? (({ sitemap, robots, llms, feed }) => ({ sitemap, robots, llms, feed }))(getArchiveUrls(newsletter)) : null}
+				jsonLd={formatJsonLd(newsletter.jsonLd)}
+				className="mt-4"
 			/>
 			<CardRedirects key={`redirects-${newsletter._id}`} newsletterId={String(newsletter._id)} initial={redirects ?? null} className="mt-4" />
 		</LayoutNarrow>

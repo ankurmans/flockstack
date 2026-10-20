@@ -71,6 +71,16 @@ const campaignSchema = new mongoose.Schema(
 		publishTo: { type: String, enum: PUBLISH_TARGETS },
 		// This issue's own word on comments, over the newsletter's setting: on or off. Without one it follows the newsletter.
 		comments: { type: String, enum: ["on", "off"] },
+		// What search engines and social cards show for the issue's page, over the subject, the preview text and the first
+		// picture (lib/archive-seo.js): empty fields fall back to them. noindex asks search engines to leave the page out and
+		// keeps it out of the sitemap and llms.txt. updatedAt: the last change, for the sitemap's lastmod.
+		seo: {
+			title: { type: String, trim: true },
+			description: { type: String, trim: true },
+			imageUrl: { type: String, trim: true },
+			noindex: { type: Boolean },
+			updatedAt: { type: Date },
+		},
 		// Pinned issues sit in the Featured row at the top of the archive.
 		archivePinned: { type: Boolean, default: false },
 		// An issue brought from another platform by a post import (lib/post-import.js): "<source>:<its ID there>", so the

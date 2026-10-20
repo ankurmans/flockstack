@@ -7,7 +7,7 @@ import ListRecommendations from "@/components/ListRecommendations";
 import ScriptJsonLd from "@/components/ScriptJsonLd";
 import { countReaders, getArchiveNewsletter, listArchiveIssues, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
-import { getHomeSeo } from "@/lib/archive-seo";
+import { getCustomJsonLd, getHomeSeo } from "@/lib/archive-seo";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { listLiveRecommendations } from "@/lib/recommendations";
@@ -41,6 +41,9 @@ export default async function ArchivePage({ params }) {
 	return (
 		<>
 			<ScriptJsonLd data={getHomeSeo(newsletter).jsonLd} />
+			{getCustomJsonLd(newsletter).map((block, index) => (
+				<ScriptJsonLd key={index} data={block} />
+			))}
 			<section className="relative isolate overflow-hidden">
 				<div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[34rem] bg-dots" />
 				<div className="mx-auto flex max-w-2xl flex-col items-center px-5 pt-16 pb-14 text-center sm:pt-24 sm:pb-20">
