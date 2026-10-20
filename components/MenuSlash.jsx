@@ -26,6 +26,7 @@ import {
 	Table,
 	TextQuote,
 	Trash2,
+	Rss,
 	Vote,
 } from "lucide-react";
 import { RECOMMENDATIONS_TAG } from "@/lib/recommendation-tags";
@@ -208,6 +209,7 @@ const SLASH_ITEMS = [
 		dialog: "embed",
 	},
 	{ title: "File", keywords: "attachment download pdf upload", icon: Paperclip, run: (chain) => chain, isFile: true },
+	{ title: "RSS feed", keywords: "rss atom feed blog posts latest news links", icon: Rss, run: (chain) => chain, dialog: "rssFeed" },
 	{
 		title: "Two columns",
 		keywords: "columns side layout grid",

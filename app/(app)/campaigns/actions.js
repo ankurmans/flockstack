@@ -247,3 +247,10 @@ export async function listPollVoters(id, option, cursor) {
 	});
 	return failure ? toFormError(failure) : output;
 }
+
+// The editor's RSS block shows what the feed has now.
+export async function previewFeed(url, { count, order } = {}) {
+	const { output, failure } = await runDashboardAction("preview_feed", { url: String(url ?? ""), count: readCount(count), order: order === "oldest" ? "oldest" : "newest" });
+	if (failure) return toFormError(failure);
+	return { items: output.items };
+}
