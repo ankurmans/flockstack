@@ -38,6 +38,19 @@ const contactSchema = new mongoose.Schema(
 		stripeSubscriptionId: { type: String },
 		// Stripe's status for the subscription: active, trialing, past_due, canceled…
 		subscriptionStatus: { type: String },
+		// Where the signup came from, set once when the contact is made (lib/attribution.js): a channel, the UTM parameters the
+		// page was opened with, and the host of the page that linked to it.
+		acquisition: {
+			channel: { type: String },
+			utm: {
+				source: { type: String },
+				medium: { type: String },
+				campaign: { type: String },
+				term: { type: String },
+				content: { type: String },
+			},
+			referrer: { type: String },
+		},
 		subscribedAt: { type: Date, default: Date.now },
 		confirmedAt: { type: Date },
 		// The one reminder to confirm went out (lib/confirmation-reminders.js).
@@ -100,6 +113,8 @@ contactSchema.index({ accountId: 1, subscribedAt: -1, _id: -1 });
 contactSchema.index({ accountId: 1, status: 1, subscribedAt: -1, _id: -1 });
 contactSchema.index({ newsletterId: 1, subscribedAt: -1, _id: -1 });
 contactSchema.index({ newsletterId: 1, status: 1, subscribedAt: -1, _id: -1 });
+// The growth report counts who left in a range of dates (lib/reports.js).
+contactSchema.index({ newsletterId: 1, status: 1, unsubscribedAt: 1 });
 // Stripe's subscription events find their contact by subscription or customer.
 contactSchema.index({ stripeSubscriptionId: 1 }, { partialFilterExpression: { stripeSubscriptionId: { $type: "string" } } });
 contactSchema.index({ newsletterId: 1, stripeCustomerId: 1 }, { partialFilterExpression: { stripeCustomerId: { $type: "string" } } });

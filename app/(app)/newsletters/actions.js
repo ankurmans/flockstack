@@ -36,6 +36,7 @@ function readSettings(formData) {
 			emailLogo: formData.get("emailLogo") === "on",
 		},
 		preferencesLink: formData.get("preferencesLink") === "on",
+		utmLinks: formData.get("utmLinks") === "on",
 		author: { bio: readText(formData, "authorBio"), imageUrl: readText(formData, "authorImageUrl") },
 		socialLinks: readText(formData, "socialLinks").split(/[\s,]+/).filter(Boolean),
 		requireConfirmation: formData.get("requireConfirmation") === "on",

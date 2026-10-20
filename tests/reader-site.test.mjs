@@ -113,7 +113,7 @@ describe("signing in on the website", () => {
 		const where = await inBrowser(browser(), () => catchRedirect(m.signinActions.continueSignIn(form({ token: fresh, next: "https://evil.example.com" }))));
 		assert.doesNotMatch(where, /evil\.example/);
 		assert.match(where, /#comments$/, "an unknown destination is the comments, as before");
-		assert.deepEqual(m.links.SIGNIN_DESTINATIONS, ["account"]);
+		assert.deepEqual(m.links.SIGNIN_DESTINATIONS, ["account", "issue"]);
 	});
 
 	test("answers every address the same, tells nobody who is subscribed, and sends nothing to the rest", async () => {

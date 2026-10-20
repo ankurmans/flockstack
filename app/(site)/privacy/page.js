@@ -8,6 +8,7 @@ import { REGION_LEAVES } from "@/lib/docs/regions";
 import {
 	ANALYTICS_RETENTION,
 	ANALYTICS_RULE,
+	WEB_ANALYTICS_RULE,
 	BACKUP_RETENTION,
 	CUSTOM_REQUEST_RETENTION,
 	CUSTOM_REQUEST_STORED,
@@ -124,7 +125,10 @@ export default function PrivacyPage() {
 						<Strong>The list:</Strong> each subscriber&apos;s email address, status (active, pending, unsubscribed, bounced, complained or
 						dormant), where they signed up from, the country they signed up from when the visitor&apos;s network is known (two letters,
 						read from the request by Cloudflare; the IP address isn&apos;t kept for it), the dates they signed up, confirmed and left, and the
-						tags and fields the creator sets. Imports can carry the engagement a subscriber had on the previous platform. A creator can
+						tags and fields the creator sets. Where they signed up from is also a source (the website, a pop-up, a form, a Magic Link, a
+						recommendation, the API), a channel (direct, search, social, email, paid, another website, a recommendation or the referral
+						program), the UTM parameters of the page they opened and the host, not the address, of the page that linked to the signup form;
+						the first signup&apos;s are kept. Imports can carry the engagement a subscriber had on the previous platform. A creator can
 						save a segment as a list, which keeps which subscribers it matched on the day it was saved.
 					</li>
 					<li>
@@ -169,6 +173,18 @@ export default function PrivacyPage() {
 					</li>
 					<li>
 						<Strong>Web pages:</Strong> a newsletter&apos;s website counts a view per issue, browser and day, with no personal data.
+						{" "}{WEB_ANALYTICS_RULE}
+					</li>
+					<li>
+						<Strong>Signup forms and Magic Links:</Strong> a creator can put a signup form on another site, which posts the address to
+						FlockStack, and give other newsletters a Magic Link that subscribes an address their platform fills in. Both go through the same checks
+						as the website&apos;s form, with the confirmation email when the creator asks for it. A form counts its page loads and signups for each
+						day, with no personal data, and sets no cookie on the site that shows it. To limit repeated tries, a Magic Link counts them by network
+						address and by a keyed hash of the email address, for a day at most.
+					</li>
+					<li>
+						<Strong>Gated issues:</Strong> a creator can show an issue&apos;s beginning to readers who haven&apos;t subscribed. A reader who signs in
+						with an emailed link or by confirming their address gets the rest; the session is the cookie below.
 					</li>
 					<li>
 						<Strong>Embeds and files:</Strong> a creator can embed a video or post from YouTube, X, Instagram, TikTok, Bluesky, Spotify or
@@ -347,8 +363,8 @@ export default function PrivacyPage() {
 					</li>
 					<li>
 						<Strong><code>fs_reader_&lt;newsletter&gt;</code></Strong> and a marker, <Strong><code>fs_reader_&lt;newsletter&gt;_on</code></Strong>, for 30 days, on a
-						newsletter&apos;s website: they keep a subscriber signed in to that newsletter, to read paid issues, comment and open their account
-						page, and only exist after the subscriber used a sign-in link.
+						newsletter&apos;s website: they keep a subscriber signed in to that newsletter, to read paid issues, read a gated issue, comment and
+						open their account page, and only exist after the subscriber used a sign-in link or the link that confirms their subscription.
 					</li>
 				</ul>
 				<p>
@@ -361,9 +377,10 @@ export default function PrivacyPage() {
 				</p>
 				<p>
 					Your browser&apos;s own storage keeps your light or dark theme, the support assistant&apos;s conversation in that tab&apos;s session storage until you
-					close the tab or sign out, and on a newsletter&apos;s website, whether you subscribed, whether
-					you snoozed the signup prompt, a referral code for 30 days, the newsletter that sent you there through a recommendation for 7 days, and a
-					marker that you viewed an issue today. None of it is sent as a cookie.
+					close the tab or sign out, and on a newsletter&apos;s website, whether you signed up, whether
+					you closed the signup pop-up and when, a referral code for 30 days, the newsletter that sent you there through a recommendation for 7 days,
+					the UTM parameters and referring website of your visit for 30 days (sent only with a signup), the issue you signed up on, for the page that
+					confirms you to lead back to it, and a marker that you viewed an issue today. None of it is sent as a cookie.
 				</p>
 			</SectionLegal>
 

@@ -936,3 +936,12 @@ html:has([data-support-chat]) {
   background: color-mix(in oklch, var(--ring) 55%, transparent);
   outline: 1px solid var(--ring);
 }
+
+/* Dialogs, the signup pop-up among them, appear without moving for readers who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  [data-slot="dialog-content"],
+  [data-slot="dialog-overlay"] {
+    animation: none !important;
+    transition: none !important;
+  }
+}

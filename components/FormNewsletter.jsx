@@ -71,7 +71,7 @@ export default function FormNewsletter({
 	const [discardCount, setDiscardCount] = useState(0);
 	const [isSaving, startSaving] = useTransition();
 	const [isTesting, startTesting] = useTransition();
-	const { name, description, accentColor, isPreferencesLinked, slug, fromName, fromLocal, fromDomain, imageUrl, postalAddress, isConfirmationRequired, confirmationEdits, isWelcomeEnabled, welcome, isArchiveEnabled, isCleanupEnabled, cleanup } = draft;
+	const { name, description, accentColor, isPreferencesLinked, isUtmTagged, slug, fromName, fromLocal, fromDomain, imageUrl, postalAddress, isConfirmationRequired, confirmationEdits, isWelcomeEnabled, welcome, isArchiveEnabled, isCleanupEnabled, cleanup } = draft;
 	const savedCleanup = getCleanupSettings(newsletter);
 	const deferredWelcome = useDeferredValue(welcome);
 	const deferredPostalAddress = useDeferredValue(postalAddress);
@@ -403,6 +403,12 @@ export default function FormNewsletter({
 					<span className="flex items-center gap-2 text-sm">
 						<Switch name="preferencesLink" checked={isPreferencesLinked} onCheckedChange={(isChecked) => set("isPreferencesLinked", isChecked)} aria-label="Link to the preference center in every email's footer" />
 						In every email&apos;s footer
+					</span>
+				</Field>
+				<Field label="UTM tags on links" hint="Links to other sites get utm_source (this newsletter), utm_medium=email and utm_campaign (the issue's slug), so their analytics show where the visit came from. A link with UTM parameters of its own is left alone." as="div">
+					<span className="flex items-center gap-2 text-sm">
+						<Switch name="utmLinks" checked={isUtmTagged} onCheckedChange={(isChecked) => set("isUtmTagged", isChecked)} aria-label="Add UTM parameters to the links in issues" />
+						On links in issues
 					</span>
 				</Field>
 			</Section>

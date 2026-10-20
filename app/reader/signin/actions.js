@@ -23,6 +23,7 @@ export async function continueSignIn(formData) {
 	if (!contact) redirect(backTo(token, issueSlug, next));
 	const urls = getArchiveUrls(newsletter);
 	if (next === "account") redirect(urls.absoluteAccount);
+	if (next === "issue") redirect(ARCHIVE_SLUG_PATTERN.test(issueSlug) ? urls.absolutePost(issueSlug) : urls.siteIndex);
 	redirect(`${ARCHIVE_SLUG_PATTERN.test(issueSlug) ? urls.absolutePost(issueSlug) : urls.siteIndex}#comments`);
 }
 

@@ -3,6 +3,7 @@ import FooterArchive from "@/components/FooterArchive";
 import HeaderArchive from "@/components/HeaderArchive";
 import ProviderSubscribe from "@/components/ProviderSubscribe";
 import StyleSite from "@/components/StyleSite";
+import TrackVisit from "@/components/TrackVisit";
 import { countReaders, getArchiveNewsletter, getShopPayments, listPublishedPages, listShopProducts, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getBrand } from "@/lib/brand";
@@ -47,6 +48,7 @@ export default async function ArchiveLayout({ children, params }) {
 				/>
 				<main className="flex-1">{children}</main>
 				<FooterArchive newsletter={newsletter} indexHref={index} feedHref={feed} navLinks={navLinks} />
+				<TrackVisit slug={newsletter.slug} />
 			</div>
 		</ProviderSubscribe>
 	);

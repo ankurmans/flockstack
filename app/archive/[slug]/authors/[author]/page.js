@@ -3,11 +3,13 @@ import AvatarNewsletter from "@/components/AvatarNewsletter";
 import CardIssue from "@/components/CardIssue";
 import LinksSocial from "@/components/LinksSocial";
 import ScriptJsonLd from "@/components/ScriptJsonLd";
+import TriggerSubscribe from "@/components/TriggerSubscribe";
 import { getArchiveAuthor } from "@/lib/archive-author";
 import { getArchiveNewsletter, listArchiveIssues } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getAuthorSeo } from "@/lib/archive-seo";
 import { formatNumber } from "@/lib/format";
+import { getPopupSettings, getTriggerProps, isPopupOn } from "@/lib/popup-rules";
 
 export const revalidate = 3600;
 
@@ -35,6 +37,7 @@ export default async function AuthorPage({ params }) {
 
 	const issues = await listArchiveIssues(newsletter);
 	const urls = getArchiveUrls(newsletter);
+	const popup = getPopupSettings(newsletter);
 	const firstName = author.name.split(" ")[0];
 
 	return (
@@ -94,6 +97,7 @@ export default async function AuthorPage({ params }) {
 					</ol>
 				</section>
 			)}
+			{isPopupOn(popup, "other") && <TriggerSubscribe newsletterSlug={newsletter.slug} {...getTriggerProps(popup)} />}
 		</>
 	);
 }

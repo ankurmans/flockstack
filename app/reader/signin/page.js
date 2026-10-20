@@ -1,4 +1,4 @@
-import { Link2Off, MessageCircle, UserRound } from "lucide-react";
+import { BookOpen, Link2Off, MessageCircle, UserRound } from "lucide-react";
 import CardNotice from "@/components/CardNotice";
 import { Button } from "@/components/ui/button";
 import { getArchiveUrls } from "@/lib/archive-hosts";
@@ -23,16 +23,19 @@ export default async function ReaderSignInPage({ searchParams }) {
 	const validToken = typeof token === "string" ? token : "";
 	const issueSlug = typeof p === "string" && ARCHIVE_SLUG_PATTERN.test(p) ? p : "";
 	const destination = SIGNIN_DESTINATIONS.includes(next) ? next : "";
+	const isAccount = destination === "account";
 	const preview = await getPreview(validToken);
 	const urls = preview.newsletter && getArchiveUrls(preview.newsletter);
 
 	return (
 		<main className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
 			{preview.state === "ready" ? (
-				<CardNotice icon={destination ? UserRound : MessageCircle} title={`Sign in to ${preview.newsletter.name}`}>
-					{destination
-						? "One click and you are in: your subscription, your preferences and your referrals are all on your account page."
-						: "One click and you can join the discussion. Your email address stays private."}
+				<CardNotice icon={destination === "issue" ? BookOpen : isAccount ? UserRound : MessageCircle} title={`Sign in to ${preview.newsletter.name}`}>
+					{destination === "issue"
+						? "One click and the full issue opens. Your email address stays private."
+						: isAccount
+							? "One click and you are in: your subscription, your preferences and your referrals are all on your account page."
+							: "One click and you can join the discussion. Your email address stays private."}
 					<form action={continueSignIn} className="mt-6">
 						<input type="hidden" name="token" value={validToken} />
 						<input type="hidden" name="p" value={issueSlug} />
@@ -45,12 +48,14 @@ export default async function ReaderSignInPage({ searchParams }) {
 			) : (
 				<CardNotice icon={Link2Off} title={preview.state === "spent" ? "This link was already used" : "This link doesn't work"}>
 					{preview.state === "spent"
-						? `A sign-in link works once. If you aren't signed in, ask for a new one ${destination ? "on the sign-in page" : "on the issue's page"}.`
-						: `It may have expired: sign-in links last 30 minutes. Ask for a new one ${destination ? "on the sign-in page" : "on the issue's page"}.`}
+						? `A sign-in link works once. If you aren't signed in, ask for a new one ${isAccount ? "on the sign-in page" : "on the issue's page"}.`
+						: `It may have expired: sign-in links last 30 minutes. Ask for a new one ${isAccount ? "on the sign-in page" : "on the issue's page"}.`}
 					{urls && (
 						<Button asChild size="lg" variant="outline" className="mt-6 w-full">
-							{destination ? (
+							{isAccount ? (
 								<a href={urls.absoluteSignin}>Get a new link</a>
+							) : destination === "issue" ? (
+								<a href={issueSlug ? urls.absolutePost(issueSlug) : urls.siteIndex}>Back to the issue</a>
 							) : (
 								<a href={`${issueSlug ? urls.absolutePost(issueSlug) : urls.siteIndex}#comments`}>Back to the discussion</a>
 							)}

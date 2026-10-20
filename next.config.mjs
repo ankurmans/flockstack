@@ -14,6 +14,10 @@ const CONTENT_SECURITY_POLICY = [
 const IMAGES_CDN_URL = process.env.IMAGES_CDN_URL;
 const IMAGES_CDN_HOST = IMAGES_CDN_URL && URL.canParse(IMAGES_CDN_URL) ? new URL(IMAGES_CDN_URL).hostname : null;
 
+// A newsletter's signup forms are framed by other sites (lib/forms.js), so their page alone may be. X-Frame-Options has no
+// "any site" value: ALLOWALL isn't standard, and where a browser reads frame-ancestors it ignores the header anyway.
+const FRAMEABLE_CONTENT_SECURITY_POLICY = CONTENT_SECURITY_POLICY.replace("frame-ancestors 'none'", "frame-ancestors *");
+
 const SECURITY_HEADERS = [
 	{ key: "Content-Security-Policy", value: CONTENT_SECURITY_POLICY },
 	{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
@@ -43,7 +47,17 @@ const nextConfig = {
 		],
 	},
 	async headers() {
-		return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+		return [
+			{ source: "/:path*", headers: SECURITY_HEADERS },
+			// Later rules win for the same header.
+			{
+				source: "/embed/:id",
+				headers: [
+					{ key: "Content-Security-Policy", value: FRAMEABLE_CONTENT_SECURITY_POLICY },
+					{ key: "X-Frame-Options", value: "ALLOWALL" },
+				],
+			},
+		];
 	},
 };
 

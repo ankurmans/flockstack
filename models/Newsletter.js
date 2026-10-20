@@ -59,6 +59,26 @@ const newsletterSchema = new mongoose.Schema(
 		],
 		// Every email's footer links to the reader's preference center (lib/preferences.js).
 		preferencesLink: { type: Boolean },
+		// Issues' outgoing links get utm_source (the newsletter), utm_medium=email and utm_campaign (the issue) added
+		// (lib/link-utm.js), unless a link has UTM parameters of its own.
+		utmLinks: { type: Boolean },
+		// The website's signup pop-up and the gate (lib/popup-rules.js): when it opens, how long closing it snoozes it, where it
+		// shows, and whether older issues show only their beginning to readers who haven't subscribed. Unsaved: the defaults.
+		popup: {
+			enabled: { type: Boolean },
+			trigger: { type: String, enum: ["scroll", "time", "exit"] },
+			seconds: { type: Number },
+			scrollPercent: { type: Number },
+			frequencyDays: { type: Number },
+			pages: { type: String, enum: ["issues", "home", "all"] },
+			gate: {
+				enabled: { type: Boolean },
+				previewPercent: { type: Number },
+				freeLatest: { type: Number },
+			},
+		},
+		// The key id in the newsletter's Magic Link (lib/magic-links.js), 1 until it is retired: a link of an earlier id stops working.
+		magicKeyId: { type: Number, min: 1 },
 		// The newsletter's own structured data for search engines: compact JSON of one block or a list (lib/seo-rules.js
 		// checkJsonLd), added to the archive's home page and every issue's page.
 		jsonLd: { type: String },
