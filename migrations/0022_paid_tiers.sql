@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS i_contacts__newsletterId__paidTierId ON c_contacts (json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.paidTierId') ASC) WHERE json_type(data, '$.paidTierId') = 'text';

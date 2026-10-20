@@ -182,9 +182,11 @@ describe("subscribing", () => {
 		assert.equal(request.account, user.stripeAccountId);
 		const { params } = request;
 		assert.equal(params.mode, "subscription");
-		assert.deepEqual(params.line_items[0].price_data.recurring, { interval: "year" });
-		assert.equal(params.line_items[0].price_data.unit_amount, "8000", "the tier's price, not the form's");
-		assert.equal(params.line_items[0].price_data.currency, "usd");
+		const price = fake.prices.get(params.line_items[0].price);
+		assert.equal(price.unit_amount, "8000", "the tier's price, not the form's");
+		assert.deepEqual([price.recurring.interval, price.recurring.interval_count, price.currency], ["year", "1", "usd"]);
+		assert.equal(fake.products.get(price.product).name, `${user.slug} news, paid subscription`, "a newsletter from before tiers keeps its product name");
+		assert.equal(fake.requests.find(({ path }) => path === "/v1/prices").account, user.stripeAccountId, "made on the creator's account");
 		assert.equal(params.customer_email, "reader@example.net");
 		assert.equal(params.subscription_data.trial_period_days, "7");
 		assert.deepEqual(params.subscription_data.metadata, params.metadata);
@@ -193,6 +195,8 @@ describe("subscribing", () => {
 			kind: "paid_tier",
 			accountId: String(user.accountId),
 			newsletterId: String(user.newsletterId),
+			tierId: "paid",
+			option: "year",
 			interval: "year",
 		});
 		assert.equal(params.success_url, `https://${user.slug}.flockstackmail.com/subscribe?paid=1`);
@@ -205,7 +209,7 @@ describe("subscribing", () => {
 		assert.deepEqual(await subscribe(user), { error: "This newsletter doesn't offer that plan" }, "tier off");
 		await setTier(user, { yearlyCents: 0 });
 		assert.deepEqual(await subscribe(user, { interval: "year" }), { error: "This newsletter doesn't offer that plan" });
-		assert.deepEqual(await subscribe(user, { interval: "weekly" }), { error: "Pick monthly or yearly" });
+		assert.deepEqual(await subscribe(user, { interval: "weekly" }), { error: "Pick a plan" });
 		assert.deepEqual(await subscribe(user, { email: "nope" }), { error: "Enter a valid email" });
 		assert.deepEqual(await subscribe(user, { website: "bot" }), { error: "This newsletter doesn't offer that plan" });
 		assert.deepEqual(await subscribe({ slug: "no-such-shop" }), { error: "This newsletter doesn't offer that plan" });

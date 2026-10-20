@@ -4,6 +4,7 @@ import NoticePaid from "@/components/NoticePaid";
 import { getArchiveNewsletter, getShopPayments } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getShopMetadata } from "@/lib/archive-seo";
+import { OPTION_LABELS, OPTION_NOTES, getNewsletterTiers, getOfferedTiers, getTierOptions } from "@/lib/tier-rules";
 
 export const revalidate = 3600;
 
@@ -25,8 +26,16 @@ export default async function SubscribePage({ params }) {
 	const newsletter = await getArchiveNewsletter((await params).slug);
 	if (!newsletter?.paidTier?.enabled) notFound();
 	const payments = await getShopPayments(newsletter);
-	const { monthlyCents = 0, yearlyCents = 0, currency = "usd", trialDays = 0, pitch } = newsletter.paidTier;
+	const { currency = "usd", trialDays = 0, pitch } = newsletter.paidTier;
 	const urls = getArchiveUrls(newsletter);
+	const tiers = getOfferedTiers(getNewsletterTiers(newsletter)).map((tier) => ({
+		id: tier.id,
+		name: tier.name,
+		description: tier.description,
+		benefits: tier.benefits,
+		founding: { enabled: tier.founding.enabled, spotsLeft: null },
+		options: getTierOptions(tier).map(({ option, cents }) => ({ option, cents, label: OPTION_LABELS[option], note: option === "pwyw" ? (tier.pwyw.interval === "month" ? "a month or more" : "a year or more") : OPTION_NOTES[option] })),
+	}));
 
 	return (
 		<div className="mx-auto max-w-xl px-5 pt-16 pb-24 sm:pt-20">
@@ -36,8 +45,8 @@ export default async function SubscribePage({ params }) {
 				{pitch || `Get every issue of ${newsletter.name}, including the ones for paid subscribers only.`}
 			</p>
 			<div style={{ "--stagger": 2 }} className="mt-10 rounded-2xl bg-card p-5 shadow-border animate-enter sm:p-6">
-				{payments.ready ? (
-					<FormSubscribePaid newsletterSlug={newsletter.slug} prices={{ month: monthlyCents, year: yearlyCents }} currency={currency} trialDays={trialDays} />
+				{payments.ready && tiers.length > 0 ? (
+					<FormSubscribePaid newsletterSlug={newsletter.slug} tiers={tiers} currency={currency} trialDays={trialDays} />
 				) : (
 					<p className="text-sm text-muted-foreground">Paid subscriptions aren&apos;t open right now. Check back soon.</p>
 				)}

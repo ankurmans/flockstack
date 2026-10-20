@@ -31,6 +31,10 @@ const campaignSchema = new mongoose.Schema(
 		// Who the issue is for: every active contact, only free readers, or only paid readers (lib/tiers.js). A paid issue
 		// shows a teaser on the web archive; its full text is only in the email.
 		audience: { type: String, enum: AUDIENCES, default: "all" },
+		// A paid issue for one paid tier or higher: the tier picked (audienceMinTier) and the ids it reaches, worked out when
+		// the campaign was saved (lib/tier-rules.js). Without them a paid issue goes to every paid tier.
+		audienceMinTier: { type: String },
+		audienceTiers: { type: [String], default: undefined },
 		// Warm-up: send to the most engaged contacts first, capped at audienceLimit.
 		audienceLimit: { type: Number, min: 1 },
 		// Contacts never mailed before go out in steps: a first slice, a check, then the rest (lib/first-send.js), over

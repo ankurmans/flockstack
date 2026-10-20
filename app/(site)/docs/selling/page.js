@@ -77,16 +77,37 @@ export default function SellingPage() {
 
 			<Section title="Paid subscriptions" stagger={3}>
 				<p>
-					<Code>set_paid_tier</Code> turns on a newsletter&apos;s paid tier with a monthly price, a yearly price and an optional free trial.
-					Readers subscribe on its <Code>/subscribe</Code> page. Stripe tells FlockStack when a subscription starts, renews, is cancelled or
-					fails to pay, and each contact is <Code>paid</Code> or <Code>free</Code> accordingly, with <Code>paidUntil</Code> as the end of
-					the period they paid for. A failed renewal makes the reader free at once; the next successful payment brings them back.
+					<Code>set_paid_tier</Code> turns a newsletter&apos;s paid tiers on with a currency, an optional free trial and a pitch; readers
+					subscribe on its <Code>/subscribe</Code> page. Stripe tells FlockStack when a subscription starts, renews, is cancelled or fails to
+					pay, and each contact is <Code>paid</Code> or <Code>free</Code> accordingly, with <Code>paidUntil</Code> as the end of the period
+					they paid for. A failed renewal makes the reader free at once; the next successful payment brings them back.
 				</p>
 				<p className="mt-4">
 					A campaign has an <Code>audience</Code>: <Code>all</Code>, <Code>free</Code> or <Code>paid</Code>. A paid issue goes to paid
 					readers only, shows a teaser on its web page and has the whole text in the email. Everything that protects a send applies to it
 					as to any other: plan limits, pacing, the list cleanup (a paid reader is never set aside) and the suppression lists. Paid readers
 					get a manage-subscription link in every email, which opens their Stripe billing page.
+				</p>
+			</Section>
+
+			<Section title="Paid tiers" stagger={4}>
+				<p>
+					A newsletter has up to 3 paid tiers, lowest first (<Code>list_paid_tiers</Code>, <Code>create_paid_tier</Code>,{" "}
+					<Code>update_paid_tier</Code>, <Code>delete_paid_tier</Code>, <Code>reorder_paid_tiers</Code>). Each has a name, a description,
+					benefits and the prices it asks: monthly, quarterly (every 3 months), yearly, lifetime (one payment that never renews) and pay what
+					you want (the reader names the price, above a minimum). Once the paid tier is open, FlockStack makes each tier a Product on your
+					Stripe account with a Price per way to pay, so your Stripe dashboard and invoices show real products. A price can&apos;t change in
+					Stripe: a new amount makes a new Price, and readers already subscribed keep the one they signed up on.
+				</p>
+				<p className="mt-4">
+					Tier order is the order of importance. A paid issue can go to every paid tier, or to one tier <em>and the tiers above it</em>{" "}
+					(<Code>paidTier</Code> on <Code>create_campaign</Code> and <Code>update_campaign</Code>). A segment can filter on a reader&apos;s
+					tier, and <Code>subscriber.upgraded</Code> and <Code>subscriber.downgraded</Code> webhooks carry the tier. A tier that readers hold
+					can&apos;t be deleted: archive it, and it leaves the subscribe page while its readers keep it.
+				</p>
+				<p className="mt-4">
+					A newsletter that had a paid tier before tiers keeps it: one tier named Paid subscription with its monthly and yearly prices,
+					and its readers hold it. It is written out as the lowest tier the first time you add another.
 				</p>
 			</Section>
 		</>

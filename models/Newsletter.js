@@ -88,16 +88,36 @@ const newsletterSchema = new mongoose.Schema(
 			digestSentAt: { type: Date },
 		},
 		// The paid tier (lib/payments/subscriptions.js): readers subscribe through Stripe Checkout on the creator's own Stripe
-		// account. Prices are in cents of `currency`; a price of 0 means that interval isn't offered. Set by set_paid_tier,
-		// never by the settings form.
+		// account. The newsletter-wide settings are here; the tiers themselves are in paidTiers. monthlyCents and yearlyCents
+		// are the prices of a newsletter from before tiers (lib/tier-rules.js shows them as its one tier) and follow the
+		// lowest tier once it has tiers. Set by set_paid_tier, never by the settings form.
 		paidTier: {
 			enabled: { type: Boolean, default: false },
 			currency: { type: String, lowercase: true, trim: true },
 			monthlyCents: { type: Number, min: 0 },
 			yearlyCents: { type: Number, min: 0 },
 			trialDays: { type: Number, min: 0 },
+			// A trial asks for no card when Stripe allows it; the card is asked for when the trial ends.
+			trialNoCard: { type: Boolean },
 			pitch: { type: String, trim: true },
+			// The supporters list on the subscribe page: founding members who gave a name for it (lib/supporters.js).
+			supportersPublic: { type: Boolean },
+			// Pledges (lib/pledges.js): readers commit to a price without being charged. noticeDays: how long before
+			// the first charge each pledger is told.
+			pledges: {
+				enabled: { type: Boolean },
+				noticeDays: { type: Number, min: 1 },
+			},
+			// The launch offer shown on the subscribe page and the website (lib/offers.js).
+			banner: {
+				enabled: { type: Boolean },
+				text: { type: String, trim: true },
+				offerId: { type: String },
+			},
 		},
+		// Up to 3 paid tiers, lowest first (lib/tier-rules.js). Mixed: each tier is { id, name, description, benefits, prices,
+		// pwyw, founding, archived, stripe }, and stripe holds the Product and Price ids made on the creator's account.
+		paidTiers: { type: [mongoose.Schema.Types.Mixed], default: undefined },
 		// Confirmed opt-in's extras: one reminder to signups still unconfirmed delayHours after signing up
 		// (lib/confirmation-reminders.js), and the page a reader lands on once confirmed, instead of FlockStack's own.
 		confirmationReminder: {

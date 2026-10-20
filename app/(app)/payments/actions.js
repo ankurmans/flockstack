@@ -39,3 +39,45 @@ export async function savePaidTier(_state, formData) {
 	revalidatePath("/payments");
 	return { ok: true };
 }
+
+function readCents(formData, name) {
+	return readPriceCents(formData.get(name), { allowEmpty: true });
+}
+
+// A tier's form: create when it has no tierId, else change. Empty prices are plans not offered.
+export async function saveTier(_state, formData) {
+	const newsletterId = String(formData.get("newsletterId") ?? "");
+	const tierId = String(formData.get("tierId") ?? "");
+	const prices = { monthlyCents: readCents(formData, "monthly"), quarterlyCents: readCents(formData, "quarterly"), yearlyCents: readCents(formData, "yearly"), lifetimeCents: readCents(formData, "lifetime") };
+	const pwywCents = readCents(formData, "pwyw");
+	if (Object.values(prices).some(Number.isNaN) || Number.isNaN(pwywCents)) return { error: `Enter prices of ${MIN_PRICE} or more, like 8 or 8.50, or leave a plan empty` };
+	const cap = Number.parseInt(String(formData.get("foundingCap") ?? ""), 10);
+	const input = {
+		id: newsletterId,
+		name: String(formData.get("name") ?? ""),
+		description: String(formData.get("description") ?? ""),
+		benefits: String(formData.get("benefits") ?? "").split("\n").map((line) => line.trim()).filter(Boolean),
+		...prices,
+		payWhatYouWant: pwywCents > 0 ? { minCents: pwywCents, interval: formData.get("pwywInterval") === "month" ? "month" : "year" } : null,
+		founding: { enabled: formData.get("founding") === "on", cap: Number.isInteger(cap) && cap > 0 ? cap : null },
+		...(tierId && { tierId, archived: formData.get("archived") === "on" }),
+	};
+	const { failure } = tierId ? await runDashboardAction("update_paid_tier", input) : await runDashboardAction("create_paid_tier", input);
+	if (failure) return toFormError(failure);
+	revalidatePath("/payments");
+	return { ok: true };
+}
+
+export async function deleteTier(newsletterId, tierId) {
+	const { failure } = await runDashboardAction("delete_paid_tier", { id: String(newsletterId), tierId: String(tierId) });
+	if (failure) return toFormError(failure);
+	revalidatePath("/payments");
+	return { ok: true };
+}
+
+export async function moveTier(newsletterId, tierIds) {
+	const { failure } = await runDashboardAction("reorder_paid_tiers", { id: String(newsletterId), tierIds });
+	if (failure) return toFormError(failure);
+	revalidatePath("/payments");
+	return { ok: true };
+}

@@ -13,7 +13,8 @@ export async function subscribePaid(_state, formData) {
 	await connectDb();
 	return startPaidSubscription({
 		newsletterSlug: String(formData.get("newsletter") ?? ""),
-		interval: String(formData.get("interval") ?? ""),
+		tierId: String(formData.get("tier") ?? ""),
+		option: String(formData.get("option") ?? formData.get("interval") ?? ""),
 		email: String(formData.get("email") ?? ""),
 		ip: getClientIp(await headers()),
 	});

@@ -33,6 +33,8 @@ export function createFakeStripe() {
 	const customers = new Map();
 	const subscriptions = new Map();
 	const portalConfigurations = [];
+	const products = new Map();
+	const prices = new Map();
 	const idempotent = new Map();
 	const failures = new Map();
 
@@ -97,6 +99,27 @@ export function createFakeStripe() {
 		if (method === "GET" && resource === "checkout" && sub) return sessions.get(sub) ?? stripeError(404, "No such session", "resource_missing");
 		if (method === "GET" && resource === "subscriptions" && id) return subscriptions.get(id) ?? stripeError(404, "No such subscription", "resource_missing");
 		if (method === "GET" && resource === "customers" && id) return customers.get(id) ?? stripeError(404, "No such customer", "resource_missing");
+		if (method === "POST" && path === "/v1/products") {
+			const created = { id: next("prod"), object: "product", active: true, ...params, metadata: params.metadata ?? {} };
+			products.set(created.id, created);
+			return created;
+		}
+		if (method === "POST" && resource === "products" && id) {
+			if (!products.has(id)) return stripeError(404, "No such product", "resource_missing");
+			Object.assign(products.get(id), params, params.active === undefined ? {} : { active: params.active !== "false" });
+			return products.get(id);
+		}
+		if (method === "POST" && path === "/v1/prices") {
+			if (!products.has(params.product)) return stripeError(404, "No such product", "resource_missing");
+			const created = { id: next("price"), object: "price", active: true, ...params, metadata: params.metadata ?? {} };
+			prices.set(created.id, created);
+			return created;
+		}
+		if (method === "POST" && resource === "prices" && id) {
+			if (!prices.has(id)) return stripeError(404, "No such price", "resource_missing");
+			Object.assign(prices.get(id), params, params.active === undefined ? {} : { active: params.active !== "false" });
+			return prices.get(id);
+		}
 		if (method === "GET" && path === "/v1/billing_portal/configurations") return { object: "list", data: portalConfigurations };
 		if (method === "POST" && path === "/v1/billing_portal/configurations") {
 			const created = { id: next("bpc"), object: "billing_portal.configuration", is_default: false, ...params };
@@ -120,6 +143,8 @@ export function createFakeStripe() {
 		customers,
 		subscriptions,
 		portalConfigurations,
+		products,
+		prices,
 		// The next call to this route answers this instead.
 		failNext(routeKey, answer = stripeError(500, "Stripe is having a bad day", "api_error")) {
 			failures.set(routeKey, answer);
