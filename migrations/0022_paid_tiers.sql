@@ -1,4 +1,10 @@
 CREATE INDEX IF NOT EXISTS i_contacts__newsletterId__paidTierId ON c_contacts (json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.paidTierId') ASC) WHERE json_type(data, '$.paidTierId') = 'text';
+CREATE TABLE IF NOT EXISTS c_gifts (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_gifts__accountId ON c_gifts (accountId);
+CREATE INDEX IF NOT EXISTS i_gifts__newsletterId__status__createdAt_d ON c_gifts (json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.status') ASC, json_extract(data, '$.createdAt') DESC);
+CREATE INDEX IF NOT EXISTS i_gifts__newsletterId__buyerEmail ON c_gifts (json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.buyerEmail') ASC);
+CREATE INDEX IF NOT EXISTS i_gifts__status__deliverOn ON c_gifts (json_extract(data, '$.status') ASC, json_extract(data, '$.deliverOn') ASC);
+CREATE INDEX IF NOT EXISTS i_gifts__paymentIntentId ON c_gifts (json_extract(data, '$.paymentIntentId') ASC) WHERE json_type(data, '$.paymentIntentId') = 'text';
 CREATE TABLE IF NOT EXISTS c_offers (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS i_offers__accountId ON c_offers (accountId);
 CREATE UNIQUE INDEX IF NOT EXISTS u_offers__newsletterId__code ON c_offers (json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.code') ASC);

@@ -159,6 +159,23 @@ export default function SellingPage() {
 					itself when the offer ends.
 				</p>
 			</Section>
+
+			<Section title="Gift subscriptions" stagger={8}>
+				<p>
+					<Code>set_gifts</Code> turns on gifts for a newsletter with its paid tier open. The gift page, <Code>/give</Code> on the
+					newsletter&apos;s site, sells 1, 3, 6 or 12 months of a tier: a year is the yearly price, a quarter the quarterly price when there is one,
+					and the rest are months of the monthly price. The buyer names the recipient, writes a message (plain text, no links) and picks the day it
+					is sent, up to a year ahead, and pays once with Stripe Checkout on your account. A lifetime or pay what you want tier isn&apos;t given.
+				</p>
+				<p className="mt-4">
+					When the payment is confirmed the buyer gets a receipt with a page that lists their gifts and whether each was redeemed. On the chosen day
+					(a job per gift, with an hourly check behind it) the recipient gets one email from the newsletter with the message and a link. Redeeming
+					gives paid access for the gift&apos;s months <em>from that day</em>, or from when their other paid time ends, as a gift: it is shown apart
+					from paying readers. <strong>An unredeemed gift expires 12 months after it was bought.</strong> The payment stays with you, and refunding it
+					in Stripe is yours to do; a full refund of a redeemed gift takes the access back. <Code>list_gifts</Code> shows every gift and{" "}
+					<Code>resend_gift</Code> sends one again, to another address if the first didn&apos;t reach.
+				</p>
+			</Section>
 		</>
 	);
 }

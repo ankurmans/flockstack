@@ -164,3 +164,10 @@ export async function saveBanner(_state, formData) {
 	revalidatePath("/payments");
 	return { ok: true };
 }
+
+export async function saveGifts(_state, formData) {
+	const { failure } = await runDashboardAction("set_gifts", { id: String(formData.get("newsletterId") ?? ""), enabled: formData.get("enabled") === "on" });
+	if (failure) return toFormError(failure);
+	revalidatePath("/payments");
+	return { ok: true };
+}

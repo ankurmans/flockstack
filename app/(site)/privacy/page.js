@@ -142,6 +142,11 @@ export default function PrivacyPage() {
 						their Stripe customer and saved card, never the card itself. A canceled pledge removes the card at Stripe.
 					</li>
 					<li>
+						<Strong>Gifts:</Strong> when someone buys a gift subscription, the creator&apos;s Stripe account takes the payment. We keep the
+						buyer&apos;s email and name, the recipient&apos;s email, the message, the tier, the months, the amount and the gift&apos;s dates and
+						status. The recipient gets one email from the newsletter, with the message, and isn&apos;t subscribed unless they redeem the gift.
+					</li>
+					<li>
 						<Strong>Comments:</Strong> if the creator turns comments on, a subscriber signs in to a newsletter&apos;s website with a link
 						emailed to them (no password) and a cookie keeps them signed in for that newsletter for 30 days. A comment is stored with a display
 						name that starts as the part of the email address before the @ and is never shown with the address, its text and its status, the

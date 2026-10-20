@@ -108,6 +108,10 @@ const newsletterSchema = new mongoose.Schema(
 				enabled: { type: Boolean },
 				noticeDays: { type: Number, min: 1 },
 			},
+			// Gift subscriptions (lib/gifts.js).
+			gifts: {
+				enabled: { type: Boolean },
+			},
 			// The launch offer shown on the subscribe page and the website (lib/offers.js).
 			banner: {
 				enabled: { type: Boolean },

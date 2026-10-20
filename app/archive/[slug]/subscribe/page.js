@@ -4,6 +4,7 @@ import NoticePaid from "@/components/NoticePaid";
 import { getArchiveNewsletter, getShopPayments } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getShopMetadata } from "@/lib/archive-seo";
+import { areGiftsOpen } from "@/lib/gifts";
 import { isPledgeOpen } from "@/lib/pledges";
 import { countFoundingMembers, listPublicSupporters } from "@/lib/supporters";
 import { OPTION_LABELS, OPTION_NOTES, getNewsletterTiers, getOfferedTiers, getTierOptions } from "@/lib/tier-rules";
@@ -47,6 +48,7 @@ export default async function SubscribePage({ params }) {
 	return (
 		<div className="mx-auto max-w-xl px-5 pt-16 pb-24 sm:pt-20">
 			<NoticePaid>Thanks for subscribing. Your first paid issue lands in your inbox; if you don&apos;t see a welcome email, check the spam folder.</NoticePaid>
+			<NoticePaid param="gift">Thank you for your gift. We emailed you a receipt with a link to see when it is redeemed.</NoticePaid>
 			<NoticePaid param="pledged">Thank you for your pledge. Nothing was charged. We emailed you a confirmation with a link to cancel.</NoticePaid>
 			<h1 className="text-4xl font-semibold tracking-tight text-balance animate-enter">{isPledge ? "Pledge your support" : "Become a paid subscriber"}</h1>
 			<p style={{ "--stagger": 1 }} className="mt-4 text-lg text-muted-foreground text-pretty animate-enter">
@@ -66,6 +68,15 @@ export default async function SubscribePage({ params }) {
 					<h2 className="text-sm font-medium">Supporters</h2>
 					<p className="mt-2 text-sm text-muted-foreground text-pretty">{supporters.join(", ")}</p>
 				</section>
+			)}
+			{areGiftsOpen(newsletter) && !isPledge && (
+				<p className="mt-6 text-sm text-muted-foreground">
+					Want to give it to someone?{" "}
+					<a href={urls.give} className="underline underline-offset-4 transition-colors duration-150 hover:text-foreground">
+						Give a gift subscription
+					</a>
+					.
+				</p>
 			)}
 			<p className="mt-6 text-sm text-muted-foreground">
 				Just want the free issues?{" "}
