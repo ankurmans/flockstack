@@ -50,6 +50,7 @@ import { markdownToHtml } from "@/lib/markdown";
 import { fillMergeTags } from "@/lib/merge-tags";
 import { getPresendChecks } from "@/lib/presend-checks";
 import { escapeHtml, renderEmail, withPreviewLinks, withResponsiveImages } from "@/lib/render-email";
+import { countWords, formatReadTime, textFromHtml } from "@/lib/read-time";
 import { getPaceHours } from "@/lib/send-spread";
 import { toast } from "@/lib/toast";
 import { useMediaQuery } from "@/lib/use-media-query";
@@ -109,6 +110,7 @@ export default function FormCampaign({
 	const hasPlan = paywall?.hasPlan ?? true;
 	const deferredValues = useDeferredValue(values);
 	const isUploading = values.body.includes('src="blob:');
+	const htmlWords = isHtml ? countWords(textFromHtml(deferredValues.body)) : 0;
 	const scheduledAt = campaign.status === "scheduled" ? campaign.scheduledAt : null;
 	const isCompact = useMediaQuery(COMPACT_SCREEN);
 	const rootRef = useRef(null);
@@ -381,6 +383,10 @@ export default function FormCampaign({
 									aria-label="Content"
 									className="block min-h-[560px] w-full resize-none bg-transparent px-4 py-4 font-mono text-[13px] leading-6 outline-none [field-sizing:content] placeholder:text-muted-foreground"
 								/>
+								<p className="border-t border-border/60 px-4 py-1.5 text-xs text-muted-foreground tabular-nums">
+									{formatCount(htmlWords, "word")}
+									{htmlWords > 0 && ` · ${formatReadTime(htmlWords)}`}
+								</p>
 							</div>
 						) : (
 							<EditorRich content={initialBody} onChange={updateBody} fields={fields} newsletterId={newsletter._id} campaignId={campaign._id} isAiEnabled={isAiEnabled} />

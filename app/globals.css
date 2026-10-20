@@ -824,3 +824,12 @@ html:has([data-support-chat]) {
     background: color-mix(in oklab, var(--ring) 12%, transparent);
   }
 }
+/* Find and replace in the editor (lib/editor-find.js): decorations only, never saved. */
+.find-match {
+  background: color-mix(in oklch, var(--ring) 22%, transparent);
+  border-radius: 2px;
+}
+.find-match-current {
+  background: color-mix(in oklch, var(--ring) 55%, transparent);
+  outline: 1px solid var(--ring);
+}

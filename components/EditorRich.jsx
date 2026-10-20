@@ -7,15 +7,18 @@ import FileHandler from "@tiptap/extension-file-handler";
 import Image from "@tiptap/extension-image";
 import { Placeholder } from "@tiptap/extensions";
 import StarterKit from "@tiptap/starter-kit";
+import BarFind from "@/components/BarFind";
 import DialogAiRewrite from "@/components/DialogAiRewrite";
 import DialogEditorBlock from "@/components/DialogEditorBlock";
 import DialogImagePicker from "@/components/DialogImagePicker";
+import FooterEditor from "@/components/FooterEditor";
 import MenuFormat from "@/components/MenuFormat";
 import { SlashCommand } from "@/components/MenuSlash";
 import { canReplace, readSelection, textToContent } from "@/lib/ai-client";
 import { LIMITS } from "@/lib/ai-writing";
 import { ATTACHMENT_EXTENSIONS } from "@/lib/attachment-files";
 import { Callout } from "@/lib/editor-callout";
+import { FindReplace } from "@/lib/editor-find";
 import { createBlockExtensions } from "@/lib/editor-nodes";
 import { toast } from "@/lib/toast";
 import { useAiRun } from "@/lib/use-ai-run";
@@ -28,6 +31,8 @@ const MIN_HEIGHT = "min-h-[560px]";
 export default function EditorRich({ content, onChange, fields = [], newsletterId = null, campaignId = null, isAiEnabled = false }) {
 	const [isEditingLink, setIsEditingLink] = useState(false);
 	const [isPickingImage, setIsPickingImage] = useState(false);
+	// Find and replace: the bar's open, starting from this text (the selection when it was opened).
+	const [find, setFind] = useState(null);
 	// The block whose dialog is open: { kind, attrs, pos }, pos null for a new one.
 	const [block, setBlock] = useState(null);
 	const fileInputId = useId();
@@ -54,6 +59,7 @@ export default function EditorRich({ content, onChange, fields = [], newsletterI
 				},
 			}),
 			Callout,
+			FindReplace,
 			...createBlockExtensions({ onEdit: (kind, attrs, pos) => setBlock({ kind, attrs, pos }) }),
 			Placeholder.configure({
 				placeholder: ({ node }) => (node.type.name === "heading" ? "Heading" : "Write, or press / for commands"),
@@ -75,8 +81,14 @@ export default function EditorRich({ content, onChange, fields = [], newsletterI
 		editorProps: {
 			attributes: { class: `prose-issue ${MIN_HEIGHT} px-5 py-5 outline-none`, "aria-label": "Content" },
 			handleKeyDown: (view, event) => {
-				const isLinkShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
-				if (!isLinkShortcut || view.state.selection.empty) return false;
+				if (!event.metaKey && !event.ctrlKey) return false;
+				const key = event.key.toLowerCase();
+				if (key === "f") {
+					const { from, to } = view.state.selection;
+					setFind({ query: from === to || to - from > 100 ? "" : view.state.doc.textBetween(from, to, " ") });
+					return true;
+				}
+				if (key !== "k" || view.state.selection.empty) return false;
 				setIsEditingLink(true);
 				return true;
 			},
@@ -97,6 +109,11 @@ export default function EditorRich({ content, onChange, fields = [], newsletterI
 		if (!text) return;
 		if (text.length > LIMITS.selectionChars) return void toast.error(`Select ${LIMITS.selectionChars.toLocaleString("en-US")} characters or fewer`);
 		askRewrite({ style, language, text, from, to });
+	}
+
+	function closeFind() {
+		setFind(null);
+		editor.commands.focus();
 	}
 
 	function closeRewrite() {
@@ -121,7 +138,9 @@ export default function EditorRich({ content, onChange, fields = [], newsletterI
 
 	return (
 		<>
+			{find && <BarFind key={find.query} editor={editor} initialQuery={find.query} onClose={closeFind} />}
 			<EditorContent editor={editor} />
+			<FooterEditor editor={editor} onFind={() => setFind({ query: "" })} />
 			<MenuFormat editor={editor} isEditingLink={isEditingLink} onEditLink={setIsEditingLink} onAi={isAiEnabled ? startRewrite : null} />
 			{isAiEnabled && (
 				<DialogAiRewrite
