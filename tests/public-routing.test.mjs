@@ -26,7 +26,7 @@ describe("the paths the router hands to the public pages Worker", () => {
 		for (const path of [...PUBLIC_DOC_PATHS, ...PUBLIC_LEGAL_PATHS]) {
 			assert.ok(existsSync(join(ROOT, "app/(site)", path, "page.js")), path);
 		}
-		const files = { "/llms-docs.txt": "app/llms-docs.txt/route.js", "/llms-full.txt": "app/llms-full.txt/route.js", "/api/v1/openapi.json": "app/api/v1/openapi.json/route.js", "/sitemap.xml": "app/sitemap.js", "/robots.txt": "app/robots.js", "/site.webmanifest": "app/site.webmanifest/route.js" };
+		const files = { "/llms-docs.txt": "app/llms-docs.txt/route.js", "/llms-full.txt": "app/llms-full.txt/route.js", "/api/v1/openapi.json": "app/api/v1/openapi.json/route.js", "/sitemap.xml": "app/sitemap.js", "/robots.txt": "app/robots.js", "/site.webmanifest": "app/site.webmanifest/route.js", "/icon.svg": "app/icon.svg", "/apple-icon.png": "app/apple-icon.png" };
 		assert.deepEqual(Object.keys(files).sort(), [...PUBLIC_FILE_PATHS].sort());
 		for (const file of Object.values(files)) assert.ok(existsSync(join(ROOT, file)), file);
 	});

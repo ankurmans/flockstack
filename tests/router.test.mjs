@@ -45,7 +45,7 @@ describe("the routing table", () => {
 
 	test("every public page and file goes to PUBLIC", () => {
 		const { env } = stack();
-		assert.ok(PUBLIC_EXACT_PATHS.length >= 28);
+		assert.ok(PUBLIC_EXACT_PATHS.length >= 30);
 		for (const path of PUBLIC_EXACT_PATHS) {
 			assert.equal(route(env, `https://flockstack.io${path}`), "public", path);
 			assert.equal(route(env, `https://flockstack.io${path}`, { headers: SESSION_US }), "public", `${path} signed in`);
@@ -73,7 +73,7 @@ describe("the routing table", () => {
 
 	test("everything else goes to APP", () => {
 		const { env } = stack();
-		const paths = ["/signin", "/oauth/consent", "/.well-known/oauth-authorization-server", "/.well-known/oauth-protected-resource/mcp", "/mcp", "/api/mcp", "/api/health", "/api/v1/contacts", "/api/v1/openapi.jsonx", "/api/auth/sign-in/email", "/api/webhooks/polar", "/api/webhooks/payments", "/api/jobs/send-batch", "/api/cron/hourly", "/api/uploads/files", "/api/support/chat", "/campaigns", "/billing", "/admin", "/custom", "/recommendations", "/archive/news", "/p/an-issue", "/unsubscribe", "/confirm", "/o/token", "/c/token", "/reader/signin", "/embed.js", "/_next/static/chunks/a.js", "/favicon.ico", "/icon.svg", "/opengraph-image", "/docs/", "/docs/nope", "/docs/api/extra", "/terms/", "/llms-docsx.txt", "/home", "/pricing/extra", "/blogger", "/__router/other"];
+		const paths = ["/signin", "/oauth/consent", "/.well-known/oauth-authorization-server", "/.well-known/oauth-protected-resource/mcp", "/mcp", "/api/mcp", "/api/health", "/api/v1/contacts", "/api/v1/openapi.jsonx", "/api/auth/sign-in/email", "/api/webhooks/polar", "/api/webhooks/payments", "/api/jobs/send-batch", "/api/cron/hourly", "/api/uploads/files", "/api/support/chat", "/campaigns", "/billing", "/admin", "/custom", "/recommendations", "/archive/news", "/p/an-issue", "/unsubscribe", "/confirm", "/o/token", "/c/token", "/reader/signin", "/embed.js", "/_next/static/chunks/a.js", "/favicon.ico", "/icon-192.png", "/opengraph-image", "/docs/", "/docs/nope", "/docs/api/extra", "/terms/", "/llms-docsx.txt", "/home", "/pricing/extra", "/blogger", "/__router/other"];
 		for (const path of paths) assert.equal(route(env, `https://flockstack.io${path}`), "app", path);
 	});
 
