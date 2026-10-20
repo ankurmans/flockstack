@@ -1,9 +1,7 @@
 // The public pages Worker's logic, apart from its manifest so the tests can give it one. See workers/public/index.js.
 import { fillAnalyticsMarkers } from "../../lib/prerender.js";
 import { readAnalyticsEnv } from "../../lib/marketing/analytics-config.js";
-import { CONSENT_COOKIE, readConsent, requiresConsent } from "../../lib/marketing/analytics-consent.js";
-
-export { CONSENT_COOKIE };
+import { readConsent, requiresConsent } from "../../lib/marketing/analytics-consent.js";
 
 // The key of a request's path in the manifest. The query is not part of it: these pages and files are the same for any query.
 export function lookup(manifest, region, pathname) {
@@ -28,7 +26,8 @@ const miss = (status, text) => new Response(`${text}\n`, { status, headers: { "c
 export function createHandler(manifest) {
 	return async function fetch(request, env) {
 		if (request.method !== "GET" && request.method !== "HEAD") return new Response("Method not allowed\n", { status: 405, headers: { allow: "GET, HEAD" } });
-		const region = request.headers.get("x-fs-region") === "eu" ? "eu" : "us";
+		// One deployment per region: each holds its own region's files, and the build that goes with its app.
+		const region = env.FLOCKSTACK_REGION === "eu" ? "eu" : "us";
 		const entry = lookup(manifest, region, new URL(request.url).pathname);
 		if (!entry) return miss(404, "No static copy of this page.");
 

@@ -1,13 +1,14 @@
 // Renders the public pages once, from this app, into workers/public/dist: the files the public pages Worker serves
 // (workers/public, docs/ARCHITECTURE-WORKERS.md). FlockStack Cloud only; a self-hosted server never needs it.
 //   node scripts/build-public.mjs [--build] [--only us|eu] [--out workers/public/dist]
-// --build runs the OpenNext build first (without it, .open-next must be there). Per region it starts the built Worker locally
+// --build runs the OpenNext build first (without it, .open-next must be there). The files go to dist/assets/us and dist/assets/eu,
+// one folder per region, because each region has a Worker of its own (workers/public/wrangler.jsonc); dist/manifest.json lists them. Per region it starts the built Worker locally
 // (wrangler dev, in workerd, the runtime production uses) with that region's settings and a dummy set of secrets of its own
 // (nothing from .dev.vars or the account is read, and nothing is sent), asks it for every path in lib/public-routing.js and writes
 // what it answers. Nothing is guessed: a page is what the app renders, including the 404 of a legal page that is not published.
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -38,9 +39,10 @@ export function parseArgs(argv) {
 	return options;
 }
 
-// The file a path is kept in: the region, then the path. ".page" so no tool takes it for something to serve on its own.
-export function fileFor(region, pathname) {
-	return `${region}${pathname === "/" ? "/index" : pathname}.page`;
+// The file a path is kept in, in its region's folder (each region's Worker uploads only its own). ".page" so no tool takes it for
+// something to serve on its own.
+export function fileFor(pathname) {
+	return `${(pathname === "/" ? "/index" : pathname).slice(1)}.page`;
 }
 
 export function pickHeaders(headers) {
@@ -175,9 +177,9 @@ async function renderRegion({ region, out, root = ROOT }) {
 			} catch (error) {
 				throw new Error(`${region} ${pathname}: ${error.message}`);
 			}
-			const file = fileFor(region, pathname);
-			mkdirSync(dirname(join(out, "assets", file)), { recursive: true });
-			writeFileSync(join(out, "assets", file), body);
+			const file = fileFor(pathname);
+			mkdirSync(dirname(join(out, "assets", region, file)), { recursive: true });
+			writeFileSync(join(out, "assets", region, file), body);
 			entries[pathname] = { file, status: response.status, headers: pickHeaders(response.headers), hasMarkers: markers, bytes: body.length };
 		}
 	} catch (error) {
@@ -203,7 +205,8 @@ export async function buildPublic({ build = false, only = null, out = DEFAULT_OU
 		throw new Error("build-public: .open-next is missing. Run `npm run build:public` (it builds first) or `npx opennextjs-cloudflare build`.");
 	}
 	bundleWorker();
-	rmSync(out, { recursive: true, force: true });
+	// A region left out of this run (--only) keeps what a run before wrote for it.
+	for (const region of only ? [only] : REGION_IDS) rmSync(join(out, "assets", region), { recursive: true, force: true });
 	mkdirSync(join(out, "assets"), { recursive: true });
 	const regions = {};
 	for (const region of only ? [only] : REGION_IDS) {
@@ -211,7 +214,8 @@ export async function buildPublic({ build = false, only = null, out = DEFAULT_OU
 		regions[region] = await renderRegion({ region, out, root });
 	}
 	const build_id = createHash("sha256").update(JSON.stringify(regions)).digest("hex").slice(0, 12);
-	const manifest = { version: 1, build: build_id, regions };
+	const previous = only && existsSync(join(out, "manifest.json")) ? JSON.parse(readFileSync(join(out, "manifest.json"), "utf8")).regions : {};
+	const manifest = { version: 1, build: build_id, regions: { ...previous, ...regions } };
 	writeFileSync(join(out, "manifest.json"), `${JSON.stringify(manifest, null, 1)}\n`);
 	const bytes = Object.values(regions).flatMap((paths) => Object.values(paths)).reduce((sum, { bytes: size }) => sum + size, 0);
 	console.log(`build-public: ${Object.keys(regions).join(" and ")} written to ${out} (${(bytes / 1e6).toFixed(1)} MB, build ${build_id})`);

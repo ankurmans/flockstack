@@ -4,6 +4,7 @@ import { startTestApp, withEnv } from "./helpers/app.mjs";
 import { runWithRequest } from "./stubs/next-headers.mjs";
 import { analyticsValues, createHandler, lookup } from "../workers/public/handler.js";
 import { ANALYTICS_MARKERS, ANALYTICS_MARKER_PATTERN, fillAnalyticsMarkers, isPrerendering } from "../lib/prerender.js";
+import { firstDifference, normalize, removeHelpChat, resolveStreaming } from "../scripts/verify-public.mjs";
 import { buildDevVars, buildWranglerConfig, checkPage, countMarkers, fileFor, hasMarkers, parseArgs, pickHeaders } from "../scripts/build-public.mjs";
 
 // workers/public: the Worker that serves what scripts/build-public.mjs rendered. Its files here are stand-ins; the pages
@@ -21,8 +22,8 @@ function manifest() {
 	return {
 		build: "abc123",
 		regions: {
-			us: { "/terms": { file: "us/terms.page", status: 200, headers, hasMarkers: true }, "/docs/api": { file: "us/docs/api.page", status: 200, headers, hasMarkers: false }, "/privacy": { file: "us/privacy.page", status: 404, headers, hasMarkers: false }, "/robots.txt": { file: "us/robots.txt.page", status: 200, headers: { "content-type": "text/plain; charset=utf-8" }, hasMarkers: false } },
-			eu: { "/terms": { file: "eu/terms.page", status: 200, headers, hasMarkers: true } },
+			us: { "/terms": { file: "terms.page", status: 200, headers, hasMarkers: true }, "/docs/api": { file: "docs/api.page", status: 200, headers, hasMarkers: false }, "/privacy": { file: "privacy.page", status: 404, headers, hasMarkers: false }, "/robots.txt": { file: "robots.txt.page", status: 200, headers: { "content-type": "text/plain; charset=utf-8" }, hasMarkers: false } },
+			eu: { "/terms": { file: "terms.page", status: 200, headers, hasMarkers: true } },
 		},
 	};
 }
@@ -40,7 +41,7 @@ function assets(files, { fail = false } = {}) {
 	};
 }
 
-const FILES = { "us/terms.page": PAGE, "eu/terms.page": PAGE.replace('\\"region\\":\\"us\\"', '\\"region\\":\\"eu\\"'), "us/docs/api.page": "<h1>API</h1>", "us/privacy.page": "<h1>Not found</h1>", "us/robots.txt.page": "User-agent: *\n" };
+const FILES = { "terms.page": PAGE, "docs/api.page": "<h1>API</h1>", "privacy.page": "<h1>Not found</h1>", "robots.txt.page": "User-agent: *\n" };
 const ask = async (url, { headers = {}, method = "GET", env = { POSTHOG_KEY: KEY }, files = FILES, fail = false } = {}) => {
 	const binding = assets(files, { fail });
 	const response = await createHandler(manifest())(new Request(url, { method, headers }), { ...env, ASSETS: binding });
@@ -48,19 +49,26 @@ const ask = async (url, { headers = {}, method = "GET", env = { POSTHOG_KEY: KEY
 };
 
 describe("the public pages Worker", () => {
-	test("serves the region's copy of a page with the headers the app sent it, and says which build it is", async () => {
+	test("serves its region's page with the headers the app sent it, and says which build it is", async () => {
 		const { response, binding } = await ask("https://flockstack.io/docs/api?utm_source=x");
 		assert.equal(response.status, 200);
 		assert.equal(await response.text(), "<h1>API</h1>");
 		assert.equal(response.headers.get("content-type"), "text/html; charset=utf-8");
 		assert.equal(response.headers.get("x-frame-options"), "DENY");
 		assert.equal(response.headers.get("x-public-build"), "abc123");
-		assert.deepEqual(binding.reads, ["us/docs/api.page"]);
-		const eu = await ask("https://flockstack.io/terms", { headers: { "x-fs-region": "eu" } });
-		assert.deepEqual(eu.binding.reads, ["eu/terms.page"]);
-		assert.match(await eu.response.text(), /region\\":\\"eu/);
-		const other = await ask("https://flockstack.io/terms", { headers: { "x-fs-region": "mars" } });
-		assert.deepEqual(other.binding.reads, ["us/terms.page"], "an unknown region is the US");
+		assert.deepEqual(binding.reads, ["docs/api.page"]);
+	});
+
+	test("the EU Worker serves the EU table and the US Worker the US one; anything else is the US", async () => {
+		const eu = await ask("https://eu.flockstack.io/terms", { env: { POSTHOG_KEY: KEY, FLOCKSTACK_REGION: "eu" } });
+		assert.equal(eu.response.status, 200);
+		assert.match(await eu.response.text(), /region\\":\\"us|<h1>Terms/, "the file is the one in its own folder");
+		const euOnly = await ask("https://eu.flockstack.io/docs/api", { env: { POSTHOG_KEY: KEY, FLOCKSTACK_REGION: "eu" } });
+		assert.equal(euOnly.response.headers.get("x-fs-public-miss"), "1", "the EU table has no /docs/api in this manifest");
+		const us = await ask("https://flockstack.io/docs/api", { env: { POSTHOG_KEY: KEY, FLOCKSTACK_REGION: "us" } });
+		assert.equal(us.response.status, 200);
+		const other = await ask("https://flockstack.io/docs/api", { env: { POSTHOG_KEY: KEY, FLOCKSTACK_REGION: "mars" } });
+		assert.equal(other.response.status, 200, "an unknown region is the US");
 	});
 
 	test("answers a legal page that is not published with the 404 the app gave, and a file with its own type", async () => {
@@ -77,8 +85,6 @@ describe("the public pages Worker", () => {
 		const unknown = await ask("https://flockstack.io/docs/nope");
 		assert.equal(unknown.response.status, 404);
 		assert.equal(unknown.response.headers.get("x-fs-public-miss"), "1");
-		const euOnly = await ask("https://flockstack.io/docs/api", { headers: { "x-fs-region": "eu" } });
-		assert.equal(euOnly.response.headers.get("x-fs-public-miss"), "1", "a page the EU copy lacks");
 		const broken = await ask("https://flockstack.io/terms", { fail: true });
 		assert.equal(broken.response.status, 502);
 		assert.equal(broken.response.headers.get("x-fs-public-miss"), "1");
@@ -105,7 +111,7 @@ describe("the public pages Worker", () => {
 	});
 
 	test("lookup reads the region's table and nothing else", () => {
-		assert.equal(lookup(manifest(), "us", "/terms").file, "us/terms.page");
+		assert.equal(lookup(manifest(), "us", "/terms").file, "terms.page");
 		assert.equal(lookup(manifest(), "eu", "/docs/api"), null);
 		assert.equal(lookup(manifest(), "us", "/__proto__"), null);
 		assert.equal(lookup({}, "us", "/terms"), null);
@@ -231,10 +237,10 @@ describe("what a visitor gets is what the app would have worked out for them", (
 });
 
 describe("scripts/build-public.mjs", () => {
-	test("names a file by region and path, in a name no tool serves on its own", () => {
-		assert.equal(fileFor("us", "/docs/api"), "us/docs/api.page");
-		assert.equal(fileFor("eu", "/api/v1/openapi.json"), "eu/api/v1/openapi.json.page");
-		assert.equal(fileFor("us", "/"), "us/index.page");
+	test("names a file by its path, in a name no tool serves on its own", () => {
+		assert.equal(fileFor("/docs/api"), "docs/api.page");
+		assert.equal(fileFor("/api/v1/openapi.json"), "api/v1/openapi.json.page");
+		assert.equal(fileFor("/"), "index.page");
 	});
 
 	test("keeps the headers a browser or crawler acts on and none of the platform's", () => {
@@ -274,5 +280,39 @@ describe("scripts/build-public.mjs", () => {
 		assert.equal(parseArgs(["--build", "--only", "eu"]).only, "eu");
 		assert.throws(() => parseArgs(["--only", "mars"]), /us or eu/);
 		assert.throws(() => parseArgs(["--deploy"]), /Unknown option/);
+	});
+});
+
+describe("scripts/verify-public.mjs compares the page the visitor ends up with", () => {
+	const late = '<main>x</main><!--$?--><template id="B:0"></template><!--/$--><footer>f</footer><div hidden id="S:0"><div class="a"><button>Help</button></div></div><script>$RC("B:0","S:0")</script>';
+	const early = "<main>x</main><!--$--><div class=\"a\"><button>Help</button></div><!--/$--><footer>f</footer>";
+
+	test("puts a part that arrived late where its placeholder is, which is where the browser moves it", () => {
+		assert.equal(resolveStreaming(late).replace(/<!--\/?\$\??-->/g, ""), early.replace(/<!--\/?\$\??-->/g, ""));
+		assert.equal(resolveStreaming("<p>plain</p>"), "<p>plain</p>");
+	});
+
+	test("ignores how Next.js cut its data into pieces and in which order the rows came", () => {
+		const a = '<body><script>self.__next_f.push([1,"1:\\"a\\"\\n2:[\\"$L5db\\"]\\n"])</script><script>self.__next_f.push([1,"3:[\\"b\\"]\\n"])</script></body>';
+		const b = '<body><script>self.__next_f.push([1,"3:[\\"b\\"]\\n1:\\"a\\"\\n2:[\\"$L5da\\"]\\n"])</script></body>';
+		assert.equal(normalize(a), normalize(b));
+		const c = '<body><script>self.__next_f.push([1,"1:\\"a\\"\\n2:[\\"$L5db\\"]\\n3:[\\"other\\"]\\n"])</script></body>';
+		assert.notEqual(normalize(a), normalize(c));
+	});
+
+	test("sees a real difference: text, an attribute, a visitor's value", () => {
+		assert.notEqual(normalize("<h1>Terms</h1>"), normalize("<h1>Privacy</h1>"));
+		assert.deepEqual(firstDifference("abc", "abc"), null);
+		assert.equal(firstDifference("abcdef", "abcxef").index, 3);
+		assert.equal(firstDifference("abc", "abcd").index, 3);
+		const consent = (value) => `<script>self.__next_f.push([1,"2:{\\"consent\\":${value}}\\n"])</script>`;
+		assert.notEqual(normalize(consent("null")), normalize(consent('\\"accepted\\"')));
+	});
+
+	test("takes the help chat out of both sides when the app has no AI binding to render it", () => {
+		const page = '<main>x</main><div data-support-chat="true" class="ph-no-capture"><button>Help</button><section><div>panel</div></section></div><footer>f</footer>';
+		assert.equal(removeHelpChat(page), "<main>x</main><footer>f</footer>");
+		assert.equal(removeHelpChat("<main>x</main>"), "<main>x</main>");
+		assert.equal(normalize(page, { withoutHelpChat: true }), normalize("<main>x</main><footer>f</footer>", { withoutHelpChat: true }));
 	});
 });

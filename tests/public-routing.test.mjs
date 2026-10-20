@@ -100,10 +100,14 @@ describe("wrangler configurations", () => {
 	test("the router binds the website, the public pages and its region's app, and carries a domain only in the environments that cut over", () => {
 		for (const config of [router, router.env.us, router.env.eu, router.env["eu-staged"]]) {
 			assert.equal(service(config, "WEBSITE"), "flockstack-website");
-			assert.equal(service(config, "PUBLIC"), publicWorker.name);
 			assert.equal(config.services.length, 3);
 			assert.ok(!config.compatibility_flags, "plain JavaScript, no Node compatibility");
 		}
+		assert.equal(service(router, "PUBLIC"), publicWorker.name);
+		assert.equal(service(router.env.us, "PUBLIC"), publicWorker.name);
+		assert.equal(service(router.env.eu, "PUBLIC"), publicWorker.env.eu.name, "each region's router has its own region's public Worker");
+		assert.equal(service(router.env["eu-staged"], "PUBLIC"), publicWorker.env.eu.name);
+		assert.notEqual(publicWorker.name, publicWorker.env.eu.name);
 		assert.equal(service(router, "APP"), app.name);
 		assert.equal(service(router.env.us, "APP"), app.name);
 		assert.equal(service(router.env.eu, "APP"), app.env.eu.name);
@@ -127,15 +131,19 @@ describe("wrangler configurations", () => {
 		assert.equal(router.vars.APP_URL, "https://flockstack.io");
 	});
 
-	test("the public pages Worker has no route, no cron and no bindings of data: files and nothing else", () => {
-		assert.equal(publicWorker.routes, undefined);
-		assert.equal(publicWorker.triggers, undefined);
-		for (const key of ["d1_databases", "r2_buckets", "kv_namespaces", "services", "ai", "durable_objects"]) assert.equal(publicWorker[key], undefined, key);
-		assert.equal(publicWorker.assets.binding, "ASSETS");
-		assert.equal(publicWorker.assets.run_worker_first, true);
-		assert.equal(publicWorker.assets.html_handling, "none");
-		assert.equal(publicWorker.assets.not_found_handling, "none");
-		assert.equal(publicWorker.main, "index.js");
+	test("the public pages Workers (one per region) have no route, no cron and no bindings of data: files and nothing else", () => {
+		for (const [config, region] of [[publicWorker, "us"], [publicWorker.env.eu, "eu"]]) {
+			assert.equal(config.routes, undefined);
+			assert.equal(config.triggers, undefined);
+			for (const key of ["d1_databases", "r2_buckets", "kv_namespaces", "services", "ai", "durable_objects"]) assert.equal(config[key], undefined, key);
+			assert.equal(config.assets.binding, "ASSETS");
+			assert.equal(config.assets.directory, `./dist/assets/${region}`, "only its own region's files");
+			assert.equal(config.assets.run_worker_first, true);
+			assert.equal(config.assets.html_handling, "none");
+			assert.equal(config.assets.not_found_handling, "none");
+			assert.equal(config.main, "index.js");
+			assert.equal(config.vars.FLOCKSTACK_REGION, region);
+		}
 		assert.equal(JSON.stringify(publicWorker).includes("FLOCKSTACK_PRERENDER"), false, "the marker mode is the build script's alone");
 	});
 

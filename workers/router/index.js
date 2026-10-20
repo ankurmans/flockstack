@@ -14,7 +14,7 @@ import { DEFAULT_TIMEOUT_MS, FALLBACK_STATUSES, HEALTH_PATH, chooseRoute } from 
 
 // The Worker's answer, or null where there is none to give: it threw, it did not start answering in time, or it said it is
 // unavailable (or, for PUBLIC, that it has no copy of the page). Only GET and HEAD get here, so asking the app next is safe.
-async function ask(name, binding, request, headers, timeoutMs) {
+async function ask(name, binding, request, timeoutMs) {
 	const controller = new AbortController();
 	let timer;
 	const timeout = new Promise((resolve) => {
@@ -24,7 +24,7 @@ async function ask(name, binding, request, headers, timeoutMs) {
 		}, timeoutMs);
 	});
 	try {
-		const upstream = new Request(request, { headers, redirect: "manual" });
+		const upstream = new Request(request, { redirect: "manual" });
 		const response = await Promise.race([binding.fetch(upstream, { signal: controller.signal }), timeout]);
 		if (!response) {
 			console.warn(`[router] ${name} did not answer in ${timeoutMs} ms, the app answers`);
@@ -78,11 +78,8 @@ const router = {
 		}
 		if (route !== "app") {
 			const timeoutMs = Number(env.ROUTER_TIMEOUT_MS) > 0 ? Number(env.ROUTER_TIMEOUT_MS) : DEFAULT_TIMEOUT_MS;
-			// PUBLIC serves the region's own copy of the pages: the router says which region it is.
-			const headers = new Headers(request.headers);
-			headers.set("x-fs-region", env.FLOCKSTACK_REGION === "eu" ? "eu" : "us");
 			const askedAt = Date.now();
-			const response = await ask(route, route === "website" ? env.WEBSITE : env.PUBLIC, request, headers, timeoutMs);
+			const response = await ask(route, route === "website" ? env.WEBSITE : env.PUBLIC, request, timeoutMs);
 			if (response) return stamp(response, route, startedAt, Date.now() - askedAt);
 		}
 

@@ -7,19 +7,21 @@ import { after, before, beforeEach, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
 	REGIONS,
+	appHoldsDomain,
 	buildBaselineSql,
 	buildMigrationSql,
 	getBaselineFiles,
 	getPendingFiles,
+	isRouterLive,
 	listMigrations,
 	main,
 	parseArgs,
 	parseRows,
 } from "../scripts/deploy-all.mjs";
 
-// scripts/deploy-all.mjs: one build, the missing migrations on each region's database, then both deploys. The flow runs
-// against a stand-in for npx that keeps each D1 database in a SQLite file and writes down every call, so nothing reaches
-// Cloudflare.
+// scripts/deploy-all.mjs: one build, the missing migrations on each region's database, then each region's app, public pages and
+// router. The flow runs against stand-ins for npx and npm that keep each D1 database in a SQLite file and write down every call, and
+// a stand-in for fetch (the router's health check), so nothing reaches Cloudflare.
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 
 // Stands in for `npx`: wrangler d1 execute against a SQLite file per database, deploys and builds as log lines.
@@ -49,6 +51,33 @@ if (args[0] === "wrangler" && args[1] === "d1" && args[2] === "execute") {
 console.error("unexpected call", args);
 process.exit(2);
 `;
+
+// What `npm run render:public` is: the public pages rendered from the build, logged here.
+const FAKE_NPM = `#!/usr/bin/env node
+const { appendFileSync } = require("node:fs");
+const args = process.argv.slice(2);
+if (args[0] === "run" && args[1] === "render:public") { appendFileSync(process.env.FAKE_LOG, JSON.stringify({ render: true }) + "\\n"); process.exit(0); }
+console.error("unexpected npm call", args);
+process.exit(2);
+`;
+
+// The domain's /__router/health as it is before the cutover (the app answers, with no router header) and after it.
+// The deploys of a full run, in order: US app, US public pages, US router, then the EU's.
+const DEPLOYS_BOTH = [
+	[],
+	["--config", "workers/public/wrangler.jsonc"],
+	["--config", "workers/router/wrangler.jsonc", "--env", "us"],
+	["--env", "eu"],
+	["--config", "workers/public/wrangler.jsonc", "--env", "eu"],
+	["--config", "workers/router/wrangler.jsonc", "--env", "eu"],
+];
+
+// wrangler.jsonc as it is until the cutover (the app lists both domains) and after it (only a newsletter's own).
+const HOLDS_FLOCKSTACK = { routes: [{ pattern: "flockstack.io", custom_domain: true }, { pattern: "newsletter.ankur.works", custom_domain: true }], env: { eu: { routes: [{ pattern: "eu.flockstack.io", custom_domain: true }] } } };
+const RELEASED = { routes: [{ pattern: "newsletter.ankur.works", custom_domain: true }], env: { eu: {} } };
+
+const unrouted = async () => new Response("not found", { status: 404 });
+const routed = async () => new Response("ok\n", { status: 200, headers: { "x-served-by": "router" } });
 
 let folder;
 let migrations;
@@ -86,12 +115,12 @@ function recordedIn(name) {
 	}
 }
 
-async function run(argv, { legalTodos = [] } = {}) {
+async function run(argv, { legalTodos = [], fetchImpl = unrouted, config = HOLDS_FLOCKSTACK } = {}) {
 	const lines = [];
 	const log = console.log;
 	console.log = (...parts) => lines.push(parts.join(" "));
 	try {
-		main(argv, { migrationsDir: migrations, legalTodos });
+		await main(argv, { migrationsDir: migrations, legalTodos, fetchImpl, wranglerConfig: config });
 	} finally {
 		console.log = log;
 	}
@@ -105,6 +134,8 @@ before(() => {
 	mkdirSync(join(folder, "dbs"));
 	writeFileSync(join(folder, "bin", "npx"), FAKE_NPX);
 	chmodSync(join(folder, "bin", "npx"), 0o755);
+	writeFileSync(join(folder, "bin", "npm"), FAKE_NPM);
+	chmodSync(join(folder, "bin", "npm"), 0o755);
 	previous = { PATH: process.env.PATH, FAKE_LOG: process.env.FAKE_LOG, FAKE_DBS: process.env.FAKE_DBS };
 	process.env.PATH = `${join(folder, "bin")}:${process.env.PATH}`;
 	process.env.FAKE_LOG = join(folder, "calls.log");
@@ -131,13 +162,30 @@ beforeEach(() => {
 
 describe("the pieces", () => {
 	test("--only, --dry-run, --skip-build and --baseline, and nothing else", () => {
-		assert.deepEqual(parseArgs([]), { only: null, isDryRun: false, skipBuild: false, baseline: 6 });
-		assert.deepEqual(parseArgs(["--only", "eu", "--dry-run", "--skip-build", "--baseline", "0004"]), { only: "eu", isDryRun: true, skipBuild: true, baseline: 4 });
+		assert.deepEqual(parseArgs([]), { only: null, isDryRun: false, skipBuild: false, skipRouterCheck: false, baseline: 6 });
+		assert.deepEqual(parseArgs(["--only", "eu", "--dry-run", "--skip-build", "--baseline", "0004"]), { only: "eu", isDryRun: true, skipBuild: true, skipRouterCheck: false, baseline: 4 });
+		assert.equal(parseArgs(["--skip-router-check"]).skipRouterCheck, true);
 		assert.throws(() => parseArgs(["--allow-legal-todos"]), /Unknown option --allow-legal-todos/);
 		assert.throws(() => parseArgs(["--only", "asia"]), /--only takes us or eu/);
 		assert.throws(() => parseArgs(["--only"]), /--only takes us or eu/);
 		assert.throws(() => parseArgs(["--baseline", "soon"]), /--baseline takes a migration number/);
 		assert.throws(() => parseArgs(["--force"]), /Unknown option --force/);
+	});
+
+	test("the public pages and router Workers of each region are the ones in workers/public and workers/router", () => {
+		const read = (path) => JSON.parse(readFileSync(join(ROOT, path), "utf8").replace(/^\s*\/\/.*$/gm, ""));
+		const publicConfig = read("workers/public/wrangler.jsonc");
+		const routerConfig = read("workers/router/wrangler.jsonc");
+		assert.equal(REGIONS.us.publicWorker, publicConfig.name);
+		assert.deepEqual(REGIONS.us.publicArgs, ["--config", "workers/public/wrangler.jsonc"]);
+		assert.equal(REGIONS.eu.publicWorker, publicConfig.env.eu.name);
+		assert.deepEqual(REGIONS.eu.publicArgs, ["--config", "workers/public/wrangler.jsonc", "--env", "eu"]);
+		assert.equal(REGIONS.us.routerWorker, routerConfig.env.us.name);
+		assert.deepEqual(REGIONS.us.routerArgs, ["--config", "workers/router/wrangler.jsonc", "--env", "us"]);
+		assert.equal(REGIONS.eu.routerWorker, routerConfig.env.eu.name);
+		assert.deepEqual(REGIONS.eu.routerArgs, ["--config", "workers/router/wrangler.jsonc", "--env", "eu"]);
+		// The router deployed with routes is the cutover, so it is the environment that carries the domain.
+		assert.ok(routerConfig.env.us.routes[0].custom_domain && routerConfig.env.eu.routes[0].custom_domain);
 	});
 
 	test("the regions are the ones in wrangler.jsonc: the top level is the US, env.eu the EU", () => {
@@ -191,7 +239,7 @@ describe("the pieces", () => {
 });
 
 describe("a run", () => {
-	test("builds once, records what was applied by hand without running it, applies the rest, then deploys both Workers", async () => {
+	test("builds once, records what was applied by hand without running it, applies the rest, then deploys each region's app, public pages and router", async () => {
 		for (const name of ["flockstack", "flockstack-eu"]) {
 			const db = openDb(name);
 			db.exec("CREATE TABLE one (id TEXT); CREATE TABLE two (id TEXT);");
@@ -205,8 +253,11 @@ describe("a run", () => {
 		}
 		const calls = readLog();
 		assert.equal(calls.filter((call) => call.build).length, 1, "one build");
-		assert.deepEqual(calls.filter((call) => call.deploy).map(({ deploy }) => deploy), [[], ["--env", "eu"]]);
-		assert.equal(calls.findIndex((call) => call.deploy), calls.length - 2, "the deploys come last, after every migration");
+		assert.equal(calls.filter((call) => call.render).length, 1, "and one rendering of the public pages from it");
+		assert.ok(calls.findIndex((call) => call.build) < calls.findIndex((call) => call.render), "the build first");
+		assert.ok(calls.findIndex((call) => call.render) < calls.findIndex((call) => call.d1), "then the pages, before anything is changed");
+		assert.deepEqual(calls.filter((call) => call.deploy).map(({ deploy }) => deploy), DEPLOYS_BOTH, "per region: the app, then the public pages, then the router");
+		assert.equal(calls.findIndex((call) => call.deploy), calls.length - 6, "the deploys come last, after every migration");
 		assert.deepEqual(
 			[...new Set(calls.filter((call) => call.d1).map(({ d1, env, remote }) => `${d1}:${env}:${remote}`))],
 			["flockstack:null:true", "flockstack-eu:eu:true"]
@@ -221,7 +272,7 @@ describe("a run", () => {
 		await run(["--baseline", "0"]);
 		const second = readLog().slice(before);
 		assert.equal(second.filter((call) => call.file).length, 0);
-		assert.equal(second.filter((call) => call.deploy).length, 2, "it deploys again all the same");
+		assert.equal(second.filter((call) => call.deploy).length, 6, "it deploys again all the same");
 	});
 
 	test("a file added later is the only one that runs", async () => {
@@ -231,6 +282,7 @@ describe("a run", () => {
 		await run(["--skip-build"]);
 		const second = readLog().slice(before);
 		assert.equal(second.filter((call) => call.build).length, 0);
+		assert.equal(second.filter((call) => call.render).length, 0, "no build, nothing to render again");
 		assert.deepEqual(second.filter((call) => call.file).map(({ sql }) => /CREATE TABLE (\w+)/.exec(sql)[1]), ["four", "four"]);
 		assert.deepEqual(recordedIn("flockstack").at(-1), "0004_added.sql");
 		assert.ok(tablesOf("flockstack-eu").includes("four"));
@@ -239,7 +291,7 @@ describe("a run", () => {
 	test("--only eu leaves the US database and Worker alone", async () => {
 		await run(["--only", "eu", "--baseline", "0"]);
 		const calls = readLog();
-		assert.deepEqual(calls.filter((call) => call.deploy).map(({ deploy }) => deploy), [["--env", "eu"]]);
+		assert.deepEqual(calls.filter((call) => call.deploy).map(({ deploy }) => deploy), DEPLOYS_BOTH.slice(3));
 		assert.ok(calls.filter((call) => call.d1).every(({ d1 }) => d1 === "flockstack-eu"));
 		assert.deepEqual(readdirSync(join(folder, "dbs")), ["flockstack-eu.sqlite"]);
 	});
@@ -253,7 +305,7 @@ describe("a run", () => {
 		writeFileSync(join(migrations, "0004_broken.sql"), "CREATE TABLE four (id TEXT);\n");
 		await run(["--skip-build"]);
 		assert.ok(recordedIn("flockstack").includes("0004_broken.sql"));
-		assert.equal(readLog().filter((call) => call.deploy).length, 2);
+		assert.equal(readLog().filter((call) => call.deploy).length, 6);
 	});
 
 	test("--dry-run prints the commands and runs none", async () => {
@@ -263,16 +315,22 @@ describe("a run", () => {
 		assert.match(output, /\$ npx opennextjs-cloudflare build/);
 		assert.match(output, /\$ npx wrangler d1 execute flockstack --remote --yes/);
 		assert.match(output, /\$ npx wrangler d1 execute flockstack-eu --remote --yes --env eu/);
+		assert.match(output, /\$ npm run render:public/);
 		assert.match(output, /\$ npx wrangler deploy\n/);
+		assert.match(output, /\$ npx wrangler deploy --config workers\/public\/wrangler\.jsonc\n/);
+		assert.match(output, /\$ npx wrangler deploy --config workers\/router\/wrangler\.jsonc --env us\n/);
 		assert.match(output, /\$ npx wrangler deploy --env eu/);
+		assert.match(output, /\$ npx wrangler deploy --config workers\/public\/wrangler\.jsonc --env eu\n/);
+		assert.match(output, /\$ npx wrangler deploy --config workers\/router\/wrangler\.jsonc --env eu\n/);
+		assert.match(output, /Would ask https:\/\/flockstack\.io\/__router\/health for x-served-by: router\./);
 		assert.match(output, /Dry run done\./);
 	});
 
 	test("placeholders left in lib/legal.js don't stop it: it names them, says the legal pages stay hidden and deploys", async () => {
 		const output = await run(["--baseline", "0"], { legalTodos: [["EFFECTIVE_DATE", "TODO: a date"], ["SERVICES_LIVE_CONFIRMED", "TODO: once live"]] });
 		assert.match(output, /Legal pages stay hidden until these are filled in lib\/legal\.js: EFFECTIVE_DATE, SERVICES_LIVE_CONFIRMED\./);
-		assert.equal(readLog().filter((call) => call.deploy).length, 2);
-		assert.match(output, /Deployed flockstack and flockstack-eu\./);
+		assert.equal(readLog().filter((call) => call.deploy).length, 6);
+		assert.match(output, /Deployed flockstack, flockstack-public, flockstack-router, flockstack-eu, flockstack-public-eu, flockstack-router-eu\./);
 		writeFileSync(join(folder, "calls.log"), "");
 		assert.doesNotMatch(await run(["--skip-build"]), /Legal pages/);
 	});
@@ -283,12 +341,82 @@ describe("a run", () => {
 		const log = console.log;
 		console.log = (...parts) => lines.push(parts.join(" "));
 		try {
-			main(["--dry-run"], { migrationsDir: migrations });
+			await main(["--dry-run"], { migrationsDir: migrations });
 		} finally {
 			console.log = log;
 		}
 		const todos = getLegalTodos();
 		if (todos.length > 0) assert.ok(lines.join("\n").includes(todos.map(([name]) => name).join(", ")));
 		else assert.doesNotMatch(lines.join("\n"), /Legal pages/);
+	});
+});
+
+describe("the domain and the Worker that holds it", () => {
+	const holdsFlockstack = HOLDS_FLOCKSTACK;
+	const released = RELEASED;
+
+	test("reads from wrangler.jsonc whether the app lists a region's domain", () => {
+		assert.equal(appHoldsDomain("us", holdsFlockstack), true);
+		assert.equal(appHoldsDomain("eu", holdsFlockstack), true);
+		assert.equal(appHoldsDomain("us", released), false, "newsletter.ankur.works is a newsletter's, not flockstack.io");
+		assert.equal(appHoldsDomain("eu", released), false);
+		assert.equal(appHoldsDomain("us", {}), false);
+		assert.equal(appHoldsDomain("us", { routes: ["flockstack.io"] }), true);
+	});
+
+	test("the repository's wrangler.jsonc keeps a newsletter's domain on the app for good", () => {
+		const config = JSON.parse(readFileSync(join(ROOT, "wrangler.jsonc"), "utf8").replace(/^\s*\/\/.*$/gm, ""));
+		assert.ok(config.routes.some((route) => route.pattern === "newsletter.ankur.works"));
+		assert.equal(typeof appHoldsDomain("us", config), "boolean");
+		assert.equal(typeof appHoldsDomain("eu", config), "boolean");
+	});
+
+	test("asks the domain's health path and takes only the router's answer", async () => {
+		assert.equal(await isRouterLive("us", routed), true);
+		assert.equal(await isRouterLive("us", unrouted), false);
+		assert.equal(await isRouterLive("us", async () => new Response("ok", { status: 200, headers: { "x-served-by": "app" } })), false);
+		assert.equal(await isRouterLive("us", async () => new Response("down", { status: 503, headers: { "x-served-by": "router" } })), false);
+		assert.equal(await isRouterLive("eu", async () => { throw new Error("no route to host"); }), false);
+		const asked = [];
+		await isRouterLive("eu", async (url) => (asked.push(url), routed()));
+		assert.deepEqual(asked, ["https://eu.flockstack.io/__router/health"]);
+	});
+
+	test("stops, before changing anything, when the router already has the domain and wrangler.jsonc still lists it for the app", async () => {
+		await assert.rejects(run(["--baseline", "0"], { fetchImpl: routed }), /answered by the router, but wrangler\.jsonc still lists that domain/);
+		assert.deepEqual(readLog(), [], "no build, no migration, no deploy");
+	});
+
+	test("stops, before changing anything, when wrangler.jsonc has let the domain go and the router does not hold it yet", async () => {
+		await assert.rejects(run(["--baseline", "0"], { fetchImpl: unrouted, config: RELEASED }), /not answered by the router, and wrangler\.jsonc no longer lists that domain/);
+		assert.deepEqual(readLog(), []);
+	});
+
+	test("goes on after the cutover: the router holds the domain and wrangler.jsonc has let it go; --only checks only its region", async () => {
+		const output = await run(["--baseline", "0"], { fetchImpl: routed, config: RELEASED });
+		assert.match(output, /served by the router, and not a route of the app/);
+		assert.equal(readLog().filter((call) => call.deploy).length, 6);
+		const asked = [];
+		await run(["--only", "eu", "--baseline", "0"], { fetchImpl: async (url) => (asked.push(url), routed()), config: RELEASED });
+		assert.deepEqual(asked, ["https://eu.flockstack.io/__router/health"]);
+	});
+
+	test("one region cut over and the other not: --only us is checked on the US alone", async () => {
+		const usOnly = { routes: [{ pattern: "newsletter.ankur.works", custom_domain: true }], env: { eu: { routes: [{ pattern: "eu.flockstack.io", custom_domain: true }] } } };
+		const answers = async (url) => (url.startsWith("https://flockstack.io") ? routed() : unrouted());
+		await run(["--only", "us", "--baseline", "0"], { fetchImpl: answers, config: usOnly });
+		await run(["--only", "eu", "--baseline", "0"], { fetchImpl: answers, config: usOnly });
+		await assert.rejects(run(["--baseline", "0"], { fetchImpl: routed, config: usOnly }), /eu\.flockstack\.io.*answered by the router, but wrangler\.jsonc still lists/);
+	});
+
+	test("goes on with --skip-router-check, and says it skipped", async () => {
+		const output = await run(["--baseline", "0", "--skip-router-check"], { fetchImpl: routed });
+		assert.match(output, /Skipped \(--skip-router-check\)/);
+		assert.equal(readLog().filter((call) => call.deploy).length, 6);
+	});
+
+	test("goes on when the domain is still the app's own, which is how it is until the cutover", async () => {
+		const output = await run(["--baseline", "0"], { fetchImpl: unrouted });
+		assert.match(output, /still the app's own route \(no router yet\)/);
 	});
 });

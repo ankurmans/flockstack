@@ -254,13 +254,14 @@ describe("answering", () => {
 		assert.equal(fromApp.headers.get("x-served-by"), "app");
 	});
 
-	test("tells PUBLIC the router's region and overwrites whatever the visitor sent", async () => {
-		const us = stack(US);
-		await router.fetch(get("https://flockstack.io/docs", { "x-fs-region": "eu" }), us.env);
-		assert.equal(us.PUBLIC.calls[0].request.headers.get("x-fs-region"), "us");
-		const eu = stack(EU);
-		await router.fetch(get("https://eu.flockstack.io/docs"), eu.env);
-		assert.equal(eu.PUBLIC.calls[0].request.headers.get("x-fs-region"), "eu");
+	test("sends PUBLIC the visit as it came, without a header of its own", async () => {
+		const { env, PUBLIC } = stack(US);
+		await router.fetch(get("https://flockstack.io/docs", { "x-fs-region": "eu", "cf-ipcountry": "DE", cookie: "fs_consent=accepted" }), env);
+		const [{ request }] = PUBLIC.calls;
+		assert.equal(request.headers.get("cf-ipcountry"), "DE");
+		assert.equal(request.headers.get("cookie"), "fs_consent=accepted");
+		assert.equal(request.redirect, "manual");
+		assert.equal(request.url, "https://flockstack.io/docs");
 	});
 
 	test("answers its own health check and nothing else on the hostname's behalf", async () => {

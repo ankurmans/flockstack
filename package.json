@@ -12,7 +12,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --import ./tests/setup/register.mjs --test \"tests/**/*.test.mjs\""
+    "test": "node --import ./tests/setup/register.mjs --test \"tests/**/*.test.mjs\"",
+    "build:public": "node scripts/build-public.mjs --build",
+    "render:public": "node scripts/build-public.mjs",
+    "deploy:public": "wrangler deploy --config workers/public/wrangler.jsonc",
+    "deploy:router": "wrangler deploy --config workers/router/wrangler.jsonc"
   },
   "dependencies": {
     "@aws-sdk/client-cloudfront": "^3.1146.0",

@@ -6,6 +6,7 @@
 	// The top level and env.eu-staged have NO routes: they live on workers.dev, to be tested before a domain moves. env.us and
 	// env.eu are the same Workers with the custom domain, and deploying them is the cutover: it takes flockstack.io (or
 	// eu.flockstack.io) from the app Worker and gives it to this one (README, Regions, and the runbook in docs/ARCHITECTURE-WORKERS.md).
+	// Each region's router binds that region's own public pages Worker (flockstack-public, flockstack-public-eu) and app.
 	// Names without "-env" suffix: an environment that sets `name` deploys as that Worker.
 	"name": "flockstack-router",
 	"main": "index.js",
@@ -52,7 +53,7 @@
 			"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
 			"services": [
 				{ "binding": "WEBSITE", "service": "flockstack-website" },
-				{ "binding": "PUBLIC", "service": "flockstack-public" },
+				{ "binding": "PUBLIC", "service": "flockstack-public-eu" },
 				{ "binding": "APP", "service": "flockstack-eu" }
 			],
 			"vars": { "FLOCKSTACK_REGION": "eu", "APP_URL": "https://eu.flockstack.io" }
@@ -68,7 +69,7 @@
 			"routes": [{ "pattern": "eu.flockstack.io", "custom_domain": true }],
 			"services": [
 				{ "binding": "WEBSITE", "service": "flockstack-website" },
-				{ "binding": "PUBLIC", "service": "flockstack-public" },
+				{ "binding": "PUBLIC", "service": "flockstack-public-eu" },
 				{ "binding": "APP", "service": "flockstack-eu" }
 			],
 			"vars": { "FLOCKSTACK_REGION": "eu", "APP_URL": "https://eu.flockstack.io" }
