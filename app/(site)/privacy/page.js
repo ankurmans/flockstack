@@ -390,7 +390,7 @@ export default function PrivacyPage() {
 					<code>ph_</code>) to tell visits apart. {ANALYTICS_RULE} Those are not on this list because they are not needed for the service. When you
 					sign up, set up your first newsletter or start a plan, FlockStack also sets <code>fs_goal</code> for ten minutes, which the next page reads
 					once to count that step and removes. It is set only while analytics is on. Change your choice any time with <Strong>Cookie settings</Strong>{" "}
-					in the footer of the home page, the pricing, comparison and blog pages, the docs and the legal pages, and on the sign-in page. Declining deletes the PostHog cookies and local
+					in the footer of the home page, the product, pricing, comparison, migration and blog pages, the docs and the legal pages, and on the sign-in page. Declining deletes the PostHog cookies and local
 					storage.
 				</p>
 				<p>

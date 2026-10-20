@@ -14,7 +14,7 @@ const forward = (overrides) => shouldForwardToWebsite({ method: "GET", hostname:
 
 describe("lib/website-routing.js", () => {
 	test("forwards the website's paths, with or without a session", () => {
-		for (const pathname of ["/pricing", "/compare", "/changelog", "/blog", "/blog/a-post", "/blog/feed.xml", "/llms.txt", "/sitemap-website.xml", "/_website/_next/static/a.js", "/_website/og/home", "/_website/site.webmanifest"]) {
+		for (const pathname of ["/pricing", "/compare", "/changelog", "/blog", "/blog/a-post", "/blog/feed.xml", "/vs", "/vs/mailchimp", "/alternatives", "/alternatives/mailchimp", "/switch", "/switch/mailchimp", "/newsletter-api", "/newsletter-mcp-server", "/newsletter-automation", "/paid-newsletter-platform", "/cheapest-newsletter-platform", "/amazon-ses-newsletter", "/self-hosted-newsletter", "/llms.txt", "/sitemap-website.xml", "/_website/_next/static/a.js", "/_website/og/home", "/_website/site.webmanifest"]) {
 			assert.equal(forward({ pathname }), true, pathname);
 			assert.equal(forward({ pathname, hasSession: true }), true, `${pathname} signed in`);
 		}
@@ -26,7 +26,7 @@ describe("lib/website-routing.js", () => {
 	});
 
 	test("leaves everything else to the app", () => {
-		for (const pathname of ["/docs", "/docs/api", "/signin", "/terms", "/privacy", "/sub-processors", "/custom", "/robots.txt", "/sitemap.xml", "/site.webmanifest", "/llms-full.txt", "/llms-docs.txt", "/api/v1/contacts", "/mcp", "/archive/x", "/pricing/extra", "/blogger", "/_websitefoo", "/campaigns", "/billing"]) {
+		for (const pathname of ["/docs", "/docs/api", "/signin", "/terms", "/privacy", "/sub-processors", "/custom", "/robots.txt", "/sitemap.xml", "/site.webmanifest", "/llms-full.txt", "/llms-docs.txt", "/api/v1/contacts", "/mcp", "/archive/x", "/pricing/extra", "/blogger", "/vsx", "/newsletter-api/extra", "/newsletter", "/_websitefoo", "/campaigns", "/billing"]) {
 			assert.equal(forward({ pathname }), false, pathname);
 		}
 	});
@@ -98,7 +98,7 @@ describe("worker-entry.mjs", () => {
 	}
 
 	test("hands the website's paths to the WEBSITE binding, and everything else to the app", async () => {
-		for (const path of ["/pricing", "/compare", "/changelog", "/blog", "/blog/a-post", "/llms.txt", "/sitemap-website.xml", "/_website/og/home", "/"]) {
+		for (const path of ["/pricing", "/compare", "/changelog", "/blog", "/blog/a-post", "/vs/mailchimp", "/switch", "/alternatives/mailchimp", "/newsletter-automation", "/llms.txt", "/sitemap-website.xml", "/_website/og/home", "/"]) {
 			assert.deepEqual(await answer(`https://flockstack.io${path}`), { body: "website", website: true, app: false }, path);
 		}
 		for (const path of ["/docs", "/signin", "/robots.txt", "/sitemap.xml", "/llms-docs.txt", "/llms-full.txt", "/api/v1/newsletters", "/campaigns"]) {

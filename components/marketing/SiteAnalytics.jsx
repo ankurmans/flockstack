@@ -9,8 +9,8 @@ import { getRegion } from "@/lib/region";
 // FlockStack Cloud's product analytics (PostHog), as SiteAnalytics in components/SiteExtensions.jsx. It goes in the
 // layouts of FlockStack's own pages only: the docs, legal pages, sign-in and the signed-in dashboard. Never in the root
 // layout, and never on a newsletter's pages, the pages readers use, or the admin (tests/analytics-routes.test.mjs lists
-// where it is). The marketing website, a separate Worker, loads its own copy on its home, pricing, comparison and blog
-// pages. user and account identify a signed-in person.
+// where it is). The marketing website, a separate Worker, loads its own copy on its home, product, pricing, comparison, migration
+// and blog pages. user and account identify a signed-in person.
 // No POSTHOG_KEY renders nothing, without waiting for the request.
 export default function SiteAnalytics({ user = null, account = null }) {
 	if (!isCloud() || !readAnalyticsEnv()) return null;
