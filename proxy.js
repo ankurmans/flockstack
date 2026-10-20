@@ -145,6 +145,10 @@ export async function proxy(request) {
 		if (archiveUrl) return NextResponse.redirect(archiveUrl, 308);
 	}
 
+	// The old landing page was rendered from / at /home, and may still be linked or indexed there. / is the marketing
+	// website's home page for a visitor (worker-entry.mjs) and the dashboard for a signed-in person.
+	if (pathname === "/home") return NextResponse.redirect(new URL("/", request.url), 308);
+
 	// Only whether a session cookie is there: pages, actions and routes check the session itself.
 	const hasSession = Boolean(getSessionCookie(request, { cookiePrefix: getCookiePrefix() }));
 	// FlockStack Cloud's pages that open without a session (site extensions). A self-hosted server has none of them.

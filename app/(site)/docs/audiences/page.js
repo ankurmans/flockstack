@@ -21,7 +21,7 @@ function Text({ children }) {
 export default function AudiencesPage() {
 	return (
 		<>
-			<HeaderDocs kicker="Guides" title="Tags, segments and automations">
+			<HeaderDocs kicker="Guides" title="Tags, segments and automations" product={{ href: "/newsletter-automation", label: "Newsletter automation, in plain terms" }}>
 				Label contacts, save audiences as rules, and send series of emails that start on their own. All of it works from the dashboard, the
 				REST API and MCP.
 			</HeaderDocs>

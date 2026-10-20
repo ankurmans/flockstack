@@ -156,6 +156,10 @@ describe("/", () => {
 		assert.deepEqual(outcome(await visit("/", { cookie: cookieOf(user) })), { next: true });
 	});
 
+	test("the old landing page's address, /home, redirects to / for good", async () => {
+		assert.deepEqual(outcome(await visit("/home")), { status: 308, location: "http://localhost:3000/" });
+	});
+
 	test("the dashboard at / opens for a signed-in user, plan or not", async () => {
 		const user = await signIn("dashboard@example.com");
 		assert.equal(String((await as(user, () => m.auth.requireAccount())).account._id), String(user.accountId));

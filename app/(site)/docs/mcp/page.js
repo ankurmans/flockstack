@@ -23,7 +23,7 @@ export default function McpPage() {
 
 	return (
 		<>
-			<HeaderDocs kicker="Guides" title="MCP server">
+			<HeaderDocs kicker="Guides" title="MCP server" product={{ href: "/newsletter-mcp-server", label: "Running a newsletter from an AI agent" }}>
 				ChatGPT, Claude and Grok Bot connect to <code className="font-mono text-[15px] text-foreground">{mcpUrl}</code>: you sign in to
 				FlockStack and allow them, no key to copy. Claude Code, Codex and Cursor use a full access key. Each gets one tool per
 				endpoint, with the same inputs, checks and errors.
@@ -61,7 +61,7 @@ export default function McpPage() {
 					<h2 className="font-semibold tracking-tight">Sends can&apos;t be undone</h2>
 					<p className="mt-2 text-[15px] leading-7 text-pretty text-foreground/80">
 						{sendTools.map(({ name }) => name).join(", ")} are marked destructive, and their descriptions ask the assistant to check with
-						you first. Most clients ask before running them. send_test_email sends only to the account owner.
+						you first. Most clients ask before running them. send_test_email sends only to the account owner or to up to 10 addresses you name, never to the list.
 					</p>
 				</section>
 

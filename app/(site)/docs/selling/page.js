@@ -28,7 +28,7 @@ export default function SellingPage() {
 
 	return (
 		<>
-			<HeaderDocs kicker="Guides" title="Selling">
+			<HeaderDocs kicker="Guides" title="Selling" product={{ href: "/paid-newsletter-platform", label: "Paid newsletters on FlockStack" }}>
 				Sell digital products and paid subscriptions to your readers, from the dashboard, the REST API or an AI assistant. Readers pay your
 				own Stripe account. FlockStack takes no cut: only Stripe&apos;s processing fee comes off a sale. Selling works on every plan, the Free plan included.
 			</HeaderDocs>

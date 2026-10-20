@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { after, before, describe, test } from "node:test";
 import { startTestApp, withEnv } from "./helpers/app.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { hasSessionCookie, isWebsitePath, shouldForwardToWebsite } from "../lib/website-routing.js";
+import { isReservedSlug } from "../lib/reserved-slugs.js";
+import { WEBSITE_EXACT_PATHS, WEBSITE_PREFIXES, hasSessionCookie, isWebsitePath, shouldForwardToWebsite } from "../lib/website-routing.js";
 
 // The marketing website is a separate Worker (a private repository). The app's worker-entry.mjs hands it a short list of paths
 // through the WEBSITE service binding, and answers everything else itself.
@@ -50,6 +51,14 @@ describe("lib/website-routing.js", () => {
 	test("/llms-docs.txt is the app's own: the website merges it into /llms.txt", () => {
 		assert.equal(isWebsitePath("/llms-docs.txt"), false);
 		assert.equal(isWebsitePath("/llms.txt"), true);
+	});
+});
+
+describe("the website's top-level paths", () => {
+	test("are reserved slugs, so none is ever a newsletter's address on flockstack.io", () => {
+		const segments = [...WEBSITE_EXACT_PATHS, ...WEBSITE_PREFIXES].map((path) => path.split("/")[1]).filter((name) => name && !name.startsWith("_") && !name.includes("."));
+		assert.ok(segments.includes("newsletter-api") && segments.includes("vs"));
+		for (const name of segments) assert.ok(isReservedSlug(name), name);
 	});
 });
 
@@ -162,5 +171,27 @@ describe("/llms-docs.txt", () => {
 		const { NextRequest } = await import("next/server");
 		const response = await proxy(new NextRequest(new URL("/llms-docs.txt", "http://localhost:3000"), { headers: { host: "localhost:3000" } }));
 		assert.ok(response.headers.get("x-middleware-next"));
+	});
+});
+
+describe("the docs link to the website's product pages", () => {
+	let app;
+	before(async () => {
+		app = await startTestApp();
+	});
+	after(() => app?.stop());
+
+	test("on FlockStack Cloud only, as plain links to paths the app forwards", async () => {
+		const { createElement } = await import("react");
+		const { renderToStaticMarkup } = await import("react-dom/server");
+		const { TooltipProvider } = await import("../components/ui/tooltip.jsx");
+		const links = { api: "/newsletter-api", mcp: "/newsletter-mcp-server", audiences: "/newsletter-automation", selling: "/paid-newsletter-platform" };
+		for (const [doc, href] of Object.entries(links)) {
+			const page = (await import(`../app/(site)/docs/${doc}/page.js`)).default;
+			assert.equal(isWebsitePath(href), true, href);
+			const render = async () => renderToStaticMarkup(createElement(TooltipProvider, null, await page()));
+			await withEnv({ FLOCKSTACK_CLOUD: "true" }, async () => assert.match(await render(), new RegExp(`<a href="${href}"`), doc));
+			await withEnv({ FLOCKSTACK_CLOUD: "" }, async () => assert.doesNotMatch(await render(), new RegExp(`href="${href}"`), doc));
+		}
 	});
 });
