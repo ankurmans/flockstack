@@ -64,6 +64,7 @@ const ARCHIVE_HOST_PATHS = [
 	/^\/o\//,
 	/^\/c\//,
 ];
+const AUDIO_PATH_PATTERN = /^\/audio\/([a-z0-9][a-z0-9-]{0,119})\.mp3$/;
 const ISSUE_PATH_PATTERN = /^\/p\/([a-z0-9][a-z0-9-]{0,119})\/?$/;
 const PRODUCT_PATH_PATTERN = /^\/shop\/([a-z0-9][a-z0-9-]{0,78}[a-z0-9]|[a-z0-9])\/?$/;
 const AUTHOR_PATH_PATTERN = /^\/authors\/([a-z0-9][a-z0-9-]{0,59})\/?$/;
@@ -91,6 +92,9 @@ export async function proxy(request) {
 		if (pathname === "/robots.txt") return rewriteTo(request, `/archive/${archiveSlug}/robots`);
 		if (pathname === "/llms.txt") return rewriteTo(request, `/archive/${archiveSlug}/llms`);
 		if (pathname === "/feed.xml") return rewriteTo(request, `/archive/${archiveSlug}/feed`);
+		if (pathname === "/podcast.xml") return rewriteTo(request, `/archive/${archiveSlug}/podcast`);
+		const audioSlug = AUDIO_PATH_PATTERN.exec(pathname)?.[1];
+		if (audioSlug) return rewriteTo(request, `/archive/${archiveSlug}/audio/${audioSlug}`);
 		if (pathname === "/shop" || pathname === "/shop/") return rewriteTo(request, `/archive/${archiveSlug}/shop`);
 		if (pathname === "/subscribe" || pathname === "/subscribe/") return rewriteTo(request, `/archive/${archiveSlug}/subscribe`);
 		const sitePage = SITE_PAGE_PATHS[pathname.replace(/(.)\/$/, "$1")];

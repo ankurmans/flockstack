@@ -13,6 +13,8 @@ import ScriptJsonLd from "@/components/ScriptJsonLd";
 import TrackView from "@/components/TrackView";
 import TriggerSubscribe from "@/components/TriggerSubscribe";
 import { getIssueAuthor } from "@/lib/archive-author";
+import { getIssueAudio } from "@/lib/audio";
+import { isAudioEnabled } from "@/lib/audio-config";
 import { renderPageBody } from "@/lib/archive-content";
 import { countReaders, getArchiveIssue, getArchiveNewsletter, getArchivePage, getShopPayments, listArchiveIssues, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
@@ -86,13 +88,14 @@ async function renderPage({ newsletter, page }) {
 async function renderIssue({ newsletter, issue }) {
 
 	const hasComments = areCommentsOn(newsletter, issue);
-	const [more, readers, payments, signupFields, recommendations, comments] = await Promise.all([
+	const [more, readers, payments, signupFields, recommendations, comments, audio] = await Promise.all([
 		listArchiveIssues(newsletter, { limit: 3, excludeId: issue._id }),
 		countReaders(newsletter),
 		getShopPayments(newsletter),
 		listSignupFields(newsletter),
 		listLiveRecommendations(newsletter).catch(() => []),
 		hasComments ? listPublicComments(newsletter, issue) : null,
+		isAudioEnabled() ? getIssueAudio(newsletter, issue).catch(() => null) : null,
 	]);
 	const urls = getArchiveUrls(newsletter);
 	const body = renderWebIssue({ newsletter, issue, recommendations });
@@ -164,6 +167,7 @@ async function renderIssue({ newsletter, issue }) {
 					initial={body}
 					newsletterName={newsletter.name}
 					subscribeHref={canSubscribePaid ? urls.subscribe : null}
+					audio={audio && { ...audio, scope: issue.audience === "paid" ? "paid" : audio.scope, title: issue.subject, storageKey: `${newsletter.slug}:${issue.archiveSlug}` }}
 				/>
 			</article>
 
