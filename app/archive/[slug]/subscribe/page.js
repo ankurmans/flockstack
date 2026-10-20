@@ -4,6 +4,7 @@ import NoticePaid from "@/components/NoticePaid";
 import { getArchiveNewsletter, getShopPayments } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getShopMetadata } from "@/lib/archive-seo";
+import { countFoundingMembers, listPublicSupporters } from "@/lib/supporters";
 import { OPTION_LABELS, OPTION_NOTES, getNewsletterTiers, getOfferedTiers, getTierOptions } from "@/lib/tier-rules";
 
 export const revalidate = 3600;
@@ -28,12 +29,16 @@ export default async function SubscribePage({ params }) {
 	const payments = await getShopPayments(newsletter);
 	const { currency = "usd", trialDays = 0, pitch } = newsletter.paidTier;
 	const urls = getArchiveUrls(newsletter);
-	const tiers = getOfferedTiers(getNewsletterTiers(newsletter)).map((tier) => ({
+	const offered = getOfferedTiers(getNewsletterTiers(newsletter));
+	const taken = new Map(await Promise.all(offered.filter((tier) => tier.founding.enabled && tier.founding.cap).map(async (tier) => [tier.id, await countFoundingMembers(newsletter.accountId, newsletter, tier)])));
+	const supporters = await listPublicSupporters(newsletter.accountId, newsletter);
+	// A founding tier that is full is no longer for sale.
+	const tiers = offered.filter((tier) => !(tier.founding.cap && taken.get(tier.id) >= tier.founding.cap)).map((tier) => ({
 		id: tier.id,
 		name: tier.name,
 		description: tier.description,
 		benefits: tier.benefits,
-		founding: { enabled: tier.founding.enabled, spotsLeft: null },
+		founding: { enabled: tier.founding.enabled, spotsLeft: tier.founding.cap ? tier.founding.cap - taken.get(tier.id) : null, canName: tier.founding.enabled && Boolean(newsletter.paidTier.supportersPublic) },
 		options: getTierOptions(tier).map(({ option, cents }) => ({ option, cents, label: OPTION_LABELS[option], note: option === "pwyw" ? (tier.pwyw.interval === "month" ? "a month or more" : "a year or more") : OPTION_NOTES[option] })),
 	}));
 
@@ -51,6 +56,12 @@ export default async function SubscribePage({ params }) {
 					<p className="text-sm text-muted-foreground">Paid subscriptions aren&apos;t open right now. Check back soon.</p>
 				)}
 			</div>
+			{supporters.length > 0 && (
+				<section aria-label="Supporters" className="mt-10">
+					<h2 className="text-sm font-medium">Supporters</h2>
+					<p className="mt-2 text-sm text-muted-foreground text-pretty">{supporters.join(", ")}</p>
+				</section>
+			)}
 			<p className="mt-6 text-sm text-muted-foreground">
 				Just want the free issues?{" "}
 				<a href={`${urls.index}#subscribe`} className="underline underline-offset-4 transition-colors duration-150 hover:text-foreground">

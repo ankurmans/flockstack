@@ -51,10 +51,18 @@ export default function FormSubscribePaid({ newsletterSlug, tiers, currency, tri
 							)}
 						>
 							<span className="flex w-full items-baseline justify-between gap-3">
-								<span className="text-sm font-medium">{candidate.name}</span>
+								<span className="flex items-center gap-2 text-sm font-medium">
+									{candidate.name}
+									{candidate.founding.enabled && <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-normal text-muted-foreground">Founding member</span>}
+								</span>
 								<span className="text-sm tabular-nums text-muted-foreground">from {formatPrice(Math.min(...candidate.options.map((entry) => entry.cents)), currency)}</span>
 							</span>
 							{candidate.description && <span className="text-sm text-muted-foreground text-pretty">{candidate.description}</span>}
+							{candidate.founding.spotsLeft !== null && (
+								<span className="text-xs text-muted-foreground tabular-nums">
+									{candidate.founding.spotsLeft} {candidate.founding.spotsLeft === 1 ? "spot" : "spots"} left
+								</span>
+							)}
 						</button>
 					))}
 				</div>
@@ -64,6 +72,12 @@ export default function FormSubscribePaid({ newsletterSlug, tiers, currency, tri
 					<p className="text-sm font-medium">{tier.name}</p>
 					{tier.description && <p className="text-sm text-muted-foreground text-pretty">{tier.description}</p>}
 				</div>
+			)}
+			{tier.founding.enabled && (
+				<p className="rounded-xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground text-pretty">
+					You get the same issues as every paid subscriber. A founding membership is a way to back the writing for more.
+					{tier.founding.canName && " You can give a name for the supporters list on the next page."}
+				</p>
 			)}
 			{tier.benefits.length > 0 && (
 				<ul className="flex flex-col gap-1.5 text-sm text-muted-foreground">

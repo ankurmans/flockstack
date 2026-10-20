@@ -33,6 +33,8 @@ export async function savePaidTier(_state, formData) {
 		yearlyCents,
 		currency: String(formData.get("currency") ?? "usd"),
 		trialDays: Number.parseInt(String(formData.get("trialDays") ?? "0"), 10) || 0,
+		trialNoCard: formData.get("trialNoCard") === "on",
+		supportersPublic: formData.get("supportersPublic") === "on",
 		pitch: String(formData.get("pitch") ?? ""),
 	});
 	if (failure) return toFormError(failure);

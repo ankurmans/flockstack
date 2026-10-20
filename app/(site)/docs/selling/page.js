@@ -110,6 +110,20 @@ export default function SellingPage() {
 					and its readers hold it. It is written out as the lowest tier the first time you add another.
 				</p>
 			</Section>
+
+			<Section title="Founding members" stagger={5}>
+				<p>
+					A tier with <Code>founding.enabled</Code> is a founding or supporter tier: the same issues as any paid tier, for more money, shown
+					on the subscribe page as a way to back the writer. <Code>founding.cap</Code> limits how many members it takes; when it is full the
+					tier leaves the page and checkout refuses more. The cap is checked as a reader starts paying, so two readers finishing at once can
+					take it a member past its cap.
+				</p>
+				<p className="mt-4">
+					<Code>set_paid_tier</Code> with <Code>supportersPublic</Code> shows a supporters list on the subscribe page. It is off by default.
+					Checkout then asks a founding member for a name to list, which is optional; the page shows names only, never emails.{" "}
+					<Code>list_supporters</Code> shows the writer who is listed, and <Code>set_supporter_name</Code> changes a name or takes it off.
+				</p>
+			</Section>
 		</>
 	);
 }
