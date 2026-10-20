@@ -12,6 +12,8 @@ const uploadSchema = new mongoose.Schema(
 		// A file attachment (lib/attachment-files.js) rather than a picture, with the name it was uploaded under.
 		kind: { type: String, enum: ["image", "file"] },
 		name: { type: String, trim: true },
+		// The media library's folder (lib/media-rules.js), one level; without one it is unfiled.
+		folder: { type: String, trim: true },
 		// Where a post import downloaded it from: the same picture in another post, or the same import run again, uses
 		// this file instead of storing it twice.
 		sourceUrl: { type: String },

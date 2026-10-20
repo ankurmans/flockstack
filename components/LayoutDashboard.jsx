@@ -6,6 +6,7 @@ import MenuUser from "@/components/MenuUser";
 import NavLinks from "@/components/NavLinks";
 import NavMobile from "@/components/NavMobile";
 import NavNewsletter from "@/components/NavNewsletter";
+import PaletteCommands from "@/components/PaletteCommands";
 import PanelGetStarted from "@/components/PanelGetStarted";
 import ProviderPaywall from "@/components/ProviderPaywall";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,6 +15,7 @@ import { getSendingStatus, hasActiveSubscription, isBlocked } from "@/lib/accoun
 import { isCloud } from "@/lib/config";
 import { isGetStartedOpen } from "@/lib/get-started";
 import { PLANS } from "@/lib/plans";
+import { getSelectedNewsletter } from "@/lib/selected-newsletter";
 import { getPricing } from "@/lib/pricing";
 
 export default async function LayoutDashboard({ user, account, isAdmin, children }) {
@@ -51,6 +53,9 @@ export default async function LayoutDashboard({ user, account, isAdmin, children
 					</div>
 				</main>
 			</div>
+			<Suspense fallback={null}>
+				<PaletteForNewsletter hasBilling={isCloud()} isAdmin={isAdmin} />
+			</Suspense>
 			{isGetStartedOpen(account) && (
 				<Suspense fallback={null}>
 					<PanelGetStarted account={account} />
@@ -64,4 +69,10 @@ export default async function LayoutDashboard({ user, account, isAdmin, children
 			{SiteAnalytics && <SiteAnalytics user={user} account={account} />}
 		</ProviderPaywall>
 	);
+}
+
+// The palette's "New issue" starts a draft in the open newsletter, which only a server component can read.
+async function PaletteForNewsletter({ hasBilling, isAdmin }) {
+	const { selected } = await getSelectedNewsletter();
+	return <PaletteCommands newsletterId={selected ? String(selected._id) : null} hasBilling={hasBilling} isAdmin={isAdmin} />;
 }

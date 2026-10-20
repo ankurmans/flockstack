@@ -4,6 +4,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ChevronLeft, ChevronRight, Users } from "lucide-react";
 import AvatarContact from "@/components/AvatarContact";
+import BadgeTag from "@/components/BadgeTag";
 import BannerRemovals from "@/components/BannerRemovals";
 import BadgeStatus from "@/components/BadgeStatus";
 import ButtonExportContacts from "@/components/ButtonExportContacts";
@@ -61,11 +62,12 @@ export default async function ContactsPage({ searchParams }) {
 			? findContactsPage(account, { newsletterId, status, query, tag, page })
 			: { contacts: [], counts: {}, totalAll: 0, total: 0 },
 		newsletterId ? listCustomFields(account, selected._id) : [],
-		newsletterId ? Tag.find(scoped(account, { newsletterId: selected._id })).sort({ name: 1 }).select({ name: 1 }).lean() : [],
+		newsletterId ? Tag.find(scoped(account, { newsletterId: selected._id })).sort({ name: 1 }).select({ name: 1, color: 1 }).lean() : [],
 		newsletterId ? listRemovals(account, selected._id) : [],
 	]);
 	const fieldOptions = definitions.map(toFieldOutput);
 	const tags = tagNames.map(({ name }) => name);
+	const tagColors = Object.fromEntries(tagNames.filter(({ color }) => color).map(({ name, color }) => [name, color]));
 	const pageCount = Math.max(1, Math.ceil(total / CONTACTS_PAGE_SIZE));
 	// totalAll counts within the search.
 	const hasContacts = totalAll > 0 || Boolean((query || tag) && newsletterId && (await Contact.exists(scoped(account, { newsletterId: selected._id }))));
@@ -88,7 +90,7 @@ export default async function ContactsPage({ searchParams }) {
 		<>
 			<HeaderPage title="Contacts">
 				<ButtonExportContacts newsletterId={newsletterId} status={status} query={query} tag={tag} isDisabled={total === 0} />
-				{hasContacts && <DialogTagsFields newsletter={newsletter} definitions={fieldOptions} tags={tags} />}
+				{hasContacts && <DialogTagsFields newsletter={newsletter} definitions={fieldOptions} tags={tags} tagColors={tagColors} />}
 				{hasContacts && <DialogAddContact newsletter={newsletter} />}
 				<GatePlan reason="import">
 					<DialogImportContacts newsletter={newsletter} definitions={fieldOptions} />
@@ -172,9 +174,7 @@ export default async function ContactsPage({ searchParams }) {
 													{contact.tags?.length > 0 && (
 														<span className="mt-0.5 flex flex-wrap gap-1">
 															{contact.tags.slice(0, 3).map((name) => (
-																<span key={name} className="rounded-full bg-muted px-2 text-xs font-normal text-muted-foreground">
-																	{name}
-																</span>
+																<BadgeTag key={name} name={name} color={tagColors[name]} className="h-auto" />
 															))}
 															{contact.tags.length > 3 && (
 																<span className="text-xs font-normal text-muted-foreground">+{contact.tags.length - 3}</span>
@@ -207,6 +207,7 @@ export default async function ContactsPage({ searchParams }) {
 												tags={contact.tags ?? []}
 												fields={contact.fields ?? {}}
 												definitions={fieldOptions}
+												tagColors={tagColors}
 											/>
 										</TableCell>
 									</TableRow>

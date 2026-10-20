@@ -11,6 +11,7 @@ import AvatarNewsletter from "@/components/AvatarNewsletter";
 import BadgeStatus from "@/components/BadgeStatus";
 import ButtonCampaignAction from "@/components/ButtonCampaignAction";
 import ButtonCopy from "@/components/ButtonCopy";
+import ButtonSocialPosts from "@/components/ButtonSocialPosts";
 import GatePlan from "@/components/GatePlan";
 import CardStat from "@/components/CardStat";
 import DialogLinkClicks from "@/components/DialogLinkClicks";
@@ -19,7 +20,9 @@ import DialogSendMore from "@/components/DialogSendMore";
 import HeaderPage from "@/components/HeaderPage";
 import IconWarmup from "@/components/IconWarmup";
 import ImageFavicon from "@/components/ImageFavicon";
+import CardSeo from "@/components/CardSeo";
 import InputCampaignSlug from "@/components/InputCampaignSlug";
+import InputIssueTags from "@/components/InputIssueTags";
 import PreviewEmail from "@/components/PreviewEmail";
 import TextEmpty from "@/components/TextEmpty";
 import TimeLocal from "@/components/TimeLocal";
@@ -57,6 +60,7 @@ export default function CampaignReport({
 	pace = null,
 	newContacts = 0,
 	polls = [],
+	isAiEnabled = false,
 }) {
 	const { stats } = campaign;
 	const id = campaign._id.toString();
@@ -112,6 +116,7 @@ export default function CampaignReport({
 						</Link>
 					</Button>
 				)}
+				{isAiEnabled && campaign.status === "sent" && <ButtonSocialPosts campaignId={id} subject={campaign.subject} />}
 				{campaign.status === "sending" && (
 					<ButtonCampaignAction action={pauseCampaign} id={id}>
 						<Pause data-icon="inline-start" />
@@ -348,6 +353,20 @@ export default function CampaignReport({
 						/>
 						<ButtonCopy value={getArchiveUrls(newsletter).absolutePost(campaign.archiveSlug)} label="Copy link" />
 					</div>
+				)}
+
+				{newsletter.archiveEnabled && campaign.archiveSlug && (
+					<div
+						style={{ "--stagger": 4 }}
+						className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-2 rounded-xl bg-card px-4 shadow-border transition-colors duration-150 animate-enter focus-within:bg-muted/40"
+					>
+						<span className="text-sm text-muted-foreground">Tags</span>
+						<InputIssueTags campaignId={id} initialTags={campaign.tags ?? []} />
+					</div>
+				)}
+
+				{newsletter.archiveEnabled && campaign.archiveSlug && campaign.publishTo !== "email" && (
+					<CardSeo campaignId={id} seo={campaign.seo} subject={campaign.subject} previewText={campaign.previewText} stagger={5} />
 				)}
 
 				<div style={{ "--stagger": 5 }} className="animate-enter">

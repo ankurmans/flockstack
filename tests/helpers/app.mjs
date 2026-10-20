@@ -8,6 +8,7 @@ export const platformEmails = [];
 // Messages to Telegram's Bot API, newest last, with the token their URL carried.
 export const telegramMessages = [];
 let stripeHandler = null;
+let unsplashHandler = null;
 let polarHandler = null;
 let telegramAnswer = null;
 let visitor = 0;
@@ -28,6 +29,12 @@ function installFetch() {
 			telegramMessages.push({ token: telegram[1], ...JSON.parse(init.body) });
 			return Response.json({ ok: true, result: { message_id: telegramMessages.length } });
 		}
+		if (url.startsWith("https://api.unsplash.com/")) {
+			if (!unsplashHandler) throw new Error(`Unexpected Unsplash request: ${url}`);
+			const { pathname, searchParams } = new URL(url);
+			const result = await unsplashHandler({ path: pathname, query: searchParams, headers: new Headers(init.headers) });
+			return result instanceof Response ? result : Response.json(result);
+		}
 		if (url.startsWith("https://api.stripe.com/")) {
 			if (!stripeHandler) throw new Error(`Unexpected Stripe request: ${init.method ?? "GET"} ${url}`);
 			const { pathname, searchParams } = new URL(url);
@@ -47,6 +54,12 @@ function installFetch() {
 		}
 		throw new Error(`Unexpected request to ${url}`);
 	};
+}
+
+// Unsplash's API (https://api.unsplash.com) is answered by this handler: { path, query, headers }. It returns the JSON, or a
+// Response for an error.
+export function mockUnsplash(handler) {
+	unsplashHandler = handler;
 }
 
 export function mockStripe(handler) {

@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { Loader2, Plus, X } from "lucide-react";
-import { createPoll, getPoll, updatePoll } from "@/app/(app)/campaigns/actions";
+import { createPoll, getPoll, previewFeed, updatePoll } from "@/app/(app)/campaigns/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { FEED_BLOCK } from "@/lib/editor-blocks";
 import { EMBED_PROVIDERS, parseEmbed } from "@/lib/embeds";
+import { getFeedUrlProblem } from "@/lib/feed-url";
 
 const COPY = {
 	ctaButton: { title: "Button", description: "A button in the newsletter's accent color, centered.", save: "Save button" },
@@ -17,6 +19,11 @@ const COPY = {
 			.map(({ name }) => name)
 			.join(", ")}. The web page plays it; emails show a picture or a card that links to it.`,
 		save: "Embed",
+	},
+	rssFeed: {
+		title: "RSS feed",
+		description: "The latest items of a blog or podcast feed, read when the issue goes out: title, date, a short excerpt, a link and a picture, as you choose. A test email reads the feed too.",
+		save: "Save feed",
 	},
 	footnote: { title: "Footnote", description: "Numbered where you put it and listed at the end of the issue.", save: "Save note" },
 	poll: {
@@ -160,7 +167,7 @@ function FormPoll({ block, onSave, newsletterId, campaignId, fields }) {
 }
 
 function FormBlock({ block, onSave }) {
-	const [values, setValues] = useState(block.attrs ?? {});
+	const [values, setValues] = useState(() => ({ ...(block.kind === "rssFeed" ? FEED_DEFAULTS : {}), ...block.attrs }));
 	const [error, setError] = useState("");
 	const copy = COPY[block.kind];
 	const set = (key) => (event) => setValues((current) => ({ ...current, [key]: event.target.value }));
@@ -196,6 +203,7 @@ function FormBlock({ block, onSave }) {
 					<Input value={values.url ?? ""} onChange={set("url")} placeholder="https://www.youtube.com/watch?v=…" maxLength={500} inputMode="url" autoFocus />
 				</label>
 			)}
+			{block.kind === "rssFeed" && <FieldsFeed values={values} setValues={setValues} />}
 			{block.kind === "footnote" && (
 				<label className="flex flex-col gap-1.5 text-sm">
 					Note
@@ -214,7 +222,86 @@ function FormBlock({ block, onSave }) {
 	);
 }
 
+const FEED_DEFAULTS = { count: FEED_BLOCK.defaultCount, order: "newest", image: true, excerpt: true, date: true };
+
+function FieldsFeed({ values, setValues }) {
+	const [preview, setPreview] = useState(null);
+	const [isPending, startTransition] = useTransition();
+	const set = (key, value) => setValues((current) => ({ ...current, [key]: value }));
+
+	function check() {
+		setPreview(null);
+		startTransition(async () => {
+			const problem = getFeedUrlProblem(values.url);
+			setPreview(problem ? { error: problem } : await previewFeed(values.url, { count: Number(values.count), order: values.order }));
+		});
+	}
+
+	return (
+		<>
+			<label className="flex flex-col gap-1.5 text-sm">
+				Feed address
+				<Input value={values.url ?? ""} onChange={(event) => set("url", event.target.value)} placeholder="https://example.com/feed.xml" maxLength={1000} inputMode="url" autoFocus />
+			</label>
+			<div className="grid grid-cols-2 gap-3">
+				<label className="flex flex-col gap-1.5 text-sm">
+					Items
+					<select value={values.count} onChange={(event) => set("count", Number(event.target.value))} className="h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm">
+						{Array.from({ length: FEED_BLOCK.maxCount }, (_, index) => index + 1).map((count) => (
+							<option key={count} value={count}>
+								{count}
+							</option>
+						))}
+					</select>
+				</label>
+				<label className="flex flex-col gap-1.5 text-sm">
+					Order
+					<select value={values.order} onChange={(event) => set("order", event.target.value)} className="h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm">
+						<option value="newest">Newest first</option>
+						<option value="oldest">Oldest first</option>
+					</select>
+				</label>
+			</div>
+			<fieldset className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+				<legend className="sr-only">Show for each item</legend>
+				{[
+					["date", "Date"],
+					["excerpt", "Excerpt"],
+					["image", "Picture"],
+				].map(([key, label]) => (
+					<label key={key} className="flex items-center gap-2">
+						<input type="checkbox" checked={Boolean(values[key])} onChange={(event) => set(key, event.target.checked)} className="size-4 accent-foreground" />
+						{label}
+					</label>
+				))}
+			</fieldset>
+			<div className="flex flex-col gap-2">
+				<Button type="button" variant="outline" size="sm" className="self-start" onClick={check} disabled={isPending}>
+					{isPending && <Loader2 data-icon="inline-start" className="animate-spin" />}
+					Check the feed
+				</Button>
+				{preview?.error && (
+					<p role="alert" className="text-sm text-destructive">
+						{preview.error}
+					</p>
+				)}
+				{preview?.items && (
+					<ul className="flex flex-col gap-1 text-sm text-muted-foreground">
+						{preview.items.length === 0 && <li>The feed has no items yet.</li>}
+						{preview.items.map((item) => (
+							<li key={`${item.link}${item.title}`} className="truncate">
+								{item.title}
+							</li>
+						))}
+					</ul>
+				)}
+			</div>
+		</>
+	);
+}
+
 function getProblem(kind, values) {
+	if (kind === "rssFeed") return getFeedUrlProblem(values.url);
 	if (kind === "ctaButton") {
 		if (!values.label?.trim()) return "Give the button a label";
 		if (!/^https?:\/\/\S+\.\S+/i.test(values.href?.trim() ?? "")) return "The link has to start with https://";
@@ -225,6 +312,9 @@ function getProblem(kind, values) {
 }
 
 function toAttrs(kind, values) {
+	if (kind === "rssFeed") {
+		return { url: new URL(values.url.trim()).href, count: Number(values.count) || FEED_BLOCK.defaultCount, order: values.order, image: Boolean(values.image), excerpt: Boolean(values.excerpt), date: Boolean(values.date) };
+	}
 	if (kind === "ctaButton") return { label: values.label.trim(), href: values.href.trim() };
 	if (kind === "embed") return { url: parseEmbed(values.url).url };
 	return { text: values.text.trim() };

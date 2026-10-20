@@ -8,6 +8,7 @@ import AvatarNewsletter from "@/components/AvatarNewsletter";
 import CardAbTest from "@/components/CardAbTest";
 import CardSettings from "@/components/CardSettings";
 import InputCampaignSlug from "@/components/InputCampaignSlug";
+import InputIssueTags from "@/components/InputIssueTags";
 import ListCleanupPreview from "@/components/ListCleanupPreview";
 import NoticeFirstSend from "@/components/NoticeFirstSend";
 import NoticeWarmup from "@/components/NoticeWarmup";
@@ -141,6 +142,11 @@ export default function PanelSend({
 							placeholder={slugify(subject, 80) || "issue"}
 							urlBase={archiveUrlBase}
 						/>
+					</RowCampaign>
+				)}
+				{archiveUrlBase && !campaign.resend?.of && (
+					<RowCampaign label="Tags">
+						<InputIssueTags campaignId={campaign._id} initialTags={campaign.tags ?? []} />
 					</RowCampaign>
 				)}
 				{isCleanupEnabled &&

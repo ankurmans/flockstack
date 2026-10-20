@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import CampaignReport from "@/components/CampaignReport";
 import FormCampaign from "@/components/FormCampaign";
 import { scoped } from "@/lib/account-scope";
+import { getAiBinding } from "@/lib/ai";
 import { getAccountSendProblem, hasActiveSubscription, isBlocked } from "@/lib/account-state";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { runAction } from "@/lib/actions/run-action";
@@ -13,6 +14,7 @@ import { findPolls } from "@/lib/editor-blocks";
 import { showsSentWithLink } from "@/lib/free-plan";
 import { getClickMapHtml, listCampaignLinks } from "@/lib/link-clicks";
 import { MESSAGE_STATS_GROUP } from "@/lib/message-stats";
+import { getUnsplashKey } from "@/lib/unsplash";
 import { getPostalAddress } from "@/lib/postal-address";
 import { isResend } from "@/lib/resend-rules";
 import { countResendAudience } from "@/lib/resends";
@@ -42,7 +44,8 @@ export default async function CampaignPage({ params }) {
 	if (!stored) notFound();
 	// The previews and the checks show the address its emails print.
 	const newsletter = { ...stored, postalAddress: getPostalAddress(stored, siteExtensions.defaultPostalAddress) };
-	const plan = await getPlanState(account);
+	const [plan, ai] = await Promise.all([getPlanState(account), getAiBinding()]);
+	const isAiEnabled = Boolean(ai) && hasActiveSubscription(account);
 
 	if (!["draft", "scheduled"].includes(campaign.status)) {
 		const [providers, remainingCount, links, polls] = await Promise.all([
@@ -71,11 +74,12 @@ export default async function CampaignPage({ params }) {
 				newContacts={newContacts}
 				polls={polls}
 				sentWith={showsSentWithLink(account)}
+				isAiEnabled={isAiEnabled}
 			/>
 		);
 	}
 
-	const [audienceCount, paidCount, sender, sendTimes, volumes, newContacts, fields, segments] = await Promise.all([
+	const [audienceCount, paidCount, sender, sendTimes, volumes, newContacts, fields, segments, { snippets }] = await Promise.all([
 		countCampaignAudience(campaign),
 		countCampaignAudience(campaign, { audience: "paid" }),
 		loadSender(account, newsletter),
@@ -84,6 +88,7 @@ export default async function CampaignPage({ params }) {
 		countNewContacts(account, newsletter._id),
 		listCustomFields(account, newsletter._id),
 		Segment.find(scoped(account, { newsletterId: newsletter._id })).sort({ name: 1 }).select({ name: 1 }).lean(),
+		runAction("list_snippets", { account, user, via: "dashboard", input: { newsletter: String(newsletter._id) } }),
 	]);
 
 	return (
@@ -104,6 +109,9 @@ export default async function CampaignPage({ params }) {
 			newContacts={newContacts}
 			fields={fields.map(({ key, label, type }) => ({ key, label, type }))}
 			segments={segments.map(({ _id, name }) => ({ id: String(_id), name }))}
+			isAiEnabled={isAiEnabled}
+			hasStockPhotos={Boolean(getUnsplashKey())}
+			snippets={snippets.map(({ name, content }) => ({ name, content }))}
 		/>
 	);
 }

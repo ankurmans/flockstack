@@ -1,5 +1,6 @@
 import Link from "next/link";
 import BadgeStatus from "@/components/BadgeStatus";
+import CheckboxCampaign from "@/components/CheckboxCampaign";
 import MenuCampaign from "@/components/MenuCampaign";
 import TextEmpty from "@/components/TextEmpty";
 import ThumbnailCampaign from "@/components/ThumbnailCampaign";
@@ -17,14 +18,20 @@ import { cn } from "@/lib/utils";
 
 const SCHEDULED_FORMAT = { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" };
 
-// One newsletter's campaigns: their thumbnails fall back to its logo.
+// One newsletter's campaigns: their thumbnails fall back to its logo. hasActions adds each row's menu and a checkbox, for the
+// bulk bar (components/BarBulkCampaigns.jsx) inside a ProviderCampaignSelection.
 export default function TableCampaigns({ campaigns, newsletter, hasActions = false, pageUrls = {} }) {
 	return (
 		<div className="overflow-hidden rounded-xl shadow-border">
 			<Table>
 				<TableHeader>
 					<TableRow className="hover:bg-transparent">
-						<TableHead className="pl-4">Subject</TableHead>
+						{hasActions && (
+							<TableHead className="w-10 pl-4">
+								<CheckboxCampaign all={campaigns.map((campaign) => [campaign._id.toString(), campaign.status])} label="Select all campaigns" />
+							</TableHead>
+						)}
+						<TableHead className={cn(!hasActions && "pl-4")}>Subject</TableHead>
 						<TableHead>Status</TableHead>
 						<TableHead className="hidden text-right md:table-cell">Recipients</TableHead>
 						<TableHead className="hidden text-right md:table-cell">Opens</TableHead>
@@ -45,7 +52,12 @@ export default function TableCampaigns({ campaigns, newsletter, hasActions = fal
 						const date = campaign.sentAt || campaign.startedAt;
 						return (
 							<TableRow key={id} className="relative">
-								<TableCell className="w-full max-w-0 py-3 pl-4 sm:w-1/2">
+								{hasActions && (
+									<TableCell className="w-10 pl-4">
+										<CheckboxCampaign id={id} status={campaign.status} label={`Select ${campaign.subject || "Untitled"}`} />
+									</TableCell>
+								)}
+								<TableCell className={cn("w-full max-w-0 py-3 sm:w-1/2", !hasActions && "pl-4")}>
 									<div className="flex min-w-0 items-center gap-3.5">
 										<ThumbnailCampaign campaign={campaign} newsletter={newsletter} hasBadge={false} />
 										<Link

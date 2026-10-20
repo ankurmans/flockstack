@@ -365,6 +365,15 @@ describe("the Sent with FlockStack link", () => {
 		assert.equal(m.render.renderEmail({ format: "html", html, subject: "Hi", newsletter }).html.includes("Sent with FlockStack"), false);
 	});
 
+	test("is in a themed email with an accent color and fonts, and in every kind of block", () => {
+		const newsletter2 = { ...newsletter, accentColor: "#0a7d4f", brand: { theme: "magazine" } };
+		const body = { format: "rich", html: '<p>Hi</p><div data-type="rss-feed"></div><hr><p>End</p>', subject: "Hi", previewText: "", newsletter: newsletter2, unsubscribeUrl: "https://x.example/u" };
+		const free = m.render.renderEmail({ ...body, sentWith: true });
+		assert.match(free.html, /Sent with FlockStack<\/a>/);
+		assert.ok(free.html.indexOf("Unsubscribe") < free.html.indexOf("Sent with FlockStack"));
+		assert.equal(m.render.renderEmail(body).html.includes("Sent with FlockStack"), false);
+	});
+
 	test("its link is not a tracked click", async () => {
 		const { addTracking } = await import("../lib/tracking.js");
 		const tracked = addTracking('<a href="https://flockstack.io/?ref=newsletter-footer">x</a><a href="https://example.org/a">y</a>', { baseUrl: "https://notes.example.org", messageId: "6650f1c2e9b1d4a0123456bb" });
@@ -420,7 +429,7 @@ describe("the Sent with FlockStack link", () => {
 		assert.equal(freeSite.sentWith, true);
 		assert.equal(paidSite.sentWith, false);
 		const footer = (newsletter) => prerender(createElement(m.FooterArchive, { newsletter, indexHref: "/", feedHref: "/feed.xml" }));
-		const freeMarkup = await footer(freeSite);
+		const freeMarkup = await footer({ ...freeSite, brand: { theme: "bold" } });
 		assert.match(freeMarkup, /<a href="https:\/\/flockstack\.io\/\?ref=newsletter-footer" data-sent-with[^>]*>Sent with FlockStack<\/a>/);
 		assert.doesNotMatch(await footer(paidSite), /Sent with FlockStack/);
 
@@ -471,6 +480,19 @@ describe("limits that depend on the plan", () => {
 		await m.Account.updateOne({ _id: user.accountId }, { $set: { subscriptionStatus: "canceled" } });
 		assert.equal(await m.Automation.countDocuments({ accountId: user.accountId, status: { $ne: "deleted" } }), 3, "a lapsed plan keeps what it made");
 		assert.equal((await automation("Four")).status, 409);
+	});
+
+	test("the template gallery counts toward the same two automations", async () => {
+		const user = await customer("gallery@example.com");
+		const { key } = await as(user, () => m.apiKeys.createApiKey(null, form({ name: "Agent" })));
+		const fromTemplate = (template) => callApi("POST", "/api/v1/automations/from-template", { key, body: { newsletter: user.slug, template } });
+		assert.equal((await fromTemplate("welcome-series")).status, 201);
+		assert.equal((await fromTemplate("re-engagement")).status, 201);
+		const third = await fromTemplate("paid-onboarding");
+		assert.equal(third.status, 409, JSON.stringify(third.body));
+		assert.match(third.body.error.message, /The Free plan has up to 2 automations, besides the welcome email/);
+		assert.equal(m.plans.FREE_PLAN.aiRequestsPerDay, 5);
+		assert.equal(m.plans.getAiDailyLimit({}), 5);
 	});
 
 	test("posts to import and the pictures that come with them are capped at Free's 100 and 200 MB", () => {

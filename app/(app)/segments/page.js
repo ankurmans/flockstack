@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { scoped } from "@/lib/account-scope";
 import { formatNumber } from "@/lib/format";
 import { describeRules } from "@/lib/segment-rules";
+import { nudgeStaleSnapshots } from "@/lib/segment-snapshots";
 import { previewRules } from "@/lib/segments";
 import { getSelectedNewsletter } from "@/lib/selected-newsletter";
 import Segment from "@/models/Segment";
@@ -18,6 +19,7 @@ export const metadata = { title: "Segments" };
 export default async function SegmentsPage() {
 	const { account, selected } = await getSelectedNewsletter();
 	const segments = selected ? await Segment.find(scoped(account, { newsletterId: selected._id })).sort({ name: 1 }).lean() : [];
+	await nudgeStaleSnapshots(account, segments);
 	const counts = await Promise.all(segments.map((segment) => previewRules(account, selected._id, segment.rules, { sample: 0 })));
 
 	return (
@@ -35,7 +37,7 @@ export default async function SegmentsPage() {
 				<StateEmpty icon={Filter} title="No segments yet">
 					<p className="max-w-sm text-sm text-pretty text-muted-foreground">
 						A segment is a saved audience: readers with a tag, who opened lately, who signed up after a date. Send a campaign to one, or
-						start an automation from it.
+						start an automation from it. A saved list keeps the people a segment matched on the day you save it.
 					</p>
 				</StateEmpty>
 			) : (
@@ -57,6 +59,11 @@ export default async function SegmentsPage() {
 										<Link href={`/segments/${segment._id}`} className="hover:underline">
 											{segment.name}
 										</Link>
+										{segment.kind === "static" && (
+											<span className="ml-2 text-xs font-normal text-muted-foreground">
+												{segment.buildStatus === "building" ? "Saving the list…" : segment.buildStatus === "failed" ? "Couldn't be saved" : "Saved list"}
+											</span>
+										)}
 									</TableCell>
 									<TableCell className="hidden max-w-md truncate text-muted-foreground md:table-cell">{describeRules(segment.rules)}</TableCell>
 									<TableCell className="text-right">{formatNumber(counts[index].matching)}</TableCell>
