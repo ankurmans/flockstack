@@ -73,6 +73,7 @@ export async function POST(request, { params }) {
 		utm: Object.keys(utm).length > 0 ? utm : null,
 		referrer,
 		fieldKeys: form.fields ?? [],
+		requireWebsite: false,
 		onSignup: ({ created }) => (created ? countFormSignup(form) : undefined),
 	});
 	const pageUrl = `/embed/${form._id}`;

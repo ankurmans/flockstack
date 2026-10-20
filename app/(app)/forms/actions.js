@@ -37,3 +37,10 @@ export async function deleteForm(id) {
 	revalidatePath("/forms");
 	return { ok: true };
 }
+
+export async function rotateMagicLink(newsletterId) {
+	const { failure } = await runDashboardAction("rotate_magic_link", { id: String(newsletterId ?? "") });
+	if (failure) return toFormError(failure);
+	revalidatePath("/forms/magic");
+	return { ok: true };
+}

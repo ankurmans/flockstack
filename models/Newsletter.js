@@ -39,6 +39,8 @@ const newsletterSchema = new mongoose.Schema(
 		// Issues' outgoing links get utm_source (the newsletter), utm_medium=email and utm_campaign (the issue) added
 		// (lib/link-utm.js), unless a link has UTM parameters of its own.
 		utmLinks: { type: Boolean },
+		// The key id in the newsletter's Magic Link (lib/magic-links.js), 1 until it is retired: a link of an earlier id stops working.
+		magicKeyId: { type: Number, min: 1 },
 		socialLinks: [{ type: String, trim: true }],
 		// The archive's author page; the author's name is fromName.
 		author: {
