@@ -105,22 +105,27 @@ test("the account list shows each owner, plan, status, usage and creation date, 
 	);
 });
 
-test("a dedicated IP is a managed pool for the account's configuration set, and ending it goes back to shared IPs", async () => {
+test("Assign an IP gives the account a free leased IP in a pool of its own, and taking it back returns it to the inventory and the account to shared IPs", async () => {
 	const ses = await import("./stubs/ses.mjs");
 	const id = String(customer.accountId);
 	const { configurationSet } = (await m.Account.findById(id).lean()).ses;
-	assert.deepEqual(await as(admin, () => m.actions.setDedicatedIp(id, true)), { ok: true });
-	assert.deepEqual(await as(admin, () => m.actions.setDedicatedIp(id, true)), { ok: true });
+	assert.match((await as(admin, () => m.actions.setDedicatedIp(id, true))).error, /No IP is free in the inventory/);
+	ses.leaseIp("203.0.113.200");
+	assert.equal((await as(admin, () => m.actions.addIpAction("203.0.113.200"))).ok, true);
+	assert.deepEqual(await as(admin, () => m.actions.setDedicatedIp(id, true)), { ok: true, ip: "203.0.113.200" });
+	assert.deepEqual(await as(admin, () => m.actions.setDedicatedIp(id, true)), { ok: true, ip: "203.0.113.200" });
 	let account = await m.Account.findById(id).lean();
-	assert.equal(account.ses.dedicatedPool, `mc-${id}`);
-	assert.equal(ses.state.configurationSetPools.get(configurationSet), `mc-${id}`);
+	assert.equal(account.ses.dedicatedPool, `mc-ip-${id}`);
+	assert.equal(account.ses.dedicatedIpAddress, "203.0.113.200");
+	assert.equal(ses.state.configurationSetPools.get(`${configurationSet}-ip`), `mc-ip-${id}`);
+	assert.equal(ses.state.configurationSetPools.has(configurationSet), false, "the account's own set stays on shared IPs");
 
-	assert.deepEqual(await as(admin, () => m.actions.setDedicatedIp(id, false)), { ok: true });
-	assert.deepEqual(await as(admin, () => m.actions.setDedicatedIp(id, false)), { ok: true });
+	assert.deepEqual(await as(admin, () => m.actions.setDedicatedIp(id, false)), { ok: true, ip: "203.0.113.200" });
+	assert.deepEqual(await as(admin, () => m.actions.setDedicatedIp(id, false)), { ok: true, ip: null });
 	account = await m.Account.findById(id).lean();
 	assert.equal(account.ses.dedicatedPool, undefined);
-	assert.equal(ses.state.configurationSetPools.has(configurationSet), false);
-	assert.equal(ses.state.pools.has(`mc-${id}`), false);
+	assert.equal(ses.state.configurationSetPools.has(`${configurationSet}-ip`), false);
+	assert.equal(ses.state.pools.has(`mc-ip-${id}`), false);
 	assert.equal(await as(customer, () => catchNotFound(m.actions.setDedicatedIp(id, true))), true);
 });
 

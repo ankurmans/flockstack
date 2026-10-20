@@ -12,6 +12,8 @@ export const state = {
 	associations: new Map(),
 	reinstated: [],
 	pools: new Set(),
+	// The IPs the AWS account leased: ip -> { poolName, warmupPercentage, warmupStatus }.
+	dedicatedIps: new Map(),
 	configurationSetPools: new Map(),
 	failNext: null,
 };
@@ -44,6 +46,11 @@ export async function sendSesEmail(email) {
 	const fromDomain = from.match(/@([^>\s]+)>?$/)?.[1];
 	if (!associated.has(`identity/${fromDomain}`) || !associated.has(`configuration-set/${configurationSet}`)) {
 		throw Object.assign(new Error(`${fromDomain} or ${configurationSet} is not associated with ${tenantName}`), { name: "NotFoundException" });
+	}
+	// What AWS does with a pool that has no IP isn't documented: the stub refuses, so a test notices mail routed to one.
+	const pool = state.configurationSetPools.get(configurationSet);
+	if (pool && ![...state.dedicatedIps.values()].some((found) => found.poolName === pool)) {
+		throw Object.assign(new Error(`${pool} has no dedicated IP`), { name: "BadRequestException" });
 	}
 	sent.push(email);
 	return { sesMessageId: `ses-${sent.length}-${Date.now()}` };
@@ -95,9 +102,51 @@ export async function deleteConfigurationSet(name) {
 	state.configurationSets.delete(name);
 }
 
+export const DEFAULT_POOL = "ses-default-dedicated-pool";
+
+// What AWS does once a support case leases an IP: it lands in the default pool, warming up by itself unless the account
+// turned automatic warm-up off.
+export function leaseIp(ip, { autoWarmup = true } = {}) {
+	state.dedicatedIps.set(ip, { poolName: DEFAULT_POOL, warmupPercentage: autoWarmup ? 1 : 100, warmupStatus: autoWarmup ? "IN_PROGRESS" : "DONE" });
+}
+
+// AWS takes the IP back after a support case.
+export function relinquishIp(ip) {
+	state.dedicatedIps.delete(ip);
+}
+
+function toDedicatedIp(ip, found) {
+	return { ip, poolName: found.poolName, warmupPercentage: found.warmupPercentage, warmupStatus: found.warmupStatus };
+}
+
 export async function createDedicatedIpPool(name) {
 	call("createDedicatedIpPool", name);
 	state.pools.add(name);
+}
+
+export async function listDedicatedIps() {
+	call("listDedicatedIps", null);
+	return [...state.dedicatedIps].map(([ip, found]) => toDedicatedIp(ip, found));
+}
+
+export async function getDedicatedIp(ip) {
+	call("getDedicatedIp", ip);
+	const found = state.dedicatedIps.get(ip);
+	return found ? toDedicatedIp(ip, found) : null;
+}
+
+export async function moveDedicatedIpToPool(ip, poolName) {
+	call("moveDedicatedIpToPool", { ip, poolName });
+	if (!state.dedicatedIps.has(ip)) throw Object.assign(new Error(`${ip} is not leased`), { name: "NotFoundException" });
+	if (poolName !== DEFAULT_POOL && !state.pools.has(poolName)) throw Object.assign(new Error(`${poolName} does not exist`), { name: "NotFoundException" });
+	state.dedicatedIps.get(ip).poolName = poolName;
+}
+
+export async function setDedicatedIpWarmupPercentage(ip, percentage) {
+	call("setDedicatedIpWarmupPercentage", { ip, percentage });
+	const found = state.dedicatedIps.get(ip);
+	if (!found) throw Object.assign(new Error(`${ip} is not leased`), { name: "NotFoundException" });
+	Object.assign(found, { warmupPercentage: percentage, warmupStatus: percentage >= 100 ? "DONE" : "IN_PROGRESS" });
 }
 
 export async function setConfigurationSetPool(configurationSet, poolName) {
@@ -109,7 +158,9 @@ export async function setConfigurationSetPool(configurationSet, poolName) {
 
 export async function deleteDedicatedIpPool(name) {
 	call("deleteDedicatedIpPool", name);
+	if (!state.pools.has(name)) return;
 	for (const [set, pool] of state.configurationSetPools) if (pool === name) throw new Error(`${name} is in use by ${set}`);
+	for (const [ip, found] of state.dedicatedIps) if (found.poolName === name) throw new Error(`${name} still holds ${ip}`);
 	state.pools.delete(name);
 }
 
