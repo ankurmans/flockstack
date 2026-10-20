@@ -218,7 +218,7 @@ describe("the sitemap", () => {
 
 	test("robots.txt points at it, on the newsletter's own host and, without a shared domain, on the app", async () => {
 		const hosted = await get(m.robotsRoute, "robots");
-		assert.match(hosted.text, /^User-agent: \*\nAllow: \/\n\nSitemap: https:\/\/seo-owner\.flockstackmail\.com\/sitemap\.xml\n$/);
+		assert.match(hosted.text, /^User-agent: \*\nAllow: \/\nDisallow: \/signin\nDisallow: \/account\n\nSitemap: https:\/\/seo-owner\.flockstackmail\.com\/sitemap\.xml\n$/);
 		await withEnv({ SHARED_DOMAIN: "" }, async () => {
 			assert.match((await get(m.robotsRoute, "robots")).text, /Sitemap: http:\/\/localhost:3000\/archive\/seo-owner\/sitemap\n$/);
 		});
