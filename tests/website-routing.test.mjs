@@ -132,6 +132,24 @@ describe("worker-entry.mjs", () => {
 		assert.equal((await answer("https://flockstack.io/pricing", { method: "POST" })).app, true, "a POST");
 	});
 
+	test("answers with the app when the website throws or is unavailable, and passes on every other answer of it", async () => {
+		const withWebsite = (fetch) => ({ ...ENV, WEBSITE: { fetch } });
+		const down = withWebsite(async () => {
+			throw new Error("Worker not found");
+		});
+		for (const path of ["/pricing", "/blog/a-post", "/"]) {
+			assert.deepEqual(await answer(`https://flockstack.io${path}`, { env: down }), { body: "app", website: false, app: true }, path);
+		}
+		for (const status of [502, 503, 504]) {
+			const unavailable = withWebsite(async () => new Response("down", { status }));
+			assert.equal((await answer("https://flockstack.io/pricing", { env: unavailable })).body, "app", String(status));
+		}
+		for (const status of [200, 301, 404, 500]) {
+			const answering = withWebsite(async () => new Response("website", { status, headers: status === 301 ? { location: "/x" } : {} }));
+			assert.equal((await answer("https://flockstack.io/pricing", { env: answering })).body, "website", String(status));
+		}
+	});
+
 	describe("with a data center cache", () => {
 		const stored = new Map();
 		const fakeCaches = {
