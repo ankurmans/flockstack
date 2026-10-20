@@ -236,7 +236,7 @@ describe("posting to a form", () => {
 		assert.equal(await findContact(user, "visitor5@example.com"), null);
 	});
 
-	test("refuses a newsletter whose account has no plan, and a body that is too big", async () => {
+	test("refuses a body that is too big, and a canceled account falls back to Free, which still takes signups", async () => {
 		const user = await creator("forms-noplan", { confirm: false });
 		const form = await makeForm(user);
 		const huge = await visitAndFlush(nextIp(), () =>
@@ -245,7 +245,8 @@ describe("posting to a form", () => {
 		assert.equal(huge.status, 413);
 		const Account = (await import("../models/Account.js")).default;
 		await Account.updateOne({ _id: user.accountId }, { $set: { subscriptionStatus: "canceled" } });
-		assert.equal((await post(form, { body: { email: "late@example.com" } })).status, 404);
+		assert.equal((await post(form, { body: { email: "late@example.com" } })).status, 200);
+		assert.ok(await findContact(user, "late@example.com"));
 		await flushAfter();
 	});
 });
