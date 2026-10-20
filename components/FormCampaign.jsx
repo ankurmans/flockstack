@@ -76,6 +76,7 @@ export default function FormCampaign({
 	fields = [],
 	segments = [],
 	snippets = [],
+	audioCard = null,
 }) {
 	const isHtml = campaign.format === "html";
 	const [step, setStep] = useState("write");
@@ -385,6 +386,7 @@ export default function FormCampaign({
 					{newsletter.archiveEnabled && campaign.publishTo !== "email" && (
 						<CardSeo campaignId={campaign._id} seo={campaign.seo} subject={values.subject} previewText={values.previewText} stagger={2} />
 					)}
+					{audioCard}
 				</section>
 
 				<section aria-label="Send" hidden={step !== "send"}>

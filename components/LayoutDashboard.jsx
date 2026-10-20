@@ -12,6 +12,7 @@ import ProviderPaywall from "@/components/ProviderPaywall";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SiteAnalytics, SupportChat } from "@/components/SiteExtensions";
 import { getSendingStatus, hasActiveSubscription, isBlocked } from "@/lib/account-state";
+import { isAudioEnabled } from "@/lib/audio-config";
 import { isCloud } from "@/lib/config";
 import { isGetStartedOpen } from "@/lib/get-started";
 import { getRecommendedPlanId } from "@/lib/onboarding";
@@ -36,11 +37,12 @@ export default async function LayoutDashboard({ user, account, isAdmin, children
 							<NavNewsletter />
 						</Suspense>
 					</div>
-					<NavLinks isAdmin={isAdmin} />
+					<NavLinks isAdmin={isAdmin} hasAudio={isAudioEnabled()} />
 					<div className="mt-auto pt-4">{menu}</div>
 				</aside>
 				<NavMobile
 					isAdmin={isAdmin}
+					hasAudio={isAudioEnabled()}
 					switcher={
 						<Suspense fallback={<Skeleton className="h-8 w-32 rounded-lg" />}>
 							<NavNewsletter isCompact />

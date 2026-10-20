@@ -4,10 +4,11 @@ import MenuAccount from "@/components/MenuAccount";
 import TextEmpty from "@/components/TextEmpty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BLOCKED_BY, getAccountStatus, isBlocked } from "@/lib/account-state";
+import { isAudioEnabled } from "@/lib/audio-config";
 import { LIMITS, isCloud } from "@/lib/config";
 import { getEmailProvider } from "@/lib/email-provider";
 import { formatCompact, formatDate, formatNumber } from "@/lib/format";
-import { getAccountLimits, getAccountPlan, getPlan, hasActiveFreePlan, isOnFreePlan } from "@/lib/plans";
+import { AUDIO_CHARACTERS_PER_MONTH, getAccountLimits, getAccountPlan, getPlan, hasActiveFreePlan, isOnFreePlan } from "@/lib/plans";
 import { getWarmup } from "@/lib/send-spread";
 import { cn } from "@/lib/utils";
 
@@ -97,6 +98,7 @@ export default function TableAccounts({ accounts, pinnedId }) {
 										freePlan={freePlan}
 										overrides={account.limitOverrides ?? {}}
 										planLimits={plan ? { emailsPerMonth: plan.emailsPerMonth, subscribers: plan.subscribers } : null}
+										audioPlanLimit={plan && isAudioEnabled() ? (AUDIO_CHARACTERS_PER_MONTH[plan.id] ?? 0) : null}
 									/>
 								</TableCell>
 							</TableRow>

@@ -1,11 +1,13 @@
 import { isValidObjectId } from "@/lib/docdb";
 import { notFound } from "next/navigation";
 import CampaignReport from "@/components/CampaignReport";
+import CardAudio from "@/components/CardAudio";
 import FormCampaign from "@/components/FormCampaign";
 import { scoped } from "@/lib/account-scope";
 import { getAccountSendProblem, hasActiveSubscription, isBlocked } from "@/lib/account-state";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { runAction } from "@/lib/actions/run-action";
+import { getAudioCardProps } from "@/lib/audio-dashboard";
 import { countNewContacts, getSendVolumes, sendTimesPipeline } from "@/lib/campaign-queries";
 import { isSendingEnabled } from "@/lib/config";
 import { listCustomFields } from "@/lib/custom-fields";
@@ -42,6 +44,8 @@ export default async function CampaignPage({ params }) {
 	// The previews and the checks show the address its emails print.
 	const newsletter = { ...stored, postalAddress: getPostalAddress(stored, siteExtensions.defaultPostalAddress) };
 	const plan = await getPlanState(account);
+	const audioProps = await getAudioCardProps({ account, user, campaign, newsletter });
+	const audioCard = audioProps && <CardAudio {...audioProps} />;
 
 	if (!["draft", "scheduled"].includes(campaign.status)) {
 		const [providers, remainingCount, links, polls] = await Promise.all([
@@ -69,6 +73,7 @@ export default async function CampaignPage({ params }) {
 				pace={getPace(account, volumes)}
 				newContacts={newContacts}
 				polls={polls}
+				audioCard={audioCard}
 			/>
 		);
 	}
@@ -103,6 +108,7 @@ export default async function CampaignPage({ params }) {
 			fields={fields.map(({ key, label, type }) => ({ key, label, type }))}
 			segments={segments.map(({ _id, name }) => ({ id: String(_id), name }))}
 			snippets={snippets.map(({ name, content }) => ({ name, content }))}
+			audioCard={audioCard}
 		/>
 	);
 }
