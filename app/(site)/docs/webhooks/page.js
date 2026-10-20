@@ -4,7 +4,7 @@ import HeaderDocs from "@/components/HeaderDocs";
 import { API_BASE_PATH } from "@/lib/api/rest";
 import { getAppUrl } from "@/lib/config";
 import { getDocsPageMetadata } from "@/lib/docs/llms";
-import { PLANS } from "@/lib/plans";
+import { FREE_PLAN, PLANS } from "@/lib/plans";
 import { WEBHOOK_EVENTS } from "@/lib/webhook-events";
 import { MAX_ATTEMPTS, MAX_DELIVERIES_PER_ENDPOINT } from "@/lib/webhook-rules";
 
@@ -55,7 +55,7 @@ export default function WebhooksPage() {
 	const appUrl = getAppUrl();
 	const created = WEBHOOK_EVENTS[0];
 	const example = JSON.stringify({ type: created.type, timestamp: "2026-10-20T09:30:00.000Z", data: created.example }, null, 2);
-	const limits = PLANS.map(({ name, webhookEndpoints }) => `${name} ${webhookEndpoints}`).join(", ");
+	const limits = [FREE_PLAN, ...PLANS].map(({ name, webhookEndpoints }) => `${name} ${webhookEndpoints}`).join(", ");
 
 	return (
 		<>

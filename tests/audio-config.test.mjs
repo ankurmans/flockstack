@@ -14,7 +14,7 @@ import {
 	isAudioEnabled,
 	parseVoices,
 } from "../lib/audio-config.js";
-import { AUDIO_COST, AUDIO_CHARACTERS_PER_MONTH, PLANS, getAudioLimit } from "../lib/plans.js";
+import { AUDIO_COST, AUDIO_CHARACTERS_PER_MONTH, FREE_PLAN, PLANS, getAudioLimit } from "../lib/plans.js";
 
 const VOICES = JSON.stringify([
 	{ id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", description: "Calm, clear", previewUrl: "https://example.com/rachel.mp3" },
@@ -126,7 +126,7 @@ describe("addresses of the audio", () => {
 
 describe("the quota of each plan", () => {
 	test("is one constant per plan, none for an account without a plan, an admin's number over the plan's, no limit self-hosted", () => {
-		assert.deepEqual(Object.keys(AUDIO_CHARACTERS_PER_MONTH), PLANS.map(({ id }) => id));
+		assert.deepEqual(Object.keys(AUDIO_CHARACTERS_PER_MONTH), ["free", ...PLANS.map(({ id }) => id)]);
 		const previous = process.env.FLOCKSTACK_CLOUD;
 		try {
 			process.env.FLOCKSTACK_CLOUD = "true";
@@ -134,7 +134,10 @@ describe("the quota of each plan", () => {
 			assert.equal(getAudioLimit({ plan: "max", subscriptionStatus: "active" }), 373_000);
 			assert.equal(getAudioLimit({ plan: "max", subscriptionStatus: "active", limitOverrides: { audioCharactersPerMonth: 5 } }), 5);
 			assert.equal(getAudioLimit({ plan: "max", subscriptionStatus: "active", limitOverrides: { audioCharactersPerMonth: 0 } }), 0);
-			assert.equal(getAudioLimit({ subscriptionStatus: "canceled" }), 0);
+			assert.equal(getAudioLimit({ subscriptionStatus: "canceled" }), 0, "a lapsed plan is the Free plan");
+			assert.equal(getAudioLimit({}), 0);
+			assert.equal(AUDIO_CHARACTERS_PER_MONTH.free, 0);
+			assert.equal(FREE_PLAN.id, "free");
 			process.env.FLOCKSTACK_CLOUD = "false";
 			assert.equal(getAudioLimit({ plan: "starter", subscriptionStatus: "active" }), null);
 		} finally {

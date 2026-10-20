@@ -225,6 +225,36 @@ describe("payments", () => {
 	});
 });
 
+describe("the paid tiers' forms", () => {
+	test("add, change, order and delete tiers, and show them on the page", async () => {
+		const user = await seller();
+		const fields = { newsletterId: user.newsletterId, name: "Supporter", description: "Back the work", benefits: "Every issue\n\nYour name on the wall", monthly: "", quarterly: "", yearly: "120", lifetime: "400", pwyw: "", founding: "on", foundingCap: "50" };
+		assert.deepEqual(await as(user, () => m.payments.saveTier(null, form(fields))), { ok: true });
+		const [tier] = (await api(user, "GET", `/newsletters/${user.slug}/tiers`)).body.tiers;
+		assert.deepEqual([tier.name, tier.benefits, tier.yearlyCents, tier.lifetimeCents, tier.founding.enabled, tier.founding.cap], ["Supporter", ["Every issue", "Your name on the wall"], 12000, 40000, true, 50]);
+
+		const page = await render(user, m.paymentsPage, { searchParams: Promise.resolve({}) });
+		assert.match(page, /value="Supporter"/);
+		assert.match(page, /Add a paid tier/);
+
+		const changed = { ...fields, tierId: tier.id, yearly: "100", archived: "on" };
+		assert.deepEqual(await as(user, () => m.payments.saveTier(null, form(changed))), { ok: true });
+		const [after] = (await api(user, "GET", `/newsletters/${user.slug}/tiers`)).body.tiers;
+		assert.deepEqual([after.yearlyCents, after.archived, after.founding.cap], [10000, true, 50]);
+
+		const priceError = { error: "Enter prices of 1 or more, like 8 or 8.50, or leave a plan empty" };
+		assert.deepEqual(await as(user, () => m.payments.saveTier(null, form({ ...fields, name: "Other", yearly: "x" }))), priceError);
+		assert.deepEqual(await as(user, () => m.payments.saveTier(null, form({ ...fields, name: "Free", yearly: "", lifetime: "" }))).then(({ error }) => typeof error), "string", "a tier with no price");
+
+		await as(user, () => m.payments.saveTier(null, form({ ...fields, name: "Patron", yearly: "300", lifetime: "", founding: "" })));
+		const ids = (await api(user, "GET", `/newsletters/${user.slug}/tiers`)).body.tiers.map(({ id }) => id);
+		assert.deepEqual(await as(user, () => m.payments.moveTier(user.newsletterId, [...ids].reverse())), { ok: true });
+		assert.deepEqual((await api(user, "GET", `/newsletters/${user.slug}/tiers`)).body.tiers.map(({ id }) => id), [...ids].reverse());
+		assert.deepEqual(await as(user, () => m.payments.deleteTier(user.newsletterId, ids[1])), { ok: true });
+		assert.equal((await api(user, "GET", `/newsletters/${user.slug}/tiers`)).body.tiers.length, 1);
+	});
+});
+
 describe("the send step's audience", () => {
 	test("is chosen on the campaign page and goes to paid readers only", async () => {
 		const user = await seller();

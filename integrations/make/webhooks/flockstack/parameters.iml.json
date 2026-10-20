@@ -40,6 +40,10 @@
       {
         "label": "Order paid",
         "value": "order.paid"
+      },
+      {
+        "label": "Automation step",
+        "value": "automation.step"
       }
     ]
   },

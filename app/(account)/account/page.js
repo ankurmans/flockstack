@@ -14,14 +14,14 @@ import HeaderPage from "@/components/HeaderPage";
 import LayoutNarrow from "@/components/LayoutNarrow";
 import { Button } from "@/components/ui/button";
 import { DELETION_GRACE_DAYS, getDeletionBlockers } from "@/lib/account-deletion";
-import { getAccountStatus, hasActiveSubscription } from "@/lib/account-state";
+import { getAccountStatus } from "@/lib/account-state";
 import { listSocialAccounts } from "@/lib/accounts";
 import { runDashboardAction } from "@/lib/actions/dashboard";
 import { isAppleEnabled, isGoogleEnabled, requireAccount } from "@/lib/auth";
 import { getBillingProviderName } from "@/lib/billing-provider";
 import { isCloud } from "@/lib/config";
 import { formatDate } from "@/lib/format";
-import { getAccountPlan } from "@/lib/plans";
+import { getAccountPlan, isOnFreeTier } from "@/lib/plans";
 import { MAX_NAME_LENGTH } from "@/lib/profile";
 import { REGION_PLACES, getRegion } from "@/lib/region";
 import { SIGNIN_PROVIDERS, describeConnectResult } from "@/lib/signin-methods";
@@ -83,8 +83,7 @@ function CardRegion() {
 }
 
 function CardBilling({ account }) {
-	const isActive = hasActiveSubscription(account);
-	const details = isActive ? getPlanDetails(account) : [];
+	const details = getPlanDetails(account);
 
 	return (
 		<CardSettings
@@ -92,14 +91,14 @@ function CardBilling({ account }) {
 			stagger={2}
 			action={
 				<Button asChild variant="outline" size="sm">
-					<Link href="/billing">{isActive ? "Manage billing" : "Pick a plan"}</Link>
+					<Link href="/billing">{isOnFreeTier(account) ? "Upgrade" : "Manage billing"}</Link>
 				</Button>
 			}
 		>
 			<RowSettings label="Plan">
 				<span className="flex min-h-9 flex-wrap items-center gap-x-2.5 gap-y-1">
-					<span className="text-sm font-medium">{isActive ? (getAccountPlan(account)?.name ?? "Your plan") : "No plan"}</span>
-					{(isActive || account.subscriptionStatus) && <BadgeStatus status={getAccountStatus(account)} />}
+					<span className="text-sm font-medium">{getAccountPlan(account).name}</span>
+					<BadgeStatus status={getAccountStatus(account)} />
 					{details.length > 0 && <span className="text-sm text-muted-foreground tabular-nums">{details.join(" · ")}</span>}
 				</span>
 			</RowSettings>

@@ -319,7 +319,7 @@ function FormEndFreePlan({ accountId, email, onDone }) {
 			<DialogHeader>
 				<DialogTitle>End free plan?</DialogTitle>
 				<DialogDescription>
-					{email ?? "This account"} keeps its newsletters, contacts and campaigns, and stops sending unless it pays for a plan.
+					{email ?? "This account"} keeps its newsletters, contacts and campaigns, and goes back to the Free plan unless it pays for a plan.
 				</DialogDescription>
 			</DialogHeader>
 			<DialogFooter>
@@ -348,7 +348,7 @@ function FieldLimit({ label, name, value, planValue }) {
 				name={name}
 				inputMode="numeric"
 				defaultValue={value ?? ""}
-				placeholder={planValue === undefined ? "No plan" : `${formatNumber(planValue)} (plan)`}
+				placeholder={planValue === undefined ? "" : `${formatNumber(planValue)} (plan)`}
 				className="tabular-nums"
 			/>
 		</div>

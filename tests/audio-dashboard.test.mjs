@@ -108,7 +108,7 @@ describe("the audio card on an issue", () => {
 	test("points an account whose plan has no audio to the plans, and is gone while audio is off", async () => {
 		const user = await publisher();
 		await m.accounts.setAudioLimitOverride(user.accountId, 0);
-		assert.match(text(await render(user, m.campaignPage, { params: Promise.resolve({ id: String(user.issue._id) }) })), /Audio versions come with a paid plan/);
+		assert.match(text(await render(user, m.campaignPage, { params: Promise.resolve({ id: String(user.issue._id) }) })), /Audio versions aren't part of the Free plan/);
 		await m.accounts.setAudioLimitOverride(user.accountId, undefined);
 		await withEnv({ AUDIO_ENABLED: "false" }, async () => {
 			const html = text(await render(user, m.campaignPage, { params: Promise.resolve({ id: String(user.issue._id) }) }));

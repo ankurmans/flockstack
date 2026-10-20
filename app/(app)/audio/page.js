@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import FormAudioSettings from "@/components/FormAudioSettings";
 import HeaderPage from "@/components/HeaderPage";
@@ -19,6 +20,7 @@ export default async function AudioPage() {
 	const { account, selected } = await getSelectedNewsletter();
 	if (!selected) redirect(ADD_NEWSLETTER_PATH);
 	const newsletter = String(selected._id);
+	const hasAudio = getAudioLimit(account) !== 0;
 	const [settings, voices, usage] = await Promise.all([
 		runDashboardAction("get_audio_settings", { newsletter }),
 		runDashboardAction("list_audio_voices", {}),
@@ -30,8 +32,8 @@ export default async function AudioPage() {
 		<>
 			<HeaderPage title="Audio" />
 			<div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-				{usage.output && <Usage usage={usage.output} hasPlan={getAudioLimit(account) !== 0} />}
-				{settings.output && voices.output && (
+				{usage.output && <Usage usage={usage.output} hasPlan={hasAudio} />}
+				{hasAudio && settings.output && voices.output && (
 					<FormAudioSettings
 						key={newsletter}
 						newsletterId={newsletter}
@@ -48,7 +50,16 @@ export default async function AudioPage() {
 }
 
 function Usage({ usage, hasPlan }) {
-	if (!hasPlan) return <p className="rounded-xl bg-muted/60 px-4 py-3 text-sm text-pretty">Audio versions come with a paid plan.</p>;
+	if (!hasPlan) {
+		return (
+			<p className="rounded-xl bg-muted/60 px-4 py-3 text-sm text-pretty">
+				Audio versions aren&apos;t part of the Free plan.{" "}
+				<Link href="/billing" className="font-medium underline underline-offset-4">
+					See plans
+				</Link>
+			</p>
+		);
+	}
 	if (usage.limit === null) return <p className="rounded-xl bg-muted/60 px-4 py-3 text-sm text-pretty">{formatNumber(usage.used)} characters read this month. This server has no limit.</p>;
 	const share = usage.limit ? Math.min(1, (usage.used + usage.reserved) / usage.limit) : 1;
 	return (

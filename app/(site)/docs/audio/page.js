@@ -71,7 +71,7 @@ export default function AudioPage() {
 				<p>
 					Audio is counted by the character read, for the account, per calendar month in UTC. A plan has a number of characters a month; an
 					audio version that would go past what is left is refused before it starts, with how many are left. There is no overage and nothing to buy
-					on top. An account with no plan has no audio. About 825 characters is a minute of speech, so the numbers below are the minutes in brackets.
+					on top. The Free plan has no audio. About 825 characters is a minute of speech, so the numbers below are the minutes in brackets.
 				</p>
 				<div className="mt-4 overflow-x-auto rounded-xl shadow-border">
 					<table className="w-full min-w-[22rem] text-left text-sm tabular-nums">

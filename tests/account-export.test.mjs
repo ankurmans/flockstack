@@ -475,7 +475,7 @@ describe("comments in an export", () => {
 	});
 });
 
-describe("an account that is blocked, paused or has no plan", () => {
+describe("an account that is blocked, paused or back on the Free plan", () => {
 	test("can still export, by API key and from the dashboard, while its other actions stay refused", async () => {
 		const user = await customer("export-blocked@example.com");
 		await addContacts(user, [{ email: "ann@example.org", status: "active" }]);
@@ -496,14 +496,13 @@ describe("an account that is blocked, paused or has no plan", () => {
 		assert.equal(email.subject, "Your FlockStack export is ready", "the owner's email isn't the account's own sending, which is stopped");
 	});
 
-	test("and one without a plan, whose other actions answer subscription_required", async () => {
+	test("and one whose plan ended, which is on the Free plan with every action open", async () => {
 		const user = await customer("export-noplan@example.com");
 		await addContacts(user, [{ email: "ann@example.org", status: "active" }]);
 		await m.Account.updateOne({ _id: user.accountId }, { $set: { subscriptionStatus: "canceled" } });
 
 		const listed = await callApi("GET", "/api/v1/campaigns", { key: user.key });
-		assert.equal(listed.status, 402);
-		assert.equal(listed.body.error.code, "subscription_required");
+		assert.equal(listed.status, 200);
 		const { started, latest } = await exportAndWait(user);
 		assert.equal(started.status, 202);
 		assert.equal(latest.body.status, "ready");

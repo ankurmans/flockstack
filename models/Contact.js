@@ -11,6 +11,9 @@ const contactSchema = new mongoose.Schema(
 		email: { type: String, required: true, lowercase: true, trim: true },
 		status: { type: String, enum: CONTACT_STATUSES, default: "active" },
 		source: { type: String, trim: true },
+		// Two-letter country of the network they signed up from, Cloudflare's cf-ipcountry (lib/signup-country.js): segments
+		// filter on it. Set once, at signup, and not on contacts that joined before it was kept.
+		country: { type: String, trim: true },
 		// Free-form labels, normalized by lib/tags.js. Filters on them run in SQL (lib/docdb/sql.js, arrays of scalars).
 		tags: { type: [String], default: undefined },
 		// The newsletter's custom fields by key (lib/custom-fields.js): text, a number, a date (YYYY-MM-DD), a date and time,
@@ -30,11 +33,42 @@ const contactSchema = new mongoose.Schema(
 		tier: { type: String, enum: CONTACT_TIERS, default: "free" },
 		paidUntil: { type: Date },
 		paidSince: { type: Date },
-		paidInterval: { type: String, enum: ["month", "year"] },
+		paidInterval: { type: String, enum: ["month", "quarter", "year", "lifetime"] },
+		// The paid tier the contact holds (lib/tier-rules.js); a paid contact from before tiers has none and holds the first.
+		paidTierId: { type: String },
+		// Paid access given by hand or as a gift, apart from Stripe: { kind: comp or gift, tierId, until, at, note, giftId }.
+		// Stripe's subscription wins while it is paid; the grant holds after it ends, until its end (lib/grants.js).
+		grant: {
+			kind: { type: String, enum: ["comp", "gift"] },
+			tierId: { type: String },
+			until: { type: Date },
+			at: { type: Date },
+			note: { type: String },
+			giftId: { type: String },
+		},
+		// The offer a paid reader signed up with (lib/offers.js).
+		offerId: { type: String },
+		// The name a founding member asked to be listed under on the supporters list.
+		supporterName: { type: String },
 		stripeCustomerId: { type: String },
 		stripeSubscriptionId: { type: String },
+		// A lifetime tier's one payment, so a refund of it ends the access.
+		lifetimePaymentIntentId: { type: String },
 		// Stripe's status for the subscription: active, trialing, past_due, canceled…
 		subscriptionStatus: { type: String },
+		// Where the signup came from, set once when the contact is made (lib/attribution.js): a channel, the UTM parameters the
+		// page was opened with, and the host of the page that linked to it.
+		acquisition: {
+			channel: { type: String },
+			utm: {
+				source: { type: String },
+				medium: { type: String },
+				campaign: { type: String },
+				term: { type: String },
+				content: { type: String },
+			},
+			referrer: { type: String },
+		},
 		subscribedAt: { type: Date, default: Date.now },
 		confirmedAt: { type: Date },
 		// The one reminder to confirm went out (lib/confirmation-reminders.js).
@@ -97,11 +131,16 @@ contactSchema.index({ accountId: 1, subscribedAt: -1, _id: -1 });
 contactSchema.index({ accountId: 1, status: 1, subscribedAt: -1, _id: -1 });
 contactSchema.index({ newsletterId: 1, subscribedAt: -1, _id: -1 });
 contactSchema.index({ newsletterId: 1, status: 1, subscribedAt: -1, _id: -1 });
+// The growth report counts who left in a range of dates (lib/reports.js).
+contactSchema.index({ newsletterId: 1, status: 1, unsubscribedAt: 1 });
 // Stripe's subscription events find their contact by subscription or customer.
 contactSchema.index({ stripeSubscriptionId: 1 }, { partialFilterExpression: { stripeSubscriptionId: { $type: "string" } } });
 contactSchema.index({ newsletterId: 1, stripeCustomerId: 1 }, { partialFilterExpression: { stripeCustomerId: { $type: "string" } } });
 // Counting and sending to a newsletter's paid readers.
 contactSchema.index({ newsletterId: 1, tier: 1, status: 1 });
+contactSchema.index({ newsletterId: 1, paidTierId: 1 }, { partialFilterExpression: { paidTierId: { $type: "string" } } });
+// The hourly check for comps and gifts that ran out (lib/grant-access.js).
+contactSchema.index({ "grant.until": 1 }, { partialFilterExpression: { "grant.until": { $exists: true } } });
 // The list cleanup totals in newsletter settings.
 contactSchema.index({ newsletterId: 1, lastChanceAt: 1 }, { partialFilterExpression: { lastChanceAt: { $exists: true } } });
 // An admin taking an address off the never-email list finds the contacts it stopped, in every account.

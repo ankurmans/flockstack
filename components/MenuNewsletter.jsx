@@ -17,7 +17,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ADD_NEWSLETTER_PARAM, MAX_NEWSLETTERS_PER_ACCOUNT, NEWSLETTER_COOKIE, NEWSLETTER_LIMIT_MESSAGE } from "@/lib/newsletters";
+import { ADD_NEWSLETTER_PARAM, NEWSLETTER_COOKIE } from "@/lib/newsletters";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
@@ -25,8 +25,9 @@ import { cn } from "@/lib/utils";
 let refreshedFor = null;
 
 // The newsletter the dashboard shows, and the others to switch to. savedId: the cookie the layout was rendered from.
-// addForm: FormAddNewsletter, for Add a newsletter's dialog.
-export default function MenuNewsletter({ newsletters, selectedId, savedId, isCompact = false, addForm }) {
+// addForm: FormAddNewsletter, for Add a newsletter's dialog. canAdd: the account is under its plan's newsletters; limitMessage says
+// how many it has.
+export default function MenuNewsletter({ newsletters, selectedId, savedId, isCompact = false, canAdd, limitMessage, addForm }) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
@@ -126,7 +127,7 @@ export default function MenuNewsletter({ newsletters, selectedId, savedId, isCom
 						))}
 					</DropdownMenuRadioGroup>
 					<DropdownMenuSeparator className="my-1.5" />
-					{newsletters.length < MAX_NEWSLETTERS_PER_ACCOUNT ? (
+					{canAdd ? (
 						<DropdownMenuItem className={ITEM} onSelect={() => setAdding(true)}>
 							<Plus />
 							Add a newsletter
@@ -137,7 +138,7 @@ export default function MenuNewsletter({ newsletters, selectedId, savedId, isCom
 								<Plus />
 								Add a newsletter
 							</DropdownMenuItem>
-							<p className="mt-1 text-xs text-pretty text-muted-foreground">{NEWSLETTER_LIMIT_MESSAGE}</p>
+							<p className="mt-1 text-xs text-pretty text-muted-foreground">{limitMessage}</p>
 						</div>
 					)}
 					<DropdownMenuItem asChild className={ITEM}>

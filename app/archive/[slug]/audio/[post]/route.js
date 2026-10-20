@@ -3,13 +3,12 @@ import { getArchiveIssue, getArchiveNewsletter } from "@/lib/archive-data";
 import { isAudioEnabled } from "@/lib/audio-config";
 import { serveAudio } from "@/lib/audio-serve";
 import { connectDb } from "@/lib/db";
-import { findSessionReader } from "@/lib/reader-session";
-import { isPaidContact } from "@/lib/tiers";
+import { getAudioAccess } from "@/lib/reader-access";
 import AudioVersion from "@/models/AudioVersion";
 
 // An issue's audio, at /audio/<slug>.mp3 on the newsletter's own domain (proxy.js). Range requests work (podcast apps and
-// iOS need them). Audio of an issue for everyone is public; audio of an issue for paid subscribers only is heard by a reader
-// signed in to the newsletter (lib/reader-session.js) whose subscription is paid, and by nobody else.
+// iOS need them). Who may hear it is lib/reader-access.js getAudioAccess: anyone for an open issue, a signed-in subscriber for an
+// issue the gate holds, a paid reader whose tier can read it for a paid issue.
 export async function GET(request, { params }) {
 	const { slug, post } = await params;
 	const newsletter = isAudioEnabled() ? await getArchiveNewsletter(slug) : null;
@@ -21,13 +20,8 @@ export async function GET(request, { params }) {
 		.lean();
 	if (!audio) return new Response("Not found", { status: 404 });
 
-	// An issue that became paid-only after its audio was made is paid-only audio from then on.
-	const isPaidOnly = audio.file.scope === "paid" || issue.audience === "paid";
-	if (isPaidOnly) {
-		const reader = await findSessionReader(newsletter);
-		if (!isPaidContact(reader)) {
-			return new Response("This audio is for paid subscribers", { status: reader ? 403 : 401, headers: { "Cache-Control": "private, no-store" } });
-		}
-	}
-	return serveAudio(request, audio.file, { access: isPaidOnly ? "private" : "public", version: new URL(request.url).searchParams.get("v") });
+	// Who may hear it is decided as for reading the issue: a paid issue by tier, a gated issue by a signed-in subscriber.
+	const access = await getAudioAccess({ newsletter, issue, file: audio.file });
+	if (!access.ok) return new Response("This audio is for subscribers who can read the issue", { status: access.status, headers: { "Cache-Control": "private, no-store" } });
+	return serveAudio(request, audio.file, { access: access.access, version: new URL(request.url).searchParams.get("v") });
 }

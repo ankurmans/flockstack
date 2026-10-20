@@ -7,6 +7,7 @@ import { confirmContact } from "@/lib/contacts";
 import { connectDb } from "@/lib/db";
 import { findOpenNewsletter } from "@/lib/public-newsletters";
 import { countConfirmation, getReaderStep } from "@/lib/recommendations";
+import { startReaderSession } from "@/lib/reader-session";
 import { creditReferral } from "@/lib/referrals";
 import { queueWelcomeEmail } from "@/lib/sending";
 
@@ -19,6 +20,8 @@ export async function confirmSubscription(token) {
 	if (!newsletter) return { error: "invalid" };
 	const { contact, confirmed } = await confirmContact({ accountId: newsletter.accountId, ...reference });
 	if (contact?.status !== "active") return { error: "invalid" };
+	// The link proved the address, so the browser can sign in to the website as this subscriber (a gated issue opens).
+	await startReaderSession(newsletter, contact._id);
 
 	// The referrer's count and rewards, when this subscriber came through someone's referral link.
 	if (confirmed) {

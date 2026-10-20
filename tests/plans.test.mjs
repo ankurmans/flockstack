@@ -8,7 +8,7 @@ import {
 	hasActiveSubscription,
 	isPaidStatus,
 } from "../lib/account-state.js";
-import { PLANS, getAccountLimits, getAccountPlan, getImportLimits, getLookupKey, getPlan, getPrice, isOnFreePlan, parseLookupKey, readInterval } from "../lib/plans.js";
+import { PLANS, getAccountLimits, getAccountPlan, getImportLimits, getLookupKey, getPlan, getPrice, isOnFreePlan, isOnFreeTier, parseLookupKey, readInterval } from "../lib/plans.js";
 
 // Plans and the paywall are FlockStack Cloud's; the last test is a self-hosted server.
 process.env.FLOCKSTACK_CLOUD = "true";
@@ -54,29 +54,38 @@ test("Stripe lookup keys name the plan and the interval, both ways", () => {
 });
 
 test("an admin's numbers replace the plan's", () => {
-	assert.deepEqual(getAccountLimits({ plan: "pro" }), { emails: 250_000, subscribers: 50_000 });
-	assert.deepEqual(getAccountLimits({ plan: "max" }), { emails: 2_000_000, subscribers: 400_000 });
-	assert.deepEqual(getAccountLimits({ plan: "max", limitOverrides: { emailsPerMonth: 3_000_000 } }), { emails: 3_000_000, subscribers: 400_000 });
-	assert.deepEqual(getAccountLimits({ plan: "pro", limitOverrides: { emailsPerMonth: 1_000 } }), {
+	const active = { subscriptionStatus: "active" };
+	assert.deepEqual(getAccountLimits({ ...active, plan: "pro" }), { emails: 250_000, subscribers: 50_000 });
+	assert.deepEqual(getAccountLimits({ ...active, plan: "max" }), { emails: 2_000_000, subscribers: 400_000 });
+	assert.deepEqual(getAccountLimits({ ...active, plan: "max", limitOverrides: { emailsPerMonth: 3_000_000 } }), { emails: 3_000_000, subscribers: 400_000 });
+	assert.deepEqual(getAccountLimits({ ...active, plan: "pro", limitOverrides: { emailsPerMonth: 1_000 } }), {
 		emails: 1_000,
 		subscribers: 50_000,
 	});
-	assert.deepEqual(getAccountLimits({ plan: "starter", limitOverrides: { emailsPerMonth: 0, subscribers: 9 } }), {
+	assert.deepEqual(getAccountLimits({ ...active, plan: "starter", limitOverrides: { emailsPerMonth: 0, subscribers: 9 } }), {
 		emails: 0,
 		subscribers: 9,
 	});
-	assert.deepEqual(getAccountLimits({}), { emails: 0, subscribers: 0 }, "no plan, no sending");
+	assert.deepEqual(getAccountLimits({}), { emails: 10_000, subscribers: 2_500 }, "no subscription is the Free plan");
+	assert.deepEqual(getAccountLimits({ limitOverrides: { subscribers: 7_000 } }), { emails: 10_000, subscribers: 7_000 }, "an admin raises a free account's limits");
 });
 
-test("active, trialing and past_due subscriptions keep the account working", () => {
-	for (const status of ["active", "trialing", "past_due"]) assert.equal(hasActiveSubscription({ subscriptionStatus: status }), true);
-	for (const status of [undefined, "incomplete", "incomplete_expired", "canceled", "unpaid", "paused"]) {
-		assert.equal(hasActiveSubscription({ subscriptionStatus: status }), false, String(status));
+test("every account has a plan: active, trialing and past_due subscriptions are paid, the rest are on Free", () => {
+	for (const status of ["active", "trialing", "past_due"]) {
+		assert.equal(getAccountPlan({ subscriptionStatus: status, plan: "growth" }).id, "growth", status);
+		assert.equal(isOnFreeTier({ subscriptionStatus: status, plan: "growth" }), false, status);
 	}
-	assert.equal(getAccountStatus({}), "no_plan");
+	for (const status of [undefined, "incomplete", "incomplete_expired", "canceled", "unpaid", "paused"]) {
+		assert.equal(hasActiveSubscription({ subscriptionStatus: status }), true, `${status}: the account works`);
+		assert.equal(getAccountPlan({ subscriptionStatus: status, plan: "growth" }).id, "free", `${status}: on Free, whatever its last plan was`);
+	}
+	assert.equal(hasActiveSubscription({ deletion: { requestedAt: new Date() } }), false, "only an account waiting to be deleted doesn't");
+	assert.equal(getAccountPlan({ subscriptionStatus: "active" }).id, "free", "a paid status without a known plan falls back to Free");
+	assert.equal(getAccountStatus({}), "free");
+	assert.equal(getAccountStatus({ subscriptionStatus: "canceled" }), "free");
 	assert.equal(getAccountStatus({ subscriptionStatus: "active", status: "paused" }), "blocked");
-	assert.equal(getAccountStatus({ subscriptionStatus: "canceled", status: "paused" }), "canceled");
-	assert.equal(getAccountStatus({ subscriptionStatus: "past_due" }), "past_due");
+	assert.equal(getAccountStatus({ subscriptionStatus: "canceled", status: "paused" }), "blocked");
+	assert.equal(getAccountStatus({ subscriptionStatus: "past_due", plan: "starter" }), "past_due");
 });
 
 test("a free plan from an admin works like a paid one until its end; a paid plan and the admin's numbers win", () => {
@@ -102,18 +111,19 @@ test("a free plan from an admin works like a paid one until its end; a paid plan
 	assert.deepEqual(getAccountLimits(paid), { emails: 125_000, subscribers: 25_000 });
 
 	const ended = { comp: { ...comp, until: new Date(Date.now() - 1000) } };
-	assert.equal(hasActiveSubscription(ended), false);
-	assert.equal(getAccountStatus(ended), "no_plan");
-	assert.deepEqual(getAccountLimits(ended), { emails: 0, subscribers: 0 });
-	assert.equal(hasActiveSubscription({ comp: { ...comp, until: new Date(Date.now() + day) } }), true, "an end date still ahead");
+	assert.equal(hasActiveSubscription(ended), true);
+	assert.equal(getAccountStatus(ended), "free", "the end of a free plan is the Free plan");
+	assert.deepEqual(getAccountLimits(ended), { emails: 10_000, subscribers: 2_500 });
+	assert.equal(getAccountPlan({ comp: { ...comp, until: new Date(Date.now() + day) } }).id, "scale", "an end date still ahead");
 	assert.equal(hasActiveSubscription({ comp, deletion: { requestedAt: new Date() } }), false, "an account waiting to be deleted");
-	assert.equal(hasActiveSubscription({ comp: { ...comp, plan: "enterprise" } }), false, "only the five plans");
+	assert.equal(getAccountPlan({ comp: { ...comp, plan: "enterprise" } }).id, "free", "only the five plans");
 	assert.deepEqual(getAccountLimits({ comp: { ...comp, plan: "max" } }), { emails: 2_000_000, subscribers: 400_000 }, "a free Max");
 });
 
-test("every send needs a plan and an account that isn't blocked", () => {
-	assert.equal(getAccountSendProblem({}).code, ERROR_CODES.subscriptionRequired);
-	assert.equal(getAccountSendProblem({ subscriptionStatus: "canceled" }).code, "subscription_required");
+test("every send needs an account that isn't blocked or waiting to be deleted: no plan to pick", () => {
+	assert.equal(getAccountSendProblem({}), null, "the Free plan sends");
+	assert.equal(getAccountSendProblem({ subscriptionStatus: "canceled" }), null);
+	assert.equal(getAccountSendProblem({ deletion: { requestedAt: new Date() } }).code, ERROR_CODES.subscriptionRequired);
 	const blocked = getAccountSendProblem({ subscriptionStatus: "active", status: "paused", pauseReason: "An email reached a spam trap." });
 	assert.equal(blocked.code, "account_blocked");
 	assert.equal(blocked.message, "This account is blocked: An email reached a spam trap. Chat with us to unblock it.");
@@ -170,7 +180,7 @@ test("self-hosted, without FLOCKSTACK_CLOUD: no paywall, no plan limits, every a
 		const huge = { account: {}, emailsSent: 50_000_000, queued: 1_000_000, recipients: 2_000_000, activeContacts: 3_000_000 };
 		assert.equal(getPlanLimitProblem(huge), null);
 	});
-	assert.equal(getAccountSendProblem({}).code, ERROR_CODES.subscriptionRequired, "back on FlockStack Cloud");
+	assert.equal(getAccountSendProblem({}), null, "back on FlockStack Cloud");
 });
 
 test("each plan caps the posts of an import and what imported pictures weigh; a self-hosted server has no caps", () => {
@@ -187,6 +197,6 @@ test("each plan caps the posts of an import and what imported pictures weigh; a 
 	);
 	const account = { plan: "pro", subscriptionStatus: "active" };
 	assert.deepEqual(getImportLimits(account), { posts: 3000, imageBytes: 6 * GB });
-	assert.deepEqual(getImportLimits({}), { posts: 500, imageBytes: GB });
+	assert.deepEqual(getImportLimits({}), { posts: 100, imageBytes: 200 * 1024 ** 2 }, "the Free plan's");
 	selfHosted(() => assert.equal(getImportLimits(account), null));
 });

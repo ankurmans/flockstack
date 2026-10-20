@@ -7,11 +7,13 @@ import LinksSocial from "@/components/LinksSocial";
 import ListIssues from "@/components/ListIssues";
 import ListRecommendations from "@/components/ListRecommendations";
 import ScriptJsonLd from "@/components/ScriptJsonLd";
+import TriggerSubscribe from "@/components/TriggerSubscribe";
 import { HOME_ISSUES, countReaders, getArchiveNewsletter, listHomeIssues, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getCustomJsonLd, getHomeSeo } from "@/lib/archive-seo";
 import { getBrand } from "@/lib/brand";
 import { formatNumber } from "@/lib/format";
+import { getPopupSettings, getTriggerProps, isPopupOn } from "@/lib/popup-rules";
 import { cn } from "@/lib/utils";
 import { listLiveRecommendations } from "@/lib/recommendations";
 
@@ -37,6 +39,7 @@ export default async function ArchivePage({ params }) {
 		listLiveRecommendations(newsletter).catch(() => []),
 	]);
 	const urls = getArchiveUrls(newsletter);
+	const popup = getPopupSettings(newsletter);
 	const brand = getBrand(newsletter);
 	const { pinned, recent, total } = home;
 	// With pinned issues, or the minimal theme's plain list, no issue gets the big card of the latest.
@@ -127,6 +130,7 @@ export default async function ArchivePage({ params }) {
 				</section>
 			)}
 			<ListRecommendations newsletterSlug={newsletter.slug} items={recommendations} className="pt-12 pb-24" />
+			{isPopupOn(popup, "home") && <TriggerSubscribe newsletterSlug={newsletter.slug} {...getTriggerProps(popup)} />}
 		</>
 	);
 }

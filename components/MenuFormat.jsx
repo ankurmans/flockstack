@@ -1,14 +1,29 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useEditorState } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import { NodeSelection } from "@tiptap/pm/state";
-import { Bold, CornerDownLeft, Heading1, Heading2, Italic, Link, Strikethrough, TextQuote, Unlink } from "lucide-react";
+import { Bold, ChevronLeft, CornerDownLeft, Heading1, Heading2, Italic, Link, Sparkles, Strikethrough, TextQuote, Unlink } from "lucide-react";
+import { LANGUAGES } from "@/lib/ai-writing";
 import { isReferralLinkTag } from "@/lib/referral-tags";
 import { cn } from "@/lib/utils";
 
-export default function MenuFormat({ editor, isEditingLink, onEditLink }) {
+const AI_QUICK = [
+	{ style: "rewrite", label: "Rewrite" },
+	{ style: "shorten", label: "Shorten" },
+	{ style: "expand", label: "Expand" },
+	{ style: "fix_grammar", label: "Fix grammar" },
+];
+const AI_TONES = [
+	{ value: "friendly", label: "Friendly" },
+	{ value: "formal", label: "Formal" },
+	{ value: "punchy", label: "Punchy" },
+];
+
+// onAi({ style, language }): given only where the server has Workers AI and the account a plan; without it there is no AI button.
+export default function MenuFormat({ editor, isEditingLink, onEditLink, onAi = null }) {
+	const [isAiOpen, setIsAiOpen] = useState(false);
 	const state = useEditorState({
 		editor,
 		selector: ({ editor: current }) => ({
@@ -23,7 +38,11 @@ export default function MenuFormat({ editor, isEditingLink, onEditLink }) {
 		}),
 	});
 	const options = useMemo(
-		() => ({ placement: "top", offset: 8, flip: true, shift: { padding: 8 }, onHide: () => onEditLink(false) }),
+		() => ({ placement: "top", offset: 8, flip: true, shift: { padding: 8 }, onHide: () => {
+				onEditLink(false);
+				setIsAiOpen(false);
+			},
+		}),
 		[onEditLink]
 	);
 
@@ -48,7 +67,20 @@ export default function MenuFormat({ editor, isEditingLink, onEditLink }) {
 	return (
 		<BubbleMenu editor={editor} shouldShow={shouldShowMenu} appendTo={getBody} options={options} className="z-50">
 			<div className="flex items-center gap-0.5 rounded-xl border bg-popover p-1 text-popover-foreground shadow-lg">
-				{isEditingLink ? (
+				{isAiOpen && onAi ? (
+					<div className="flex items-center gap-0.5" role="group" aria-label="Write with AI">
+						<ButtonFormat label="Back" onClick={() => setIsAiOpen(false)}>
+							<ChevronLeft />
+						</ButtonFormat>
+						{AI_QUICK.map(({ style, label }) => (
+							<button key={style} type="button" onClick={() => onAi({ style })} className={AI_BUTTON}>
+								{label}
+							</button>
+						))}
+						<SelectAi label="Tone" options={AI_TONES} onPick={(style) => onAi({ style })} />
+						<SelectAi label="Translate" options={LANGUAGES.map((language) => ({ value: language, label: language }))} onPick={(language) => onAi({ style: "translate", language })} />
+					</div>
+				) : isEditingLink ? (
 					<form onSubmit={applyLink} className="flex items-center gap-0.5">
 						<input
 							name="href"
@@ -114,10 +146,39 @@ export default function MenuFormat({ editor, isEditingLink, onEditLink }) {
 						>
 							<TextQuote />
 						</ButtonFormat>
+						{onAi && (
+							<>
+								<span aria-hidden className="mx-0.5 h-5 w-px bg-border" />
+								<ButtonFormat label="Write with AI" onClick={() => setIsAiOpen(true)}>
+									<Sparkles />
+								</ButtonFormat>
+							</>
+						)}
 					</>
 				)}
 			</div>
 		</BubbleMenu>
+	);
+}
+
+const AI_BUTTON = "h-8 rounded-lg px-2 text-sm text-muted-foreground transition-colors duration-150 hover:bg-accent hover:text-foreground";
+
+// A native select inside the menu keeps the editor's selection and the menu open while it is used.
+function SelectAi({ label, options, onPick }) {
+	return (
+		<select
+			aria-label={label}
+			value=""
+			onChange={(event) => event.target.value && onPick(event.target.value)}
+			className={`${AI_BUTTON} cursor-pointer bg-transparent`}
+		>
+			<option value="">{label}</option>
+			{options.map(({ value, label: text }) => (
+				<option key={value} value={value}>
+					{text}
+				</option>
+			))}
+		</select>
 	);
 }
 

@@ -112,6 +112,7 @@ after(() => app?.stop());
 describe("new newsletters", () => {
 	test("start with their website on, from onboarding, the dashboard, the REST API and MCP, unless they say false", async () => {
 		const user = await signIn("website-new@example.com");
+		await activate(user);
 		assert.equal(await as(user, () => catchRedirect(m.welcome.completeOnboarding(null, form({ name: "Onboarded notes" })))), "/");
 		assert.equal(await as(user, () => catchRedirect(m.newsletters.createNewsletter(null, form({ name: "Added notes" })))), "/newsletters");
 		const stored = await m.Newsletter.find({ accountId: user.accountId }).sort({ createdAt: 1 }).lean();

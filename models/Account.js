@@ -136,6 +136,9 @@ const accountSchema = new mongoose.Schema(
 			turnedOnAt: { type: Date },
 			error: { type: String, trim: true },
 		},
+		// A paid plan's choice to carry the "Sent with FlockStack" link (lib/free-plan.js); unset is off. The Free plan always
+		// carries it, whatever this says.
+		sentWithLink: { type: Boolean },
 		// Set by an admin; they replace the plan's numbers.
 		limitOverrides: {
 			emailsPerMonth: { type: Number, min: 0 },

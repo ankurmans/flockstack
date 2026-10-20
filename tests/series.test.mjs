@@ -267,7 +267,7 @@ describe("runs", () => {
 		assert.ok(platformEmails.some(({ subject }) => /couldn't make its issue/i.test(subject)));
 	});
 
-	test("an off series isn't run, and an account without a plan is skipped", async () => {
+	test("an off series isn't run, and an account waiting to be deleted is skipped", async () => {
 		feeds.restore();
 		feeds = serveFeeds(new Map([[`${BLOG}?v=off`, () => readFixture("blog.rss.xml")]]));
 		const series = await makeSeries({ feedUrl: `${BLOG}?v=off`, active: false });
@@ -276,14 +276,13 @@ describe("runs", () => {
 		assert.equal(await m.SeriesRun.countDocuments({ accountId: user.accountId, seriesId: series.id }), 0);
 
 		await m.SeriesPlan.updateOne({ accountId: user.accountId, _id: series.id }, { $set: { active: true } });
-		const { subscriptionStatus } = await m.Account.findById(user.accountId).lean();
-		await m.Account.updateOne({ _id: user.accountId }, { $set: { subscriptionStatus: "canceled" } });
+		await m.Account.updateOne({ _id: user.accountId }, { $set: { deletion: { requestedAt: new Date(), purgeAt: new Date(Date.now() + 86_400_000) } } });
 		try {
 			await m.series.runDueSeries();
 			const run = await m.SeriesRun.findOne({ accountId: user.accountId, seriesId: series.id }).lean();
-			assert.deepEqual([run.status, run.reason], ["skipped", "The account has no active plan"]);
+			assert.deepEqual([run.status, run.reason], ["skipped", "The account is being deleted"]);
 		} finally {
-			await m.Account.updateOne({ _id: user.accountId }, { $set: { subscriptionStatus } });
+			await m.Account.updateOne({ _id: user.accountId }, { $unset: { deletion: 1 } });
 		}
 	});
 

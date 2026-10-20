@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { AB_TEST, VARIANT_LABELS } from "@/lib/ab-test-rules";
+import { AB_SUBJECT_EVENT, addAbSubject } from "@/lib/ai-client";
 import { formatCount, formatNumber } from "@/lib/format";
 import { useToastError } from "@/lib/use-toast-error";
 
@@ -57,6 +58,18 @@ export default function CardAbTest({ campaign, subject, audienceCount, stagger =
 		}, SAVE_DELAY_MS);
 		return () => clearTimeout(timeout);
 	}, [draft, campaign._id, router, toastError]);
+
+	// A subject the writer sent from the AI's suggestions joins the test, which turns on with it.
+	useEffect(() => {
+		function onSubject(event) {
+			setDraft((current) => {
+				const subjects = addAbSubject(current.subjects, event.detail?.subject, AB_TEST.maxVariants - 1);
+				return subjects ? { ...current, enabled: true, subjects } : current;
+			});
+		}
+		window.addEventListener(AB_SUBJECT_EVENT, onSubject);
+		return () => window.removeEventListener(AB_SUBJECT_EVENT, onSubject);
+	}, []);
 
 	const set = (changes) => setDraft((current) => ({ ...current, ...changes }));
 	const setSubject = (index, changes) =>

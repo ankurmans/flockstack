@@ -2,9 +2,10 @@ import { notFound } from "next/navigation";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import BadgeDate from "@/components/BadgeDate";
 import BadgeViews from "@/components/BadgeViews";
-import BodyIssue from "@/components/BodyIssue";
 import CardIssue from "@/components/CardIssue";
+import BodyIssue from "@/components/BodyIssue";
 import ChipsTag from "@/components/ChipsTag";
+import GateIssue from "@/components/GateIssue";
 import LinksShare from "@/components/LinksShare";
 import ListRecommendations from "@/components/ListRecommendations";
 import PitchSubscribe from "@/components/PitchSubscribe";
@@ -17,8 +18,10 @@ import { getIssueAudio } from "@/lib/audio";
 import { isAudioEnabled } from "@/lib/audio-config";
 import { renderPageBody } from "@/lib/archive-content";
 import { countReaders, getArchiveIssue, getArchiveNewsletter, getArchivePage, getShopPayments, listArchiveIssues, listSignupFields } from "@/lib/archive-data";
+import { getGatePreview, listFreeIssueIds } from "@/lib/archive-gate";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getBrand } from "@/lib/brand";
+import { getPopupSettings, getTriggerProps, isGatedIssue, isPopupOn } from "@/lib/popup-rules";
 import { getIssueDate } from "@/lib/archive-issues";
 import { getCustomJsonLd, getIssueSeo, getPageSeo } from "@/lib/archive-seo";
 import { getTagSlug } from "@/lib/issue-tags";
@@ -63,6 +66,8 @@ export default async function PostPage({ params }) {
 async function renderPage({ newsletter, page }) {
 	const [readers, signupFields] = await Promise.all([countReaders(newsletter), listSignupFields(newsletter)]);
 	const pitch = { name: newsletter.name, slug: newsletter.slug, imageUrl: newsletter.imageUrl, description: newsletter.description, signupFields };
+	// Its own pages (About, Sponsor) carry the pop-up like issues do.
+	const popup = getPopupSettings(newsletter);
 
 	return (
 		<>
@@ -80,7 +85,7 @@ async function renderPage({ newsletter, page }) {
 					<PitchSubscribe newsletter={pitch} readers={readers} />
 				</div>
 			</section>
-			<TriggerSubscribe newsletterSlug={newsletter.slug} />
+			{isPopupOn(popup, "issue") && <TriggerSubscribe newsletterSlug={newsletter.slug} {...getTriggerProps(popup)} />}
 		</>
 	);
 }
@@ -99,6 +104,18 @@ async function renderIssue({ newsletter, issue }) {
 	]);
 	const urls = getArchiveUrls(newsletter);
 	const body = renderWebIssue({ newsletter, issue, recommendations });
+	// A gated issue shows its beginning to readers who haven't subscribed; its pop-up would ask the same thing twice.
+	const popup = getPopupSettings(newsletter);
+	const isGated = (body.kind === "article" || body.kind === "frame") && isGatedIssue(popup, issue, await listFreeIssueIds(newsletter, popup));
+	// The player: everyone hears the public audio of an issue that is open; an issue the gate holds opens it for a subscriber who
+	// is signed in, and a paid issue for a reader whose tier can read it. The audio route says the same (lib/reader-access.js).
+	const audioPlayer = audio && {
+		...audio,
+		scope: issue.audience === "paid" ? "paid" : audio.scope,
+		isGated,
+		title: issue.subject,
+		storageKey: `${newsletter.slug}:${issue.archiveSlug}`,
+	};
 	// An issue that places the block itself gets no second one below it.
 	const closing = hasRecommendationsTag(issue.html) || hasRecommendationsTag(issue.markdown) ? [] : recommendations;
 	const canSubscribePaid = Boolean(newsletter.paidTier?.enabled) && payments.ready;
@@ -161,14 +178,24 @@ async function renderIssue({ newsletter, issue }) {
 					<ChipsTag tags={issueTags} urls={urls} className="mt-5" />
 				</header>
 
-				<BodyIssue
-					slug={newsletter.slug}
-					post={issue.archiveSlug}
-					initial={body}
-					newsletterName={newsletter.name}
-					subscribeHref={canSubscribePaid ? urls.subscribe : null}
-					audio={audio && { ...audio, scope: issue.audience === "paid" ? "paid" : audio.scope, title: issue.subject, storageKey: `${newsletter.slug}:${issue.archiveSlug}` }}
-				/>
+				{isGated ? (
+					<GateIssue
+						preview={getGatePreview(newsletter, issue)}
+						newsletter={pitch}
+						post={issue.archiveSlug}
+						subscribeHref={canSubscribePaid ? urls.subscribe : null}
+						audio={audioPlayer}
+					/>
+				) : (
+					<BodyIssue
+						slug={newsletter.slug}
+						post={issue.archiveSlug}
+						initial={body}
+						newsletterName={newsletter.name}
+						subscribeHref={canSubscribePaid ? urls.subscribe : null}
+						audio={audioPlayer}
+					/>
+				)}
 			</article>
 
 			{comments && (
@@ -180,11 +207,15 @@ async function renderIssue({ newsletter, issue }) {
 				/>
 			)}
 
-			<section id="subscribe" className={cn("mx-auto max-w-2xl scroll-mt-24 px-5 pt-16", more.length === 0 && closing.length === 0 && "pb-24")}>
-				<div className="rounded-2xl bg-card px-6 py-10 shadow-border sm:px-10">
-					<PitchSubscribe newsletter={pitch} readers={readers} />
-				</div>
-			</section>
+			{isGated ? (
+				<div className={cn(more.length === 0 && closing.length === 0 && "pb-24")} />
+			) : (
+				<section id="subscribe" className={cn("mx-auto max-w-2xl scroll-mt-24 px-5 pt-16", more.length === 0 && closing.length === 0 && "pb-24")}>
+					<div className="rounded-2xl bg-card px-6 py-10 shadow-border sm:px-10">
+						<PitchSubscribe newsletter={pitch} readers={readers} />
+					</div>
+				</section>
+			)}
 
 			<ListRecommendations
 				newsletterSlug={newsletter.slug}
@@ -213,7 +244,7 @@ async function renderIssue({ newsletter, issue }) {
 				</section>
 			)}
 
-			<TriggerSubscribe newsletterSlug={newsletter.slug} />
+			{!isGated && isPopupOn(popup, "issue") && <TriggerSubscribe newsletterSlug={newsletter.slug} {...getTriggerProps(popup)} />}
 			<TrackView issueId={issue._id.toString()} />
 		</>
 	);

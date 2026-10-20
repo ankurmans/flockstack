@@ -59,6 +59,26 @@ const newsletterSchema = new mongoose.Schema(
 		],
 		// Every email's footer links to the reader's preference center (lib/preferences.js).
 		preferencesLink: { type: Boolean },
+		// Issues' outgoing links get utm_source (the newsletter), utm_medium=email and utm_campaign (the issue) added
+		// (lib/link-utm.js), unless a link has UTM parameters of its own.
+		utmLinks: { type: Boolean },
+		// The website's signup pop-up and the gate (lib/popup-rules.js): when it opens, how long closing it snoozes it, where it
+		// shows, and whether older issues show only their beginning to readers who haven't subscribed. Unsaved: the defaults.
+		popup: {
+			enabled: { type: Boolean },
+			trigger: { type: String, enum: ["scroll", "time", "exit"] },
+			seconds: { type: Number },
+			scrollPercent: { type: Number },
+			frequencyDays: { type: Number },
+			pages: { type: String, enum: ["issues", "home", "all"] },
+			gate: {
+				enabled: { type: Boolean },
+				previewPercent: { type: Number },
+				freeLatest: { type: Number },
+			},
+		},
+		// The key id in the newsletter's Magic Link (lib/magic-links.js), 1 until it is retired: a link of an earlier id stops working.
+		magicKeyId: { type: Number, min: 1 },
 		// The newsletter's own structured data for search engines: compact JSON of one block or a list (lib/seo-rules.js
 		// checkJsonLd), added to the archive's home page and every issue's page.
 		jsonLd: { type: String },
@@ -69,6 +89,20 @@ const newsletterSchema = new mongoose.Schema(
 			footer: { type: String },
 		},
 		socialLinks: [{ type: String, trim: true }],
+		// The link-in-bio page at /links on the newsletter's host (lib/link-page.js): a title, a short bio and the links the
+		// writer lists, in order.
+		linkPage: {
+			enabled: { type: Boolean, default: false },
+			title: { type: String, trim: true },
+			bio: { type: String, trim: true },
+			links: [
+				{
+					_id: false,
+					label: { type: String, trim: true },
+					url: { type: String, trim: true },
+				},
+			],
+		},
 		// The archive's author page; the author's name is fromName.
 		author: {
 			bio: { type: String, trim: true },
@@ -132,16 +166,40 @@ const newsletterSchema = new mongoose.Schema(
 			},
 		},
 		// The paid tier (lib/payments/subscriptions.js): readers subscribe through Stripe Checkout on the creator's own Stripe
-		// account. Prices are in cents of `currency`; a price of 0 means that interval isn't offered. Set by set_paid_tier,
-		// never by the settings form.
+		// account. The newsletter-wide settings are here; the tiers themselves are in paidTiers. monthlyCents and yearlyCents
+		// are the prices of a newsletter from before tiers (lib/tier-rules.js shows them as its one tier) and follow the
+		// lowest tier once it has tiers. Set by set_paid_tier, never by the settings form.
 		paidTier: {
 			enabled: { type: Boolean, default: false },
 			currency: { type: String, lowercase: true, trim: true },
 			monthlyCents: { type: Number, min: 0 },
 			yearlyCents: { type: Number, min: 0 },
 			trialDays: { type: Number, min: 0 },
+			// A trial asks for no card when Stripe allows it; the card is asked for when the trial ends.
+			trialNoCard: { type: Boolean },
 			pitch: { type: String, trim: true },
+			// The supporters list on the subscribe page: founding members who gave a name for it (lib/supporters.js).
+			supportersPublic: { type: Boolean },
+			// Pledges (lib/pledges.js): readers commit to a price without being charged. noticeDays: how long before
+			// the first charge each pledger is told.
+			pledges: {
+				enabled: { type: Boolean },
+				noticeDays: { type: Number, min: 1 },
+			},
+			// Gift subscriptions (lib/gifts.js).
+			gifts: {
+				enabled: { type: Boolean },
+			},
+			// The launch offer shown on the subscribe page and the website (lib/offers.js).
+			banner: {
+				enabled: { type: Boolean },
+				text: { type: String, trim: true },
+				offerId: { type: String },
+			},
 		},
+		// Up to 3 paid tiers, lowest first (lib/tier-rules.js). Mixed: each tier is { id, name, description, benefits, prices,
+		// pwyw, founding, archived, stripe }, and stripe holds the Product and Price ids made on the creator's account.
+		paidTiers: { type: [mongoose.Schema.Types.Mixed], default: undefined },
 		// Confirmed opt-in's extras: one reminder to signups still unconfirmed delayHours after signing up
 		// (lib/confirmation-reminders.js), and the page a reader lands on once confirmed, instead of FlockStack's own.
 		confirmationReminder: {

@@ -1,12 +1,12 @@
 import { Suspense } from "react";
 import BannerBlocked from "@/components/BannerBlocked";
-import BannerPlan from "@/components/BannerPlan";
 import BannerWatch from "@/components/BannerWatch";
 import LogoWordmark from "@/components/LogoWordmark";
 import MenuUser from "@/components/MenuUser";
 import NavLinks from "@/components/NavLinks";
 import NavMobile from "@/components/NavMobile";
 import NavNewsletter from "@/components/NavNewsletter";
+import PaletteCommands from "@/components/PaletteCommands";
 import PanelGetStarted from "@/components/PanelGetStarted";
 import ProviderPaywall from "@/components/ProviderPaywall";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,20 +15,20 @@ import { getSendingStatus, hasActiveSubscription, isBlocked } from "@/lib/accoun
 import { isAudioEnabled } from "@/lib/audio-config";
 import { isCloud } from "@/lib/config";
 import { isGetStartedOpen } from "@/lib/get-started";
-import { getRecommendedPlanId } from "@/lib/onboarding";
-import { PLANS } from "@/lib/plans";
+import { PLANS, getAudioLimit } from "@/lib/plans";
+import { getSelectedNewsletter } from "@/lib/selected-newsletter";
 import { getPricing } from "@/lib/pricing";
-import { findPlansOnSale } from "@/lib/billing-provider";
 
 export default async function LayoutDashboard({ user, account, isAdmin, children }) {
+	// Every account has a plan, Free at least, so the paywall below never opens; it takes the plans as the pricing page has them.
 	const hasPlan = hasActiveSubscription(account);
-	// Only an account without a plan sees plans here, in the paywall and the banner, so only then is the billing provider read.
-	const plans = hasPlan ? PLANS : await findPlansOnSale();
+	// The Audio link is for plans that have audio; Free has none, and its pages say so where audio would be.
+	const hasAudio = isAudioEnabled() && getAudioLimit(account) !== 0;
 	const menu = <MenuUser name={user.name} email={user.email} image={user.image} status={getSendingStatus(account)} hasBilling={isCloud()} />;
 
 	return (
-		<ProviderPaywall hasPlan={hasPlan} pricing={getPricing(getRecommendedPlanId(account, plans), plans)}>
-			{isBlocked(account) ? <BannerBlocked account={account} /> : isCloud() && !hasPlan && <BannerPlan account={account} plans={plans} />}
+		<ProviderPaywall hasPlan={hasPlan} pricing={getPricing(undefined, PLANS)}>
+			{isBlocked(account) && <BannerBlocked account={account} />}
 			<div className="flex min-h-[calc(100dvh-var(--plan-bar-height))] flex-col md:flex-row">
 				<aside className="sticky top-(--plan-bar-height) hidden h-[calc(100dvh-var(--plan-bar-height))] w-60 shrink-0 flex-col border-r border-border/60 px-3 py-4 md:flex">
 					<LogoWordmark href="/" className="mb-4 h-9 px-2.5" />
@@ -37,12 +37,12 @@ export default async function LayoutDashboard({ user, account, isAdmin, children
 							<NavNewsletter />
 						</Suspense>
 					</div>
-					<NavLinks isAdmin={isAdmin} hasAudio={isAudioEnabled()} />
+					<NavLinks isAdmin={isAdmin} hasAudio={hasAudio} />
 					<div className="mt-auto pt-4">{menu}</div>
 				</aside>
 				<NavMobile
 					isAdmin={isAdmin}
-					hasAudio={isAudioEnabled()}
+					hasAudio={hasAudio}
 					switcher={
 						<Suspense fallback={<Skeleton className="h-8 w-32 rounded-lg" />}>
 							<NavNewsletter isCompact />
@@ -57,6 +57,9 @@ export default async function LayoutDashboard({ user, account, isAdmin, children
 					</div>
 				</main>
 			</div>
+			<Suspense fallback={null}>
+				<PaletteForNewsletter hasBilling={isCloud()} hasAudio={hasAudio} isAdmin={isAdmin} />
+			</Suspense>
 			{isGetStartedOpen(account) && (
 				<Suspense fallback={null}>
 					<PanelGetStarted account={account} />
@@ -70,4 +73,10 @@ export default async function LayoutDashboard({ user, account, isAdmin, children
 			{SiteAnalytics && <SiteAnalytics user={user} account={account} />}
 		</ProviderPaywall>
 	);
+}
+
+// The palette's "New issue" starts a draft in the open newsletter, which only a server component can read.
+async function PaletteForNewsletter({ hasBilling, hasAudio, isAdmin }) {
+	const { selected } = await getSelectedNewsletter();
+	return <PaletteCommands newsletterId={selected ? String(selected._id) : null} hasBilling={hasBilling} hasAudio={hasAudio} isAdmin={isAdmin} />;
 }

@@ -22,12 +22,12 @@ after(() => app?.stop());
 const KEYS = ["region", "plan", "domains", "blocked", "blockReason", "welcomePaused", "deletionPending"];
 
 describe("the account context", () => {
-	test("a new account: no plan, no domains, not blocked, and only the allowed facts", async () => {
+	test("a new account: on Free, no domains, not blocked, and only the allowed facts", async () => {
 		const user = await signIn("context-new@example.com");
 		const context = await m.context.getSupportContext(user.account);
 		assert.deepEqual(Object.keys(context), KEYS);
 		assert.equal(context.region, "us");
-		assert.match(context.plan, /^none/);
+		assert.match(context.plan, /^Free, the plan every account starts on/);
 		assert.deepEqual(context.domains, { total: 0, verified: 0 });
 		assert.equal(context.blocked, false);
 		assert.equal(context.blockReason, null);

@@ -103,7 +103,7 @@ export default function CardAudio({ campaignId, initial = { audio: null, estimat
 		return (
 			<CardSettings title="Audio version" stagger={3}>
 				<p className="px-4 py-3 text-sm text-pretty text-muted-foreground">
-					Audio versions come with a paid plan.{" "}
+					Audio versions aren&apos;t part of the Free plan.{" "}
 					<Link href="/billing" className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
 						See plans
 					</Link>
