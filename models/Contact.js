@@ -35,6 +35,19 @@ const contactSchema = new mongoose.Schema(
 		stripeSubscriptionId: { type: String },
 		// Stripe's status for the subscription: active, trialing, past_due, canceled…
 		subscriptionStatus: { type: String },
+		// Where the signup came from, set once when the contact is made (lib/attribution.js): a channel, the UTM parameters the
+		// page was opened with, and the host of the page that linked to it.
+		acquisition: {
+			channel: { type: String },
+			utm: {
+				source: { type: String },
+				medium: { type: String },
+				campaign: { type: String },
+				term: { type: String },
+				content: { type: String },
+			},
+			referrer: { type: String },
+		},
 		subscribedAt: { type: Date, default: Date.now },
 		confirmedAt: { type: Date },
 		// The one reminder to confirm went out (lib/confirmation-reminders.js).

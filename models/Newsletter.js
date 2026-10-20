@@ -36,6 +36,9 @@ const newsletterSchema = new mongoose.Schema(
 		accentColor: { type: String, trim: true, lowercase: true },
 		// Every email's footer links to the reader's preference center (lib/preferences.js).
 		preferencesLink: { type: Boolean },
+		// Issues' outgoing links get utm_source (the newsletter), utm_medium=email and utm_campaign (the issue) added
+		// (lib/link-utm.js), unless a link has UTM parameters of its own.
+		utmLinks: { type: Boolean },
 		socialLinks: [{ type: String, trim: true }],
 		// The archive's author page; the author's name is fromName.
 		author: {
