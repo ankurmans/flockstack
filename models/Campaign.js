@@ -1,5 +1,8 @@
 import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
+import { AB_TEST_METRICS, AB_TEST_STATUSES } from "../lib/ab-test-rules.js";
+import { PUBLISH_TARGETS } from "../lib/archive-issues.js";
+import { RESEND_TARGETS } from "../lib/resend-rules.js";
 import { AUDIENCES } from "../lib/tiers.js";
 
 export const CAMPAIGN_STATUSES = ["draft", "scheduled", "sending", "paused", "sent", "canceled"];
@@ -11,6 +14,8 @@ const campaignSchema = new mongoose.Schema(
 		newsletterId: { type: mongoose.Schema.Types.ObjectId, ref: "Newsletter", required: true },
 		subject: { type: String, trim: true, default: "" },
 		previewText: { type: String, trim: true, default: "" },
+		// The name in this issue's From field, over the newsletter's; the address stays the newsletter's.
+		fromName: { type: String, trim: true },
 		// rich: written in the editor, stored as an HTML fragment in html. html: a designed document sent
 		// as is. markdown: older drafts and API campaigns.
 		format: { type: String, enum: ["markdown", "html", "rich"], default: "rich" },
@@ -41,6 +46,10 @@ const campaignSchema = new mongoose.Schema(
 		// (segmentSnapshot), so later steps and resumes keep the audience even if the segment changes or goes.
 		segmentId: { type: mongoose.Schema.Types.ObjectId, ref: "Segment" },
 		segmentSnapshot: { type: mongoose.Schema.Types.Mixed },
+		// Several segments: contacts in any of segmentIds (segmentId is its first), and in none of excludeSegmentIds. The
+		// snapshot then holds each one's rules as include and exclude (lib/segments.js).
+		segmentIds: { type: [mongoose.Schema.Types.ObjectId], default: undefined },
+		excludeSegmentIds: { type: [mongoose.Schema.Types.ObjectId], default: undefined },
 		source: { type: String, default: "dashboard" },
 		scheduledAt: { type: Date },
 		startedAt: { type: Date },
@@ -56,6 +65,8 @@ const campaignSchema = new mongoose.Schema(
 		thumbnailUrl: { type: String, trim: true },
 		// Unlisted issues keep their /p/slug page but stay off the archive index.
 		archiveListed: { type: Boolean, default: true },
+		// Email only issues are also unlisted, and have no page at all; web only ones are published without an email.
+		publishTo: { type: String, enum: PUBLISH_TARGETS },
 		// This issue's own word on comments, over the newsletter's setting: on or off. Without one it follows the newsletter.
 		comments: { type: String, enum: ["on", "off"] },
 		// Pinned issues sit in the Featured row at the top of the archive.
@@ -82,6 +93,40 @@ const campaignSchema = new mongoose.Schema(
 			unsubscribed: counter,
 			failed: counter,
 		},
+		// A subject line test (lib/ab-tests.js): variants[0] is the campaign's own subject, copied again as the send starts.
+		// The test slice is testPercent of the audience; waitMinutes after it went out, the winner by metric goes to the
+		// rest, within the send's own limit (audienceLimit here; the campaign's own is the slice's while it tests). The
+		// counters are the test slice's alone.
+		abTest: {
+			variants: [
+				{
+					_id: false,
+					subject: { type: String, trim: true },
+					previewText: { type: String, trim: true },
+					sent: counter,
+					opened: counter,
+					clicked: counter,
+				},
+			],
+			testPercent: { type: Number },
+			waitMinutes: { type: Number },
+			metric: { type: String, enum: AB_TEST_METRICS },
+			status: { type: String, enum: AB_TEST_STATUSES },
+			audienceLimit: { type: Number },
+			pickAt: { type: Date },
+			winner: { type: Number },
+			pickedAt: { type: Date },
+			restSentAt: { type: Date },
+			problem: { type: String },
+		},
+		// A resend (lib/resends.js): the sent campaign it copies, which of its readers it goes to, and that campaign's page,
+		// which its emails link to as their own. The campaign it copies keeps resentAs: one resend each.
+		resend: {
+			of: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign" },
+			to: { type: String, enum: RESEND_TARGETS },
+			slug: { type: String },
+		},
+		resentAs: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign" },
 		// The list cleanup at this send: last-chance emails sent instead of the issue, and contacts made dormant.
 		lastChance: {
 			recipients: counter,

@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Copy, ExternalLink, Globe, Pause, Pin, PinOff, Play } from "lucide-react";
+import { Copy, Eye, EyeOff, ExternalLink, Globe, Pause, Pin, PinOff, Play, Repeat } from "lucide-react";
 import {
 	duplicateCampaign,
 	pauseCampaign,
 	resumeCampaign,
+	toggleArchiveListed,
 	toggleArchivePin,
 } from "@/app/(app)/campaigns/actions";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
@@ -12,6 +13,8 @@ import ButtonCampaignAction from "@/components/ButtonCampaignAction";
 import ButtonCopy from "@/components/ButtonCopy";
 import GatePlan from "@/components/GatePlan";
 import CardStat from "@/components/CardStat";
+import DialogLinkClicks from "@/components/DialogLinkClicks";
+import DialogResend from "@/components/DialogResend";
 import DialogSendMore from "@/components/DialogSendMore";
 import HeaderPage from "@/components/HeaderPage";
 import IconWarmup from "@/components/IconWarmup";
@@ -19,6 +22,7 @@ import ImageFavicon from "@/components/ImageFavicon";
 import InputCampaignSlug from "@/components/InputCampaignSlug";
 import PreviewEmail from "@/components/PreviewEmail";
 import TextEmpty from "@/components/TextEmpty";
+import TimeLocal from "@/components/TimeLocal";
 import { Button } from "@/components/ui/button";
 import {
 	Table,
@@ -28,6 +32,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { VARIANT_LABELS, hasAbTest } from "@/lib/ab-test-rules";
 import { isPlanLimitCode } from "@/lib/account-state";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { FIRST_SEND, LIMITS, isSendingEnabled } from "@/lib/config";
@@ -41,6 +46,9 @@ export default function CampaignReport({
 	campaign,
 	newsletter,
 	providers,
+	links = [],
+	clickMapHtml = null,
+	resendCounts = null,
 	remainingCount = 0,
 	emailsLeft = 0,
 	isBlocked = false,
@@ -87,6 +95,19 @@ export default function CampaignReport({
 						/>
 					</GatePlan>
 				)}
+				{resendCounts && isSendingEnabled() && !isBlocked && (
+					<GatePlan reason="send">
+						<DialogResend campaignId={id} subject={campaign.subject} sentAt={campaign.sentAt ?? campaign.startedAt} counts={resendCounts} />
+					</GatePlan>
+				)}
+				{(campaign.resentAs || campaign.resend?.of) && (
+					<Button variant="outline" asChild>
+						<Link href={`/campaigns/${campaign.resentAs ?? campaign.resend.of}`}>
+							<Repeat data-icon="inline-start" />
+							{campaign.resentAs ? "View resend" : "View first send"}
+						</Link>
+					</Button>
+				)}
 				{campaign.status === "sending" && (
 					<ButtonCampaignAction action={pauseCampaign} id={id}>
 						<Pause data-icon="inline-start" />
@@ -118,6 +139,12 @@ export default function CampaignReport({
 							{campaign.archivePinned ? "Unpin" : "Pin"}
 						</ButtonCampaignAction>
 					</>
+				)}
+				{newsletter.archiveEnabled && campaign.archiveSlug && campaign.publishTo !== "email" && (
+					<ButtonCampaignAction action={toggleArchiveListed} id={id}>
+						{campaign.archiveListed === false ? <Eye data-icon="inline-start" /> : <EyeOff data-icon="inline-start" />}
+						{campaign.archiveListed === false ? "List on website" : "Unlist"}
+					</ButtonCampaignAction>
 				)}
 				<ButtonCampaignAction action={duplicateCampaign} id={id}>
 					<Copy data-icon="inline-start" />
@@ -201,6 +228,15 @@ export default function CampaignReport({
 					/>
 				</div>
 
+				{campaign.publishTo === "web" && (
+					<p className="rounded-xl bg-muted/60 px-4 py-3 text-sm text-pretty animate-enter">Published on the website only: no email went out.</p>
+				)}
+				{campaign.publishTo === "email" && (
+					<p className="rounded-xl bg-muted/60 px-4 py-3 text-sm text-pretty animate-enter">Email only: this issue has no page on the website.</p>
+				)}
+
+				{hasAbTest(campaign) && campaign.abTest.status && <TableAbTest abTest={campaign.abTest} />}
+
 				{providers.length > 0 && (
 					<div
 						style={{ "--stagger": 2 }}
@@ -250,9 +286,49 @@ export default function CampaignReport({
 					</div>
 				)}
 
+				{links.length > 0 && (
+					<div style={{ "--stagger": 3 }} className="overflow-hidden rounded-xl shadow-border animate-enter">
+						<Table>
+							<TableHeader>
+								<TableRow className="hover:bg-transparent">
+									<TableHead className="pl-4">Link</TableHead>
+									<TableHead className="text-right">Unique clicks</TableHead>
+									<TableHead className="hidden text-right sm:table-cell">Total</TableHead>
+									<TableHead className="text-right">CTR</TableHead>
+									<TableHead className="pr-4">
+										<span className="sr-only">Who clicked</span>
+									</TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{links.map((link) => (
+									<TableRow key={link.index} className="tabular-nums">
+										<TableCell className="max-w-0 pl-4 font-medium">
+											<span className="flex items-center gap-2.5">
+												<span className="grid size-5 shrink-0 place-items-center rounded-full bg-muted text-[11px] text-muted-foreground">
+													{link.index + 1}
+												</span>
+												<a href={link.url} target="_blank" rel="noreferrer noopener" className="truncate hover:underline" title={link.url}>
+													{link.url.replace(/^https?:\/\//, "")}
+												</a>
+											</span>
+										</TableCell>
+										<TableCell className="text-right">{formatNumber(link.uniqueClicks)}</TableCell>
+										<TableCell className="hidden text-right sm:table-cell">{formatNumber(link.clicks)}</TableCell>
+										<TableCell className="text-right">{formatRate(link.uniqueClicks, reached) ?? <TextEmpty />}</TableCell>
+										<TableCell className="w-0 pr-2 text-right">
+											<DialogLinkClicks campaignId={id} link={link} />
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+					</div>
+				)}
+
 				{newsletter.archiveEnabled && campaign.archiveSlug && (
 					<div
-						style={{ "--stagger": 3 }}
+						style={{ "--stagger": 4 }}
 						className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-x-2 rounded-xl bg-card px-4 shadow-border transition-colors duration-150 animate-enter focus-within:bg-muted/40"
 					>
 						<span className="text-sm text-muted-foreground">URL</span>
@@ -266,24 +342,99 @@ export default function CampaignReport({
 					</div>
 				)}
 
-				<div style={{ "--stagger": 4 }} className="animate-enter">
+				<div style={{ "--stagger": 5 }} className="animate-enter">
 					<PreviewEmail
 						fit="content"
 						sender={newsletter}
 						subject={campaign.subject}
 						previewText={campaign.previewText}
-						html={withResponsiveImages(html.replaceAll(UNSUBSCRIBE_PLACEHOLDER, "#"))}
+						html={withResponsiveImages(clickMapHtml ?? html.replaceAll(UNSUBSCRIBE_PLACEHOLDER, "#"))}
 						// Rendered next to PreviewEmail's own children, so dev React asks for a key.
 						toolbar={
 							<span key="toolbar" className="truncate text-xs text-muted-foreground">
-								{newsletter.name}
-								{campaign.sentAt && ` · ${formatDate(campaign.sentAt)}`}
+								{clickMapHtml ? "Click map: unique clicks on each link" : newsletter.name}
+								{!clickMapHtml && campaign.sentAt && ` · ${formatDate(campaign.sentAt)}`}
 							</span>
 						}
 					/>
 				</div>
 			</div>
 		</>
+	);
+}
+
+const TIME_OPTIONS = { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" };
+
+// The subject line test's slice, subject by subject, and where the pick stands.
+function TableAbTest({ abTest }) {
+	const isPicked = abTest.status === "picked";
+	const measure = abTest.metric === "opens" ? "opens" : "unique clicks";
+	return (
+		<div style={{ "--stagger": 2 }} className="overflow-hidden rounded-xl shadow-border animate-enter">
+			<p className="px-4 py-3 text-sm text-pretty text-muted-foreground">
+				{isPicked ? (
+					<>
+						Subject {VARIANT_LABELS[abTest.winner]} won by {measure}
+						{abTest.pickedAt && (
+							<>
+								{" "}
+								on <TimeLocal value={abTest.pickedAt} options={TIME_OPTIONS} />
+							</>
+						)}
+						{abTest.problem ? `, but it didn't reach the rest: ${abTest.problem}` : " and went to the rest."}
+					</>
+				) : (
+					<>
+						Subject line test: the winner by {measure} goes to the rest
+						{abTest.pickAt ? (
+							<>
+								{" "}
+								around <TimeLocal value={abTest.pickAt} options={TIME_OPTIONS} />
+							</>
+						) : (
+							" after the wait"
+						)}
+						.
+					</>
+				)}
+			</p>
+			<Table>
+				<TableHeader>
+					<TableRow className="hover:bg-transparent">
+						<TableHead className="pl-4">Subject</TableHead>
+						<TableHead className="text-right">Sent</TableHead>
+						<TableHead className="text-right">Opened</TableHead>
+						<TableHead className="pr-4 text-right">Clicked</TableHead>
+					</TableRow>
+				</TableHeader>
+				<TableBody>
+					{abTest.variants.map((variant, index) => (
+						<TableRow key={index} className="tabular-nums">
+							<TableCell className="max-w-0 pl-4">
+								<span className="flex items-center gap-2.5">
+									<span
+										className={
+											isPicked && abTest.winner === index
+												? "grid size-5 shrink-0 place-items-center rounded-full bg-foreground text-[11px] font-medium text-background"
+												: "grid size-5 shrink-0 place-items-center rounded-full bg-muted text-[11px] text-muted-foreground"
+										}
+										title={isPicked && abTest.winner === index ? "Winner" : undefined}
+									>
+										{VARIANT_LABELS[index]}
+									</span>
+									<span className="truncate font-medium" title={variant.subject}>
+										{variant.subject}
+									</span>
+								</span>
+							</TableCell>
+							<TableCell className="text-right">{formatNumber(variant.sent)}</TableCell>
+							<TableCell className="text-right">{formatRate(variant.opened, variant.sent) ?? <TextEmpty />}</TableCell>
+							<TableCell className="pr-4 text-right">{formatRate(variant.clicked, variant.sent) ?? <TextEmpty />}</TableCell>
+						</TableRow>
+					))}
+				</TableBody>
+			</Table>
+		</div>
 	);
 }
 

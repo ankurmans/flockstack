@@ -119,8 +119,9 @@ export default function PrivacyPage() {
 					</li>
 					<li>
 						<Strong>Opens and clicks:</Strong> emails carry a one-pixel image and links that pass through FlockStack, so the creator sees
-						that an email was opened or a link clicked, and when. We store the fact and its time, not the reader&apos;s IP address or device.
-						Visits that look like security scanners aren&apos;t counted as clicks.
+						that an email was opened or a link clicked, and when, and which of an issue&apos;s links each reader clicked, with a count of
+						clicks for each link. We store the fact and its time, not the reader&apos;s IP address or device. Visits that look like
+						security scanners aren&apos;t counted as clicks.
 					</li>
 					<li>
 						<Strong>Referrals:</Strong> when a signup comes through a referral link, a keyed hash of the visitor&apos;s IP address is stored,

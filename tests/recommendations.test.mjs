@@ -571,7 +571,7 @@ describe("the merge tag and the website section", () => {
 			assert.match(email.html, /Plain talk about pottery\./, format);
 			assert.doesNotMatch(email.html, /\{\{recommendations\}\}/, format);
 			assert.doesNotMatch(email.html, /<input|checkbox|checked/i, `${format}: nothing is pre-ticked`);
-			const tracked = [...email.html.matchAll(/\/c\/[0-9a-f]{24}\.[A-Za-z0-9_-]{22}\.([A-Za-z0-9_-]+)/g)].map(([, encoded]) => Buffer.from(encoded, "base64url").toString());
+			const tracked = [...email.html.matchAll(/\/c\/[0-9a-f]{24}\.[A-Za-z0-9_-]{22}\.(?:\d+\.)?([A-Za-z0-9_-]+)/g)].map(([, encoded]) => Buffer.from(encoded, "base64url").toString());
 			assert.ok(tracked.includes(items[0].url), `${format}: the links are tracked clicks`);
 			assert.match(email.text, /Recommended newsletters\n- Pottery Weekly: Plain talk about pottery\.\n {2}https:\/\/pottery\.flockstackmail\.com\/\?rec=weekly#subscribe/, format);
 			assert.doesNotMatch(email.text, /\{\{recommendations\}\}/, format);

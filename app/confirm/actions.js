@@ -46,5 +46,5 @@ export async function confirmSubscription(token) {
 		console.error(`[confirm] Recommendations for ${newsletter.slug} not loaded:`, error.message);
 		return null;
 	});
-	return { ok: true, ...(step && { step }) };
+	return { ok: true, ...(step && { step }), ...(newsletter.confirmedRedirectUrl && { redirectUrl: newsletter.confirmedRedirectUrl }) };
 }

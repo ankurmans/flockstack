@@ -78,7 +78,9 @@ describe("a campaign's send step", () => {
 		const segment = (await t.api(user.key, "POST", "/segments", { name: "VIP readers", rules: { match: "all", conditions: [{ type: "tag", value: "vip" }] } })).body;
 		const id = await t.draft(user, { segment: segment.id });
 		const html = await render(user, m.campaignPage, { params: Promise.resolve({ id }) });
-		assert.match(html, /aria-label="Audience"/);
+		assert.match(html, /aria-label="In any of these segments"/);
+		assert.match(html, /aria-label="Leave out these segments"/);
+		assert.match(html, /VIP readers/);
 		assert.match(html, /1 contact/);
 	});
 });
