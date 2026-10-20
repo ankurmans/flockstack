@@ -47,3 +47,6 @@ next-env.d.ts
 .wrangler
 .dev.vars
 .worker
+
+# the public pages Worker's rendered files (npm run build:public)
+/workers/public/dist/

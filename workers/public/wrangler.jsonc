@@ -1,0 +1,25 @@
+{
+	"$schema": "../../node_modules/wrangler/config-schema.json",
+	// FlockStack Cloud's public pages (docs/ARCHITECTURE-WORKERS.md): one Worker for both regions, because it keeps nothing and
+	// holds each region's copy of the pages (the router says which region a request is for). Build workers/public/dist first with
+	// `npm run build:public`; `npm run deploy:public` does that and deploys.
+	// POSTHOG_KEY (and POSTHOG_HOST, POSTHOG_SESSION_REPLAY when the app has them) are secrets of this Worker, set the same as the
+	// app's: `npx wrangler secret put POSTHOG_KEY --config workers/public/wrangler.jsonc`. Without a key the pages carry no analytics.
+	"name": "flockstack-public",
+	"main": "index.js",
+	"compatibility_date": "2026-09-01",
+	// The router reaches this Worker through a service binding. workers.dev stays on while the Worker is tested; turn it off
+	// once the router is live if nobody should read the files directly.
+	"workers_dev": true,
+	"preview_urls": false,
+	"observability": { "enabled": true },
+	"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
+	"assets": {
+		"directory": "./dist/assets",
+		"binding": "ASSETS",
+		// The script decides what is served and with which headers; the files are only read through the binding.
+		"run_worker_first": true,
+		"html_handling": "none",
+		"not_found_handling": "none"
+	}
+}
