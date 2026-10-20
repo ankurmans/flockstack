@@ -19,6 +19,7 @@ import {
 	MousePointerClick,
 	Paperclip,
 	Pilcrow,
+	Puzzle,
 	RectangleHorizontal,
 	Rows3,
 	Share2,
@@ -26,6 +27,7 @@ import {
 	Table,
 	TextQuote,
 	Trash2,
+	Rss,
 	Vote,
 } from "lucide-react";
 import { RECOMMENDATIONS_TAG } from "@/lib/recommendation-tags";
@@ -93,11 +95,12 @@ export default function MenuSlash({ items, command, ref }) {
 }
 
 // Typing "/" at the start of a line or after a space opens the menu; the text after it filters. onBlock(kind) opens a
-// block's dialog, onPickFile the file picker. canPoll: the editor knows its newsletter, which a poll belongs to.
+// block's dialog, onPickFile the file picker. canPoll: the editor knows its newsletter, which a poll belongs to. snippets:
+// the newsletter's, { name, content }.
 export const SlashCommand = Extension.create({
 	name: "slashCommand",
 	addOptions() {
-		return { onPickImage: () => {}, onBlock: () => {}, onPickFile: () => {}, fields: [], canPoll: false };
+		return { onPickImage: () => {}, onBlock: () => {}, onPickFile: () => {}, fields: [], canPoll: false, snippets: [] };
 	},
 	addProseMirrorPlugins() {
 		return [
@@ -156,9 +159,19 @@ function getMergeItems(fields) {
 	}));
 }
 
-function filterItems(query, { fields = [], canPoll = false } = {}) {
+// The newsletter's snippets (models/Snippet.js), each inserted as the content it was saved with.
+function getSnippetItems(snippets) {
+	return snippets.map(({ name, content }) => ({
+		title: `Snippet: ${name}`,
+		keywords: "snippet saved reusable block",
+		icon: Puzzle,
+		run: (chain) => chain.insertContent(content),
+	}));
+}
+
+function filterItems(query, { fields = [], canPoll = false, snippets = [] } = {}) {
 	const search = query.toLowerCase().trim();
-	return [...SLASH_ITEMS, ...(canPoll ? [POLL_ITEM] : []), ...getMergeItems(fields)].filter(({ title, keywords }) => `${title} ${keywords}`.toLowerCase().includes(search));
+	return [...SLASH_ITEMS, ...(canPoll ? [POLL_ITEM] : []), ...getSnippetItems(snippets), ...getMergeItems(fields)].filter(({ title, keywords }) => `${title} ${keywords}`.toLowerCase().includes(search));
 }
 
 function scrollIntoView(element) {
@@ -208,6 +221,7 @@ const SLASH_ITEMS = [
 		dialog: "embed",
 	},
 	{ title: "File", keywords: "attachment download pdf upload", icon: Paperclip, run: (chain) => chain, isFile: true },
+	{ title: "RSS feed", keywords: "rss atom feed blog posts latest news links", icon: Rss, run: (chain) => chain, dialog: "rssFeed" },
 	{
 		title: "Two columns",
 		keywords: "columns side layout grid",

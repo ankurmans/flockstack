@@ -64,7 +64,6 @@ before(async () => {
 		stripe: await import("../lib/stripe.js"),
 		siteExtensions: (await import("@/lib/site-extensions")).siteExtensions,
 		ListPricing: (await import("../components/ListPricing.jsx")).default,
-		BannerPlan: (await import("../components/BannerPlan.jsx")).default,
 	};
 });
 
@@ -95,7 +94,6 @@ describe("Max without its prices in Stripe", () => {
 
 		const bigList = { onboarding: { listSize: "more" } };
 		assert.equal(m.onboarding.getRecommendedPlanId(bigList, plans), "scale", "Over 100,000 gets the largest plan on sale");
-		assert.match(await render(m.BannerPlan, { account: bigList, plans }), /Scale fits your list, at \$109 a month/);
 
 		const buyer = await signIn("no-max@example.com");
 		assert.equal(await checkout(buyer, "max"), "/billing?interval=year", "the plan buttons lead to billing");
@@ -142,7 +140,7 @@ describe("Max with its prices in Stripe", () => {
 		assert.deepEqual(plans.map(({ id }) => id), ["starter", "growth", "pro", "scale", "max"]);
 
 		const { plans: stops, initialIndex } = m.pricing.getPricing("max", plans);
-		assert.equal(initialIndex, 4);
+		assert.equal(initialIndex, 5, "Free is the first step, then the five plans");
 		assert.deepEqual(
 			stops.map(({ name, emails, emailsShort, subscribers }) => [name, emails, emailsShort, subscribers]),
 			[
@@ -170,7 +168,6 @@ describe("Max with its prices in Stripe", () => {
 		assert.equal(slider.includes("More than 2,000,000 emails?"), Boolean(m.siteExtensions.supportChatPath), "past Max, the support chat");
 		const bigList = { onboarding: { listSize: "more" } };
 		assert.equal(m.onboarding.getRecommendedPlanId(bigList, plans), "max");
-		assert.match(await render(m.BannerPlan, { account: bigList, plans }), /Max fits your list, at \$299 a month/);
 
 		const buyer = await signIn("max-buyer@example.com");
 		assert.equal(await checkout(buyer, "max"), "https://checkout.stripe.com/c/pay/cs_sale");

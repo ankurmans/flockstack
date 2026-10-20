@@ -15,12 +15,13 @@ export function installFakeStripe() {
 }
 
 // ready: its Stripe account takes charges. Otherwise it has none connected.
-export async function createSeller(email, { fake, ready = true, requireConfirmation = false } = {}) {
+// free: the account is on the Free plan, without a paid FlockStack subscription.
+export async function createSeller(email, { fake, ready = true, requireConfirmation = false, free = false } = {}) {
 	const newsletters = await import("../../app/(app)/newsletters/actions.js");
 	const apiKeys = await import("../../app/(app)/api-keys/actions.js");
 	const Account = (await import("../../models/Account.js")).default;
 	const user = await signIn(email);
-	await activate(user);
+	if (!free) await activate(user);
 	user.slug = email.split("@")[0].replace(/[^a-z0-9]/g, "-");
 	const fields = { name: `${user.slug} news`, slug: user.slug, postalAddress: "1 Main St, Paris", archiveEnabled: "on", ...(requireConfirmation && { requireConfirmation: "on" }) };
 	const url = await as(user, () => catchRedirect(newsletters.saveNewsletter(null, form(fields))));

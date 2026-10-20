@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatNumber } from "@/lib/format";
 import { toast } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 
 // CSVs past this are split by the owner; the action takes 1,000 rows a call.
 const MAX_CSV_BYTES = 300_000;
@@ -80,9 +81,10 @@ export default function CardRedirects({ newsletterId, initial, stagger = 0, clas
 
 	return (
 		<CardSettings
+			id="redirects"
 			title="Redirects"
 			stagger={stagger}
-			className={className}
+			className={cn("scroll-mt-20", className)}
 			action={
 				<Button asChild size="sm" variant="outline" disabled={isPending}>
 					<label className="cursor-pointer">

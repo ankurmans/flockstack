@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardList, CreditCard, Filter, Gift, Globe, KeyRound, LayoutGrid, Megaphone, MessageSquare, Receipt, Send, Settings, Shield, ShoppingBag, Users, Webhook, Workflow } from "lucide-react";
+import { BarChart3, ClipboardList, CreditCard, Filter, FormInput, Gift, Globe, Images, KeyRound, LayoutGrid, LayoutTemplate, Link2, Megaphone, MessageSquare, PanelsTopLeft, Receipt, Repeat, Send, Settings, Shield, ShoppingBag, Users, Webhook, Workflow } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // The open newsletter's pages, then the account's, which every newsletter shares.
@@ -44,20 +44,27 @@ export default function NavLinks({ isAdmin, onNavigate }) {
 const NEWSLETTER_ITEMS = [
 	{ href: "/", label: "Overview", icon: LayoutGrid },
 	{ href: "/campaigns", label: "Campaigns", icon: Send },
+	{ href: "/reports", label: "Reports", icon: BarChart3 },
 	{ href: "/contacts", label: "Contacts", icon: Users },
 	{ href: "/segments", label: "Segments", icon: Filter },
 	{ href: "/automations", label: "Automations", icon: Workflow },
+	{ href: "/series", label: "Series", icon: Repeat },
+	{ href: "/templates", label: "Templates", icon: LayoutTemplate },
 	{ href: "/surveys", label: "Surveys", icon: ClipboardList },
+	{ href: "/forms", label: "Forms", icon: FormInput },
 	{ href: "/referrals", label: "Referrals", icon: Gift },
 	{ href: "/recommending", label: "Recommendations", icon: Megaphone },
 	{ href: "/comments", label: "Comments", icon: MessageSquare },
+	{ href: "/website", label: "Website", icon: PanelsTopLeft },
 	{ href: "/products", label: "Products", icon: ShoppingBag },
+	{ href: "/link-page", label: "Link page", icon: Link2 },
 	{ href: "/newsletters", label: "Settings", icon: Settings },
 ];
 
 const ACCOUNT_ITEMS = [
 	{ href: "/orders", label: "Orders", icon: Receipt },
 	{ href: "/payments", label: "Payments", icon: CreditCard },
+	{ href: "/media", label: "Media", icon: Images },
 	{ href: "/domains", label: "Domains", icon: Globe },
 	{ href: "/api-keys", label: "API keys", icon: KeyRound },
 	{ href: "/webhooks", label: "Webhooks", icon: Webhook },

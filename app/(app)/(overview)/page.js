@@ -23,6 +23,7 @@ import { formatNumber, formatSigned } from "@/lib/format";
 import { ADD_NEWSLETTER_PATH } from "@/lib/newsletters";
 import { getEmailStats, getHourlySends, getSubscriberHistory } from "@/lib/overview-data";
 import { PERIOD_DAYS } from "@/lib/overview-series";
+import { getLapsedPlan } from "@/lib/free-plan";
 import { getAccountPlan } from "@/lib/plans";
 import { getSelectedNewsletter, openNewsletter } from "@/lib/selected-newsletter";
 import { getPace, getWarmup } from "@/lib/send-spread";
@@ -54,7 +55,7 @@ export default async function OverviewPage({ searchParams }) {
 			<Suspense fallback={null}>
 				<CookieTimezone />
 			</Suspense>
-			{hasPlan && <BannerUsage usage={usage} isWelcomePaused={isWelcomePaused} />}
+			{hasPlan && <BannerUsage usage={usage} isWelcomePaused={isWelcomePaused} lapsedPlan={getLapsedPlan(account)} />}
 			<HeaderPage title="Overview" />
 
 			<div className="flex flex-col gap-8">

@@ -169,9 +169,8 @@ test("only admins give or end a free plan: anyone else gets a 404 and nothing ch
 
 test("a free plan opens what a paid one does: its limits, a tenant, the shared address, and the API and MCP report it", async () => {
 	const user = await customer("free@example.com", "free-news");
-	assert.equal((await load(user)).ses?.provisionedAt, undefined);
-	assert.equal((await m.Newsletter.findOne({ accountId: user.accountId }).lean()).sharedSender, undefined, "nothing before a plan");
-	assert.equal((await createKey(user)).code, "subscription_required");
+	assert.equal((await m.Newsletter.findOne({ accountId: user.accountId }).lean()).sharedSender.domain, "free-news.flockstackmail.com", "the Free plan has its shared address");
+	assert.equal((await createKey(user)).code, undefined, "and API keys");
 
 	assert.equal((await give(user, { plan: "scale" })).ok, true);
 	const account = await load(user);
@@ -234,7 +233,7 @@ test("on a free plan every email counts, and the count starts over each month fr
 	assert.equal(quiet.periodStart.getTime(), addMonths(grantedAt, 5).getTime(), "quiet months are skipped");
 });
 
-test("a free plan stops at its end date like a canceled plan: no sending, no signups, the archive offline, the data kept", async () => {
+test("a free plan from an admin ends on its date: the account goes back to the Free plan, everything kept", async () => {
 	const user = await customer("until@example.com", "until-news");
 	assert.deepEqual(await give(user, { plan: "growth", until: "2020-01-01" }), { error: "Pick an end date after today, or none" });
 	assert.equal((await load(user)).comp, undefined);
@@ -248,20 +247,20 @@ test("a free plan stops at its end date like a canceled plan: no sending, no sig
 	assert.ok(await getArchiveNewsletter(user.slug), "online before");
 
 	await m.Account.updateOne({ _id: user.accountId }, { $set: { "comp.until": new Date(Date.now() - 1000) } });
-	assert.equal(m.state.hasActiveSubscription(await load(user)), false);
-	assert.equal((await as(user, () => m.campaigns.sendCampaign(id, {}))).code, "subscription_required");
-	assert.equal((await callApi("POST", "/api/v1/contacts", { key, body: { newsletter: user.slug, email: "late@until.example.org" } })).status, 402);
-	assert.equal(await getArchiveNewsletter(user.slug), null);
+	assert.equal(m.plans.getAccountPlan(await load(user)).id, "free", "back to the Free plan");
+	assert.deepEqual(await as(user, () => m.campaigns.sendTestCampaign(id)), { ok: true });
+	assert.equal((await callApi("POST", "/api/v1/contacts", { key, body: { newsletter: user.slug, email: "late@until.example.org" } })).status, 201);
+	assert.ok(await getArchiveNewsletter(user.slug), "the archive stays online");
 	const billing = await callApi("GET", "/api/v1/billing", { key });
 	assert.deepEqual(
-		{ status: billing.body.status, isActive: billing.body.isActive, freePlan: billing.body.freePlan },
-		{ status: "no_plan", isActive: false, freePlan: null }
+		{ status: billing.body.status, isActive: billing.body.isActive, freePlan: billing.body.freePlan, plan: billing.body.plan.id },
+		{ status: "free", isActive: true, freePlan: null, plan: "free" }
 	);
-	assert.equal(await m.Contact.countDocuments({ accountId: user.accountId }), 1, "the contacts stay");
+	assert.equal(await m.Contact.countDocuments({ accountId: user.accountId }), 2, "the contacts stay");
 	assert.ok(await m.Campaign.exists({ accountId: user.accountId, _id: id }), "and the drafts");
 });
 
-test("ending a free plan stops sending at once and keeps the data; ending it again says there's none", async () => {
+test("ending a free plan puts the account back on the Free plan at once and keeps the data; ending it again says there's none", async () => {
 	const user = await customer("ended@example.com", "ended-news");
 	await give(user, { plan: "pro" });
 	await as(user, () => m.contacts.importContacts({ newsletterId: user.newsletterId, consent: true, rows: [{ email: "kept@ended.example.org", status: "active" }] }));
@@ -271,12 +270,12 @@ test("ending a free plan stops sending at once and keeps the data; ending it aga
 	const account = await load(user);
 	assert.ok(account.comp.until <= new Date(), "it ends now");
 	assert.deepEqual([account.comp.plan, account.comp.by], ["pro", "admin@example.com"], "the record of it stays");
-	assert.equal(m.state.hasActiveSubscription(account), false);
-	assert.equal((await as(user, () => m.campaigns.sendTestCampaign(id))).code, "subscription_required");
+	assert.equal(m.plans.getAccountPlan(account).id, "free");
+	assert.deepEqual(await as(user, () => m.campaigns.sendTestCampaign(id)), { ok: true });
 	assert.equal(await m.Contact.countDocuments({ accountId: user.accountId }), 1);
 	assert.equal(await m.Campaign.countDocuments({ accountId: user.accountId }), 1);
 	const newsletter = await m.Newsletter.findOne({ accountId: user.accountId }).lean();
-	assert.equal(newsletter.sharedSender.domain, "ended-news.flockstackmail.com", "the shared address waits for the next plan");
+	assert.equal(newsletter.sharedSender.domain, "ended-news.flockstackmail.com", "the shared address stays");
 	assert.ok(state.tenants.has(`mc-${user.accountId}`), "and the tenant");
 	assert.deepEqual(await end(user), { error: "No free plan to end" });
 });

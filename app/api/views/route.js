@@ -1,9 +1,9 @@
+import { isLikelyBot } from "@/lib/bots";
 import { connectDb } from "@/lib/db";
 import { getClientIp, isRateLimited } from "@/lib/rate-limit";
 import { isObjectIdString } from "@/lib/validation";
 import Campaign from "@/models/Campaign";
 
-const BOT_PATTERN = /bot|crawl|spider|slurp|preview|facebookexternalhit|headless|lighthouse|curl|wget|python|axios|go-http/i;
 // In memory: counting a view in the database would double what each one already costs.
 const RATE_LIMIT = { name: "views", limit: 30, window: "10 m", store: "memory" };
 
@@ -16,7 +16,7 @@ function noContent() {
 export async function POST(request) {
 	const userAgent = request.headers.get("user-agent") ?? "";
 	const { id } = await request.json().catch(() => ({}));
-	if (!isObjectIdString(id) || !userAgent || BOT_PATTERN.test(userAgent)) return noContent();
+	if (!isObjectIdString(id) || isLikelyBot(userAgent)) return noContent();
 	if (await isRateLimited({ ...RATE_LIMIT, key: getClientIp(request.headers) })) return noContent();
 
 	await connectDb();

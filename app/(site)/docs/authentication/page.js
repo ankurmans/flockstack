@@ -8,8 +8,8 @@ import { API_BASE_PATH, REQUESTS_PER_KEY } from "@/lib/api/rest";
 import { API_KEY_SCAN_REGEX } from "@/lib/api-key-tokens";
 import { getAppUrl, isCloud } from "@/lib/config";
 import { getDocsPageMetadata } from "@/lib/docs/llms";
-import { formatUsdCents, formatWindow } from "@/lib/format";
-import { EXTRA_EMAILS } from "@/lib/plans";
+import { formatNumber, formatUsdCents, formatWindow } from "@/lib/format";
+import { EXTRA_EMAILS, FREE_GUARDS, FREE_PLAN } from "@/lib/plans";
 import { getRegionUrls } from "@/lib/region";
 
 export const metadata = getDocsPageMetadata("/docs/authentication");
@@ -146,11 +146,15 @@ export default function AuthenticationPage() {
 			<Section title="Plans" stagger={5}>
 				{isCloud() ? (
 					<p>
-						Everything but the billing endpoints needs an active plan; without one the answer is <Code>402 subscription_required</Code>.
+						Every account has a plan, the Free plan until it pays for one (<Code>get_billing</Code> says which), so the API and MCP work
+						on it with the Free plan&apos;s limits: {formatNumber(FREE_PLAN.subscribers)} subscribers, {formatNumber(FREE_PLAN.emailsPerMonth)} emails
+						a month, {FREE_PLAN.webhookEndpoints} webhook endpoint, {FREE_PLAN.newsletters} newsletter and {FREE_PLAN.automations} automations. Its first{" "}
+						{FREE_GUARDS.firstCampaigns.count} campaigns go to {formatNumber(FREE_GUARDS.firstCampaigns.recipients)} people at most, refused
+						with <Code>plan_limit_emails</Code> and the numbers. A paid plan that ends puts the account back on Free, with its data kept.
 						Signups and confirmation emails keep coming in over the plan&apos;s limits. On a paid plan, sending goes on past the
 						plan&apos;s emails as extra emails, at {formatUsdCents(EXTRA_EMAILS.pricePerThousand)} per 1,000, up to the monthly limit the
 						owner sets with <Code>set_extra_emails_limit</Code>; <Code>extraEmails</Code> in <Code>get_billing</Code> has the count, the
-						limit and the cost so far. Past that limit, or on a free plan, campaign sends stop with <Code>plan_limit_emails</Code>, and
+						limit and the cost so far. Past that limit, or on the Free plan or a plan from FlockStack, campaign sends stop with <Code>plan_limit_emails</Code>, and
 						over the subscribers with <Code>plan_limit_subscribers</Code>. Welcome emails count toward the month&apos;s emails like
 						issues: once they&apos;re used up, new subscribers get none until the count starts over or the plan grows, and don&apos;t get
 						one later. <Code>usage.welcomeEmailsPaused</Code> in <Code>get_billing</Code> and <Code>get_overview</Code> says so.

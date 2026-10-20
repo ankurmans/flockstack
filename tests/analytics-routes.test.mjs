@@ -299,7 +299,7 @@ describe("what a request gets", () => {
 		const paying = await analyticsFor({ headers: { "cf-ipcountry": "US" }, user, account: { _id: "acct_1", subscriptionStatus: "active", plan: "starter", name: "Field notes" } });
 		assert.deepEqual(paying.props.identity, { id: "user_1", email: "ada@example.com", plan: "starter" });
 		const free = await analyticsFor({ headers: { "cf-ipcountry": "US" }, user, account: { _id: "acct_1" } });
-		assert.deepEqual(free.props.identity, { id: "user_1", email: "ada@example.com", plan: "none" });
+		assert.deepEqual(free.props.identity, { id: "user_1", email: "ada@example.com", plan: "free" });
 		assert.doesNotMatch(JSON.stringify(paying.props), /Ada Lovelace|Field notes|ada\.png|acct_1/);
 	});
 

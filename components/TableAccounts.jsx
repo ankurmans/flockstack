@@ -7,7 +7,8 @@ import { BLOCKED_BY, getAccountStatus, isBlocked } from "@/lib/account-state";
 import { LIMITS, isCloud } from "@/lib/config";
 import { getEmailProvider } from "@/lib/email-provider";
 import { formatCompact, formatDate, formatNumber } from "@/lib/format";
-import { getAccountLimits, getAccountPlan, getPlan, hasActiveFreePlan, isOnFreePlan } from "@/lib/plans";
+import { getLapsedPlan } from "@/lib/free-plan";
+import { getAccountLimits, getAccountPlan, getPlan, hasActiveFreePlan, isOnFreePlan, isOnFreeTier } from "@/lib/plans";
 import { getWarmup } from "@/lib/send-spread";
 import { cn } from "@/lib/utils";
 
@@ -96,7 +97,7 @@ export default function TableAccounts({ accounts, pinnedId }) {
 										canGiveFreePlan={hasPlans}
 										freePlan={freePlan}
 										overrides={account.limitOverrides ?? {}}
-										planLimits={plan ? { emailsPerMonth: plan.emailsPerMonth, subscribers: plan.subscribers } : null}
+										planLimits={{ emailsPerMonth: plan.emailsPerMonth, subscribers: plan.subscribers }}
 									/>
 								</TableCell>
 							</TableRow>
@@ -108,10 +109,19 @@ export default function TableAccounts({ accounts, pinnedId }) {
 	);
 }
 
-// "Free · Scale" for a free plan from an admin, with its end. A free plan behind a paid one shows under it.
+// "Free" on the Free plan, with the plan it lapsed from; "Free · Scale" for a free plan from an admin, with its end. A free
+// plan behind a paid one shows under it.
 function PlanName({ account, plan, freePlan }) {
-	if (!plan) return <TextEmpty />;
 	const until = freePlan?.until ? formatDate(freePlan.until) : null;
+	if (isOnFreeTier(account)) {
+		const lapsed = getLapsedPlan(account);
+		return (
+			<>
+				<span className="block">Free</span>
+				{lapsed && <span className="block text-xs text-muted-foreground">Was {lapsed.name}</span>}
+			</>
+		);
+	}
 	if (isOnFreePlan(account)) {
 		return (
 			<>

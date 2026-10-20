@@ -9,6 +9,14 @@ async function getHeaders() {
 	return new Headers(rule.headers.map(({ key, value }) => [key, value]));
 }
 
+test("a newsletter's signup form page alone may be framed by other sites", async () => {
+	const [, rule] = await nextConfig.headers();
+	assert.equal(rule.source, "/embed/:id");
+	const headers = new Headers(rule.headers.map(({ key, value }) => [key, value]));
+	assert.match(headers.get("content-security-policy"), /^frame-ancestors \*; object-src 'none'; base-uri 'self'/);
+	assert.equal((await nextConfig.headers()).length, 2, "no other path is framed");
+});
+
 test("every response carries the CSP, HSTS and framing headers", async () => {
 	const headers = await getHeaders();
 	const policy = Object.fromEntries(

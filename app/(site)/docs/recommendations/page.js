@@ -34,7 +34,7 @@ export default function RecommendationsPage() {
 					<li>turned off incoming recommendations;</li>
 					<li>doesn&apos;t ask new subscribers to confirm their email;</li>
 					<li>has its website off, or hasn&apos;t sent its first issue, so readers would have no page to sign up on;</li>
-					<li>can&apos;t take subscribers right now, because its account is blocked or has no plan;</li>
+					<li>can&apos;t take subscribers right now, because its account is blocked or waiting to be deleted;</li>
 					<li>sends from an address that isn&apos;t verified yet, so it couldn&apos;t send the confirmation email.</li>
 				</ul>
 				<p className="mt-4">

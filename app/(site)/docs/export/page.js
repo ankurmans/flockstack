@@ -37,7 +37,7 @@ export default function ExportPage() {
 		<>
 			<HeaderDocs kicker="Guides" title="Export your data">
 				You can leave with everything, in one click, any time. The export is never a paid feature, and it works when your account is
-				blocked, paused or has no plan.
+				blocked or paused.
 			</HeaderDocs>
 
 			<Section title="Get it" stagger={1}>

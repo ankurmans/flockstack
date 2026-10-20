@@ -246,6 +246,7 @@ describe("up to 3 newsletters", () => {
 describe("Add a newsletter's dialog", () => {
 	test("its action names it, takes the open newsletter's sender and postal address, opens it, then its settings", async () => {
 		const user = await signIn("short@example.com");
+		await activate(user);
 		await createNewsletter(user, "short-first");
 		const open = await createNewsletter(user, "short-open");
 		await m.Newsletter.updateOne({ accountId: user.accountId, _id: open }, { $set: { fromName: "Jo", postalAddress: "2 Side St, Lyon" } });

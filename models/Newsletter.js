@@ -1,5 +1,7 @@
 import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
+import { FONT_PAIR_IDS, THEME_IDS } from "../lib/brand.js";
+import { NAV_KINDS } from "../lib/site-navigation.js";
 
 const newsletterSchema = new mongoose.Schema(
 	{
@@ -34,9 +36,73 @@ const newsletterSchema = new mongoose.Schema(
 		description: { type: String, trim: true },
 		// Buttons and links in the editor's blocks (lib/editor-blocks.js), as #rrggbb. Without one, ink.
 		accentColor: { type: String, trim: true, lowercase: true },
+		// The rest of the brand (lib/brand.js): the website's theme, a pair of fonts for the site and the email, a wide
+		// image above the issue in the email and on the website, and the logo and name above the issue in the email.
+		// The logo itself is imageUrl.
+		brand: {
+			theme: { type: String, enum: THEME_IDS },
+			fontPair: { type: String, enum: FONT_PAIR_IDS },
+			headerUrl: { type: String, trim: true },
+			emailLogo: { type: Boolean },
+		},
+		// The website's navigation bar, in order (lib/site-navigation.js). id: stable, so reordering keeps an item's identity.
+		navigation: [
+			{
+				_id: false,
+				id: { type: String },
+				kind: { type: String, enum: NAV_KINDS },
+				label: { type: String, trim: true },
+				pageId: { type: String },
+				tag: { type: String, trim: true },
+				url: { type: String, trim: true },
+			},
+		],
 		// Every email's footer links to the reader's preference center (lib/preferences.js).
 		preferencesLink: { type: Boolean },
+		// Issues' outgoing links get utm_source (the newsletter), utm_medium=email and utm_campaign (the issue) added
+		// (lib/link-utm.js), unless a link has UTM parameters of its own.
+		utmLinks: { type: Boolean },
+		// The website's signup pop-up and the gate (lib/popup-rules.js): when it opens, how long closing it snoozes it, where it
+		// shows, and whether older issues show only their beginning to readers who haven't subscribed. Unsaved: the defaults.
+		popup: {
+			enabled: { type: Boolean },
+			trigger: { type: String, enum: ["scroll", "time", "exit"] },
+			seconds: { type: Number },
+			scrollPercent: { type: Number },
+			frequencyDays: { type: Number },
+			pages: { type: String, enum: ["issues", "home", "all"] },
+			gate: {
+				enabled: { type: Boolean },
+				previewPercent: { type: Number },
+				freeLatest: { type: Number },
+			},
+		},
+		// The key id in the newsletter's Magic Link (lib/magic-links.js), 1 until it is retired: a link of an earlier id stops working.
+		magicKeyId: { type: Number, min: 1 },
+		// The newsletter's own structured data for search engines: compact JSON of one block or a list (lib/seo-rules.js
+		// checkJsonLd), added to the archive's home page and every issue's page.
+		jsonLd: { type: String },
+		// What a new issue starts with (lib/templates.js): rich HTML above and below where the writer starts. The accent
+		// above is the third part of a newsletter's style.
+		defaultStyle: {
+			header: { type: String },
+			footer: { type: String },
+		},
 		socialLinks: [{ type: String, trim: true }],
+		// The link-in-bio page at /links on the newsletter's host (lib/link-page.js): a title, a short bio and the links the
+		// writer lists, in order.
+		linkPage: {
+			enabled: { type: Boolean, default: false },
+			title: { type: String, trim: true },
+			bio: { type: String, trim: true },
+			links: [
+				{
+					_id: false,
+					label: { type: String, trim: true },
+					url: { type: String, trim: true },
+				},
+			],
+		},
 		// The archive's author page; the author's name is fromName.
 		author: {
 			bio: { type: String, trim: true },

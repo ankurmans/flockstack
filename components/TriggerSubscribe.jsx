@@ -2,32 +2,16 @@
 
 import { useEffect } from "react";
 import { useSubscribe } from "@/components/ProviderSubscribe";
-import { readerMarkerName } from "@/lib/reader-cookies";
-import { readStoredNumber, subscribeSnoozedKey, subscribedKey } from "@/lib/storage";
+import { armPopup } from "@/lib/popup-trigger";
 
-// Opens once the reader is into the issue, not on arrival, and stays away for two weeks once closed.
-const SCROLL_DEPTH = 0.45;
-const SNOOZE_MS = 14 * 24 * 60 * 60 * 1000;
-
-export default function TriggerSubscribe({ newsletterSlug }) {
+// Opens the signup pop-up the way the newsletter chose (lib/popup-trigger.js).
+export default function TriggerSubscribe({ newsletterSlug, trigger, seconds, scrollPercent, frequencyDays }) {
 	const { open } = useSubscribe();
 
-	useEffect(() => {
-		// A reader who signed in to comment with a link from an email is a subscriber already.
-		const isSignedIn = () => document.cookie.split("; ").includes(`${readerMarkerName(newsletterSlug)}=1`);
-		const isSubscribed = () => readStoredNumber(subscribedKey(newsletterSlug)) > 0 || isSignedIn();
-		const isSnoozed = () => Date.now() - readStoredNumber(subscribeSnoozedKey(newsletterSlug)) < SNOOZE_MS;
-		if (isSubscribed() || isSnoozed()) return;
-
-		function onScroll() {
-			const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
-			if ((scrollTop + clientHeight) / scrollHeight < SCROLL_DEPTH) return;
-			window.removeEventListener("scroll", onScroll);
-			if (!isSubscribed() && !isSnoozed()) open("scroll");
-		}
-		window.addEventListener("scroll", onScroll, { passive: true });
-		return () => window.removeEventListener("scroll", onScroll);
-	}, [newsletterSlug, open]);
+	useEffect(
+		() => armPopup({ slug: newsletterSlug, trigger, seconds, scrollPercent, frequencyDays, open }),
+		[newsletterSlug, trigger, seconds, scrollPercent, frequencyDays, open]
+	);
 
 	return null;
 }

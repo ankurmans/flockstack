@@ -31,6 +31,7 @@ const DOT_TONES = {
 
 const STATUS_TONES = {
 	active: "green",
+	free: "blue",
 	trialing: "green",
 	past_due: "amber",
 	incomplete: "amber",
@@ -41,6 +42,8 @@ const STATUS_TONES = {
 	verified: "green",
 	healthy: "green",
 	scheduled: "blue",
+	running: "blue",
+	drafted: "amber",
 	sending: "blue",
 	queued: "blue",
 	paused: "amber",

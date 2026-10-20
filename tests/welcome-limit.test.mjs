@@ -146,7 +146,8 @@ describe("when welcome emails pause", () => {
 		assert.equal(areWelcomeEmailsPaused({ ...account, usage: { ...account.usage, emailsSent: 24_999 } }, now), false);
 		assert.equal(areWelcomeEmailsPaused({ ...account, limitOverrides: { emailsPerMonth: 30_000 } }, now), false, "an admin's numbers win");
 		assert.equal(areWelcomeEmailsPaused(account, addMonths(start, 1)), false, "the next month starts over before it's stored");
-		assert.equal(areWelcomeEmailsPaused({ ...account, subscriptionStatus: "canceled" }, now), false, "without a plan nothing sends anyway");
+		assert.equal(areWelcomeEmailsPaused({ ...account, subscriptionStatus: "canceled" }, now), true, "a lapsed plan is the Free plan, whose 10,000 are used up too");
+		assert.equal(areWelcomeEmailsPaused({ ...account, subscriptionStatus: "canceled", usage: { ...account.usage, emailsSent: 9_999 } }, now), false);
 		assert.equal(await withEnv({ FLOCKSTACK_CLOUD: "" }, () => areWelcomeEmailsPaused(account, now)), false);
 
 		assert.deepEqual(getWelcomePauseNotice({ emailsLimit: 20_000, periodEnd: new Date("2026-11-03T12:00:00Z") }), {

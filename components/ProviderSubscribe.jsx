@@ -23,7 +23,7 @@ export default function ProviderSubscribe({ newsletter, readers, children }) {
 
 	// A popup that appears mid-read shouldn't throw the phone keyboard over the issue.
 	function onOpenAutoFocus(event) {
-		if (openedBy === "scroll" && window.matchMedia("(pointer: coarse)").matches) event.preventDefault();
+		if ((openedBy === "scroll" || openedBy === "time") && window.matchMedia("(pointer: coarse)").matches) event.preventDefault();
 	}
 
 	return (
@@ -35,7 +35,7 @@ export default function ProviderSubscribe({ newsletter, readers, children }) {
 					onOpenAutoFocus={onOpenAutoFocus}
 					className="p-8 pt-10 sm:max-w-md"
 				>
-					<PitchSubscribe newsletter={newsletter} readers={readers} titleAs={DialogTitle} />
+					<PitchSubscribe newsletter={newsletter} readers={readers} via="popup" titleAs={DialogTitle} />
 				</DialogContent>
 			</Dialog>
 		</SubscribeContext>

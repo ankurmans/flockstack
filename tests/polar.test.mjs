@@ -463,7 +463,7 @@ describe("subscription changes", () => {
 		assert.equal((await account(user)).subscriptionStatus, "active");
 	});
 
-	test("revoking the subscription ends access: what needs a plan opens the paywall, and the API answers 402", async () => {
+	test("revoking the subscription puts the account back on Free: its data and last plan are kept, its limits are Free's", async () => {
 		const { key } = await createKey(user, "Site");
 		subscriptions.set("sub_life", subscription({ id: "sub_life", accountId: user.accountId, status: "canceled", plan: "max", interval: "year", ended_at: iso(NOW) }));
 		await deliver("subscription.revoked", { id: "sub_life" });
@@ -472,10 +472,45 @@ describe("subscription changes", () => {
 		assert.equal(ended.subscriptionStatus, "canceled");
 		assert.equal(ended.plan, "max", "the data and the last plan are kept");
 		assert.equal(ended.cancelAt, undefined);
-		assert.equal((await createKey(user, "Another")).code, "subscription_required");
-		const response = await callApi("POST", "/api/v1/contacts", { key, body: { newsletter: "x", email: "a@example.com" } });
-		assert.equal(response.status, 402);
-		assert.deepEqual(response.body, { error: { code: "subscription_required", message: "The account has no active plan" } });
+		assert.equal((await createKey(user, "Another")).code, undefined, "an account on Free still makes keys");
+		const response = await callApi("GET", "/api/v1/billing", { key });
+		assert.equal(response.status, 200);
+		assert.deepEqual(
+			{ plan: response.body.plan.id, price: response.body.plan.price, status: response.body.status, lapsedPlan: response.body.lapsedPlan, emails: response.body.usage.emailsLimit, isActive: response.body.isActive },
+			{ plan: "free", price: 0, status: "free", lapsedPlan: "max", emails: 10000, isActive: true }
+		);
+	});
+
+	test("a Free account upgrades through the same checkout as a first purchase, and comes back to Free when it ends", async () => {
+		const free = await signIn("free-upgrade@example.com");
+		assert.equal(m.plans.getAccountPlan(await account(free)).id, "free", "no subscription is the Free plan");
+		assert.equal(m.plans.getAccountPlan(await account(free)).monthlyPrice, 0);
+
+		const picked = await as(free, () => catchRedirect(m.billing.choosePlan(form({ plan: "growth", interval: "month" }))));
+		assert.equal(picked, "https://checkout.polar.sh/checkout/chk_1", "Checkout, not the portal: there's no subscription to change");
+		const link = await as(free, () => catchRedirect(m.checkoutRoute.GET(new Request("http://localhost:3000/billing/checkout?plan=growth&interval=month"))));
+		assert.equal(link, "https://checkout.polar.sh/checkout/chk_1", "the pricing page's buttons too");
+		const checkout = calls.findLast(({ path }) => path === "/v1/checkouts/");
+		assert.equal(checkout.body.external_customer_id, String(free.accountId));
+		assert.equal(checkout.body.metadata.accountId, String(free.accountId));
+		assert.equal(calls.some(({ path }) => path === "/v1/customer-sessions/"), false);
+		assert.equal(await as(free, () => catchRedirect(m.checkoutRoute.GET(new Request("http://localhost:3000/billing/checkout?plan=free")))), "/billing?interval=month", "Free has no checkout");
+
+		await m.Account.updateOne({ _id: free.accountId }, { $set: { "usage.emailsSent": 4_321 } });
+		subscriptions.set("sub_free_up", subscription({ id: "sub_free_up", accountId: free.accountId, customer: "cus_free_up", plan: "growth" }));
+		assert.equal((await deliver("subscription.created", { id: "sub_free_up" })).body.updated, true);
+		let upgraded = await account(free);
+		assert.equal(m.plans.getAccountPlan(upgraded).id, "growth");
+		assert.deepEqual(m.plans.getAccountLimits(upgraded), { emails: 125_000, subscribers: 25_000 });
+		assert.equal(upgraded.usage.emailsSent, 0, "the paid month starts from zero");
+		assert.equal(upgraded.usage.paidThrough.getTime(), (NOW + 30 * DAY) * 1000);
+
+		subscriptions.set("sub_free_up", subscription({ id: "sub_free_up", accountId: free.accountId, customer: "cus_free_up", plan: "growth", status: "canceled", ended_at: iso(NOW) }));
+		await deliver("subscription.revoked", { id: "sub_free_up" });
+		upgraded = await account(free);
+		assert.equal(m.plans.getAccountPlan(upgraded).id, "free", "cancelling returns to Free");
+		assert.deepEqual(m.plans.getAccountLimits(upgraded), { emails: 10_000, subscribers: 2_500 });
+		assert.equal(upgraded.plan, "growth", "its last plan is remembered");
 	});
 
 	test("a new subscription after a canceled one replaces it and starts a new month", async () => {

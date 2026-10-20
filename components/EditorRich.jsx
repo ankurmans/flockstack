@@ -1,30 +1,46 @@
 "use client";
 
 import { useId, useState } from "react";
+import { rewriteSelection } from "@/app/(app)/campaigns/actions";
 import { EditorContent, useEditor } from "@tiptap/react";
 import FileHandler from "@tiptap/extension-file-handler";
 import Image from "@tiptap/extension-image";
 import { Placeholder } from "@tiptap/extensions";
 import StarterKit from "@tiptap/starter-kit";
+import BarFind from "@/components/BarFind";
+import DialogAiRewrite from "@/components/DialogAiRewrite";
 import DialogEditorBlock from "@/components/DialogEditorBlock";
 import DialogImagePicker from "@/components/DialogImagePicker";
+import FooterEditor from "@/components/FooterEditor";
 import MenuFormat from "@/components/MenuFormat";
 import { SlashCommand } from "@/components/MenuSlash";
+import { canReplace, readSelection, textToContent } from "@/lib/ai-client";
+import { LIMITS } from "@/lib/ai-writing";
 import { ATTACHMENT_EXTENSIONS } from "@/lib/attachment-files";
 import { Callout } from "@/lib/editor-callout";
+import { FindReplace } from "@/lib/editor-find";
 import { createBlockExtensions } from "@/lib/editor-nodes";
 import { toast } from "@/lib/toast";
+import { creditContent } from "@/lib/unsplash-client";
+import { useAiRun } from "@/lib/use-ai-run";
 import { IMAGE_TYPES, getDisplaySize, prepareImage, uploadAttachment, uploadImage } from "@/lib/upload-image";
 
 const MIN_HEIGHT = "min-h-[560px]";
 
 // newsletterId and campaignId: where a poll made in this editor belongs. Without a newsletter, there's no poll block.
-export default function EditorRich({ content, onChange, fields = [], newsletterId = null, campaignId = null }) {
+// isAiEnabled: the selection's AI menu (rewrite, shorten, tone, translate), only where the server has Workers AI.
+// hasStockPhotos: the image picker also searches Unsplash, only where the server has an Unsplash key.
+export default function EditorRich({ content, onChange, fields = [], snippets = [], newsletterId = null, campaignId = null, isAiEnabled = false, hasStockPhotos = false }) {
 	const [isEditingLink, setIsEditingLink] = useState(false);
 	const [isPickingImage, setIsPickingImage] = useState(false);
+	// Find and replace: the bar's open, starting from this text (the selection when it was opened).
+	const [find, setFind] = useState(null);
 	// The block whose dialog is open: { kind, attrs, pos }, pos null for a new one.
 	const [block, setBlock] = useState(null);
 	const fileInputId = useId();
+	// The selection the AI is rewriting: { style, language, text, from, to }.
+	const [rewrite, setRewrite] = useState(null);
+	const rewriting = useAiRun();
 	const editor = useEditor({
 		immediatelyRender: false,
 		content,
@@ -45,6 +61,7 @@ export default function EditorRich({ content, onChange, fields = [], newsletterI
 				},
 			}),
 			Callout,
+			FindReplace,
 			...createBlockExtensions({ onEdit: (kind, attrs, pos) => setBlock({ kind, attrs, pos }) }),
 			Placeholder.configure({
 				placeholder: ({ node }) => (node.type.name === "heading" ? "Heading" : "Write, or press / for commands"),
@@ -60,14 +77,21 @@ export default function EditorRich({ content, onChange, fields = [], newsletterI
 				onBlock: (kind) => setBlock({ kind, attrs: {}, pos: null }),
 				onPickFile: () => document.getElementById(fileInputId)?.click(),
 				fields,
+				snippets,
 				canPoll: Boolean(newsletterId),
 			}),
 		],
 		editorProps: {
 			attributes: { class: `prose-issue ${MIN_HEIGHT} px-5 py-5 outline-none`, "aria-label": "Content" },
 			handleKeyDown: (view, event) => {
-				const isLinkShortcut = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
-				if (!isLinkShortcut || view.state.selection.empty) return false;
+				if (!event.metaKey && !event.ctrlKey) return false;
+				const key = event.key.toLowerCase();
+				if (key === "f") {
+					const { from, to } = view.state.selection;
+					setFind({ query: from === to || to - from > 100 ? "" : view.state.doc.textBetween(from, to, " ") });
+					return true;
+				}
+				if (key !== "k" || view.state.selection.empty) return false;
 				setIsEditingLink(true);
 				return true;
 			},
@@ -77,14 +101,66 @@ export default function EditorRich({ content, onChange, fields = [], newsletterI
 
 	if (!editor) return <div className={MIN_HEIGHT} />;
 
+	function askRewrite(request) {
+		setRewrite(request);
+		rewriting.run(() => rewriteSelection(request));
+	}
+
+	function startRewrite({ style, language }) {
+		const { from, to } = editor.state.selection;
+		const text = readSelection(editor.state.doc, from, to);
+		if (!text) return;
+		if (text.length > LIMITS.selectionChars) return void toast.error(`Select ${LIMITS.selectionChars.toLocaleString("en-US")} characters or fewer`);
+		askRewrite({ style, language, text, from, to });
+	}
+
+	function closeFind() {
+		setFind(null);
+		editor.commands.focus();
+	}
+
+	function closeRewrite() {
+		rewriting.reset();
+		setRewrite(null);
+		editor.commands.focus();
+	}
+
+	function replaceSelection(text) {
+		const { from, to } = rewrite;
+		const blocks = textToContent(text);
+		const isInline = blocks.length === 1 && editor.state.doc.resolve(from).sameParent(editor.state.doc.resolve(to));
+		editor.chain().focus().insertContentAt({ from, to }, isInline ? blocks[0].content : blocks).run();
+		closeRewrite();
+	}
+
+	function insertBelow(text) {
+		const $to = editor.state.doc.resolve(rewrite.to);
+		editor.chain().focus().insertContentAt($to.depth >= 1 ? $to.after(1) : $to.pos, textToContent(text)).run();
+		closeRewrite();
+	}
+
 	return (
 		<>
+			{find && <BarFind key={find.query} editor={editor} initialQuery={find.query} onClose={closeFind} />}
 			<EditorContent editor={editor} />
-			<MenuFormat editor={editor} isEditingLink={isEditingLink} onEditLink={setIsEditingLink} />
+			<FooterEditor editor={editor} onFind={() => setFind({ query: "" })} />
+			<MenuFormat editor={editor} isEditingLink={isEditingLink} onEditLink={setIsEditingLink} onAi={isAiEnabled ? startRewrite : null} />
+			{isAiEnabled && (
+				<DialogAiRewrite
+					request={rewrite}
+					run={rewriting}
+					canReplace={rewrite ? canReplace(editor.state.doc, rewrite) : false}
+					onReplace={replaceSelection}
+					onInsertBelow={insertBelow}
+					onRetry={() => askRewrite(rewrite)}
+					onClose={closeRewrite}
+				/>
+			)}
 			<DialogImagePicker
 				open={isPickingImage}
 				onOpenChange={setIsPickingImage}
 				onSelect={(image) => insertImage(editor, image)}
+				hasStock={hasStockPhotos}
 			/>
 			<DialogEditorBlock
 				block={block}
@@ -139,10 +215,12 @@ async function insertAttachment(editor, file) {
 }
 
 // Where the slash command was typed: the editor keeps its selection while the picker has focus.
-function insertImage(editor, { url, width, height }) {
+// A stock photo comes with its credit line under it.
+function insertImage(editor, { url, width, height, alt = "", credit = null }) {
 	if (editor.isDestroyed) return;
 	const size = width && height ? getDisplaySize({ width, height }) : {};
-	editor.chain().focus().insertContent({ type: "image", attrs: { src: url, alt: "", ...size } }).run();
+	const image = { type: "image", attrs: { src: url, alt, ...size } };
+	editor.chain().focus().insertContent(credit ? [image, creditContent(credit)] : image).run();
 }
 
 // Each picture shows right away from the local file and switches to its CDN URL once uploaded. The

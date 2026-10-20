@@ -3,7 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus, Tags, Trash2 } from "lucide-react";
-import { createCustomField, deleteCustomField, deleteTag, updateCustomField } from "@/app/(app)/contacts/actions";
+import { createCustomField, deleteCustomField, deleteTag, setTagColor, updateCustomField } from "@/app/(app)/contacts/actions";
+import BadgeTag from "@/components/BadgeTag";
+import PickerTagColor from "@/components/PickerTagColor";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -21,7 +23,8 @@ import { toast } from "@/lib/toast";
 const TYPE_LABELS = { text: "Text", number: "Number", date: "Date", datetime: "Date and time", boolean: "Yes or no", list: "List" };
 
 // The open newsletter's custom fields (for merge tags, segments and automations) and its tags.
-export default function DialogTagsFields({ newsletter, definitions, tags }) {
+// tagColors: { tag: color } for the tags that have one.
+export default function DialogTagsFields({ newsletter, definitions, tags, tagColors = {} }) {
 	const router = useRouter();
 	const [label, setLabel] = useState("");
 	const [type, setType] = useState("text");
@@ -202,23 +205,25 @@ export default function DialogTagsFields({ newsletter, definitions, tags }) {
 					) : (
 						<ul className="flex flex-wrap gap-1.5">
 							{tags.map((tag) => (
-								<li key={tag} className="inline-flex h-6 items-center gap-1 rounded-full bg-muted pr-1 pl-2.5 text-xs">
-									{tag}
-									<button
-										type="button"
-										disabled={isPending}
-										onClick={() =>
-											run(
-												() => deleteTag(newsletter.id, tag),
-												(result) =>
-													result.inBackground ? `Removing the tag ${tag} from ${formatCount(result.contacts, "contact")}…` : `Tag ${tag} deleted`
-											)
-										}
-										aria-label={`Delete the tag ${tag}`}
-										className="grid size-4 place-items-center rounded-full text-muted-foreground hover:bg-background hover:text-destructive"
-									>
-										<Trash2 className="size-3" />
-									</button>
+								<li key={tag}>
+									<BadgeTag name={tag} color={tagColors[tag]} className="h-6 pr-1 pl-2">
+										<PickerTagColor tag={tag} color={tagColors[tag] ?? null} disabled={isPending} onPick={(color) => run(() => setTagColor(newsletter.id, tag, color), "Color saved")} />
+										<button
+											type="button"
+											disabled={isPending}
+											onClick={() =>
+												run(
+													() => deleteTag(newsletter.id, tag),
+													(result) =>
+														result.inBackground ? `Removing the tag ${tag} from ${formatCount(result.contacts, "contact")}…` : `Tag ${tag} deleted`
+												)
+											}
+											aria-label={`Delete the tag ${tag}`}
+											className="grid size-4 place-items-center rounded-full text-muted-foreground hover:bg-background hover:text-destructive"
+										>
+											<Trash2 className="size-3" />
+										</button>
+									</BadgeTag>
 								</li>
 							))}
 						</ul>

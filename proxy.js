@@ -41,6 +41,10 @@ const PUBLIC_PATHS = [
 	/^\/api\/unsubscribe$/,
 	/^\/api\/views$/,
 	/^\/api\/recommendations\/impression$/,
+	/^\/api\/visit$/,
+	/^\/embed\/[a-f0-9]{24}$/i,
+	/^\/f\/[a-f0-9]{24}$/i,
+	/^\/subscribe\/magic$/,
 	/^\/recommendations$/,
 	/^\/api\/shop\/(download|portal)$/,
 	/^\/api\/v1\//,
@@ -55,6 +59,13 @@ const ARCHIVE_HOST_PATHS = [
 	/^\/api\/unsubscribe$/,
 	/^\/api\/views$/,
 	/^\/api\/recommendations\/impression$/,
+	// A page view of the website (lib/web-analytics.js).
+	/^\/api\/visit$/,
+	// Signup forms for other sites (lib/forms.js): the frame's page and the address a form posts to, and Magic Links
+	// (lib/magic-links.js).
+	/^\/embed\/[a-f0-9]{24}$/i,
+	/^\/f\/[a-f0-9]{24}$/i,
+	/^\/subscribe\/magic$/,
 	/^\/api\/shop\/(download|portal)$/,
 	/^\/confirm$/,
 	/^\/keep$/,
@@ -71,6 +82,9 @@ const ISSUE_PATH_PATTERN = /^\/p\/([a-z0-9][a-z0-9-]{0,119})\/?$/;
 const PRODUCT_PATH_PATTERN = /^\/shop\/([a-z0-9][a-z0-9-]{0,78}[a-z0-9]|[a-z0-9])\/?$/;
 const OFFER_PATH_PATTERN = /^\/offer\/([a-z0-9][a-z0-9-]{1,38}[a-z0-9])\/?$/;
 const AUTHOR_PATH_PATTERN = /^\/authors\/([a-z0-9][a-z0-9-]{0,59})\/?$/;
+const TAG_PATH_PATTERN = /^\/tags\/([a-z0-9][a-z0-9-]{0,59})\/?$/;
+// The list of issues, the reader's sign-in and the Subscriber Center are pages of the newsletter's site, not routes of their own.
+const SITE_PAGE_PATHS = { "/issues": "issues", "/signin": "signin", "/account": "account" };
 // Generated share images stay on the app domain, where social cards point: they're only PNGs.
 const ARCHIVE_IMAGE_PATH_PATTERN = /^\/archive\/[^/]+\/og$/;
 
@@ -83,6 +97,10 @@ function rewriteTo(request, pathname) {
 export async function proxy(request) {
 	const { pathname } = request.nextUrl;
 
+	// The script that frames a signup form (lib/embed-script.js) is /embed.js on every host. Its route is under /api: a folder
+	// named embed.js would look like a file to every tool that walks the source.
+	if (pathname === "/embed.js") return rewriteTo(request, "/api/embed-script");
+
 	const { isArchiveHost, slug: archiveSlug } = await resolveArchiveHost(request.headers.get("host"));
 	if (isArchiveHost) {
 		if (ARCHIVE_HOST_PATHS.some((pattern) => pattern.test(pathname))) return NextResponse.next();
@@ -90,12 +108,18 @@ export async function proxy(request) {
 		if (pathname === "/") return rewriteTo(request, `/archive/${archiveSlug}`);
 		if (pathname === "/sitemap.xml") return rewriteTo(request, `/archive/${archiveSlug}/sitemap`);
 		if (pathname === "/robots.txt") return rewriteTo(request, `/archive/${archiveSlug}/robots`);
+		if (pathname === "/llms.txt") return rewriteTo(request, `/archive/${archiveSlug}/llms`);
 		if (pathname === "/feed.xml") return rewriteTo(request, `/archive/${archiveSlug}/feed`);
 		if (pathname === "/shop" || pathname === "/shop/") return rewriteTo(request, `/archive/${archiveSlug}/shop`);
 		if (pathname === "/subscribe" || pathname === "/subscribe/") return rewriteTo(request, `/archive/${archiveSlug}/subscribe`);
 		if (pathname === "/give" || pathname === "/give/") return rewriteTo(request, `/archive/${archiveSlug}/give`);
 		const offerCode = OFFER_PATH_PATTERN.exec(pathname)?.[1];
 		if (offerCode) return rewriteTo(request, `/archive/${archiveSlug}/offer/${offerCode}`);
+		if (pathname === "/links" || pathname === "/links/") return rewriteTo(request, `/archive/${archiveSlug}/links`);
+		const sitePage = SITE_PAGE_PATHS[pathname.replace(/(.)\/$/, "$1")];
+		if (sitePage) return rewriteTo(request, `/archive/${archiveSlug}/${sitePage}`);
+		const tagSlug = TAG_PATH_PATTERN.exec(pathname)?.[1];
+		if (tagSlug) return rewriteTo(request, `/archive/${archiveSlug}/tags/${tagSlug}`);
 		// The newsletter's redirects (lib/redirect-routing.js): old addresses of imported posts, and the owner's own.
 		const redirect = await findRedirect(archiveSlug, pathname);
 		if (redirect) return NextResponse.redirect(new URL(withQuery(redirect, request.nextUrl.search), request.url), 301);

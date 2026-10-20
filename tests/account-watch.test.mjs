@@ -173,6 +173,8 @@ describe("the dashboard banner", () => {
 	test("shows each warning seen in the period with its numbers and the block level, and links what to do", () => {
 		const account = {
 			status: "active",
+			subscriptionStatus: "active",
+			plan: "starter",
 			watch: {
 				bounces: { rate: 0.03, count: 30, sent: 1000, seenAt: new Date(now - DAY_MS) },
 				gmail: { rate: 0.001, seenAt: new Date(now - 2 * DAY_MS) },
@@ -185,6 +187,11 @@ describe("the dashboard banner", () => {
 		assert.match(markup, /Nothing is stopped yet\./);
 		assert.match(markup, /href="\/docs\/warnings"/);
 		assert.match(markup, /role="status"/);
+	});
+
+	test("names the lower block level of an account on the Free plan", () => {
+		const free = { status: "active", watch: { bounces: { rate: 0.03, count: 30, sent: 1000, seenAt: new Date(now - DAY_MS) } } };
+		assert.match(render(free), /The account is blocked at 4\.00% with 8 bounces\./);
 	});
 
 	test("shows nothing once the period is over, with no warning, or on a blocked account", () => {

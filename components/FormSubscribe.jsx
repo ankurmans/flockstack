@@ -6,24 +6,29 @@ import { subscribe } from "@/app/archive/actions";
 import { Button } from "@/components/ui/button";
 import FormRecommendedSubscribe from "@/components/FormRecommendedSubscribe";
 import InputCustomField from "@/components/InputCustomField";
-import { captureRecommender, captureReferralCode, storeValue, subscribedKey } from "@/lib/storage";
+import { captureAttribution, captureRecommender, captureReferralCode, storeValue, subscribedKey } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
-export default function FormSubscribe({ newsletterSlug, fields = [], className }) {
+export default function FormSubscribe({ newsletterSlug, fields = [], via = "website", onResult, className }) {
 	const [state, action, isPending] = useActionState(subscribe, null);
 	const referralRef = useRef(null);
 	const recommenderRef = useRef(null);
+	const attributionRef = useRef(null);
 
 	// The form is on every page of the archive: it picks up the referral code and the recommending newsletter the visitor
 	// arrived with.
 	useEffect(() => {
 		if (referralRef.current) referralRef.current.value = captureReferralCode(newsletterSlug);
 		if (recommenderRef.current) recommenderRef.current.value = captureRecommender(newsletterSlug);
+		if (attributionRef.current) attributionRef.current.value = captureAttribution(newsletterSlug);
 	}, [newsletterSlug, state]);
 
+	// Someone who asked to join, confirmed or not, is not shown the pop-up again in this browser.
 	useEffect(() => {
-		if (state?.ok && !state.pending) storeValue(subscribedKey(newsletterSlug), 1);
-	}, [state, newsletterSlug]);
+		if (!state?.ok) return;
+		storeValue(subscribedKey(newsletterSlug), 1);
+		onResult?.(state);
+	}, [state, newsletterSlug, onResult]);
 
 	if (state?.pending) {
 		return (
@@ -61,6 +66,8 @@ export default function FormSubscribe({ newsletterSlug, fields = [], className }
 			<input type="hidden" name="newsletter" value={newsletterSlug} />
 			<input type="hidden" name="ref" ref={referralRef} defaultValue="" />
 			<input type="hidden" name="rec" ref={recommenderRef} defaultValue="" />
+			<input type="hidden" name="acq" ref={attributionRef} defaultValue="" />
+			<input type="hidden" name="via" value={via} />
 			<div aria-hidden="true" className="absolute -left-[10000px] size-px overflow-hidden">
 				<input type="text" name="website" tabIndex={-1} autoComplete="off" />
 			</div>

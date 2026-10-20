@@ -27,12 +27,26 @@ export async function createSegment({ newsletterId, name, description, rules }) 
 	return { ok: true, id: output.id };
 }
 
+// The contacts the rules match now, saved as a list that doesn't follow the newsletter.
+export async function createSegmentList({ newsletterId, name, description, rules }) {
+	const { output, failure } = await runDashboardAction("create_segment_snapshot", {
+		newsletter: String(newsletterId ?? ""),
+		name: String(name ?? ""),
+		...(description && { description: String(description) }),
+		rules,
+	});
+	if (failure) return toRulesError(failure, "Fill in every condition first");
+	revalidatePath("/segments");
+	return { ok: true, id: output.id, status: output.status };
+}
+
+// Rules are left out for a saved list, whose contacts can't change.
 export async function updateSegment(id, { name, description, rules }) {
 	const { failure } = await runDashboardAction("update_segment", {
 		id: String(id),
 		name: String(name ?? ""),
 		description: description ? String(description) : null,
-		rules,
+		...(rules && { rules }),
 	});
 	if (failure) return toRulesError(failure, "Fill in every condition first");
 	revalidatePath("/segments");

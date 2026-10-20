@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import { ImagePlus, Loader2 } from "lucide-react";
-import DialogImagePicker, { CHECKERBOARD } from "@/components/DialogImagePicker";
+import DialogImagePicker from "@/components/DialogImagePicker";
+import { CHECKERBOARD } from "@/lib/checkerboard";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/lib/toast";
 import { uploadImageFile } from "@/lib/upload-image";

@@ -191,7 +191,7 @@ describe("the legal pages", () => {
 			"0% of what you sell",
 			"Stripe's own processing fees apply",
 			"export everything, free, at any time",
-			"It works even if your account is blocked, paused or has no plan",
+			"It works even if your account is blocked or paused",
 			"AGPL-3.0",
 			"You are the controller of your subscribers' personal data, and FlockStack is your processor",
 		]) {
@@ -239,7 +239,7 @@ describe("the legal pages", () => {
 	test("the sub-processors table lists every service with its regions, optional ones apart", () => {
 		const text = textOf(renderPage("sub-processors"));
 		const names = [...m.subprocessors.SUBPROCESSORS, ...m.subprocessors.OPTIONAL_SUBPROCESSORS].map(({ name }) => name);
-		assert.deepEqual(names, ["Cloudflare", "Amazon SES (Amazon Web Services)", "Upstash QStash", "Polar", "Stripe", "PostHog", "Google (sign-in)", "Apple (sign-in)", "Google Postmaster Tools", "Telegram", "Upstash Redis", "Vercel"]);
+		assert.deepEqual(names, ["Cloudflare", "Amazon SES (Amazon Web Services)", "Upstash QStash", "Polar", "Stripe", "PostHog", "Google (sign-in)", "Apple (sign-in)", "Unsplash", "Google Postmaster Tools", "Telegram", "Upstash Redis", "Vercel"]);
 		for (const { name, purpose, us, eu, link } of [...m.subprocessors.SUBPROCESSORS, ...m.subprocessors.OPTIONAL_SUBPROCESSORS]) {
 			assert.ok(text.includes(name) && text.includes(purpose) && text.includes(us) && text.includes(eu), name);
 			assert.match(link, /^https:\/\//, name);
