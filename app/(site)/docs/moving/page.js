@@ -4,7 +4,7 @@ import HeaderDocs from "@/components/HeaderDocs";
 import { API_BASE_PATH } from "@/lib/api/rest";
 import { getDocsPageMetadata } from "@/lib/docs/llms";
 import { formatNumber } from "@/lib/format";
-import { PLANS } from "@/lib/plans";
+import { FREE_PLAN, PLANS } from "@/lib/plans";
 import { MAX_IMAGES_PER_IMPORT, MAX_IMPORT_FILE_BYTES } from "@/lib/post-import-report";
 import { MAX_REDIRECTS_PER_NEWSLETTER, MAX_REDIRECT_CSV_ROWS } from "@/lib/redirect-paths";
 
@@ -154,11 +154,11 @@ export default function MovingPage() {
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-border/60">
-							{PLANS.map((plan) => (
+							{[FREE_PLAN, ...PLANS].map((plan) => (
 								<tr key={plan.id}>
 									<td className="py-3 pr-4 pl-4 font-medium">{plan.name}</td>
 									<td className="py-3 pr-4 text-muted-foreground tabular-nums">{formatNumber(plan.importPosts)}</td>
-									<td className="py-3 pr-4 text-muted-foreground tabular-nums">{formatNumber(plan.importImageBytes / GB)} GB</td>
+									<td className="py-3 pr-4 text-muted-foreground tabular-nums">{plan.importImageBytes < GB ? `${formatNumber(plan.importImageBytes / MB)} MB` : `${formatNumber(plan.importImageBytes / GB)} GB`}</td>
 								</tr>
 							))}
 						</tbody>
