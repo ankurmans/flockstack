@@ -13,6 +13,7 @@ import {
 	Eye,
 	FlaskConical,
 	History,
+	LayoutTemplate,
 	Loader2,
 	MoreHorizontal,
 	Send,
@@ -23,11 +24,13 @@ import {
 import { draftSocialPosts, duplicateCampaign, saveCampaign, sendTestCampaign, suggestPreviewText, suggestSubjectLines } from "@/app/(app)/campaigns/actions";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import BadgeStatus from "@/components/BadgeStatus";
+import CardSeo from "@/components/CardSeo";
 import CardSettings from "@/components/CardSettings";
 import DialogAiSuggest from "@/components/DialogAiSuggest";
 import DialogDiscardCampaign from "@/components/DialogDiscardCampaign";
 import DialogPreviewEmail from "@/components/DialogPreviewEmail";
 import DialogSocialPosts from "@/components/DialogSocialPosts";
+import DialogSaveTemplate from "@/components/DialogSaveTemplate";
 import DialogTestEmail from "@/components/DialogTestEmail";
 import DialogVersionHistory from "@/components/DialogVersionHistory";
 import EditorRich from "@/components/EditorRich";
@@ -83,6 +86,7 @@ export default function FormCampaign({
 	segments = [],
 	isAiEnabled = false,
 	hasStockPhotos = false,
+	snippets = [],
 }) {
 	const isHtml = campaign.format === "html";
 	const [step, setStep] = useState("write");
@@ -93,6 +97,7 @@ export default function FormCampaign({
 	// Which AI dialog is open: subjects, previews or posts. Each asks for its suggestions when the writer opens it.
 	const [aiDialog, setAiDialog] = useState(null);
 	const aiRun = useAiRun();
+	const [isTemplateOpen, setIsTemplateOpen] = useState(false);
 	const format = isHtml ? "html" : "rich";
 	const [initialBody] = useState(() =>
 		campaign.format === "markdown" ? markdownToHtml(campaign.markdown) : campaign.html
@@ -318,6 +323,7 @@ export default function FormCampaign({
 		<MenuMore
 			isWorking={isWorking}
 			onDuplicate={() => runAction(duplicateCampaign)}
+			onSaveTemplate={() => setIsTemplateOpen(true)}
 			onDiscard={() => setIsDiscardOpen(true)}
 			onHistory={() => setIsHistoryOpen(true)}
 			onSocial={isAiEnabled ? () => askAi("posts") : null}
@@ -390,7 +396,7 @@ export default function FormCampaign({
 								</p>
 							</div>
 						) : (
-							<EditorRich content={initialBody} onChange={updateBody} fields={fields} newsletterId={newsletter._id} campaignId={campaign._id} isAiEnabled={isAiEnabled} hasStockPhotos={hasStockPhotos} />
+							<EditorRich content={initialBody} onChange={updateBody} fields={fields} snippets={snippets} newsletterId={newsletter._id} campaignId={campaign._id} isAiEnabled={isAiEnabled} hasStockPhotos={hasStockPhotos} />
 						)}
 					</div>
 				</section>
@@ -426,6 +432,9 @@ export default function FormCampaign({
 							onClick={openPreview}
 						/>
 					</CardSettings>
+					{newsletter.archiveEnabled && campaign.publishTo !== "email" && (
+						<CardSeo campaignId={campaign._id} seo={campaign.seo} subject={values.subject} previewText={values.previewText} stagger={2} />
+					)}
 				</section>
 
 				<section aria-label="Send" hidden={step !== "send"}>
@@ -497,6 +506,7 @@ export default function FormCampaign({
 				</>
 			)}
 			<DialogVersionHistory campaignId={campaign._id} isOpen={isHistoryOpen} onOpenChange={setIsHistoryOpen} onSave={flush} />
+			<DialogSaveTemplate id={campaign._id} subject={values.subject} isOpen={isTemplateOpen} onOpenChange={setIsTemplateOpen} onBeforeSave={persist} />
 			<DialogDiscardCampaign
 				id={campaign._id}
 				subject={values.subject}
@@ -541,7 +551,7 @@ function TitleCampaign({ title, newsletter, status }) {
 	);
 }
 
-function MenuMore({ isWorking, onDuplicate, onDiscard, onHistory, onSocial }) {
+function MenuMore({ isWorking, onDuplicate, onSaveTemplate, onDiscard, onHistory, onSocial }) {
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
@@ -564,6 +574,10 @@ function MenuMore({ isWorking, onDuplicate, onDiscard, onHistory, onSocial }) {
 						Draft social posts
 					</DropdownMenuItem>
 				)}
+				<DropdownMenuItem onSelect={onSaveTemplate}>
+					<LayoutTemplate />
+					Save as template
+				</DropdownMenuItem>
 				<DropdownMenuItem variant="destructive" onSelect={onDiscard}>
 					<Trash2 />
 					Discard

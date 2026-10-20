@@ -178,6 +178,109 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* A newsletter's website themes. lib/site-themes.js sets their colors, the accent and the fonts (a <style> beside the page);
+   this is their layout. classic is the neutral design as it always was. */
+[data-site-theme] {
+  font-family: var(--site-font-body, inherit);
+}
+[data-site-theme] :where(h1, h2, h3, h4) {
+  font-family: var(--site-font-heading, inherit);
+}
+[data-site-theme] .prose-issue a {
+  color: var(--site-link, var(--foreground));
+  text-decoration-color: color-mix(in oklab, var(--site-link, var(--foreground)) 40%, transparent);
+}
+
+[data-site-theme="magazine"] {
+  --radius: 0.25rem;
+}
+[data-site-theme="magazine"] .site-hero {
+  border-top: 4px solid var(--foreground);
+  border-bottom: 1px solid var(--border);
+}
+[data-site-theme="magazine"] .site-hero .bg-dots {
+  display: none;
+}
+[data-site-theme="magazine"] .site-hero-inner {
+  max-width: 64rem;
+  align-items: flex-start;
+  text-align: left;
+  padding-top: 3rem;
+  padding-bottom: 2.5rem;
+}
+[data-site-theme="magazine"] .site-hero-inner > * {
+  max-width: 36rem;
+}
+[data-site-theme="magazine"] .site-hero .site-title {
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  letter-spacing: -0.035em;
+}
+[data-site-theme="magazine"] .site-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--foreground);
+  border-bottom: 2px solid var(--foreground);
+  padding-bottom: 0.75rem;
+}
+
+[data-site-theme="minimal"] {
+  --radius: 0.375rem;
+}
+[data-site-theme="minimal"] .site-hero .bg-dots {
+  display: none;
+}
+[data-site-theme="minimal"] .site-hero-inner {
+  max-width: 64rem;
+  align-items: flex-start;
+  text-align: left;
+  padding-top: 3.5rem;
+  padding-bottom: 2rem;
+}
+[data-site-theme="minimal"] .site-hero-inner > * {
+  max-width: 32rem;
+}
+[data-site-theme="minimal"] .site-hero .site-title {
+  font-size: 2.25rem;
+  font-weight: 600;
+}
+[data-site-theme="minimal"] .site-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+/* The bold hero is a block of the accent color, with the page's own colors inverted inside it. */
+[data-site-theme="bold"] .site-hero {
+  margin-bottom: 3rem;
+  background: var(--site-accent, var(--foreground));
+  color: var(--site-accent-on, var(--background));
+  --primary: var(--site-accent-on, var(--background));
+  --primary-foreground: var(--site-accent, var(--foreground));
+  --ring: var(--site-accent-on, var(--background));
+}
+[data-site-theme="bold"] .site-hero :is(h1, p, a, span, svg, label) {
+  color: inherit;
+}
+[data-site-theme="bold"] .site-hero .bg-dots {
+  display: none;
+}
+[data-site-theme="bold"] .site-hero .site-title {
+  font-size: clamp(2.75rem, 8vw, 5rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+[data-site-theme="bold"] :where(h1, h2, h3) {
+  font-weight: 800;
+}
+[data-site-theme="bold"] .site-label {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--foreground);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring;

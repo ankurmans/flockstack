@@ -7,6 +7,7 @@ import ProviderCampaignSelection from "@/components/ProviderCampaignSelection";
 import StateEmpty from "@/components/StateEmpty";
 import TableCampaigns from "@/components/TableCampaigns";
 import { Button } from "@/components/ui/button";
+import { runAction } from "@/lib/actions/run-action";
 import { getIssuePageUrl } from "@/lib/archive-data";
 import { listNewsletterCampaigns } from "@/lib/campaign-queries";
 import { getSelectedNewsletter } from "@/lib/selected-newsletter";
@@ -14,8 +15,11 @@ import { getSelectedNewsletter } from "@/lib/selected-newsletter";
 export const metadata = { title: "Campaigns" };
 
 export default async function CampaignsPage() {
-	const { account, selected, newsletters } = await getSelectedNewsletter();
+	const { account, user, selected, newsletters } = await getSelectedNewsletter();
 	const campaigns = selected ? await listNewsletterCampaigns(account, selected._id, 200) : [];
+	const { templates } = selected
+		? await runAction("list_templates", { account, user, via: "dashboard", input: { newsletter: String(selected._id) } })
+		: { templates: [] };
 	const pageUrls = Object.fromEntries(
 		campaigns
 			.map((campaign) => [campaign._id.toString(), getIssuePageUrl({ campaign, newsletter: selected })])
@@ -39,7 +43,7 @@ export default async function CampaignsPage() {
 						</Link>
 					</Button>
 				</div>
-				<ButtonNewCampaign newsletterId={selected ? String(selected._id) : null} />
+				<ButtonNewCampaign newsletterId={selected ? String(selected._id) : null} templates={templates.map(({ id, name }) => ({ id, name }))} />
 			</HeaderPage>
 
 			{campaigns.length === 0 ? (

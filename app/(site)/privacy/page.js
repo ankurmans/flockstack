@@ -144,8 +144,16 @@ export default function PrivacyPage() {
 						buyer&apos;s email and name, the product, the amount and the download count.
 					</li>
 					<li>
-						<Strong>Comments:</Strong> if the creator turns comments on, a subscriber signs in to a newsletter&apos;s website with a link
-						emailed to them (no password) and a cookie keeps them signed in for that newsletter for 30 days. A comment is stored with a display
+						<Strong>Signing in to a newsletter&apos;s website:</Strong> a subscriber can sign in with a link emailed to them (no password),
+						from the website&apos;s Sign in page or, where the creator has comments on, from an issue. A cookie keeps them signed in for that
+						newsletter for 30 days. While they are signed in, a paid subscriber reads paid issues on the website and every subscriber has an
+						account page with their email address and subscription, the preferences the creator opened to them, their referral link and
+						count, a link to manage billing at Stripe for those who pay, and the unsubscribe link. Their name, if the creator asks for one,
+						is stored with their subscription as a field the creator can read. The sign-in email goes through the same sending as the
+						creator&apos;s other emails; we store no password and nothing else about the session beyond the cookie itself.
+					</li>
+					<li>
+						<Strong>Comments:</Strong> if the creator turns comments on, a signed-in subscriber can comment. A comment is stored with a display
 						name that starts as the part of the email address before the @ and is never shown with the address, its text and its status, the
 						reason it was held, hidden or removed, and two keyed hashes: one of the IP address (to limit spam) and one of the text (to catch a
 						repeat). Reports of a comment, with the reason if given, are kept too. A reader gets an email when someone replies, and can turn
@@ -337,8 +345,8 @@ export default function PrivacyPage() {
 					</li>
 					<li>
 						<Strong><code>fs_reader_&lt;newsletter&gt;</code></Strong> and a marker, <Strong><code>fs_reader_&lt;newsletter&gt;_on</code></Strong>, for 30 days, on a
-						newsletter&apos;s website: they keep a subscriber signed in to comment on that newsletter, and only exist after the subscriber used a
-						sign-in link.
+						newsletter&apos;s website: they keep a subscriber signed in to that newsletter, to read paid issues, comment and open their account
+						page, and only exist after the subscriber used a sign-in link.
 					</li>
 				</ul>
 				<p>

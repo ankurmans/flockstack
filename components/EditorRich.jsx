@@ -30,7 +30,7 @@ const MIN_HEIGHT = "min-h-[560px]";
 // newsletterId and campaignId: where a poll made in this editor belongs. Without a newsletter, there's no poll block.
 // isAiEnabled: the selection's AI menu (rewrite, shorten, tone, translate), only where the server has Workers AI.
 // hasStockPhotos: the image picker also searches Unsplash, only where the server has an Unsplash key.
-export default function EditorRich({ content, onChange, fields = [], newsletterId = null, campaignId = null, isAiEnabled = false, hasStockPhotos = false }) {
+export default function EditorRich({ content, onChange, fields = [], snippets = [], newsletterId = null, campaignId = null, isAiEnabled = false, hasStockPhotos = false }) {
 	const [isEditingLink, setIsEditingLink] = useState(false);
 	const [isPickingImage, setIsPickingImage] = useState(false);
 	// Find and replace: the bar's open, starting from this text (the selection when it was opened).
@@ -77,6 +77,7 @@ export default function EditorRich({ content, onChange, fields = [], newsletterI
 				onBlock: (kind) => setBlock({ kind, attrs: {}, pos: null }),
 				onPickFile: () => document.getElementById(fileInputId)?.click(),
 				fields,
+				snippets,
 				canPoll: Boolean(newsletterId),
 			}),
 		],

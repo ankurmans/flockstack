@@ -1,5 +1,7 @@
 import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
+import { FONT_PAIR_IDS, THEME_IDS } from "../lib/brand.js";
+import { NAV_KINDS } from "../lib/site-navigation.js";
 
 const newsletterSchema = new mongoose.Schema(
 	{
@@ -34,8 +36,38 @@ const newsletterSchema = new mongoose.Schema(
 		description: { type: String, trim: true },
 		// Buttons and links in the editor's blocks (lib/editor-blocks.js), as #rrggbb. Without one, ink.
 		accentColor: { type: String, trim: true, lowercase: true },
+		// The rest of the brand (lib/brand.js): the website's theme, a pair of fonts for the site and the email, a wide
+		// image above the issue in the email and on the website, and the logo and name above the issue in the email.
+		// The logo itself is imageUrl.
+		brand: {
+			theme: { type: String, enum: THEME_IDS },
+			fontPair: { type: String, enum: FONT_PAIR_IDS },
+			headerUrl: { type: String, trim: true },
+			emailLogo: { type: Boolean },
+		},
+		// The website's navigation bar, in order (lib/site-navigation.js). id: stable, so reordering keeps an item's identity.
+		navigation: [
+			{
+				_id: false,
+				id: { type: String },
+				kind: { type: String, enum: NAV_KINDS },
+				label: { type: String, trim: true },
+				pageId: { type: String },
+				tag: { type: String, trim: true },
+				url: { type: String, trim: true },
+			},
+		],
 		// Every email's footer links to the reader's preference center (lib/preferences.js).
 		preferencesLink: { type: Boolean },
+		// The newsletter's own structured data for search engines: compact JSON of one block or a list (lib/seo-rules.js
+		// checkJsonLd), added to the archive's home page and every issue's page.
+		jsonLd: { type: String },
+		// What a new issue starts with (lib/templates.js): rich HTML above and below where the writer starts. The accent
+		// above is the third part of a newsletter's style.
+		defaultStyle: {
+			header: { type: String },
+			footer: { type: String },
+		},
 		socialLinks: [{ type: String, trim: true }],
 		// The link-in-bio page at /links on the newsletter's host (lib/link-page.js): a title, a short bio and the links the
 		// writer lists, in order.

@@ -117,7 +117,7 @@ The EU Worker starts from nothing: `wrangler secret put <NAME> --env eu` for eac
 
 - **Its own:** `BETTER_AUTH_SECRET` (never the US Worker's: a session must only be valid in its region), `SUPPRESSION_HASH_KEY`, `APP_URL` (`https://eu.flockstack.io`), `ADMIN_EMAILS`, `EMAIL_FROM`, `SENDING_ENABLED`, `CRON_SECRET`.
 - **Amazon SES in `eu-west-1`:** `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`, `SES_AWS_ACCOUNT_ID`, `SES_SNS_TOPIC_ARN` and `SES_TENANT_SNS_TOPIC_ARN`, with the sending identities, the configuration set and the SNS topics created in that region, subscribed to `https://eu.flockstack.io/api/webhooks/ses` and `/ses-tenants`. The same SES or SNS setup can deliver to both Workers: each acknowledges events for accounts that live in the other region (see below).
-- **QStash, EU region:** `QSTASH_URL`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`, and the 5-minute schedule for `https://eu.flockstack.io/api/jobs/run-automations`.
+- **QStash, EU region:** `QSTASH_URL`, `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`, and the 5-minute schedules for `https://eu.flockstack.io/api/jobs/run-automations` and `https://eu.flockstack.io/api/jobs/run-series`.
 - **Images and newsletter sites:** `IMAGES_CDN_URL` (a domain on `flockstack-images-eu`), `SHARED_DOMAIN`, `ARCHIVE_CNAME_TARGET` (`sites-eu.flockstack.io`, never the US Worker's) and `ARCHIVE_TRUSTED_HOSTS` for the EU region's own newsletter addresses, and the Cloudflare variables in [Domains on Cloudflare](#domains-on-cloudflare-flockstack-cloud). The exports bucket needs its 8-day lifecycle rule.
 - **Billing:** `POLAR_ACCESS_TOKEN` and `POLAR_WEBHOOK_SECRET` (or `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`), and for selling, `STRIPE_CONNECT_SECRET_KEY` and `STRIPE_PAYMENTS_WEBHOOK_SECRET`. One Polar or Stripe webhook can feed both Workers, or the EU Worker can have its own endpoint.
 - **Optional:** `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (add `https://eu.flockstack.io/api/auth/callback/google` to the client), `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID` and `APPLE_PRIVATE_KEY` (the same Services ID and key as the US Worker, see [Apple sign-in](#optional)), `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `REGION_URL_US` and `REGION_URL_EU` (default to the two addresses above).
@@ -381,6 +381,16 @@ curl -X POST "https://qstash.upstash.io/v2/schedules/$APP_URL/api/jobs/run-autom
 ```
 
 Each run starts contacts from segments and date fields, then moves the contacts whose next step is due, a batch at a time, and asks QStash for another run right away while more are due. Without the schedule, automations that start from signups and tags still enroll contacts, but nothing is sent.
+
+Recurring series (an issue made from a feed's new items on a schedule) need their own, the same way: a cron that calls `APP_URL/api/jobs/run-series` every 5 minutes.
+
+```bash
+curl -X POST "https://qstash.upstash.io/v2/schedules/$APP_URL/api/jobs/run-series" \
+  -H "Authorization: Bearer $QSTASH_TOKEN" \
+  -H "Upstash-Cron: */5 * * * *"
+```
+
+Each run makes the issues of the series that are due, a draft to review or a send, once for each slot however often the job is delivered. Without the schedule, series make nothing.
 
 ### 6. Turn sending on
 

@@ -17,8 +17,12 @@ function refresh(id) {
 	if (id) revalidatePath(`/campaigns/${id}`);
 }
 
-export async function createCampaign(newsletterId) {
-	const { output, failure } = await runDashboardAction("create_campaign", { newsletter: String(newsletterId ?? "") });
+// templateId: start from a saved template; without one, the newsletter's default style.
+export async function createCampaign(newsletterId, templateId) {
+	const { output, failure } = await runDashboardAction("create_campaign", {
+		newsletter: String(newsletterId ?? ""),
+		...(templateId && { template: String(templateId) }),
+	});
 	if (failure) return toFormError(failure);
 	revalidatePath("/campaigns");
 	redirect(`/campaigns/${output.id}`);
@@ -180,6 +184,18 @@ export async function updateArchiveSlug(id, value) {
 	return { ok: true, archiveSlug: output.archiveSlug ?? "" };
 }
 
+// The issue's tags, which the website shows on the issue and gives each a page. Separated by commas.
+export async function setCampaignTags(id, text) {
+	const tags = String(text ?? "")
+		.split(",")
+		.map((tag) => tag.trim())
+		.filter(Boolean);
+	const { output, failure } = await runDashboardAction("update_campaign_archive", { id: String(id), tags });
+	if (failure) return toFormError(failure);
+	refresh(id);
+	return { ok: true, tags: output.tags };
+}
+
 // One page of who clicked a link of a sent campaign; cursor comes from the page before.
 export async function listLinkClicks(id, link, cursor) {
 	const { output, failure } = await runDashboardAction("list_link_clicks", { id: String(id), link: Number(link), ...(cursor && { cursor: String(cursor) }) });
@@ -321,4 +337,33 @@ export async function bulkUpdateCampaigns(ids, operation, newsletter) {
 	revalidatePath("/campaigns");
 	revalidatePath("/");
 	return { ok: true, done: output.done, skipped: output.skipped, reasons: [...new Set(output.results.map(({ reason }) => reason).filter(Boolean))] };
+}
+
+// What search engines and social cards show for the issue's page; empty clears a field.
+export async function setCampaignSeo(id, { title, description, image, noindex } = {}) {
+	const { failure } = await runDashboardAction("update_campaign_archive", {
+		id: String(id),
+		seoTitle: String(title ?? ""),
+		seoDescription: String(description ?? ""),
+		socialImage: String(image ?? ""),
+		noindex: noindex === true,
+	});
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	return { ok: true };
+}
+
+// Any issue, draft or sent, as a template for new ones.
+export async function saveCampaignAsTemplate(id, name) {
+	const { output, failure } = await runDashboardAction("create_template", { campaign: String(id ?? ""), name: String(name ?? "") });
+	if (failure) return toFormError(failure);
+	revalidatePath("/templates");
+	return { ok: true, template: output };
+}
+
+// The editor's RSS block shows what the feed has now.
+export async function previewFeed(url, { count, order } = {}) {
+	const { output, failure } = await runDashboardAction("preview_feed", { url: String(url ?? ""), count: readCount(count), order: order === "oldest" ? "oldest" : "newest" });
+	if (failure) return toFormError(failure);
+	return { items: output.items };
 }

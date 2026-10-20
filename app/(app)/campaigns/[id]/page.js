@@ -77,7 +77,7 @@ export default async function CampaignPage({ params }) {
 		);
 	}
 
-	const [audienceCount, paidCount, sender, sendTimes, volumes, newContacts, fields, segments] = await Promise.all([
+	const [audienceCount, paidCount, sender, sendTimes, volumes, newContacts, fields, segments, { snippets }] = await Promise.all([
 		countCampaignAudience(campaign),
 		countCampaignAudience(campaign, { audience: "paid" }),
 		loadSender(account, newsletter),
@@ -86,6 +86,7 @@ export default async function CampaignPage({ params }) {
 		countNewContacts(account, newsletter._id),
 		listCustomFields(account, newsletter._id),
 		Segment.find(scoped(account, { newsletterId: newsletter._id })).sort({ name: 1 }).select({ name: 1 }).lean(),
+		runAction("list_snippets", { account, user, via: "dashboard", input: { newsletter: String(newsletter._id) } }),
 	]);
 
 	return (
@@ -107,6 +108,7 @@ export default async function CampaignPage({ params }) {
 			segments={segments.map(({ _id, name }) => ({ id: String(_id), name }))}
 			isAiEnabled={isAiEnabled}
 			hasStockPhotos={Boolean(getUnsplashKey())}
+			snippets={snippets.map(({ name, content }) => ({ name, content }))}
 		/>
 	);
 }
