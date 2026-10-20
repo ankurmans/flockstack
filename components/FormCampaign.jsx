@@ -12,6 +12,7 @@ import {
 	Copy,
 	Eye,
 	FlaskConical,
+	History,
 	Loader2,
 	MoreHorizontal,
 	Send,
@@ -28,6 +29,7 @@ import DialogDiscardCampaign from "@/components/DialogDiscardCampaign";
 import DialogPreviewEmail from "@/components/DialogPreviewEmail";
 import DialogSocialPosts from "@/components/DialogSocialPosts";
 import DialogTestEmail from "@/components/DialogTestEmail";
+import DialogVersionHistory from "@/components/DialogVersionHistory";
 import EditorRich from "@/components/EditorRich";
 import IconWarmup from "@/components/IconWarmup";
 import ListChecks from "@/components/ListChecks";
@@ -85,6 +87,7 @@ export default function FormCampaign({
 	const [isDiscardOpen, setIsDiscardOpen] = useState(false);
 	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 	const [isTestOpen, setIsTestOpen] = useState(false);
+	const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 	// Which AI dialog is open: subjects, previews or posts. Each asks for its suggestions when the writer opens it.
 	const [aiDialog, setAiDialog] = useState(null);
 	const aiRun = useAiRun();
@@ -313,6 +316,7 @@ export default function FormCampaign({
 			isWorking={isWorking}
 			onDuplicate={() => runAction(duplicateCampaign)}
 			onDiscard={() => setIsDiscardOpen(true)}
+			onHistory={() => setIsHistoryOpen(true)}
 			onSocial={isAiEnabled ? () => askAi("posts") : null}
 		/>
 	);
@@ -485,6 +489,7 @@ export default function FormCampaign({
 					<DialogSocialPosts isOpen={aiDialog === "posts"} onOpenChange={closeAi} run={aiRun} onRetry={() => askAi("posts")} />
 				</>
 			)}
+			<DialogVersionHistory campaignId={campaign._id} isOpen={isHistoryOpen} onOpenChange={setIsHistoryOpen} onSave={flush} />
 			<DialogDiscardCampaign
 				id={campaign._id}
 				subject={values.subject}
@@ -529,7 +534,7 @@ function TitleCampaign({ title, newsletter, status }) {
 	);
 }
 
-function MenuMore({ isWorking, onDuplicate, onDiscard, onSocial }) {
+function MenuMore({ isWorking, onDuplicate, onDiscard, onHistory, onSocial }) {
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
@@ -541,6 +546,10 @@ function MenuMore({ isWorking, onDuplicate, onDiscard, onSocial }) {
 				<DropdownMenuItem onSelect={onDuplicate}>
 					<Copy />
 					Duplicate
+				</DropdownMenuItem>
+				<DropdownMenuItem onSelect={onHistory}>
+					<History />
+					Version history
 				</DropdownMenuItem>
 				{onSocial && (
 					<DropdownMenuItem onSelect={onSocial}>

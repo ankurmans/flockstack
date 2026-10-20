@@ -279,3 +279,21 @@ export async function draftSocialPosts(id, subject) {
 	});
 	return failure ? { error: failure.message, code: failure.code } : output;
 }
+
+// The earlier states kept of a draft, one to read before restoring it, and the restore.
+export async function listCampaignVersions(id) {
+	const { output, failure } = await runDashboardAction("list_campaign_versions", { id: String(id) });
+	return failure ? toFormError(failure) : output;
+}
+
+export async function readCampaignVersion(id, version) {
+	const { output, failure } = await runDashboardAction("get_campaign_version", { id: String(id), version: String(version) });
+	return failure ? toFormError(failure) : output;
+}
+
+export async function restoreCampaignVersion(id, version) {
+	const { failure } = await runDashboardAction("restore_campaign_version", { id: String(id), version: String(version) });
+	if (failure) return toFormError(failure);
+	refresh(id);
+	return { ok: true };
+}
