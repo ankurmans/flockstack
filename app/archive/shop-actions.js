@@ -16,6 +16,7 @@ export async function subscribePaid(_state, formData) {
 		newsletterSlug: String(formData.get("newsletter") ?? ""),
 		tierId: String(formData.get("tier") ?? ""),
 		option: String(formData.get("option") ?? formData.get("interval") ?? ""),
+		offerCode: String(formData.get("offer") ?? ""),
 		email: String(formData.get("email") ?? ""),
 		ip: getClientIp(await headers()),
 	});

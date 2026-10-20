@@ -112,3 +112,55 @@ export async function stopPledgeCharging(newsletterId) {
 	revalidatePath("/payments");
 	return { ok: true };
 }
+
+export async function saveOffer(_state, formData) {
+	const type = String(formData.get("type") ?? "percent");
+	const value = Number(String(formData.get("value") ?? "").replace(",", "."));
+	const trialDays = Number.parseInt(String(formData.get("trialDays") ?? ""), 10);
+	const months = Number.parseInt(String(formData.get("durationMonths") ?? ""), 10);
+	const limit = Number.parseInt(String(formData.get("maxRedemptions") ?? ""), 10);
+	const expires = String(formData.get("expiresAt") ?? "").trim();
+	if (type !== "trial" && !(value > 0)) return { error: type === "percent" ? "Enter how many percent come off, like 20" : "Enter how much comes off, like 5" };
+	const duration = String(formData.get("duration") ?? "once");
+	const { failure } = await runDashboardAction("create_offer", {
+		id: String(formData.get("newsletterId") ?? ""),
+		name: String(formData.get("name") ?? ""),
+		type,
+		...(type === "percent" && { percentOff: value }),
+		...(type === "amount" && { amountOffCents: Math.round(value * 100) }),
+		...(type !== "trial" && { duration, ...(duration === "repeating" && { durationMonths: months || 3 }) }),
+		...(Number.isInteger(limit) && limit > 0 && { maxRedemptions: limit }),
+		...(expires && { expiresAt: new Date(`${expires}T23:59:59Z`).toISOString() }),
+		...(Number.isInteger(trialDays) && trialDays > 0 && { trialDays }),
+	});
+	if (failure) return toFormError(failure);
+	revalidatePath("/payments");
+	return { ok: true };
+}
+
+export async function switchOffer(offerId, active) {
+	const { failure } = await runDashboardAction("update_offer", { id: String(offerId), active: Boolean(active) });
+	if (failure) return toFormError(failure);
+	revalidatePath("/payments");
+	return { ok: true };
+}
+
+export async function removeOffer(offerId) {
+	const { failure } = await runDashboardAction("delete_offer", { id: String(offerId) });
+	if (failure) return toFormError(failure);
+	revalidatePath("/payments");
+	return { ok: true };
+}
+
+export async function saveBanner(_state, formData) {
+	const offer = String(formData.get("offer") ?? "");
+	const { failure } = await runDashboardAction("set_launch_banner", {
+		id: String(formData.get("newsletterId") ?? ""),
+		enabled: formData.get("enabled") === "on",
+		text: String(formData.get("text") ?? "").trim() || undefined,
+		offer: offer || null,
+	});
+	if (failure) return toFormError(failure);
+	revalidatePath("/payments");
+	return { ok: true };
+}

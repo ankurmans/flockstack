@@ -35,6 +35,7 @@ export function createFakeStripe() {
 	const portalConfigurations = [];
 	const products = new Map();
 	const prices = new Map();
+	const coupons = new Map();
 	const setupIntents = new Map();
 	const paymentMethods = new Map();
 	const declined = new Map();
@@ -84,8 +85,24 @@ export function createFakeStripe() {
 				: stripeError(404, "No such account", "resource_missing");
 		}
 		if (method === "GET" && resource === "accounts" && id) return accounts.get(id) ?? stripeError(404, "No such account", "resource_missing");
+		if (method === "POST" && path === "/v1/coupons") {
+			if (!params.percent_off && !(params.amount_off && params.currency)) return stripeError(400, "Specify either percent_off or amount_off and currency", "parameter_missing");
+			if (params.duration === "repeating" && !params.duration_in_months) return stripeError(400, "Missing required param: duration_in_months", "parameter_missing");
+			const created = { id: next("coupon"), object: "coupon", valid: true, times_redeemed: 0, connectedAccount: account, ...params, metadata: params.metadata ?? {} };
+			coupons.set(created.id, created);
+			return created;
+		}
+		if (method === "DELETE" && resource === "coupons" && id) {
+			if (!coupons.has(id)) return stripeError(404, "No such coupon", "resource_missing");
+			coupons.delete(id);
+			return { id, object: "coupon", deleted: true };
+		}
 		if (method === "POST" && path === "/v1/checkout/sessions") {
 			if (account && !accounts.has(account)) return stripeError(403, "The provided key does not have access to account", "account_invalid");
+			const couponId = params.discounts?.[0]?.coupon;
+			if (couponId && !coupons.has(couponId)) return stripeError(400, `No such coupon: '${couponId}'`, "resource_missing");
+			if (couponId && coupons.get(couponId).max_redemptions && coupons.get(couponId).times_redeemed >= Number(coupons.get(couponId).max_redemptions)) return stripeError(400, "This coupon has reached its maximum redemptions", "coupon_max_redemptions");
+			if (couponId && coupons.get(couponId).redeem_by && Number(coupons.get(couponId).redeem_by) * 1000 < Date.now()) return stripeError(400, "This coupon has expired", "coupon_expired");
 			const created = {
 				id: next("cs"),
 				object: "checkout.session",
@@ -194,6 +211,7 @@ export function createFakeStripe() {
 		portalConfigurations,
 		products,
 		prices,
+		coupons,
 		// The next call to this route answers this instead.
 		failNext(routeKey, answer = stripeError(500, "Stripe is having a bad day", "api_error")) {
 			failures.set(routeKey, answer);

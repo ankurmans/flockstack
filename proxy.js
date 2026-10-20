@@ -69,6 +69,7 @@ const ARCHIVE_HOST_PATHS = [
 ];
 const ISSUE_PATH_PATTERN = /^\/p\/([a-z0-9][a-z0-9-]{0,119})\/?$/;
 const PRODUCT_PATH_PATTERN = /^\/shop\/([a-z0-9][a-z0-9-]{0,78}[a-z0-9]|[a-z0-9])\/?$/;
+const OFFER_PATH_PATTERN = /^\/offer\/([a-z0-9][a-z0-9-]{1,38}[a-z0-9])\/?$/;
 const AUTHOR_PATH_PATTERN = /^\/authors\/([a-z0-9][a-z0-9-]{0,59})\/?$/;
 // Generated share images stay on the app domain, where social cards point: they're only PNGs.
 const ARCHIVE_IMAGE_PATH_PATTERN = /^\/archive\/[^/]+\/og$/;
@@ -93,6 +94,8 @@ export async function proxy(request) {
 		if (pathname === "/shop" || pathname === "/shop/") return rewriteTo(request, `/archive/${archiveSlug}/shop`);
 		if (pathname === "/subscribe" || pathname === "/subscribe/") return rewriteTo(request, `/archive/${archiveSlug}/subscribe`);
 		if (pathname === "/give" || pathname === "/give/") return rewriteTo(request, `/archive/${archiveSlug}/give`);
+		const offerCode = OFFER_PATH_PATTERN.exec(pathname)?.[1];
+		if (offerCode) return rewriteTo(request, `/archive/${archiveSlug}/offer/${offerCode}`);
 		// The newsletter's redirects (lib/redirect-routing.js): old addresses of imported posts, and the owner's own.
 		const redirect = await findRedirect(archiveSlug, pathname);
 		if (redirect) return NextResponse.redirect(new URL(withQuery(redirect, request.nextUrl.search), request.url), 301);

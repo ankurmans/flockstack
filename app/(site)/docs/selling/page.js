@@ -142,6 +142,23 @@ export default function SellingPage() {
 					charge day; <Code>get_pledge_charging</Code> shows where it is.
 				</p>
 			</Section>
+
+			<Section title="Offers and trials" stagger={7}>
+				<p>
+					<Code>create_offer</Code> makes a discount (<Code>percent</Code> or <Code>amount</Code> off, <Code>once</Code>, <Code>repeating</Code> for
+					some months or <Code>forever</Code>, with <Code>maxRedemptions</Code> and <Code>expiresAt</Code>) as a coupon on your Stripe account, or a free
+					trial (<Code>trial</Code>, or <Code>trialDays</Code> on a discount). A coupon&apos;s terms can&apos;t change in Stripe, so an
+					offer&apos;s can&apos;t either: make another. Every offer has a link, <Code>/offer/&lt;code&gt;</Code> on the newsletter&apos;s site, that
+					shows the discounted price and applies the coupon at checkout. A trial can ask for no card until it ends (<Code>trialNoCard</Code>, or
+					the same switch on <Code>set_paid_tier</Code> for every trial): Stripe then asks for a card when the trial is over, and a reader who
+					doesn&apos;t add one is dropped.
+				</p>
+				<p className="mt-4">
+					<Code>list_offers</Code> and <Code>get_offer</Code> report each offer: how many readers signed up through it, how many of them pay now,
+					and who. <Code>set_launch_banner</Code> shows a line above the website while the paid tier is open, linking to an offer, and it hides
+					itself when the offer ends.
+				</p>
+			</Section>
 		</>
 	);
 }

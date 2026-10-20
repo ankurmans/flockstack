@@ -4,14 +4,16 @@ import { useActionState, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { pledgeSupport, subscribePaid } from "@/app/archive/shop-actions";
 import { Button } from "@/components/ui/button";
+import { applyOffer } from "@/lib/offer-rules";
 import { formatPrice } from "@/lib/payments/config";
 import { cn } from "@/lib/utils";
 
 // The paid tiers' signup: a tier, a plan and an email, then Stripe's page for the card. tiers: each with its id, name,
 // description, benefits, founding ({ enabled, spotsLeft }, spotsLeft null without a cap) and options ({ option, label, cents,
-// note }), the ways to pay; cents is the least for pay what you want. offer: an offer link's code, which Checkout applies.
+// note }), the ways to pay; cents is the least for pay what you want. offer: an offer link's { code, type, percentOff,
+// amountOffCents }, which Checkout applies and the prices show.
 // isPledge: the same form for a pledge, which saves a card and charges nothing; its tiers carry only monthly and yearly.
-export default function FormSubscribePaid({ newsletterSlug, tiers, currency, trialDays = 0, offer = "", isPledge = false, newsletterName = "", className }) {
+export default function FormSubscribePaid({ newsletterSlug, tiers, currency, trialDays = 0, offer = null, isPledge = false, newsletterName = "", className }) {
 	const [tierId, setTierId] = useState(tiers[0]?.id);
 	const tier = tiers.find((candidate) => candidate.id === tierId) ?? tiers[0];
 	const [option, setOption] = useState(tier.options.at(-1)?.option);
@@ -33,7 +35,7 @@ export default function FormSubscribePaid({ newsletterSlug, tiers, currency, tri
 			<input type="hidden" name="newsletter" value={newsletterSlug} />
 			<input type="hidden" name="tier" value={tier.id} />
 			<input type="hidden" name="option" value={chosen?.option} />
-			<input type="hidden" name="offer" value={offer} />
+			<input type="hidden" name="offer" value={offer?.code ?? ""} />
 			<div aria-hidden="true" className="absolute -left-[10000px] size-px overflow-hidden">
 				<input type="text" name="website" tabIndex={-1} autoComplete="off" />
 			</div>
@@ -107,7 +109,14 @@ export default function FormSubscribePaid({ newsletterSlug, tiers, currency, tri
 							<span className="text-sm font-medium">{plan.label}</span>
 							<span className="text-lg font-semibold tracking-tight tabular-nums">
 								{plan.option === "pwyw" && <span className="text-sm font-normal text-muted-foreground">from </span>}
-								{formatPrice(plan.cents, currency)} <span className="text-sm font-normal text-muted-foreground">{plan.note}</span>
+								{offer && plan.option !== "pwyw" && applyOffer(plan.cents, offer) !== plan.cents ? (
+									<>
+										<s className="text-sm font-normal text-muted-foreground">{formatPrice(plan.cents, currency)}</s> {formatPrice(applyOffer(plan.cents, offer), currency)}
+									</>
+								) : (
+									formatPrice(plan.cents, currency)
+								)}{" "}
+								<span className="text-sm font-normal text-muted-foreground">{plan.note}</span>
 							</span>
 						</button>
 					))}
