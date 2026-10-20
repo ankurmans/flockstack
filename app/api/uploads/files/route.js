@@ -5,6 +5,14 @@ import { MAX_UPLOAD_BYTES } from "@/lib/upload-image";
 
 // The editor's File block: the file as the body and its name in a header, through the same upload_file action as the
 // API. Only the dashboard's own pages upload, as for images (../route.js).
+function readFolderHeader(request) {
+	try {
+		return decodeURIComponent(request.headers.get("x-folder") ?? "").slice(0, 60) || undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 export async function POST(request) {
 	const site = request.headers.get("sec-fetch-site");
 	if (site && site !== "same-origin") return Response.json({ error: "Forbidden" }, { status: 403 });
@@ -20,7 +28,7 @@ export async function POST(request) {
 		return Response.json({ error: "The file's name can't be read" }, { status: 400 });
 	}
 	try {
-		const file = await runAction("upload_file", { ...current, via: "dashboard", input: { base64: bytes.toString("base64"), fileName } });
+		const file = await runAction("upload_file", { ...current, via: "dashboard", input: { base64: bytes.toString("base64"), fileName, folder: readFolderHeader(request) } });
 		return Response.json({ url: file.url, name: file.name, bytes: file.bytes });
 	} catch (error) {
 		const { code, message } = toActionError(error);
