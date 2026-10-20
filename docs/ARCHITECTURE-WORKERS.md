@@ -42,8 +42,10 @@ Two routers, not one with a table per host, because each has a different APP bin
 | The website's paths (`FORWARDED_PATHS`: `lib/website-routing.js`, the one list; the router imports that module) | WEBSITE |
 | `/` without a session cookie | WEBSITE |
 | `/` with a session cookie (`better-auth.session_token` in the US, `flockstack-eu.session_token` in the EU, each with or without `__Secure-`) | APP, the dashboard |
-| The docs (every page in `lib/docs/pages.js`), `/terms`, `/privacy`, `/sub-processors`, `/llms-docs.txt`, `/llms-full.txt`, `/api/v1/openapi.json`, `/sitemap.xml`, `/robots.txt`, `/site.webmanifest` (`lib/public-routing.js`) | PUBLIC, for a GET or HEAD |
-| Everything else: the dashboard, `/api`, `/mcp`, `/oauth`, `/.well-known`, sign-in, readers' pages, webhooks, jobs, QStash, Polar, Stripe, uploads, `/_next/static`, `/custom`, `/recommendations`, icons, and every POST | APP |
+| The docs (every page in `lib/docs/pages.js`), `/terms`, `/privacy`, `/sub-processors`, `/llms-docs.txt`, `/llms-full.txt`, `/api/v1/openapi.json`, `/sitemap.xml`, `/robots.txt`, `/site.webmanifest`, `/icon.svg`, `/apple-icon.png` (`lib/public-routing.js`) | PUBLIC, for a GET or HEAD |
+| Everything else: the dashboard, `/api`, `/mcp`, `/oauth`, `/.well-known`, sign-in, readers' pages, webhooks, jobs, QStash, Polar, Stripe, uploads, `/_next/static`, `/custom`, `/recommendations`, and every POST | APP |
+
+Files of the app's static assets (`/_next/static/*`, `/favicon.ico`, `/icon-192.png`, `/icon-512.png`) go to APP too, and the platform answers them from the assets without starting the app's script (measured on a deployed stack: no `x-iso-app` header). `public/_headers` makes the hashed files under `/_next/static` immutable for browsers, which Cloudflare's static assets did not do by themselves (they sent `max-age=0, must-revalidate`, so every page asked again for every script).
 
 **Fail open.** WEBSITE and PUBLIC get three seconds (`ROUTER_TIMEOUT_MS`) to start answering. If one throws, times out, answers 502, 503 or 504, or (PUBLIC) says it has no copy of the page, the router asks APP, which still has every route. Only a GET or HEAD is ever retried. What WEBSITE or PUBLIC answered otherwise, a 404 included, is the answer: a legal page that is not published yet is a 404 on purpose.
 
@@ -84,7 +86,7 @@ Both regions are rendered from one build, with `APP_URL`, `REGION_URL_US` and `R
 
 **What the public Worker needs:** `POSTHOG_KEY` (and `POSTHOG_HOST`, `POSTHOG_SESSION_REPLAY` where the app has them), set as secrets, the same as the app's. Without a key the pages carry no analytics.
 
-`node scripts/verify-public.mjs --app <origin of the app> --public <origin of the public Worker> --region us|eu` compares what the public Worker serves with what the app renders now, for every public path and five visitors (no country, US, Germany, France having accepted, Japan having declined): status, headers and the page's content, taking out only what is timing in React's streaming. Run it against the same build of both. Both regions passed against local Workers, and against the deployed stack in `SPLIT-REPORT.md`.
+`tests/public-parity.test.mjs` compares the text of each docs and legal page as the app renders it in a test with the file in `workers/public/dist` (skipped while the files are not built). `node scripts/verify-public.mjs --app <origin of the app> --public <origin of the public Worker> --region us|eu` compares what the public Worker serves with what the app renders now, for every public path and five visitors (no country, US, Germany, France having accepted, Japan having declined): status, headers and the page's content, taking out only what is timing in React's streaming. Run it against the same build of both. Both regions passed against local Workers and against a deployed stack of Workers on Cloudflare.
 
 ### Rendering and `workers/public` for someone else
 
