@@ -34,6 +34,8 @@ const newsletterSchema = new mongoose.Schema(
 		description: { type: String, trim: true },
 		// Buttons and links in the editor's blocks (lib/editor-blocks.js), as #rrggbb. Without one, ink.
 		accentColor: { type: String, trim: true, lowercase: true },
+		// Every email's footer links to the reader's preference center (lib/preferences.js).
+		preferencesLink: { type: Boolean },
 		socialLinks: [{ type: String, trim: true }],
 		// The archive's author page; the author's name is fromName.
 		author: {

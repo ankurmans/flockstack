@@ -68,7 +68,7 @@ export default function FormNewsletter({
 	const [discardCount, setDiscardCount] = useState(0);
 	const [isSaving, startSaving] = useTransition();
 	const [isTesting, startTesting] = useTransition();
-	const { name, description, accentColor, slug, fromName, fromLocal, fromDomain, imageUrl, postalAddress, isConfirmationRequired, confirmationEdits, isWelcomeEnabled, welcome, isArchiveEnabled, isCleanupEnabled, cleanup } = draft;
+	const { name, description, accentColor, isPreferencesLinked, slug, fromName, fromLocal, fromDomain, imageUrl, postalAddress, isConfirmationRequired, confirmationEdits, isWelcomeEnabled, welcome, isArchiveEnabled, isCleanupEnabled, cleanup } = draft;
 	const savedCleanup = getCleanupSettings(newsletter);
 	const deferredWelcome = useDeferredValue(welcome);
 	const deferredPostalAddress = useDeferredValue(postalAddress);
@@ -343,6 +343,12 @@ export default function FormNewsletter({
 						className="scroll-mt-28"
 						onChange={update("postalAddress")}
 					/>
+				</Field>
+				<Field label="Preferences link" hint="Readers change the fields marked Readers edit, and unsubscribe, on their own page. {{preferences_url}} puts the link in a body." as="div">
+					<span className="flex items-center gap-2 text-sm">
+						<Switch name="preferencesLink" checked={isPreferencesLinked} onCheckedChange={(isChecked) => set("isPreferencesLinked", isChecked)} aria-label="Link to the preference center in every email's footer" />
+						In every email&apos;s footer
+					</span>
 				</Field>
 			</Section>
 

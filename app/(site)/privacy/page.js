@@ -150,6 +150,11 @@ export default function PrivacyPage() {
 						from YouTube. Files a creator attaches are stored with their images.
 					</li>
 					<li>
+						<Strong>Surveys and preferences:</Strong> a subscriber who answers a survey from a link has their answers stored with their
+						subscription, and in the survey&apos;s responses with their email address for the creator to see; a reader without a link answers
+						anonymously. A signed link in each email opens a page where the subscriber changes the details the creator opened to them.
+					</li>
+					<li>
 						<Strong>Polls:</Strong> a subscriber who votes from an email has their answer, and what they write to the poll&apos;s follow-up
 						question, stored with their subscription, so the creator sees who picked what. A vote on the website is anonymous: it is counted
 						with a keyed hash of the reader&apos;s IP address, so one address votes once, and the address itself isn&apos;t kept.
