@@ -10,6 +10,7 @@
 	"triggers": { "crons": ["0 * * * *", "30 6 * * *"] },
 	"preview_urls": false,
 	"observability": { "enabled": true },
+	"upload_source_maps": false,
 	"routes": [
 		{ "pattern": "flockstack.io", "custom_domain": true },
 		{ "pattern": "newsletter.ankur.works", "custom_domain": true }
@@ -44,6 +45,7 @@
 			"workers_dev": false,
 			"preview_urls": false,
 			"observability": { "enabled": true },
+			"upload_source_maps": false,
 			"routes": [{ "pattern": "eu.flockstack.io", "custom_domain": true }],
 			"triggers": { "crons": ["0 * * * *", "30 6 * * *"] },
 			"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
