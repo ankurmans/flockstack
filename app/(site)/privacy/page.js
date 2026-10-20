@@ -18,6 +18,8 @@ import {
 	PRIVACY_EMAIL,
 	PRIVACY_REQUEST_RESPONSE,
 	SUPPORT_AI_PROVIDER_NOTE,
+	AI_WRITING_RETENTION,
+	AI_WRITING_STORED,
 	SUPPORT_CHAT_RETENTION,
 	SUPPORT_CHAT_STORED,
 	TERMS_CHANGE_NOTICE,
@@ -99,6 +101,11 @@ export default function PrivacyPage() {
 						<Strong>The support assistant:</Strong> FlockStack&apos;s own assistant answers from our docs and from what you type to it. It runs
 						on Cloudflare Workers AI, which runs on Cloudflare&apos;s global network, so what you type may be processed outside your region.
 						Stored: {SUPPORT_CHAT_STORED}. How long: {SUPPORT_CHAT_RETENTION} {SUPPORT_AI_PROVIDER_NOTE}
+					</li>
+					<li>
+						<Strong>The AI writing tools:</Strong> in the editor you can ask for a rewrite of the text you selected, subject lines, preview
+						text and drafts of social posts. They run on Cloudflare Workers AI, which runs on Cloudflare&apos;s global network, so what you
+						send may be processed outside your region. Stored: {AI_WRITING_STORED}. How long: {AI_WRITING_RETENTION}
 					</li>
 					<li>
 						<Strong>The Custom plan request form:</Strong> anyone can fill it in at /custom, with or without an account. Stored: {CUSTOM_REQUEST_STORED}.
@@ -191,8 +198,8 @@ export default function PrivacyPage() {
 						with analytics: PostHog is not loaded on newsletters&apos; pages or on the pages readers use.
 					</li>
 					<li>
-						FlockStack sends your newsletters and subscribers to no AI service. The one AI feature is the support assistant, which sees what you
-						type to it. If you connect your own AI assistant to your account, that is your choice, and its provider&apos;s terms apply.
+						FlockStack sends no subscriber&apos;s data to any AI service. The AI features are the support assistant, which sees what you type
+						to it, and the writing tools in the editor, which see only the text you select or the issue you ask about. If you connect your own AI assistant to your account, that is your choice, and its provider&apos;s terms apply.
 					</li>
 				</ul>
 			</SectionLegal>
@@ -281,7 +288,7 @@ export default function PrivacyPage() {
 				<p>
 					Our services are run by companies based in the United States, and some data crosses borders however you choose: the code runs in the
 					Cloudflare data center closest to a visitor, emails travel to wherever the reader&apos;s mailbox is, billing is one account for both
-					regions, and the support assistant runs on Cloudflare&apos;s global network. When data goes to a country without the same protection as
+					regions, and the support assistant and the AI writing tools run on Cloudflare&apos;s global network. When data goes to a country without the same protection as
 					yours, we rely on the safeguards in the provider&apos;s own data processing terms. This is what each one says on the page we link, no
 					more:
 				</p>

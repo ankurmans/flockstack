@@ -247,3 +247,35 @@ export async function listPollVoters(id, option, cursor) {
 	});
 	return failure ? toFormError(failure) : output;
 }
+
+// The AI writing tools. Each takes one request of the day (lib/ai-usage.js); the answer comes back as a suggestion the
+// writer accepts or discards, and nothing in any campaign changes here.
+export async function rewriteSelection({ text, style, language } = {}) {
+	const { output, failure } = await runDashboardAction("rewrite_text", {
+		text: String(text ?? ""),
+		style: String(style ?? ""),
+		...(language && { language: String(language) }),
+	});
+	return failure ? { error: failure.message, code: failure.code } : output;
+}
+
+export async function suggestSubjectLines(id) {
+	const { output, failure } = await runDashboardAction("suggest_subject_lines", { campaign: String(id) });
+	return failure ? { error: failure.message, code: failure.code } : output;
+}
+
+export async function suggestPreviewText(id, subject) {
+	const { output, failure } = await runDashboardAction("suggest_preview_text", {
+		campaign: String(id),
+		...(subject && { subject: String(subject).slice(0, MAX_SUBJECT_LENGTH) }),
+	});
+	return failure ? { error: failure.message, code: failure.code } : output;
+}
+
+export async function draftSocialPosts(id, subject) {
+	const { output, failure } = await runDashboardAction("draft_social_posts", {
+		campaign: String(id),
+		...(subject && { subject: String(subject).slice(0, MAX_SUBJECT_LENGTH) }),
+	});
+	return failure ? { error: failure.message, code: failure.code } : output;
+}

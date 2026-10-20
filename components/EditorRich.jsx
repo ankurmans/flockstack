@@ -1,30 +1,39 @@
 "use client";
 
 import { useId, useState } from "react";
+import { rewriteSelection } from "@/app/(app)/campaigns/actions";
 import { EditorContent, useEditor } from "@tiptap/react";
 import FileHandler from "@tiptap/extension-file-handler";
 import Image from "@tiptap/extension-image";
 import { Placeholder } from "@tiptap/extensions";
 import StarterKit from "@tiptap/starter-kit";
+import DialogAiRewrite from "@/components/DialogAiRewrite";
 import DialogEditorBlock from "@/components/DialogEditorBlock";
 import DialogImagePicker from "@/components/DialogImagePicker";
 import MenuFormat from "@/components/MenuFormat";
 import { SlashCommand } from "@/components/MenuSlash";
+import { canReplace, readSelection, textToContent } from "@/lib/ai-client";
+import { LIMITS } from "@/lib/ai-writing";
 import { ATTACHMENT_EXTENSIONS } from "@/lib/attachment-files";
 import { Callout } from "@/lib/editor-callout";
 import { createBlockExtensions } from "@/lib/editor-nodes";
 import { toast } from "@/lib/toast";
+import { useAiRun } from "@/lib/use-ai-run";
 import { IMAGE_TYPES, getDisplaySize, prepareImage, uploadAttachment, uploadImage } from "@/lib/upload-image";
 
 const MIN_HEIGHT = "min-h-[560px]";
 
 // newsletterId and campaignId: where a poll made in this editor belongs. Without a newsletter, there's no poll block.
-export default function EditorRich({ content, onChange, fields = [], newsletterId = null, campaignId = null }) {
+// isAiEnabled: the selection's AI menu (rewrite, shorten, tone, translate), only where the server has Workers AI.
+export default function EditorRich({ content, onChange, fields = [], newsletterId = null, campaignId = null, isAiEnabled = false }) {
 	const [isEditingLink, setIsEditingLink] = useState(false);
 	const [isPickingImage, setIsPickingImage] = useState(false);
 	// The block whose dialog is open: { kind, attrs, pos }, pos null for a new one.
 	const [block, setBlock] = useState(null);
 	const fileInputId = useId();
+	// The selection the AI is rewriting: { style, language, text, from, to }.
+	const [rewrite, setRewrite] = useState(null);
+	const rewriting = useAiRun();
 	const editor = useEditor({
 		immediatelyRender: false,
 		content,
@@ -77,10 +86,54 @@ export default function EditorRich({ content, onChange, fields = [], newsletterI
 
 	if (!editor) return <div className={MIN_HEIGHT} />;
 
+	function askRewrite(request) {
+		setRewrite(request);
+		rewriting.run(() => rewriteSelection(request));
+	}
+
+	function startRewrite({ style, language }) {
+		const { from, to } = editor.state.selection;
+		const text = readSelection(editor.state.doc, from, to);
+		if (!text) return;
+		if (text.length > LIMITS.selectionChars) return void toast.error(`Select ${LIMITS.selectionChars.toLocaleString("en-US")} characters or fewer`);
+		askRewrite({ style, language, text, from, to });
+	}
+
+	function closeRewrite() {
+		rewriting.reset();
+		setRewrite(null);
+		editor.commands.focus();
+	}
+
+	function replaceSelection(text) {
+		const { from, to } = rewrite;
+		const blocks = textToContent(text);
+		const isInline = blocks.length === 1 && editor.state.doc.resolve(from).sameParent(editor.state.doc.resolve(to));
+		editor.chain().focus().insertContentAt({ from, to }, isInline ? blocks[0].content : blocks).run();
+		closeRewrite();
+	}
+
+	function insertBelow(text) {
+		const $to = editor.state.doc.resolve(rewrite.to);
+		editor.chain().focus().insertContentAt($to.depth >= 1 ? $to.after(1) : $to.pos, textToContent(text)).run();
+		closeRewrite();
+	}
+
 	return (
 		<>
 			<EditorContent editor={editor} />
-			<MenuFormat editor={editor} isEditingLink={isEditingLink} onEditLink={setIsEditingLink} />
+			<MenuFormat editor={editor} isEditingLink={isEditingLink} onEditLink={setIsEditingLink} onAi={isAiEnabled ? startRewrite : null} />
+			{isAiEnabled && (
+				<DialogAiRewrite
+					request={rewrite}
+					run={rewriting}
+					canReplace={rewrite ? canReplace(editor.state.doc, rewrite) : false}
+					onReplace={replaceSelection}
+					onInsertBelow={insertBelow}
+					onRetry={() => askRewrite(rewrite)}
+					onClose={closeRewrite}
+				/>
+			)}
 			<DialogImagePicker
 				open={isPickingImage}
 				onOpenChange={setIsPickingImage}

@@ -15,14 +15,18 @@ import {
 	Loader2,
 	MoreHorizontal,
 	Send,
+	Share2,
+	Sparkles,
 	Trash2,
 } from "lucide-react";
-import { duplicateCampaign, saveCampaign, sendTestCampaign } from "@/app/(app)/campaigns/actions";
+import { draftSocialPosts, duplicateCampaign, saveCampaign, sendTestCampaign, suggestPreviewText, suggestSubjectLines } from "@/app/(app)/campaigns/actions";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import BadgeStatus from "@/components/BadgeStatus";
 import CardSettings from "@/components/CardSettings";
+import DialogAiSuggest from "@/components/DialogAiSuggest";
 import DialogDiscardCampaign from "@/components/DialogDiscardCampaign";
 import DialogPreviewEmail from "@/components/DialogPreviewEmail";
+import DialogSocialPosts from "@/components/DialogSocialPosts";
 import DialogTestEmail from "@/components/DialogTestEmail";
 import EditorRich from "@/components/EditorRich";
 import IconWarmup from "@/components/IconWarmup";
@@ -37,6 +41,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { sendToAbTest } from "@/lib/ai-client";
 import { getCheckFix } from "@/lib/campaign-steps";
 import { formatCount, formatSendTime } from "@/lib/format";
 import { markdownToHtml } from "@/lib/markdown";
@@ -48,6 +53,7 @@ import { toast } from "@/lib/toast";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { usePaywall } from "@/lib/use-paywall";
 import { useSendCampaign } from "@/lib/use-send-campaign";
+import { useAiRun } from "@/lib/use-ai-run";
 import { useToastError } from "@/lib/use-toast-error";
 import { useAutosave } from "@/lib/use-autosave";
 import { cn } from "@/lib/utils";
@@ -72,12 +78,16 @@ export default function FormCampaign({
 	newContacts,
 	fields = [],
 	segments = [],
+	isAiEnabled = false,
 }) {
 	const isHtml = campaign.format === "html";
 	const [step, setStep] = useState("write");
 	const [isDiscardOpen, setIsDiscardOpen] = useState(false);
 	const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 	const [isTestOpen, setIsTestOpen] = useState(false);
+	// Which AI dialog is open: subjects, previews or posts. Each asks for its suggestions when the writer opens it.
+	const [aiDialog, setAiDialog] = useState(null);
+	const aiRun = useAiRun();
 	const format = isHtml ? "html" : "rich";
 	const [initialBody] = useState(() =>
 		campaign.format === "markdown" ? markdownToHtml(campaign.markdown) : campaign.html
@@ -166,6 +176,28 @@ export default function FormCampaign({
 			toast.success(`Test sent to ${result.sentTo?.join(", ") ?? testEmail}`);
 			if (result.skipped?.length > 0) toast.error(`Not sent to ${result.skipped.join(", ")}: they can't receive email`);
 		});
+	}
+
+	// The draft is saved first, since the server reads it from the campaign.
+	function askAi(dialog) {
+		setAiDialog(dialog);
+		aiRun.run(async () => {
+			if (!(await flush())) return { error: "Couldn't save the draft, so the AI couldn't read it" };
+			if (dialog === "subjects") return suggestSubjectLines(campaign._id);
+			if (dialog === "previews") return suggestPreviewText(campaign._id, values.subject);
+			return draftSocialPosts(campaign._id, values.subject);
+		});
+	}
+
+	function closeAi(isOpen) {
+		if (isOpen) return;
+		aiRun.reset();
+		setAiDialog(null);
+	}
+
+	function testSubject(subject) {
+		sendToAbTest(subject);
+		toast.success("Added to the subject line test, in the Send step");
 	}
 
 	function runAction(action) {
@@ -281,6 +313,7 @@ export default function FormCampaign({
 			isWorking={isWorking}
 			onDuplicate={() => runAction(duplicateCampaign)}
 			onDiscard={() => setIsDiscardOpen(true)}
+			onSocial={isAiEnabled ? () => askAi("posts") : null}
 		/>
 	);
 
@@ -305,26 +338,32 @@ export default function FormCampaign({
 					<div className="overflow-hidden rounded-xl bg-card shadow-border animate-enter">
 						<div className="divide-y divide-border/60 border-b border-border/60">
 							<RowCampaign label="Subject">
-								<input
-									ref={subjectRef}
-									value={values.subject}
-									onChange={update("subject")}
-									placeholder="Subject"
-									aria-label="Subject"
-									maxLength={200}
-									className="h-11 w-full min-w-0 bg-transparent text-sm font-medium outline-none placeholder:font-normal placeholder:text-muted-foreground"
-								/>
+								<span className="flex min-w-0 items-center gap-1">
+									<input
+										ref={subjectRef}
+										value={values.subject}
+										onChange={update("subject")}
+										placeholder="Subject"
+										aria-label="Subject"
+										maxLength={200}
+										className="h-11 w-full min-w-0 bg-transparent text-sm font-medium outline-none placeholder:font-normal placeholder:text-muted-foreground"
+									/>
+									{isAiEnabled && <ButtonAi label="Suggest subject lines" onClick={() => askAi("subjects")} />}
+								</span>
 							</RowCampaign>
 							<RowCampaign label="Preview text">
-								<input
-									ref={previewTextRef}
-									value={values.previewText}
-									onChange={update("previewText")}
-									placeholder="Shown after the subject in inboxes"
-									aria-label="Preview text"
-									maxLength={300}
-									className="h-11 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-								/>
+								<span className="flex min-w-0 items-center gap-1">
+									<input
+										ref={previewTextRef}
+										value={values.previewText}
+										onChange={update("previewText")}
+										placeholder="Shown after the subject in inboxes"
+										aria-label="Preview text"
+										maxLength={300}
+										className="h-11 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+									/>
+									{isAiEnabled && <ButtonAi label="Suggest preview text" onClick={() => askAi("previews")} />}
+								</span>
 							</RowCampaign>
 						</div>
 						{isHtml ? (
@@ -340,7 +379,7 @@ export default function FormCampaign({
 								/>
 							</div>
 						) : (
-							<EditorRich content={initialBody} onChange={updateBody} fields={fields} newsletterId={newsletter._id} campaignId={campaign._id} />
+							<EditorRich content={initialBody} onChange={updateBody} fields={fields} newsletterId={newsletter._id} campaignId={campaign._id} isAiEnabled={isAiEnabled} />
 						)}
 					</div>
 				</section>
@@ -418,6 +457,34 @@ export default function FormCampaign({
 				previewText={deferredValues.previewText}
 			/>
 			<DialogTestEmail isOpen={isTestOpen} onOpenChange={setIsTestOpen} defaultEmail={testEmail} isPending={isTesting} onSend={sendTest} />
+			{isAiEnabled && (
+				<>
+					<DialogAiSuggest
+						isOpen={aiDialog === "subjects"}
+						onOpenChange={closeAi}
+						title="Subject lines"
+						description="Five ideas from your draft. Use one, or put several in the subject line test."
+						run={aiRun}
+						items={aiRun.data?.subjects ?? []}
+						current={values.subject}
+						onUse={(subject) => setValues((current) => ({ ...current, subject }))}
+						onTest={testSubject}
+						onRetry={() => askAi("subjects")}
+					/>
+					<DialogAiSuggest
+						isOpen={aiDialog === "previews"}
+						onOpenChange={closeAi}
+						title="Preview text"
+						description="Three ideas that follow your subject."
+						run={aiRun}
+						items={aiRun.data?.previewTexts ?? []}
+						current={values.previewText}
+						onUse={(previewText) => setValues((current) => ({ ...current, previewText }))}
+						onRetry={() => askAi("previews")}
+					/>
+					<DialogSocialPosts isOpen={aiDialog === "posts"} onOpenChange={closeAi} run={aiRun} onRetry={() => askAi("posts")} />
+				</>
+			)}
 			<DialogDiscardCampaign
 				id={campaign._id}
 				subject={values.subject}
@@ -462,7 +529,7 @@ function TitleCampaign({ title, newsletter, status }) {
 	);
 }
 
-function MenuMore({ isWorking, onDuplicate, onDiscard }) {
+function MenuMore({ isWorking, onDuplicate, onDiscard, onSocial }) {
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
@@ -475,6 +542,12 @@ function MenuMore({ isWorking, onDuplicate, onDiscard }) {
 					<Copy />
 					Duplicate
 				</DropdownMenuItem>
+				{onSocial && (
+					<DropdownMenuItem onSelect={onSocial}>
+						<Share2 />
+						Draft social posts
+					</DropdownMenuItem>
+				)}
 				<DropdownMenuItem variant="destructive" onSelect={onDiscard}>
 					<Trash2 />
 					Discard
@@ -516,6 +589,14 @@ function BarAction({ action, status, className }) {
 				)}
 			</Button>
 		</div>
+	);
+}
+
+function ButtonAi({ label, onClick }) {
+	return (
+		<Button type="button" variant="ghost" size="icon-sm" aria-label={label} title={label} onClick={onClick} className="shrink-0 text-muted-foreground">
+			<Sparkles />
+		</Button>
 	);
 }
 
