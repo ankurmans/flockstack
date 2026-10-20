@@ -9,6 +9,8 @@ import {
 	ANALYTICS_RETENTION,
 	ANALYTICS_RULE,
 	BACKUP_RETENTION,
+	CUSTOM_REQUEST_RETENTION,
+	CUSTOM_REQUEST_STORED,
 	LEGAL_PAGES,
 	LOG_RETENTION,
 	MINIMUM_AGE,
@@ -97,6 +99,9 @@ export default function PrivacyPage() {
 						<Strong>The support assistant:</Strong> FlockStack&apos;s own assistant answers from our docs and from what you type to it. It runs
 						on Cloudflare Workers AI, which runs on Cloudflare&apos;s global network, so what you type may be processed outside your region.
 						Stored: {SUPPORT_CHAT_STORED}. How long: {SUPPORT_CHAT_RETENTION} {SUPPORT_AI_PROVIDER_NOTE}
+					</li>
+					<li>
+						<Strong>The Custom plan request form:</Strong> anyone can fill it in at /custom, with or without an account. Stored: {CUSTOM_REQUEST_STORED}.
 					</li>
 					<li>
 						<Strong>Rate-limit counters:</Strong> to stop abuse, we count requests to sign-in, signup and similar forms by IP address, and
@@ -196,7 +201,8 @@ export default function PrivacyPage() {
 				<p>For people in the EU, the UK and similar places, the GDPR asks for a legal basis. Ours:</p>
 				<ul>
 					<li>
-						<Strong>Contract:</Strong> your account, your plan, and sending your newsletters are what you asked us to do.
+						<Strong>Contract:</Strong> your account, your plan, and sending your newsletters are what you asked us to do. A Custom plan request is the
+						same: you ask us to talk, and we use what you send to answer it.
 					</li>
 					<li>
 						<Strong>Legitimate interests:</Strong> keeping the service secure and free of abuse (sign-in records, rate limits, the
@@ -238,6 +244,9 @@ export default function PrivacyPage() {
 						The records of emails already sent to the address, and of its bounces and complaints, stay until the account is deleted. The
 						subscriber&apos;s comments stay, shown as written by &quot;Deleted reader&quot;, with the link to the person and the two
 						hashes removed; the text of a comment stays as it was written. The reports they made are deleted.
+					</li>
+					<li>
+						<Strong>Custom plan requests:</Strong> {CUSTOM_REQUEST_RETENTION}
 					</li>
 					<li>
 						<Strong>Exports</Strong> are private files, deleted when their links expire after {EXPORT_LINK_DAYS} days.

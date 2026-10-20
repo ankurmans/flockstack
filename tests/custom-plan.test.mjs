@@ -142,6 +142,18 @@ describe("the FAQ and the support assistant", () => {
 	});
 });
 
+describe("the release note", () => {
+	test("announces the Custom plan, says what FlockStack lacks, and claims nothing else", async () => {
+		const { CHANGELOG } = await import("../lib/changelog.js");
+		const entry = CHANGELOG.find(({ title }) => title === "A Custom plan");
+		assert.ok(entry);
+		assert.deepEqual(entry.link, { href: "/custom", label: "Tell us what you need" });
+		const [lack, ...rest] = [...entry.items].reverse();
+		assert.match(lack, /^FlockStack doesn't have SOC 2, SSO or SAML, SCIM, audit logs, an uptime SLA or team seats yet\./);
+		assert.doesNotMatch(rest.join(" "), m.tier.CUSTOM_UNAVAILABLE);
+	});
+});
+
 describe("the /custom page", () => {
 	const render = () => renderToStaticMarkup(m.page.default());
 
