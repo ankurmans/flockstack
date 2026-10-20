@@ -171,6 +171,7 @@ async function renderRegion({ region, out, root = ROOT }) {
 	child.stdout.on("data", (chunk) => (log = (log + chunk).slice(-4000)));
 	child.stderr.on("data", (chunk) => (log = (log + chunk).slice(-4000)));
 	const entries = {};
+	const digest = createHash("sha256");
 	try {
 		await waitUntilReady(origin, child);
 		for (const pathname of PUBLIC_EXACT_PATHS) {
@@ -188,6 +189,7 @@ async function renderRegion({ region, out, root = ROOT }) {
 			const file = fileFor(pathname);
 			mkdirSync(dirname(join(out, "assets", region, file)), { recursive: true });
 			writeFileSync(join(out, "assets", region, file), body);
+			digest.update(`${region} ${pathname} `).update(body);
 			entries[pathname] = { file, status: response.status, headers: pickHeaders(response.headers), replacements, bytes: body.length };
 		}
 	} catch (error) {
@@ -200,7 +202,7 @@ async function renderRegion({ region, out, root = ROOT }) {
 		}
 		rmSync(dir, { recursive: true, force: true });
 	}
-	return entries;
+	return { entries, digest: digest.digest("hex") };
 }
 
 export async function buildPublic({ build = false, only = null, out = DEFAULT_OUT, root = ROOT } = {}) {
@@ -217,11 +219,15 @@ export async function buildPublic({ build = false, only = null, out = DEFAULT_OU
 	for (const region of only ? [only] : REGION_IDS) rmSync(join(out, "assets", region), { recursive: true, force: true });
 	mkdirSync(join(out, "assets"), { recursive: true });
 	const regions = {};
+	const digests = [];
 	for (const region of only ? [only] : REGION_IDS) {
 		console.log(`build-public: rendering ${PUBLIC_EXACT_PATHS.length} paths for ${region}`);
-		regions[region] = await renderRegion({ region, out, root });
+		const { entries, digest } = await renderRegion({ region, out, root });
+		regions[region] = entries;
+		digests.push(digest);
 	}
-	const build_id = createHash("sha256").update(JSON.stringify(regions)).digest("hex").slice(0, 12);
+	// What the build is called: a hash of every page's bytes, so a change to any of them changes it.
+	const build_id = createHash("sha256").update(JSON.stringify(regions)).update(digests.join()).digest("hex").slice(0, 12);
 	const previous = only && existsSync(join(out, "manifest.json")) ? JSON.parse(readFileSync(join(out, "manifest.json"), "utf8")).regions : {};
 	const manifest = { version: 1, build: build_id, regions: { ...previous, ...regions } };
 	writeFileSync(join(out, "manifest.json"), `${JSON.stringify(manifest, null, 1)}\n`);
