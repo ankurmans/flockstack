@@ -41,6 +41,7 @@ const PUBLIC_PATHS = [
 	/^\/api\/views$/,
 	/^\/api\/recommendations\/impression$/,
 	/^\/api\/gate$/,
+	/^\/api\/visit$/,
 	/^\/embed\/[a-f0-9]{24}$/i,
 	/^\/f\/[a-f0-9]{24}$/i,
 	/^\/subscribe\/magic$/,
@@ -60,6 +61,8 @@ const ARCHIVE_HOST_PATHS = [
 	/^\/api\/recommendations\/impression$/,
 	// The rest of a gated issue (lib/popup-rules.js), for readers signed in to the website.
 	/^\/api\/gate$/,
+	// A page view of the website (lib/web-analytics.js).
+	/^\/api\/visit$/,
 	// Signup forms for other sites (lib/forms.js): the frame's page and the address a form posts to, and Magic Links
 	// (lib/magic-links.js).
 	/^\/embed\/[a-f0-9]{24}$/i,

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import FooterArchive from "@/components/FooterArchive";
 import HeaderArchive from "@/components/HeaderArchive";
 import ProviderSubscribe from "@/components/ProviderSubscribe";
+import TrackVisit from "@/components/TrackVisit";
 import { countReaders, getArchiveNewsletter, getShopPayments, listShopProducts, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 
@@ -32,6 +33,7 @@ export default async function ArchiveLayout({ children, params }) {
 				<HeaderArchive newsletter={newsletter} indexHref={index} shopLink={shopLink} />
 				<main className="flex-1">{children}</main>
 				<FooterArchive newsletter={newsletter} indexHref={index} feedHref={feed} />
+				<TrackVisit slug={newsletter.slug} />
 			</div>
 		</ProviderSubscribe>
 	);

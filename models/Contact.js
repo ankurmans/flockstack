@@ -110,6 +110,8 @@ contactSchema.index({ accountId: 1, subscribedAt: -1, _id: -1 });
 contactSchema.index({ accountId: 1, status: 1, subscribedAt: -1, _id: -1 });
 contactSchema.index({ newsletterId: 1, subscribedAt: -1, _id: -1 });
 contactSchema.index({ newsletterId: 1, status: 1, subscribedAt: -1, _id: -1 });
+// The growth report counts who left in a range of dates (lib/reports.js).
+contactSchema.index({ newsletterId: 1, status: 1, unsubscribedAt: 1 });
 // Stripe's subscription events find their contact by subscription or customer.
 contactSchema.index({ stripeSubscriptionId: 1 }, { partialFilterExpression: { stripeSubscriptionId: { $type: "string" } } });
 contactSchema.index({ newsletterId: 1, stripeCustomerId: 1 }, { partialFilterExpression: { stripeCustomerId: { $type: "string" } } });

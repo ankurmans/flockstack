@@ -8,6 +8,7 @@ import { REGION_LEAVES } from "@/lib/docs/regions";
 import {
 	ANALYTICS_RETENTION,
 	ANALYTICS_RULE,
+	WEB_ANALYTICS_RULE,
 	BACKUP_RETENTION,
 	CUSTOM_REQUEST_RETENTION,
 	CUSTOM_REQUEST_STORED,
@@ -155,6 +156,7 @@ export default function PrivacyPage() {
 					</li>
 					<li>
 						<Strong>Web pages:</Strong> a newsletter&apos;s website counts a view per issue, browser and day, with no personal data.
+						{" "}{WEB_ANALYTICS_RULE}
 					</li>
 					<li>
 						<Strong>Signup forms and Magic Links:</Strong> a creator can put a signup form on another site, which posts the address to

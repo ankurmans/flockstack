@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardList, CreditCard, Filter, FormInput, Gift, Globe, KeyRound, LayoutGrid, Megaphone, MessageSquare, Receipt, Send, Settings, Shield, ShoppingBag, Users, Webhook, Workflow } from "lucide-react";
+import { BarChart3, ClipboardList, CreditCard, Filter, FormInput, Gift, Globe, KeyRound, LayoutGrid, Megaphone, MessageSquare, Receipt, Send, Settings, Shield, ShoppingBag, Users, Webhook, Workflow } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // The open newsletter's pages, then the account's, which every newsletter shares.
@@ -44,6 +44,7 @@ export default function NavLinks({ isAdmin, onNavigate }) {
 const NEWSLETTER_ITEMS = [
 	{ href: "/", label: "Overview", icon: LayoutGrid },
 	{ href: "/campaigns", label: "Campaigns", icon: Send },
+	{ href: "/reports", label: "Reports", icon: BarChart3 },
 	{ href: "/contacts", label: "Contacts", icon: Users },
 	{ href: "/segments", label: "Segments", icon: Filter },
 	{ href: "/automations", label: "Automations", icon: Workflow },

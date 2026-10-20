@@ -24,6 +24,7 @@ const PRIVATE_PATHS = [
 	"/recommending",
 	"/reader/",
 	"/referrals",
+	"/reports",
 	"/restore",
 	"/segments",
 	"/surveys",
