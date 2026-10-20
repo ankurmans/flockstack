@@ -62,8 +62,17 @@ process.exit(2);
 `;
 
 // The domain's /__router/health as it is before the cutover (the app answers, with no router header) and after it.
-// The deploys of a full run, in order: US app, US public pages, US router, then the EU's.
+// The deploys of a full run, in order: US app, US public pages, US router, then the EU's. Before the cutover the routers are the
+// staged ones (no domain); after it, the ones that hold it.
 const DEPLOYS_BOTH = [
+	[],
+	["--config", "workers/public/wrangler.jsonc"],
+	["--config", "workers/router/wrangler.jsonc"],
+	["--env", "eu"],
+	["--config", "workers/public/wrangler.jsonc", "--env", "eu"],
+	["--config", "workers/router/wrangler.jsonc", "--env", "eu-staged"],
+];
+const DEPLOYS_CUT_OVER = [
 	[],
 	["--config", "workers/public/wrangler.jsonc"],
 	["--config", "workers/router/wrangler.jsonc", "--env", "us"],
@@ -182,6 +191,10 @@ describe("the pieces", () => {
 		assert.deepEqual(REGIONS.eu.publicArgs, ["--config", "workers/public/wrangler.jsonc", "--env", "eu"]);
 		assert.equal(REGIONS.us.routerWorker, routerConfig.env.us.name);
 		assert.deepEqual(REGIONS.us.routerArgs, ["--config", "workers/router/wrangler.jsonc", "--env", "us"]);
+		assert.deepEqual(REGIONS.us.routerStagedArgs, ["--config", "workers/router/wrangler.jsonc"]);
+		assert.equal(routerConfig.routes, undefined, "the staged US router has no domain");
+		assert.deepEqual(REGIONS.eu.routerStagedArgs, ["--config", "workers/router/wrangler.jsonc", "--env", "eu-staged"]);
+		assert.equal(routerConfig.env["eu-staged"].routes, undefined, "nor has the staged EU one");
 		assert.equal(REGIONS.eu.routerWorker, routerConfig.env.eu.name);
 		assert.deepEqual(REGIONS.eu.routerArgs, ["--config", "workers/router/wrangler.jsonc", "--env", "eu"]);
 		// The router deployed with routes is the cutover, so it is the environment that carries the domain.
@@ -318,10 +331,10 @@ describe("a run", () => {
 		assert.match(output, /\$ npm run render:public/);
 		assert.match(output, /\$ npx wrangler deploy\n/);
 		assert.match(output, /\$ npx wrangler deploy --config workers\/public\/wrangler\.jsonc\n/);
-		assert.match(output, /\$ npx wrangler deploy --config workers\/router\/wrangler\.jsonc --env us\n/);
+		assert.match(output, /\$ npx wrangler deploy --config workers\/router\/wrangler\.jsonc\n/, "the router without the domain while the app still has it");
 		assert.match(output, /\$ npx wrangler deploy --env eu/);
 		assert.match(output, /\$ npx wrangler deploy --config workers\/public\/wrangler\.jsonc --env eu\n/);
-		assert.match(output, /\$ npx wrangler deploy --config workers\/router\/wrangler\.jsonc --env eu\n/);
+		assert.match(output, /\$ npx wrangler deploy --config workers\/router\/wrangler\.jsonc --env eu-staged\n/);
 		assert.match(output, /Would ask https:\/\/flockstack\.io\/__router\/health for x-served-by: router\./);
 		assert.match(output, /Dry run done\./);
 	});
@@ -395,7 +408,7 @@ describe("the domain and the Worker that holds it", () => {
 	test("goes on after the cutover: the router holds the domain and wrangler.jsonc has let it go; --only checks only its region", async () => {
 		const output = await run(["--baseline", "0"], { fetchImpl: routed, config: RELEASED });
 		assert.match(output, /served by the router, and not a route of the app/);
-		assert.equal(readLog().filter((call) => call.deploy).length, 6);
+		assert.deepEqual(readLog().filter((call) => call.deploy).map(({ deploy }) => deploy), DEPLOYS_CUT_OVER, "now the routers that hold the domains");
 		const asked = [];
 		await run(["--only", "eu", "--baseline", "0"], { fetchImpl: async (url) => (asked.push(url), routed()), config: RELEASED });
 		assert.deepEqual(asked, ["https://eu.flockstack.io/__router/health"]);

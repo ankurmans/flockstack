@@ -8,6 +8,8 @@
 // Placeholders left in lib/legal.js don't stop it: the legal pages stay hidden until they are filled, and it says which are left.
 //
 // Order, for each region: the app, then the public pages (which point at the files of the build the app now has), then the router.
+// While the app still lists the region's domain (before the cutover) the router is deployed without the domain, on workers.dev only,
+// to be tried there; once the app has let the domain go, the router is deployed with it, which keeps it.
 // The website Worker (flockstack-website) is the website repository's and is deployed from there, before anything here.
 // A custom domain is one Worker's at a time, and `wrangler deploy` of the app takes it back or drops it according to the routes
 // in wrangler.jsonc. So the run first checks that the domain and the file agree: when the router answers the domain's
@@ -45,6 +47,7 @@ export const REGIONS = {
 		publicArgs: ["--config", "workers/public/wrangler.jsonc"],
 		routerWorker: "flockstack-router",
 		routerArgs: ["--config", "workers/router/wrangler.jsonc", "--env", "us"],
+		routerStagedArgs: ["--config", "workers/router/wrangler.jsonc"],
 	},
 	eu: {
 		worker: "flockstack-eu",
@@ -54,6 +57,7 @@ export const REGIONS = {
 		publicArgs: ["--config", "workers/public/wrangler.jsonc", "--env", "eu"],
 		routerWorker: "flockstack-router-eu",
 		routerArgs: ["--config", "workers/router/wrangler.jsonc", "--env", "eu"],
+		routerStagedArgs: ["--config", "workers/router/wrangler.jsonc", "--env", "eu-staged"],
 	},
 };
 
@@ -236,13 +240,14 @@ export async function main(argv = process.argv.slice(2), { migrationsDir = MIGRA
 	for (const region of regions) migrate(region, files, options);
 
 	for (const region of regions) {
-		const { worker, wranglerArgs, publicWorker, publicArgs, routerWorker, routerArgs } = REGIONS[region];
+		const { worker, wranglerArgs, publicWorker, publicArgs, routerWorker, routerArgs, routerStagedArgs } = REGIONS[region];
 		console.log(`\n==> Deploy: ${worker}`);
 		run("npx", ["wrangler", "deploy", ...wranglerArgs], options);
 		console.log(`\n==> Deploy: ${publicWorker}`);
 		run("npx", ["wrangler", "deploy", ...publicArgs], options);
-		console.log(`\n==> Deploy: ${routerWorker}`);
-		run("npx", ["wrangler", "deploy", ...routerArgs], options);
+		const isStaged = appHoldsDomain(region, wranglerConfig);
+		console.log(`\n==> Deploy: ${routerWorker}${isStaged ? " (staged: workers.dev only, the domain is still the app's)" : ""}`);
+		run("npx", ["wrangler", "deploy", ...(isStaged ? routerStagedArgs : routerArgs)], options);
 	}
 	const names = regions.flatMap((region) => [REGIONS[region].worker, REGIONS[region].publicWorker, REGIONS[region].routerWorker]);
 	console.log(options.isDryRun ? "\nDry run done." : `\nDeployed ${names.join(", ")}.`);

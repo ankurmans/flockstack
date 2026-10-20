@@ -124,11 +124,22 @@ describe("the routing table", () => {
 		assert.equal(route(bare, "https://flockstack.io/pricing?_rsc=x", { headers: { rsc: "1", "next-router-prefetch": "1" } }), "app");
 	});
 
-	test("another host never leaves APP: a workers.dev address, a newsletter's own domain", () => {
+	test("another host never leaves APP: a newsletter's own domain, the shared archive hosts, another region's address", () => {
 		const { env } = stack();
-		for (const host of ["news.example.com", "flockstack-router.example.workers.dev", "eu.flockstack.io", "sites.flockstack.io", "newsletter.ankur.works"]) {
+		for (const host of ["news.example.com", "eu.flockstack.io", "sites.flockstack.io", "newsletter.ankur.works", "flockstack.io.example.com", "notflockstack.io", "a.workers.dev.example.com"]) {
 			for (const path of ["/", "/pricing", "/docs", "/terms", "/blog"]) assert.equal(route(env, `https://${host}${path}`), "app", `${host}${path}`);
 		}
+	});
+
+	test("a workers.dev address is routed like the domain, so a router can be tried before a domain moves to it", () => {
+		const { env } = stack();
+		const host = "flockstack-router.example.workers.dev";
+		assert.equal(route(env, `https://${host}/pricing`), "website");
+		assert.equal(route(env, `https://${host}/`), "website");
+		assert.equal(route(env, `https://${host}/`, { headers: SESSION_US }), "app");
+		assert.equal(route(env, `https://${host}/docs/api`), "public");
+		assert.equal(route(env, `https://${host}/signin`), "app");
+		assert.equal(route(env, `https://${host}/docs/api?_rsc=x`, { headers: { rsc: "1" } }), "hard-navigation");
 	});
 
 	test("a router without a binding or without APP_URL sends everything to APP", () => {

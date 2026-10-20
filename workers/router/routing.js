@@ -33,10 +33,12 @@ function readOriginPath(headers) {
 export function chooseRoute({ method, url, headers, env }) {
 	if (!env.APP_URL) return "app";
 	const appHostname = new URL(env.APP_URL).hostname;
-	if (url.hostname !== appHostname) return "app";
+	// The domain is the app's own host. So is a workers.dev address, which only a router that is being tried out has (the
+	// routers that hold a domain have workers_dev off): the routing can be tested there before the domain moves.
+	if (url.hostname !== appHostname && !url.hostname.endsWith(".workers.dev")) return "app";
 	if (method !== "GET" && method !== "HEAD") return "app";
 	const hasSession = hasSessionCookie(headers.get("cookie"), getCookiePrefix(env));
-	const toWebsite = Boolean(env.WEBSITE) && shouldForwardToWebsite({ method, hostname: url.hostname, appHostname, pathname: url.pathname, hasSession });
+	const toWebsite = Boolean(env.WEBSITE) && shouldForwardToWebsite({ method, hostname: appHostname, appHostname, pathname: url.pathname, hasSession });
 	const toPublic = Boolean(env.PUBLIC) && isPublicPath(url.pathname);
 
 	if (headers.has("rsc") && !headers.has("next-action") && (env.PUBLIC || env.WEBSITE)) {
