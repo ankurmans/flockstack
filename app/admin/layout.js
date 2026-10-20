@@ -6,6 +6,7 @@ import LogoWordmark from "@/components/LogoWordmark";
 import { Button } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/auth";
 import { isCloud } from "@/lib/config";
+import { countNewCustomRequests } from "@/lib/custom-requests";
 import { REGION_NAMES, getRegion } from "@/lib/region";
 
 export const metadata = { title: "Admin" };
@@ -13,6 +14,7 @@ export const metadata = { title: "Admin" };
 // Only ADMIN_EMAILS get here; everyone else gets a 404. The page and the actions check again.
 export default async function AdminLayout({ children }) {
 	const admin = await requireAdmin();
+	const newRequests = isCloud() ? await countNewCustomRequests() : 0;
 
 	return (
 		<div className="flex min-h-dvh flex-col">
@@ -28,6 +30,14 @@ export default async function AdminLayout({ children }) {
 					</LogoWordmark>
 					<div className="flex min-w-0 items-center gap-1">
 						<span className="mr-2 hidden truncate text-xs text-muted-foreground sm:block">{admin.email}</span>
+						{isCloud() && (
+							<Button asChild variant="ghost" size="sm">
+								<Link href="/admin/custom">
+									Custom plan
+									{newRequests > 0 && <span className="rounded-full bg-primary px-1.5 text-[11px] text-primary-foreground tabular-nums">{newRequests}</span>}
+								</Link>
+							</Button>
+						)}
 						<Button asChild variant="ghost" size="sm">
 							<Link href="/">Dashboard</Link>
 						</Button>
