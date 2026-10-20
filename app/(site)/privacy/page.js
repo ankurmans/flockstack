@@ -74,6 +74,10 @@ export default function PrivacyPage() {
 						full access to the account until you disconnect them.
 					</li>
 					<li>
+						<Strong>Webhooks:</Strong> the addresses you add, their signing secrets, and a log of the latest 100 deliveries to each, with what
+						was sent and the answer.
+					</li>
+					<li>
 						<Strong>Your plan:</Strong> which plan, monthly or yearly, its status and period dates, and the IDs of your customer and
 						subscription at our billing provider. The provider handles your payment details. We don&apos;t store card numbers.
 					</li>
@@ -173,7 +177,8 @@ export default function PrivacyPage() {
 					<li>No advertising and no selling or renting of personal data.</li>
 					<li>
 						No sharing of one creator&apos;s subscribers with another creator or anyone else, apart from the hashed never-email list above,
-						a reader ticking a recommendation, and the sub-processors we need to run the service.
+						a reader ticking a recommendation, the sub-processors we need to run the service, and the webhook addresses a creator adds
+						(their own server, or an app like Zapier or Make), which get the events the creator picked.
 					</li>
 					<li>
 						We don&apos;t use subscribers&apos; data for anything but running the creator&apos;s newsletter, and we don&apos;t track readers

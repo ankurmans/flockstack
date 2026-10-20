@@ -57,7 +57,8 @@
 
 /* Night lime: ink (#0b0b0b) and electric lime (#d4ff3a). On white, lime is too light for text or thin lines
    (1.7:1 for #b6d600), so links, the focus ring and small accents use the olive #4d6400 (6.7:1 on white, 6.1:1 on
-   muted). Neutrals stay neutral: the lime is a spark. */
+   muted). Neutrals stay neutral: the lime is a spark. Small grey text on a grey chip and red text on a red-tinted badge
+   hold WCAG AA's 4.5:1 (tests/brand-colors.test.mjs), which shadcn's defaults (4.3:1 and 4:1) missed. */
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -70,10 +71,10 @@
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  --muted-foreground: oklch(0.53 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: oklch(0.52 0.21 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.467 0.116 123.8);

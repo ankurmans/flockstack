@@ -42,6 +42,7 @@ const TITLES = {
 	contact: "Pick a plan to add more contacts",
 	domain: "Pick a plan to send from your own domain",
 	apiKey: "Pick a plan to use the API",
+	webhook: "Pick a plan to use webhooks",
 	upload: "Pick a plan to upload more images",
 	website: "Pick a plan to put your website online",
 	sell: "Pick a plan to sell to your readers",

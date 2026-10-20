@@ -6,6 +6,7 @@ import { addDomainAction } from "@/app/(app)/domains/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { normalizeDomainInput, normalizeHostInput } from "@/lib/sender-rules";
+import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 import { toast } from "@/lib/toast";
 
 const PLACEHOLDER_DOMAIN = "yourdomain.com";
@@ -38,7 +39,7 @@ export default function FormAddDomain({ fromLocalPart, hasArchiveHost }) {
 	}
 
 	return (
-		<form action={action} className="overflow-hidden rounded-xl bg-card shadow-border animate-enter">
+		<form action={action} onSubmit={submitKeepingFields(action)} className="overflow-hidden rounded-xl bg-card shadow-border animate-enter">
 			<div className="flex flex-col gap-4 p-4 sm:p-5">
 				<div>
 					<h2 className="font-semibold tracking-tight">Add your domain</h2>

@@ -6,6 +6,7 @@ import CardPasskeys from "@/components/CardPasskeys";
 import BadgeStatus from "@/components/BadgeStatus";
 import CardExport from "@/components/CardExport";
 import CardSettings, { RowSettings } from "@/components/CardSettings";
+import CardSigninMethods from "@/components/CardSigninMethods";
 import { getPlanDetails } from "@/components/CardSubscription";
 import DialogDeleteAccount from "@/components/DialogDeleteAccount";
 import FormProfile from "@/components/FormProfile";
@@ -14,26 +15,38 @@ import LayoutNarrow from "@/components/LayoutNarrow";
 import { Button } from "@/components/ui/button";
 import { DELETION_GRACE_DAYS, getDeletionBlockers } from "@/lib/account-deletion";
 import { getAccountStatus, hasActiveSubscription } from "@/lib/account-state";
-import { getSocialSignins } from "@/lib/accounts";
+import { listSocialAccounts } from "@/lib/accounts";
 import { runDashboardAction } from "@/lib/actions/dashboard";
-import { requireAccount } from "@/lib/auth";
+import { isAppleEnabled, isGoogleEnabled, requireAccount } from "@/lib/auth";
 import { getBillingProviderName } from "@/lib/billing-provider";
 import { isCloud } from "@/lib/config";
 import { formatDate } from "@/lib/format";
 import { getAccountPlan } from "@/lib/plans";
 import { MAX_NAME_LENGTH } from "@/lib/profile";
 import { REGION_PLACES, getRegion } from "@/lib/region";
+import { SIGNIN_PROVIDERS, describeConnectResult } from "@/lib/signin-methods";
 
 export const metadata = { title: "Account" };
 
-// The whole account, apart from any newsletter: who signs in, billing, and deleting it.
-export default async function AccountPage() {
+const PROVIDER_ENABLED = { google: isGoogleEnabled, apple: isAppleEnabled };
+
+// The whole account, apart from any newsletter: who signs in, billing, and deleting it. Google and Apple send people back
+// here after connecting, with ?connected= or ?connect= and ?error=.
+export default async function AccountPage({ searchParams } = {}) {
 	const { user, account } = await requireAccount();
-	const [blockers, socialSignins, { output: latestExport }] = await Promise.all([
+	const [blockers, socialAccounts, { output: latestExport }, params] = await Promise.all([
 		getDeletionBlockers(account),
-		getSocialSignins(user.id),
+		listSocialAccounts(user.id),
 		runDashboardAction("get_account_export", {}),
+		searchParams ?? {},
 	]);
+	const socialSignins = socialAccounts.map(({ name }) => name);
+	// A provider the server no longer has keeps its row while it's linked, so it can be unlinked.
+	const methods = Object.entries(SIGNIN_PROVIDERS)
+		.map(([provider, name]) => ({ provider, name, account: socialAccounts.find((item) => item.provider === provider) ?? null }))
+		.filter(({ provider, account: linked }) => linked || PROVIDER_ENABLED[provider]());
+	const text = (value) => (typeof value === "string" ? value : null);
+	const notice = describeConnectResult({ connected: text(params.connected), connect: text(params.connect), error: text(params.error), email: user.email });
 
 	return (
 		<LayoutNarrow>
@@ -48,6 +61,7 @@ export default async function AccountPage() {
 						</span>
 					</RowSettings>
 				</CardSettings>
+				{methods.length > 0 && <CardSigninMethods methods={methods} email={user.email} notice={notice} />}
 				{isCloud() && <CardRegion />}
 				<CardPasskeys />
 				{isCloud() && <CardBilling account={account} />}

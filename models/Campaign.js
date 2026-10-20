@@ -60,6 +60,15 @@ const campaignSchema = new mongoose.Schema(
 		comments: { type: String, enum: ["on", "off"] },
 		// Pinned issues sit in the Featured row at the top of the archive.
 		archivePinned: { type: Boolean, default: false },
+		// An issue brought from another platform by a post import (lib/post-import.js): "<source>:<its ID there>", so the
+		// same post is never imported twice into a newsletter, and where it came from. It went out before, from there: it is
+		// sent with no emails and no stats.
+		importKey: { type: String },
+		importedFrom: {
+			source: { type: String },
+			url: { type: String },
+			author: { type: String },
+		},
 		// Archive page views, once per browser and day.
 		webViews: { type: Number, default: 0 },
 		stats: {
@@ -91,6 +100,10 @@ campaignSchema.plugin(accountScoped);
 campaignSchema.index({ newsletterId: 1, createdAt: -1 });
 campaignSchema.index({ accountId: 1, status: 1 });
 campaignSchema.index({ newsletterId: 1, startedAt: -1 });
+campaignSchema.index(
+	{ newsletterId: 1, importKey: 1 },
+	{ unique: true, partialFilterExpression: { importKey: { $type: "string" } } }
+);
 // Unique across accounts: /p/<slug> on the app's domain finds an issue by its slug alone.
 campaignSchema.index(
 	{ archiveSlug: 1 },

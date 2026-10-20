@@ -1,0 +1,14 @@
+{
+  "url": "/contacts",
+  "method": "POST",
+  "body": {
+    "email": "{{parameters.email}}",
+    "source": "make",
+    "newsletter": "{{ifempty(parameters.newsletter; undefined)}}",
+    "tags": "{{ifempty(parameters.tags; undefined)}}",
+    "fields": "{{ifempty(toCollection(parameters.fields; 'key'; 'value'); undefined)}}"
+  },
+  "response": {
+    "output": "{{body}}"
+  }
+}

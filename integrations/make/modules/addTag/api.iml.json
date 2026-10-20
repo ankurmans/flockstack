@@ -1,0 +1,11 @@
+{
+  "url": "/contacts/{{encodeURL(parameters.subscriber)}}/tags",
+  "method": "POST",
+  "body": {
+    "tag": "{{parameters.tag}}",
+    "newsletter": "{{ifempty(parameters.newsletter; undefined)}}"
+  },
+  "response": {
+    "output": "{{body}}"
+  }
+}

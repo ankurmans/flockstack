@@ -1,0 +1,17 @@
+{
+  "baseUrl": "{{ifempty(connection.serverUrl; if(connection.region = \"eu\"; \"https://eu.flockstack.io\"; \"https://flockstack.io\"))}}/api/v1",
+  "headers": {
+    "Authorization": "Bearer {{connection.apiKey}}"
+  },
+  "response": {
+    "error": {
+      "message": "[{{statusCode}}] {{body.error.message}}",
+      "type": "{{if(statusCode = 401; 'InvalidAccessTokenError'; if(statusCode = 429; 'RateLimitError'; 'RuntimeError'))}}"
+    }
+  },
+  "log": {
+    "sanitize": [
+      "request.headers.authorization"
+    ]
+  }
+}

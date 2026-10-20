@@ -73,15 +73,15 @@ describe("the profile", () => {
 	test("keeps the picture Google gave at sign-up, and says Google signs in too", async () => {
 		const user = await signIn("google@example.com");
 		await mongoose.connection.db.collection("users").updateOne({ _id: user.userId }, { $set: { name: "Gina", image: GOOGLE_PICTURE } });
-		assert.deepEqual(await m.accounts.getSocialSignins(user.userId), []);
+		assert.deepEqual((await m.accounts.listSocialAccounts(user.userId)).map(({ name }) => name), []);
 		await mongoose.connection.db
 			.collection("auth_accounts")
 			.insertOne({ userId: user.userId, providerId: "google", accountId: "google-gina", createdAt: new Date(), updatedAt: new Date() });
-		assert.deepEqual(await m.accounts.getSocialSignins(user.userId), ["Google"]);
+		assert.deepEqual((await m.accounts.listSocialAccounts(user.userId)).map(({ name }) => name), ["Google"]);
 		await mongoose.connection.db
 			.collection("auth_accounts")
 			.insertOne({ userId: user.userId, providerId: "apple", accountId: "001234.apple-gina", createdAt: new Date(), updatedAt: new Date() });
-		assert.deepEqual(await m.accounts.getSocialSignins(user.userId), ["Google", "Apple"]);
+		assert.deepEqual((await m.accounts.listSocialAccounts(user.userId)).map(({ name }) => name), ["Google", "Apple"]);
 
 		assert.deepEqual(await saveProfile(user, { name: "Gina Lee", image: GOOGLE_PICTURE }), { ok: true });
 		const saved = await readUser(user);

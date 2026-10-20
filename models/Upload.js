@@ -12,11 +12,15 @@ const uploadSchema = new mongoose.Schema(
 		// A file attachment (lib/attachment-files.js) rather than a picture, with the name it was uploaded under.
 		kind: { type: String, enum: ["image", "file"] },
 		name: { type: String, trim: true },
+		// Where a post import downloaded it from: the same picture in another post, or the same import run again, uses
+		// this file instead of storing it twice.
+		sourceUrl: { type: String },
 	},
 	{ timestamps: true }
 );
 
 uploadSchema.plugin(accountScoped);
 uploadSchema.index({ accountId: 1, createdAt: -1 });
+uploadSchema.index({ accountId: 1, sourceUrl: 1 }, { partialFilterExpression: { sourceUrl: { $type: "string" } } });
 
 export default mongoose.models.Upload || mongoose.model("Upload", uploadSchema);

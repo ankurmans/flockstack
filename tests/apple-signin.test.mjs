@@ -164,7 +164,8 @@ describe("Better Auth's Apple provider", () => {
 		assert.equal(apple.options.clientId, APPLE_ENV.APPLE_CLIENT_ID);
 		assert.equal(apple.options.clientSecret, m.apple.getAppleClientSecret());
 		assert.ok(context.trustedOrigins.includes("https://appleid.apple.com"));
-		assert.deepEqual(context.options.account.accountLinking, undefined, "no trusted providers");
+		assert.equal(context.options.account.accountLinking.trustedProviders, undefined, "no trusted providers");
+		assert.deepEqual(context.trustedProviders, [], "no trusted providers");
 
 		const { toApple } = await signInWithApple({ sub: "001000.config", email: "config@example.com" });
 		assert.equal(toApple.searchParams.get("client_id"), APPLE_ENV.APPLE_CLIENT_ID);

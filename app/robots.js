@@ -25,6 +25,7 @@ const PRIVATE_PATHS = [
 	"/referrals",
 	"/restore",
 	"/segments",
+	"/webhooks",
 	"/welcome",
 	"/c/",
 	"/o/",

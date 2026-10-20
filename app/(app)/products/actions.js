@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { MIN_PRICE, readPriceCents, runDashboardAction, toFormError } from "@/lib/actions/dashboard";
+import { MIN_PRICE, readPriceCents, readProductSlug, runDashboardAction, toFormError } from "@/lib/actions/dashboard";
 
 function refresh(id) {
 	revalidatePath("/products");
@@ -23,7 +23,7 @@ function toProductError(failure) {
 			return FIELD_LABELS[field] ? `${FIELD_LABELS[field]}: ${rest[0].toLowerCase()}${rest.slice(1)}` : `${rest[0].toUpperCase()}${rest.slice(1)}`;
 		})
 		.join("; ")
-		.replace("uses this slug", "uses this page address");
+		.replace("uses the slug ", "uses the page address /shop/");
 	return toFormError({ ...failure, message });
 }
 
@@ -46,13 +46,15 @@ export async function saveProduct(_state, formData) {
 	const id = String(formData.get("id") ?? "");
 	const priceCents = readPriceCents(formData.get("price"));
 	if (Number.isNaN(priceCents)) return PRICE_ERROR;
+	const slug = readProductSlug(formData.get("slug"));
+	if (slug === null) return { error: "Page address: use letters or digits, like bird-stickers" };
 	const { output, failure } = await runDashboardAction("update_product", {
 		id,
 		title: String(formData.get("title") ?? ""),
 		description: String(formData.get("description") ?? ""),
 		priceCents,
 		currency: String(formData.get("currency") ?? "usd"),
-		slug: String(formData.get("slug") ?? "").trim() || undefined,
+		slug: slug || undefined,
 		imageUrl: String(formData.get("imageUrl") ?? "").trim(),
 	});
 	if (failure) return toProductError(failure);

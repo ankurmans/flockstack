@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatBytes, formatCount } from "@/lib/format";
 import { formatPrice } from "@/lib/payments/config";
+import { MAX_PRODUCT_SLUG_LENGTH, toProductSlug } from "@/lib/product-slug";
 import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 import { toast } from "@/lib/toast";
 import { useToastError } from "@/lib/use-toast-error";
@@ -138,8 +139,8 @@ export default function FormProduct({ product, payments, maxFileMb }) {
 							<SelectCurrency name="currency" defaultValue={product.currency} />
 						</span>
 					</RowSettings>
-					<RowSettings label="Page address" isLabel hint="The product's page is /shop/ followed by this.">
-						<Input name="slug" defaultValue={product.slug} required maxLength={80} className="font-mono" />
+					<RowSettings label="Page address" isLabel hint="Where the product's page is on your site. Spaces and capitals become dashes and small letters.">
+						<InputSlug defaultValue={product.slug} />
 					</RowSettings>
 					<RowSettings label="Cover image" isLabel hint="An https:// link, e.g. from an image you uploaded to a campaign. Optional.">
 						<Input name="imageUrl" defaultValue={product.imageUrl ?? ""} placeholder="https://" maxLength={500} />
@@ -152,6 +153,32 @@ export default function FormProduct({ product, payments, maxFileMb }) {
 				Orders and refunds: <Link href="/orders" className="underline underline-offset-4">see orders</Link>. Refund a buyer in your Stripe dashboard and their download link stops.
 			</p>
 		</div>
+	);
+}
+
+// Typed as words, it becomes an address when the field is left: "Bird Stickers Two" is bird-stickers-two. The line under
+// it shows the address as it will be saved.
+function InputSlug({ defaultValue }) {
+	const [value, setValue] = useState(defaultValue);
+	const slug = toProductSlug(value);
+
+	return (
+		<span className="flex flex-col gap-1.5">
+			<Input
+				name="slug"
+				value={value}
+				onChange={(event) => setValue(event.target.value)}
+				onBlur={() => setValue(slug)}
+				required
+				maxLength={MAX_PRODUCT_SLUG_LENGTH * 2}
+				autoCapitalize="none"
+				spellCheck={false}
+				className="font-mono"
+			/>
+			<span data-slug-preview aria-live="polite" className="truncate font-mono text-xs text-muted-foreground">
+				/shop/{slug || "…"}
+			</span>
+		</span>
 	);
 }
 

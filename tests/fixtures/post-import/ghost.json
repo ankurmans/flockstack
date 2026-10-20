@@ -1,0 +1,67 @@
+{
+	"db": [
+		{
+			"meta": { "exported_on": 1760000000000, "version": "5.96.0" },
+			"data": {
+				"posts": [
+					{
+						"id": "65a1b2c3d4e5f60718293a4b",
+						"uuid": "5f0c4a2e-1b2c-4d5e-8f90-a1b2c3d4e5f6",
+						"title": "Notes on a slow web",
+						"slug": "notes-on-a-slow-web",
+						"html": "<p>The web was faster when pages were smaller.</p><figure class=\"kg-card kg-image-card kg-card-hascaption\"><img src=\"__GHOST_URL__/content/images/2024/06/modem.png\" class=\"kg-image\" alt=\"A modem\" loading=\"lazy\" width=\"1200\" height=\"800\" srcset=\"__GHOST_URL__/content/images/size/w600/2024/06/modem.png 600w\"><figcaption><span>A 56k modem</span></figcaption></figure><p>More in <a href=\"__GHOST_URL__/an-earlier-post/\">an earlier post</a>.</p>",
+						"feature_image": "__GHOST_URL__/content/images/2024/06/cover.png",
+						"type": "post",
+						"status": "published",
+						"visibility": "public",
+						"created_at": "2024-06-01T09:00:00.000Z",
+						"published_at": "2024-06-03T07:30:00.000Z",
+						"custom_excerpt": "Smaller pages, happier readers."
+					},
+					{
+						"id": "65a1b2c3d4e5f60718293a4c",
+						"title": "Members: the full teardown",
+						"slug": "full-teardown",
+						"html": "<p>Everything, line by line.</p>",
+						"type": "post",
+						"status": "published",
+						"visibility": "paid",
+						"published_at": "2024-07-01T07:30:00.000Z",
+						"custom_excerpt": null
+					},
+					{
+						"id": "65a1b2c3d4e5f60718293a4d",
+						"title": "Contact",
+						"slug": "contact",
+						"html": "<p>Write to us.</p>",
+						"type": "page",
+						"status": "published",
+						"visibility": "public",
+						"published_at": "2024-01-01T00:00:00.000Z"
+					},
+					{
+						"id": "65a1b2c3d4e5f60718293a4e",
+						"title": "Draft about drafts",
+						"slug": "draft-about-drafts",
+						"html": "<p>Someday.</p>",
+						"type": "post",
+						"status": "draft",
+						"visibility": "public",
+						"published_at": null
+					}
+				],
+				"users": [
+					{ "id": "1", "name": "Jane Doe", "slug": "jane" },
+					{ "id": "65a1b2c3d4e5f60718290001", "name": "Riley Guest", "slug": "riley" }
+				],
+				"posts_authors": [
+					{ "id": "a1", "post_id": "65a1b2c3d4e5f60718293a4b", "author_id": "65a1b2c3d4e5f60718290001", "sort_order": 0 },
+					{ "id": "a2", "post_id": "65a1b2c3d4e5f60718293a4b", "author_id": "1", "sort_order": 1 },
+					{ "id": "a3", "post_id": "65a1b2c3d4e5f60718293a4c", "author_id": "1", "sort_order": 0 }
+				],
+				"tags": [],
+				"posts_tags": []
+			}
+		}
+	]
+}

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { formatCount } from "@/lib/format";
 import { toast } from "@/lib/toast";
 
 const TYPE_LABELS = { text: "Text", number: "Number", date: "Date", datetime: "Date and time", boolean: "Yes or no", list: "List" };
@@ -30,11 +31,14 @@ export default function DialogTagsFields({ newsletter, definitions, tags }) {
 	const [readerEditable, setReaderEditable] = useState(false);
 	const [isPending, startTransition] = useTransition();
 
+	// message: a string, or what to say from the action's answer. A large list loses a tag or a field in the background,
+	// and the contacts page shows how far it got.
 	function run(action, message) {
 		startTransition(async () => {
 			const result = await action();
 			if (result?.error) return void toast.error(result.error);
-			if (message) toast.success(message);
+			const text = typeof message === "function" ? message(result) : message;
+			if (text) toast.success(text);
 			router.refresh();
 		});
 	}
@@ -114,7 +118,12 @@ export default function DialogTagsFields({ newsletter, definitions, tags }) {
 										size="icon-sm"
 										aria-label={`Delete ${field.label}`}
 										disabled={isPending}
-										onClick={() => run(() => deleteCustomField({ newsletterId: newsletter.id, key: field.key }), "Field deleted")}
+										onClick={() =>
+											run(
+												() => deleteCustomField({ newsletterId: newsletter.id, key: field.key }),
+												(result) => (result.inBackground ? `Field deleted. Removing it from ${formatCount(result.contacts, "contact")}…` : "Field deleted")
+											)
+										}
 										className="text-muted-foreground hover:text-destructive"
 									>
 										<Trash2 />
@@ -198,7 +207,13 @@ export default function DialogTagsFields({ newsletter, definitions, tags }) {
 									<button
 										type="button"
 										disabled={isPending}
-										onClick={() => run(() => deleteTag(newsletter.id, tag), `Tag ${tag} deleted`)}
+										onClick={() =>
+											run(
+												() => deleteTag(newsletter.id, tag),
+												(result) =>
+													result.inBackground ? `Removing the tag ${tag} from ${formatCount(result.contacts, "contact")}…` : `Tag ${tag} deleted`
+											)
+										}
 										aria-label={`Delete the tag ${tag}`}
 										className="grid size-4 place-items-center rounded-full text-muted-foreground hover:bg-background hover:text-destructive"
 									>

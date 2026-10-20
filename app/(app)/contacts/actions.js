@@ -80,11 +80,12 @@ export async function setContactField(id, field, value) {
 	return { ok: true, fields: output.fields };
 }
 
+// A large list loses the tag in the background: the contacts page shows how far it got (getRemovals).
 export async function deleteTag(newsletterId, tag) {
-	const { failure } = await runDashboardAction("delete_tag", { newsletter: String(newsletterId ?? ""), tag: String(tag ?? "") });
+	const { output, failure } = await runDashboardAction("delete_tag", { newsletter: String(newsletterId ?? ""), tag: String(tag ?? "") });
 	if (failure) return toFormError(failure);
 	revalidatePath("/contacts");
-	return { ok: true };
+	return { ok: true, contacts: output.contacts, inBackground: output.inBackground };
 }
 
 export async function createCustomField({ newsletterId, label, type, options, multiple, onSignupForm, readerEditable }) {
@@ -114,8 +115,19 @@ export async function updateCustomField({ newsletterId, key, onSignupForm, reade
 }
 
 export async function deleteCustomField({ newsletterId, key }) {
-	const { failure } = await runDashboardAction("delete_custom_field", { newsletter: String(newsletterId ?? ""), key: String(key ?? "") });
+	const { output, failure } = await runDashboardAction("delete_custom_field", { newsletter: String(newsletterId ?? ""), key: String(key ?? "") });
 	if (failure) return toFormError(failure);
 	revalidatePath("/contacts");
-	return { ok: true };
+	return { ok: true, contacts: output.contacts, inBackground: output.inBackground };
+}
+
+// Tags and fields coming off the newsletter's contacts in the background, for the contacts page to say how far they got.
+export async function getRemovals(newsletterId) {
+	const { output, failure } = await runDashboardAction("list_removals", { newsletter: String(newsletterId ?? "") });
+	return failure ? toFormError(failure) : { removals: output.removals };
+}
+
+export async function retryRemoval(id) {
+	const { output, failure } = await runDashboardAction("retry_removal", { id: String(id ?? "") });
+	return failure ? toFormError(failure) : { removal: output };
 }

@@ -6,6 +6,7 @@ import { createConfirmToken } from "../lib/confirmation.js";
 import { createRecommendToken } from "../lib/recommendation-token.js";
 import { RECOMMENDATIONS_TAG } from "../lib/recommendation-tags.js";
 import { addSentIssue, anonymous, activate, as, callApi, catchRedirect, form, signIn, startTestApp, withEnv } from "./helpers/app.mjs";
+import { findAll, findWhere, renderShallow } from "./helpers/shallow.mjs";
 import { runWithRequest } from "./stubs/next-headers.mjs";
 import { flushAfter } from "./stubs/next-server.mjs";
 import { sent as sesEmails } from "./stubs/ses.mjs";
@@ -111,6 +112,10 @@ before(async () => {
 		archiveContent: await import("../lib/archive-content.js"),
 		feed: await import("../lib/archive-feed.js"),
 		FormRecommendedSubscribe: (await import("../components/FormRecommendedSubscribe.jsx")).default,
+		FormRecommendations: (await import("../components/FormRecommendations.jsx")).default,
+		DialogRemoveRecommendation: (await import("../components/DialogRemoveRecommendation.jsx")).default,
+		Button: (await import("../components/ui/button.jsx")).Button,
+		DialogTitle: (await import("../components/ui/dialog.jsx")).DialogTitle,
 		ListRecommendations: (await import("../components/ListRecommendations.jsx")).default,
 		TooltipProvider: (await import("../components/ui/tooltip.jsx")).TooltipProvider,
 		Account: (await import("../models/Account.js")).default,
@@ -778,6 +783,77 @@ describe("regions and docs", () => {
 	});
 });
 
+describe("removing one from the dashboard", () => {
+	const buttonNamed = (tree, label) => findWhere(tree, (node) => node.type === m.Button && node.props["aria-label"] === label);
+	const buttonSaying = (tree, text) =>
+		findWhere(tree, (node) => node.type === m.Button && [node.props.children].flat(Infinity).includes(text));
+
+	async function rowsOf(user) {
+		const data = { ...(await list(user)), limit: 10 };
+		return renderShallow(createElement(m.FormRecommendations, { newsletterId: user.newsletterId, data }), { expand: ["RowOutgoing"] });
+	}
+
+	test("asks first, in a dialog, and only the dialog's button removes it", async () => {
+		const a = await creator("rec-ask-a");
+		const b = await creator("rec-ask-b");
+		const { body: added } = await recommend(a, b, "Short and kind.");
+
+		const { tree, transitions } = await rowsOf(a);
+		const [trash] = buttonNamed(tree, "Stop recommending rec-ask-b news");
+		trash.props.onClick();
+		assert.equal(transitions.length, 0, "the trash button only opens the dialog");
+		const [dialog] = findAll(tree, m.DialogRemoveRecommendation);
+		assert.deepEqual([dialog.props.item.id, dialog.props.isOpen], [added.id, false]);
+		assert.equal((await recordOf(a, b)).status, "active");
+
+		const opened = renderShallow(createElement(m.DialogRemoveRecommendation, { ...dialog.props, isOpen: true }));
+		const html = renderToStaticMarkup(createElement("div", null, findAll(opened.tree, m.DialogTitle).map((node) => node.props.children)));
+		assert.equal(html, "<div>Stop recommending rec-ask-b news?</div>");
+		const [cancel] = buttonSaying(opened.tree, "Cancel");
+		assert.equal(cancel.props.onClick, undefined, "Cancel only closes the dialog");
+		const [confirm] = findWhere(opened.tree, (node) => node.type === m.Button && node.props.variant === "destructive");
+		await as(a, () => {
+			confirm.props.onClick();
+			return Promise.all(opened.transitions);
+		});
+		const removed = await recordOf(a, b);
+		assert.deepEqual([removed.status, removed.removedBy, removed.pitch], ["removed", "recommender", "Short and kind."]);
+	});
+
+	test("one removed, even before it showed anywhere, comes back from its row with its pitch", async () => {
+		const a = await creator("rec-again-a");
+		const b = await creator("rec-again-b");
+		const { body: added } = await recommend(a, b, "Worth every Sunday.");
+		assert.equal((await callApi("DELETE", `/api/v1/recommendations/${added.id}?newsletter=${a.slug}`, { key: a.key })).status, 200);
+		assert.deepEqual(
+			(await list(a)).outgoing.map(({ status, pitch, impressions }) => [status, pitch, impressions]),
+			[["removed", "Worth every Sunday.", 0]],
+			"it stays in the list"
+		);
+
+		const { tree, transitions } = await rowsOf(a);
+		assert.equal(buttonNamed(tree, "Stop recommending rec-again-b news").length, 0);
+		const [again] = buttonSaying(tree, "Recommend again");
+		assert.equal(again.props.disabled, false);
+		await as(a, () => {
+			again.props.onClick();
+			return Promise.all(transitions);
+		});
+		const back = (await list(a)).outgoing;
+		assert.deepEqual(back.map(({ id, status, pitch }) => [id, status, pitch]), [[added.id, "active", "Worth every Sunday."]], "the same record, without retyping");
+		assert.equal(await m.Recommendation.countDocuments({ accountId: a.accountId }), 1);
+	});
+
+	test("one the other newsletter declined has no way back from its row", async () => {
+		const a = await creator("rec-noagain-a");
+		const b = await creator("rec-noagain-b");
+		const { body: added } = await recommend(a, b);
+		await as(b, () => m.dashboardActions.decideRecommendation({ newsletterId: b.newsletterId, id: added.id, decision: "decline", reason: "Not a fit." }));
+		const { tree } = await rowsOf(a);
+		assert.equal(buttonSaying(tree, "Recommend again").length, 0);
+	});
+});
+
 describe("the dashboard", () => {
 	test("runs the same actions: add, change, search, decline, bring back, remove and the two settings", async () => {
 		const a = await creator("rec-dash-a");
@@ -800,7 +876,11 @@ describe("the dashboard", () => {
 		assert.equal((await act(b, "saveRecommendationSettings", { allowIncoming: false, listed: true })).error, "A newsletter that turned off incoming recommendations can't be listed in the directory");
 		assert.equal((await act(b, "saveRecommendationSettings", { allowIncoming: false, listed: false })).ok, true);
 		assert.equal((await act(a, "removeRecommendation", { id })).output.removed, true);
-		assert.deepEqual((await list(a)).outgoing, []);
+		assert.deepEqual(
+			(await list(a)).outgoing.map(({ status, removedBy, pitch }) => [status, removedBy, pitch]),
+			[["removed", "recommender", "Changed."]],
+			"it stays, with its pitch, to recommend again"
+		);
 	});
 
 	test("shows the recommendations page, and the sign-up step's cards", async () => {
