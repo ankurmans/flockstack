@@ -80,7 +80,7 @@ function bundle(entry) {
 describe("the router and the public pages Worker stay tiny", () => {
 	test("the router is a few kilobytes of its own files: no Next.js, no app code", () => {
 		const { bytes, inputs } = bundle("workers/router/index.js");
-		assert.deepEqual(inputs.sort(), ["lib/public-routing.js", "lib/region.js", "lib/website-routing.js", "workers/router/index.js", "workers/router/routing.js"]);
+		assert.deepEqual(inputs.sort(), ["lib/api-routing.js", "lib/public-routing.js", "lib/region.js", "lib/website-routing.js", "workers/router/index.js", "workers/router/routing.js"]);
 		assert.ok(bytes < 12_000, `${bytes} bytes`);
 	});
 
@@ -98,10 +98,10 @@ describe("wrangler configurations", () => {
 	const publicWorker = JSON.parse(strip(read("workers/public/wrangler.jsonc")));
 	const service = (config, binding) => config.services.find((entry) => entry.binding === binding)?.service;
 
-	test("the router binds the website, the public pages and its region's app, and carries a domain only in the environments that cut over", () => {
+	test("the router binds the website, the public pages, its region's app and its region's API Worker, and carries a domain only in the environments that cut over", () => {
 		for (const config of [router, router.env.us, router.env.eu, router.env["eu-staged"]]) {
 			assert.equal(service(config, "WEBSITE"), "flockstack-website");
-			assert.equal(config.services.length, 3);
+			assert.equal(config.services.length, 4);
 			assert.ok(!config.compatibility_flags, "plain JavaScript, no Node compatibility");
 		}
 		assert.equal(service(router, "PUBLIC"), publicWorker.name);
@@ -113,6 +113,10 @@ describe("wrangler configurations", () => {
 		assert.equal(service(router.env.us, "APP"), app.name);
 		assert.equal(service(router.env.eu, "APP"), app.env.eu.name);
 		assert.equal(service(router.env["eu-staged"], "APP"), app.env.eu.name);
+		assert.equal(service(router, "API"), "flockstack-api");
+		assert.equal(service(router.env.us, "API"), "flockstack-api");
+		assert.equal(service(router.env.eu, "API"), "flockstack-api-eu");
+		assert.equal(service(router.env["eu-staged"], "API"), "flockstack-api-eu");
 		assert.equal(router.routes, undefined, "the top level is the staged US router: no domain");
 		assert.equal(router.env["eu-staged"].routes, undefined, "so is the staged EU one");
 		assert.deepEqual(router.env.us.routes, [{ pattern: "flockstack.io", custom_domain: true }]);

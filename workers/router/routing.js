@@ -1,5 +1,6 @@
 // Which Worker takes a request, apart from the router's entry (workers/router/index.js): a Worker module can export nothing but
 // its handler, and the tests want these. Three small imports, no Next.js.
+import { getApiGroup, parseEnabledGroups } from "../../lib/api-routing.js";
 import { getCookiePrefix } from "../../lib/region.js";
 import { isPlainVisit, isPublicPath } from "../../lib/public-routing.js";
 import { hasSessionCookie, shouldForwardToWebsite } from "../../lib/website-routing.js";
@@ -8,6 +9,17 @@ import { hasSessionCookie, shouldForwardToWebsite } from "../../lib/website-rout
 export const DEFAULT_TIMEOUT_MS = 3000;
 export const HEALTH_PATH = "/__router/health";
 export const FALLBACK_STATUSES = [502, 503, 504];
+// How long the API Worker gets to start answering a GET, HEAD or OPTIONS before the app does as well: an API call can be slower
+// than a page, and asking the app costs a second run of it. ROUTER_API_TIMEOUT_MS overrides it. A request that changes something
+// is never timed out and asked again (see askApi in index.js).
+export const DEFAULT_API_TIMEOUT_MS = 10_000;
+// The API Worker's own words for "I did nothing, ask the app" (it is switched off or has no database), sent before it reads a body.
+export const API_UNPROCESSED_HEADER = "x-fs-api-unprocessed";
+export const API_MISS_HEADER = "x-fs-api-miss";
+// A request with a body this big or smaller is copied before the API Worker gets it, so the app can be asked in its place if the
+// API Worker says it did nothing. A bigger one is not copied: the API Worker's answer is the answer.
+export const MAX_REPLAY_BYTES = 1024 * 1024;
+export const SAFE_METHODS = ["GET", "HEAD", "OPTIONS"];
 
 const PREFETCH_HEADERS = ["next-router-prefetch", "next-router-segment-prefetch"];
 
@@ -22,7 +34,7 @@ function readOriginPath(headers) {
 	}
 }
 
-// Which Worker takes a request: "website", "public" or "app", or what the router answers itself: "skip-prefetch" and
+// Which Worker takes a request: "website", "public", "api" or "app", or what the router answers itself: "skip-prefetch" and
 // "hard-navigation". Pure, so the whole table is tested without a Worker.
 //
 // Next.js's links ask for a page's data (an RSC request) before and when it is clicked. The data of a page the website or PUBLIC
@@ -36,6 +48,10 @@ export function chooseRoute({ method, url, headers, env }) {
 	// The domain is the app's own host. So is a workers.dev address, which only a router that is being tried out has (the
 	// routers that hold a domain have workers_dev off): the routing can be tested there before the domain moves.
 	if (url.hostname !== appHostname && !url.hostname.endsWith(".workers.dev")) return "app";
+	// The API: REST, MCP and the OAuth endpoints an MCP client calls, every method (lib/api-routing.js). Off unless the router has the
+	// API binding and API_ENABLED names the request's group, so it can be switched off in seconds without a deploy.
+	const apiGroup = env.API ? getApiGroup(url.pathname) : null;
+	if (apiGroup && parseEnabledGroups(env.API_ENABLED).has(apiGroup) && !(isPublicPath(url.pathname) && isPlainVisit({ method, headers }))) return "api";
 	if (method !== "GET" && method !== "HEAD") return "app";
 	const hasSession = hasSessionCookie(headers.get("cookie"), getCookiePrefix(env));
 	const toWebsite = Boolean(env.WEBSITE) && shouldForwardToWebsite({ method, hostname: appHostname, appHostname, pathname: url.pathname, hasSession });

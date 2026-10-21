@@ -4,13 +4,26 @@
 //
 //   WEBSITE  the marketing website (lib/website-routing.js: its paths, and "/" for a visitor without a session)
 //   PUBLIC   the pages that look the same to everyone, rendered at deploy time (lib/public-routing.js)
+//   API      the lean API Worker: /api/v1, /mcp and the OAuth endpoints an MCP client calls (lib/api-routing.js), when the router
+//            has the binding and API_ENABLED switches the request's group on (workers/api)
 //   APP      the region's app Worker, which keeps every route: the dashboard, /api, /mcp, /oauth, webhooks, jobs, uploads
 //
 // Cloud only: a self-hosted server has none of this and runs from the one app Worker. Newsletters' own domains and the shared
 // archive hosts are not routed here either (Cloudflare for SaaS sends them straight to the app Worker, lib/custom-hostnames.js).
 // Fail open: when WEBSITE or PUBLIC throws, is slow or answers 502, 503 or 504, the app answers instead, and nothing is lost
-// because the app still has every page. docs/ARCHITECTURE-WORKERS.md has the picture.
-import { DEFAULT_TIMEOUT_MS, FALLBACK_STATUSES, HEALTH_PATH, chooseRoute } from "./routing.js";
+// because the app still has every page. The API Worker fails open the same way for a request that only reads (GET, HEAD, OPTIONS);
+// a request that may have changed something is never sent twice (askApi). docs/ARCHITECTURE-WORKERS.md has the picture.
+import {
+	API_MISS_HEADER,
+	API_UNPROCESSED_HEADER,
+	DEFAULT_API_TIMEOUT_MS,
+	DEFAULT_TIMEOUT_MS,
+	FALLBACK_STATUSES,
+	HEALTH_PATH,
+	MAX_REPLAY_BYTES,
+	SAFE_METHODS,
+	chooseRoute,
+} from "./routing.js";
 
 // The Worker's answer, or null where there is none to give: it threw, it did not start answering in time, or it said it is
 // unavailable (or, for PUBLIC, that it has no copy of the page). Only GET and HEAD get here, so asking the app next is safe.
@@ -30,7 +43,7 @@ async function ask(name, binding, request, timeoutMs) {
 			console.warn(`[router] ${name} did not answer in ${timeoutMs} ms, the app answers`);
 			return null;
 		}
-		if (FALLBACK_STATUSES.includes(response.status) || response.headers.get("x-fs-public-miss")) {
+		if (FALLBACK_STATUSES.includes(response.status) || response.headers.get("x-fs-public-miss") || response.headers.get(API_MISS_HEADER) || response.headers.get(API_UNPROCESSED_HEADER)) {
 			await response.body?.cancel();
 			console.warn(`[router] ${name} answered ${response.status}, the app answers`);
 			return null;
@@ -41,6 +54,40 @@ async function ask(name, binding, request, timeoutMs) {
 		return null;
 	} finally {
 		clearTimeout(timer);
+	}
+}
+
+const UNAVAILABLE_BODY = JSON.stringify({ error: { code: "unavailable", message: "The API did not answer. If this request changes something, check its result before sending it again." } });
+
+// The API Worker's answer for a request, or null to have the app answer instead.
+//  - GET, HEAD, OPTIONS change nothing, so they fail open like the pages do: the Worker threw, was slow (10 s to start answering)
+//    or answered 502, 503 or 504, and the app is asked next.
+//  - Anything else (POST, PATCH, PUT, DELETE) may have been carried out by the time something fails, so it is sent once and the
+//    answer is the answer; a failure is a 502 in the API's error shape. The one exception is the API Worker saying in so many words
+//    that it did nothing (x-fs-api-unprocessed: it is switched off or has no database, before it reads a body): then the app is
+//    asked, with a copy of the request made beforehand when its body is small enough to copy (MAX_REPLAY_BYTES).
+// The request itself goes to the API Worker, never a rebuilt one: method, headers, cookies and the body stream, whose exact bytes
+// signatures cover. Returns { response } or { response: null, replay } for the app.
+async function askApi(request, env) {
+	const isSafe = SAFE_METHODS.includes(request.method);
+	if (isSafe) {
+		const timeoutMs = Number(env.ROUTER_API_TIMEOUT_MS) > 0 ? Number(env.ROUTER_API_TIMEOUT_MS) : DEFAULT_API_TIMEOUT_MS;
+		return { response: await ask("api", env.API, request, timeoutMs), replay: request };
+	}
+	const length = request.headers.get("content-length");
+	const canCopy = !request.body || (length !== null && Number(length) <= MAX_REPLAY_BYTES && !request.headers.has("transfer-encoding"));
+	const replay = canCopy ? request.clone() : null;
+	try {
+		const response = await env.API.fetch(request);
+		if (response.headers.get(API_UNPROCESSED_HEADER) && replay) {
+			await response.body?.cancel();
+			console.warn("[router] api said it did nothing, the app answers");
+			return { response: null, replay };
+		}
+		return { response };
+	} catch (error) {
+		console.error(`[router] api failed on a ${request.method}, not asked again: ${error?.message ?? error}`);
+		return { response: new Response(UNAVAILABLE_BODY, { status: 502, headers: { "content-type": "application/json", "cache-control": "no-store", "retry-after": "5" } }) };
 	}
 }
 
@@ -76,7 +123,13 @@ const router = {
 		if (route === "hard-navigation") {
 			return stamp(new Response(request.method === "HEAD" ? null : "<!doctype html><title>FlockStack</title>\n", { headers: { ...RSC_ANSWER_HEADERS, "content-type": "text/html; charset=utf-8" } }), "router", startedAt, 0);
 		}
-		if (route !== "app") {
+		let appRequest = request;
+		if (route === "api") {
+			const askedAt = Date.now();
+			const { response, replay } = await askApi(request, env);
+			if (response) return stamp(response, "api", startedAt, Date.now() - askedAt);
+			appRequest = replay ?? request;
+		} else if (route !== "app") {
 			const timeoutMs = Number(env.ROUTER_TIMEOUT_MS) > 0 ? Number(env.ROUTER_TIMEOUT_MS) : DEFAULT_TIMEOUT_MS;
 			const askedAt = Date.now();
 			const response = await ask(route, route === "website" ? env.WEBSITE : env.PUBLIC, request, timeoutMs);
@@ -87,7 +140,7 @@ const router = {
 		// here (webhook signatures cover its exact bytes).
 		const askedAt = Date.now();
 		try {
-			return stamp(await env.APP.fetch(request), "app", startedAt, Date.now() - askedAt);
+			return stamp(await env.APP.fetch(appRequest), "app", startedAt, Date.now() - askedAt);
 		} catch (error) {
 			console.error(`[router] the app failed: ${error?.message ?? error}`);
 			return stamp(new Response("The app is not answering. Try again in a moment.\n", { status: 502, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } }), "router", startedAt, 0);
