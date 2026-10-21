@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import LayoutDashboard from "@/components/LayoutDashboard";
 import { isAdmin, requireAccount } from "@/lib/auth";
 import { needsOnboarding } from "@/lib/onboarding";
+import { getSelectedNewsletter } from "@/lib/selected-newsletter";
 import { WEB_APP_METADATA } from "@/lib/web-app";
 
 // The dashboard installs as an app.
@@ -11,7 +12,9 @@ export const metadata = WEB_APP_METADATA;
 // (account), outside this check.
 export default async function AppLayout({ children }) {
 	const { user, account } = await requireAccount();
-	if (await needsOnboarding(account)) redirect("/welcome");
+	// The newsletters the pages and the newsletter menu read from this request's cache, so the check below asks no more.
+	const { newsletters } = await getSelectedNewsletter();
+	if (await needsOnboarding(account, newsletters)) redirect("/welcome");
 
 	return (
 		<LayoutDashboard user={user} account={account} isAdmin={isAdmin(user)}>

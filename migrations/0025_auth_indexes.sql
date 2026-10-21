@@ -1,0 +1,16 @@
+CREATE TABLE IF NOT EXISTS c_oauthConsent (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_oauthConsent__accountId ON c_oauthConsent (accountId);
+CREATE INDEX IF NOT EXISTS i_oauthConsent__userId__clientId ON c_oauthConsent (json_extract(data, '$.userId') ASC, json_extract(data, '$.clientId') ASC);
+CREATE TABLE IF NOT EXISTS c_oauthAccessToken (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_oauthAccessToken__accountId ON c_oauthAccessToken (accountId);
+CREATE INDEX IF NOT EXISTS i_oauthAccessToken__userId__clientId ON c_oauthAccessToken (json_extract(data, '$.userId') ASC, json_extract(data, '$.clientId') ASC);
+CREATE TABLE IF NOT EXISTS c_oauthRefreshToken (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_oauthRefreshToken__accountId ON c_oauthRefreshToken (accountId);
+CREATE INDEX IF NOT EXISTS i_oauthRefreshToken__userId__clientId ON c_oauthRefreshToken (json_extract(data, '$.userId') ASC, json_extract(data, '$.clientId') ASC);
+CREATE INDEX IF NOT EXISTS i_sessions__userId ON c_sessions (json_extract(data, '$.userId') ASC);
+CREATE INDEX IF NOT EXISTS i_auth_accounts__userId ON c_auth_accounts (json_extract(data, '$.userId') ASC);
+CREATE INDEX IF NOT EXISTS i_verifications__identifier ON c_verifications (json_extract(data, '$.identifier') ASC);
+CREATE INDEX IF NOT EXISTS i_verifications__expiresAt ON c_verifications (json_extract(data, '$.expiresAt') ASC);
+CREATE INDEX IF NOT EXISTS i_accounts__dedicatedIp_waiting ON c_accounts (json_extract(data, '$.dedicatedIp.status') ASC) WHERE json_type(data, '$.dedicatedIp.waitingAt') IS NOT NULL;
+CREATE INDEX IF NOT EXISTS i_accounts__dedicatedIp_polar ON c_accounts (json_extract(data, '$.dedicatedIp.status') ASC) WHERE json_type(data, '$.dedicatedIp.polarSubscriptionId') IS NOT NULL;
+CREATE INDEX IF NOT EXISTS i_domains__customHostname_state ON c_domains (json_extract(data, '$.customHostname.state') ASC);

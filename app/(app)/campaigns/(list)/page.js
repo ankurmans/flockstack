@@ -16,10 +16,12 @@ export const metadata = { title: "Campaigns" };
 
 export default async function CampaignsPage() {
 	const { account, user, selected, newsletters } = await getSelectedNewsletter();
-	const campaigns = selected ? await listNewsletterCampaigns(account, selected._id, 200) : [];
-	const { templates } = selected
-		? await runAction("list_templates", { account, user, via: "dashboard", input: { newsletter: String(selected._id) } })
-		: { templates: [] };
+	const [campaigns, { templates }] = selected
+		? await Promise.all([
+				listNewsletterCampaigns(account, selected._id, 200),
+				runAction("list_templates", { account, user, via: "dashboard", input: { newsletter: String(selected._id) } }),
+			])
+		: [[], { templates: [] }];
 	const pageUrls = Object.fromEntries(
 		campaigns
 			.map((campaign) => [campaign._id.toString(), getIssuePageUrl({ campaign, newsletter: selected })])
