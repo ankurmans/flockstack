@@ -199,7 +199,7 @@ describe("answering", () => {
 		assert.equal(response.headers.get("location"), "https://flockstack.io/x");
 		assert.deepEqual(response.headers.getSetCookie(), ["a=1; Path=/; HttpOnly", "b=2; Path=/; Secure"]);
 		assert.equal(response.headers.get("cf-cache-status"), "DYNAMIC");
-		assert.match(response.headers.get("server-timing"), /^app;dur=3, app;dur=\d+, router;dur=\d+$/);
+		assert.match(response.headers.get("server-timing"), /^app;dur=3, app-wait;dur=\d+, router;dur=\d+$/, "the app timed its own handler; the router timed the wait");
 		assert.equal(pulled, 0, "the router did not read the body");
 		assert.equal((await response.text()).startsWith("chunk"), true);
 	});

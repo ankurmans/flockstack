@@ -51,7 +51,7 @@ export function chooseRoute({ method, url, headers, env }) {
 	// The API: REST, MCP and the OAuth endpoints an MCP client calls, every method (lib/api-routing.js). Off unless the router has the
 	// API binding and API_ENABLED names the request's group, so it can be switched off in seconds without a deploy.
 	const apiGroup = env.API ? getApiGroup(url.pathname) : null;
-	if (apiGroup && parseEnabledGroups(env.API_ENABLED).has(apiGroup) && !(isPublicPath(url.pathname) && isPlainVisit({ method, headers }))) return "api";
+	if (apiGroup && parseEnabledGroups(env.API_ENABLED).has(apiGroup) && !(env.PUBLIC && isPublicPath(url.pathname) && isPlainVisit({ method, headers }))) return "api";
 	if (method !== "GET" && method !== "HEAD") return "app";
 	const hasSession = hasSessionCookie(headers.get("cookie"), getCookiePrefix(env));
 	const toWebsite = Boolean(env.WEBSITE) && shouldForwardToWebsite({ method, hostname: appHostname, appHostname, pathname: url.pathname, hasSession });

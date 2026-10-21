@@ -100,7 +100,9 @@ function stamp(response, servedBy, startedAt, upstreamMs) {
 	const timings = [];
 	const existing = copy.headers.get("server-timing");
 	if (existing) timings.push(existing);
-	if (servedBy !== "router") timings.push(`${servedBy};dur=${upstreamMs}`);
+	// A Worker that timed itself (app;dur=, api;dur=) has the handler's time; this is the wait for the whole call, a cold start included.
+	const timedItself = Boolean(existing) && existing.includes(`${servedBy};`);
+	if (servedBy !== "router") timings.push(`${timedItself ? `${servedBy}-wait` : servedBy};dur=${upstreamMs}`);
 	timings.push(`router;dur=${Date.now() - startedAt}`);
 	copy.headers.set("server-timing", timings.join(", "));
 	return copy;

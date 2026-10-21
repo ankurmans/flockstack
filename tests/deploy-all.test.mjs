@@ -57,6 +57,8 @@ const FAKE_NPM = `#!/usr/bin/env node
 const { appendFileSync } = require("node:fs");
 const args = process.argv.slice(2);
 if (args[0] === "run" && args[1] === "render:public") { appendFileSync(process.env.FAKE_LOG, JSON.stringify({ render: true }) + "\\n"); process.exit(0); }
+if (args[0] === "run" && args[1] === "bundle:app") { process.exit(0); }
+if (args[0] === "run" && args[1] === "perf:budget") { appendFileSync(process.env.FAKE_LOG, JSON.stringify({ budget: args.slice(2) }) + "\\n"); process.exit(0); }
 if (args[0] === "run" && args[1] === "build:api") { appendFileSync(process.env.FAKE_LOG, JSON.stringify({ buildApi: true }) + "\\n"); process.exit(0); }
 console.error("unexpected npm call", args);
 process.exit(2);
@@ -368,6 +370,7 @@ describe("a run", () => {
 		assert.match(output, /\$ npx wrangler d1 execute flockstack-eu --remote --yes --env eu/);
 		assert.match(output, /\$ npm run render:public/);
 		assert.match(output, /\$ npm run build:api/);
+		assert.match(output, /\$ npm run perf:budget -- --require-app/);
 		assert.match(output, /\$ npx wrangler deploy --config workers\/api\/wrangler\.jsonc --env eu\n/);
 		assert.match(output, /\$ npx wrangler deploy\n/);
 		assert.match(output, /\$ npx wrangler deploy --config workers\/public\/wrangler\.jsonc\n/);

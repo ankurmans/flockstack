@@ -51,6 +51,12 @@ describe("which requests go to the API Worker", () => {
 		assert.equal(route(env, `${APP}/api/v1/openapi.json`, { method: "OPTIONS" }), "api");
 	});
 
+	test("without the PUBLIC binding the openapi document is the API's", () => {
+		const { env } = stack();
+		delete env.PUBLIC;
+		assert.equal(route(env, `${APP}/api/v1/openapi.json`), "api");
+	});
+
 	test("nothing goes to the API Worker until API_ENABLED switches it on", () => {
 		for (const enabled of [null, "", "false", "off", "0", "nonsense"]) {
 			const { env } = stack({ enabled });

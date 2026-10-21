@@ -22,6 +22,7 @@ function withHeaders(response, startedAt) {
 	if (copy.headers.get("server-timing")) timings.push(copy.headers.get("server-timing"));
 	timings.push(`api;dur=${Date.now() - startedAt}`);
 	copy.headers.set("server-timing", timings.join(", "));
+	if (!copy.headers.has("x-served-by")) copy.headers.set("x-served-by", "api");
 	return copy;
 }
 

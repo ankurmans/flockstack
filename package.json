@@ -16,6 +16,8 @@
     "build:public": "node scripts/build-public.mjs --build",
     "render:public": "node scripts/build-public.mjs",
     "build:api": "node scripts/build-api-worker.mjs",
+    "bundle:app": "node scripts/bundle-worker.mjs",
+    "perf:budget": "node scripts/perf-budget.mjs",
     "deploy:api": "wrangler deploy --config workers/api/wrangler.jsonc",
     "deploy:public": "wrangler deploy --config workers/public/wrangler.jsonc",
     "deploy:router": "wrangler deploy --config workers/router/wrangler.jsonc"

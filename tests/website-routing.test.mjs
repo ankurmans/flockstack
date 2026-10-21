@@ -151,6 +151,16 @@ describe("worker-entry.mjs", () => {
 		assert.equal((await answer("https://eu.flockstack.io/pricing", { env: eu })).website, true);
 	});
 
+	test("times the app's own work in server-timing and names the Worker, without touching the website's answers", async () => {
+		const app = await worker.fetch(new Request("https://flockstack.io/signin"), { ...ENV, WEBSITE }, ctx);
+		assert.equal(app.headers.get("x-served-by"), "app");
+		assert.match(app.headers.get("server-timing"), /^app;dur=\d+$/);
+		assert.equal(await app.text(), "app", "the body is the app's, unchanged");
+		const website = await worker.fetch(new Request("https://flockstack.io/pricing"), { ...ENV, WEBSITE }, ctx);
+		assert.equal(website.headers.get("server-timing"), null, "the website's answer is passed as it is");
+		assert.equal(website.headers.get("x-served-by"), null);
+	});
+
 	test("forwards nothing without the binding or APP_URL, to a custom domain, or for a write", async () => {
 		assert.equal((await answer("https://flockstack.io/pricing", { env: ENV })).app, true, "no binding: a self-hosted server");
 		assert.equal((await answer("https://flockstack.io/pricing", { env: { WEBSITE, FLOCKSTACK_REGION: "us" } })).app, true, "no APP_URL");

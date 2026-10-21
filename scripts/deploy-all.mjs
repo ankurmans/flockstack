@@ -245,6 +245,11 @@ export async function main(argv = process.argv.slice(2), { migrationsDir = MIGRA
 		// Wrangler builds it again at each deploy (workers/api/wrangler.jsonc); here a failure stops the run before any migration.
 		console.log("\n==> Build the API Worker");
 		run("npm", ["run", "build:api"], options);
+		// A Worker whose script grew past its budget is a slower cold start for everybody: stop before anything is changed.
+		// The app's upload is the bundle Wrangler builds, so it is made here too (scripts/bundle-worker.mjs).
+		console.log("\n==> Size budgets");
+		run("npm", ["run", "bundle:app"], options);
+		run("npm", ["run", "perf:budget", "--", "--require-app"], options);
 	}
 
 	for (const region of regions) migrate(region, files, options);

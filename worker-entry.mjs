@@ -38,8 +38,21 @@ async function fetchWebsite(website, request) {
 	}
 }
 
+// The app's answer with how long the app took to produce it (server-timing: app;dur=), counted from the request reaching this
+// code, so it does not include starting the isolate: a cold request shows the difference against what the router measured around
+// the whole call (docs/PERFORMANCE.md). x-served-by names the Worker when no router in front has.
+function withTiming(response, startedAt) {
+	if (response.status === 101 || response.webSocket) return response;
+	const copy = new Response(response.body, response);
+	if (!copy.headers.has("x-served-by")) copy.headers.set("x-served-by", "app");
+	const timing = copy.headers.get("server-timing");
+	copy.headers.set("server-timing", `${timing ? `${timing}, ` : ""}app;dur=${Date.now() - startedAt}`);
+	return copy;
+}
+
 export default {
 	fetch: async (request, env, ctx) => {
+		const startedAt = Date.now();
 		if (isCertificateValidationRequest(request, env)) return fetch(request);
 		const url = new URL(request.url);
 		// The marketing website is its own Worker (a private repository), reached through the WEBSITE service binding. It is
@@ -76,8 +89,8 @@ export default {
 						hasAnalytics: Boolean(String(env.POSTHOG_KEY ?? "").trim()),
 					})
 				: null;
-		if (cacheKind) return serveWithEdgeCache({ request, env, ctx, cache: caches.default, render, policy: EDGE_CACHE_POLICIES[cacheKind] });
-		return render(request);
+		if (cacheKind) return withTiming(await serveWithEdgeCache({ request, env, ctx, cache: caches.default, render, policy: EDGE_CACHE_POLICIES[cacheKind] }), startedAt);
+		return withTiming(await render(request), startedAt);
 	},
 
 	async scheduled(event, env, ctx) {
