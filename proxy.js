@@ -49,6 +49,8 @@ const PUBLIC_PATHS = [
 	/^\/recommendations$/,
 	/^\/api\/shop\/(download|portal)$/,
 	/^\/api\/v1\//,
+	// The API Worker asks the app to drop a cached page (lib/internal-revalidate.js): the signature is the credential.
+	/^\/api\/internal\/revalidate$/,
 	/^\/api\/webhooks\//,
 	/^\/api\/jobs\//,
 	/^\/api\/cron\//,
