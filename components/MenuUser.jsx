@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import Link from "next/link";
-import { ChevronsUpDown, CreditCard, Globe, Images, KeyRound, LogOut, Moon, Shield, Sun, UserRound, Webhook } from "lucide-react";
+import { Activity, ChevronsUpDown, CreditCard, Globe, Images, KeyRound, LogOut, Moon, Shield, ShieldCheck, Sun, UserRound, Webhook } from "lucide-react";
 import { signOut } from "@/app/signin/actions";
 import AvatarUser from "@/components/AvatarUser";
 import { RadioGroupTheme } from "@/components/ButtonThemeToggle";
@@ -26,6 +26,8 @@ const ACCOUNT_PAGES = [
 	{ href: "/media", label: "Media", icon: Images },
 	{ href: "/domains", label: "Domains", icon: Globe },
 	{ href: "/api-keys", label: "API keys", icon: KeyRound },
+	{ href: "/approvals", label: "Approvals", icon: ShieldCheck },
+	{ href: "/agent-activity", label: "Agent activity", icon: Activity },
 	{ href: "/webhooks", label: "Webhooks", icon: Webhook },
 ];
 

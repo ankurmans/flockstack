@@ -3,6 +3,7 @@ import BlockCode from "@/components/BlockCode";
 import HeaderDocs from "@/components/HeaderDocs";
 import { MAX_ACTIVE_API_KEYS } from "@/lib/actions/api-keys";
 import { SLUG_CHANGES } from "@/lib/newsletters";
+import { PRESETS, PRESET_INFO } from "@/lib/action-scopes";
 import { ACTIONS } from "@/lib/actions/registry";
 import { API_BASE_PATH, REQUESTS_PER_KEY } from "@/lib/api/rest";
 import { API_KEY_SCAN_REGEX } from "@/lib/api-key-tokens";
@@ -23,7 +24,8 @@ export default function AuthenticationPage() {
 	return (
 		<>
 			<HeaderDocs kicker="Guides" title="Authentication">
-				Every request carries an API key as a bearer token. The key decides the account, and its level decides what it can do. ChatGPT and
+				Every request carries an API key as a bearer token. The key decides the account, and its level decides what it can do: read only, drafts only, send with approval,
+				full access or signups only. ChatGPT and
 				Claude don&apos;t need one: they connect to the{" "}
 				<Link href="/docs/mcp#chatgpt" className="text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
 					MCP server with OAuth
@@ -62,36 +64,45 @@ export default function AuthenticationPage() {
 				<BlockCode title="Regular expression" className="mt-4" code={API_KEY_SCAN_REGEX} />
 			</Section>
 
-			<Section title="Two levels" stagger={2}>
-				<div className="overflow-hidden rounded-xl shadow-border">
+			<Section title="Levels" stagger={2}>
+				<div className="overflow-x-auto rounded-xl shadow-border">
 					<table className="w-full text-left text-sm">
 						<thead>
 							<tr className="border-b border-border/60 text-xs text-muted-foreground">
 								<th className="py-2 pl-4 font-normal">Level</th>
-								<th className="py-2 pr-4 font-normal">Can</th>
+								<th className="py-2 pl-4 font-normal">In the API</th>
+								<th className="py-2 pr-4 pl-4 font-normal">Can</th>
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-border/60 align-top">
-							<tr>
-								<td className="py-3 pr-4 pl-4 font-medium whitespace-nowrap">Full access</td>
-								<td className="py-3 pr-4 text-muted-foreground">
-									Every endpoint and MCP tool, including creating and revoking keys. Keep it on a server or in your AI assistant&apos;s
-									settings.
-								</td>
-							</tr>
-							<tr>
-								<td className="py-3 pr-4 pl-4 font-medium whitespace-nowrap">Signups only</td>
-								<td className="py-3 pr-4 text-muted-foreground">
-									Only {signupsOnly.map(({ name }) => name).join(", ")} (<Code>POST {API_BASE_PATH}/contacts</Code>), for signup forms.
-									It can go in a web page: that endpoint answers browsers, and the key can&apos;t read or send anything.
-								</td>
-							</tr>
+							{PRESETS.map((preset) => (
+								<tr key={preset}>
+									<td className="py-3 pr-4 pl-4 font-medium whitespace-nowrap">{PRESET_INFO[preset].label}</td>
+									<td className="py-3 pr-4 font-mono text-[13px] whitespace-nowrap">{preset}</td>
+									<td className="py-3 pr-4 text-muted-foreground">
+										{preset === "signups" ? (
+											<>
+												Only {signupsOnly.map(({ name }) => name).join(", ")} (<Code>POST {API_BASE_PATH}/contacts</Code>), for signup forms. It can go in a
+												web page: that endpoint answers browsers, and the key can&apos;t read or send anything.
+											</>
+										) : (
+											PRESET_INFO[preset].description
+										)}
+									</td>
+								</tr>
+							))}
 						</tbody>
 					</table>
 				</div>
 				<p className="mt-4">
-					A signups only key calling anything else gets <Code>403 forbidden</Code>. Keys made before levels existed are signups only.
-					Revoked keys get <Code>401 unauthorized</Code>.
+					Calling something its level doesn&apos;t allow gets <Code>403 forbidden</Code>, and MCP lists only the tools a key can run. A key can also be
+					limited to one newsletter, capped at a number of calls a day (<Code>429 daily_cap_reached</Code> past it) and set to expire (<Code>401 unauthorized</Code>{" "}
+					after). Keys made before levels existed are signups only, and keys made as full access stay full. Revoked keys get{" "}
+					<Code>401 unauthorized</Code>. A send with approval key&apos;s sends and deletes wait for the owner: see{" "}
+					<Link href="/docs/agent-safety" className="text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
+						Agent safety
+					</Link>
+					.
 				</p>
 			</Section>
 

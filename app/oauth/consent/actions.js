@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { isDeletionPending } from "@/lib/account-state";
 import { notifyActivity } from "@/lib/alerts";
 import { getAuth, getCurrentAccount } from "@/lib/auth";
-import { answerConsent } from "@/lib/oauth";
+import { answerConsent, saveConsentAccess } from "@/lib/oauth";
 import { isExpiredOAuthQuery, readOAuthQuery, readOAuthQueryField } from "@/lib/oauth-rules";
 
 const EXPIRED_MESSAGE = "This request expired. Go back to the app and connect FlockStack again.";
@@ -27,7 +27,10 @@ export async function answerConsentRequest(_state, formData) {
 		return { error: "Couldn't answer the app. Go back to it and connect FlockStack again." };
 	}
 	if (!url) return { error: EXPIRED_MESSAGE };
-	if (accept) await notifyActivity(["App connected", readOAuthQuery(query).clientId], { accountId: current.account._id });
+	if (accept) {
+		await saveConsentAccess({ account: current.account, query, access: String(formData.get("access") ?? "") });
+		await notifyActivity(["App connected", readOAuthQuery(query).clientId], { accountId: current.account._id });
+	}
 	redirect(url);
 }
 

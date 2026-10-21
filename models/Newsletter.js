@@ -16,6 +16,9 @@ const newsletterSchema = new mongoose.Schema(
 		postalAddress: { type: String, trim: true },
 		postalAddressCleared: { type: Boolean },
 		archiveEnabled: { type: Boolean, default: false },
+		// "Ask me before an agent sends": what an API key or a connected app does in the SEND and DESTRUCTIVE classes
+		// waits for the owner's approval, whatever the key's level (lib/agent-guard.js). Dashboard only (set_agent_approval).
+		agentApproval: { type: Boolean },
 		// The account's verified archive subdomain (lib/domains.js syncArchiveHosts). Without one, the
 		// archive and the links in its emails use <slug>.<shared domain>.
 		archiveHost: { type: String, lowercase: true, trim: true },
