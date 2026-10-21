@@ -59,8 +59,7 @@
 			"observability": { "enabled": true },
 			"upload_source_maps": false,
 			"version_metadata": { "binding": "CF_VERSION_METADATA" },
-			// eu.flockstack.io is this Worker's until the EU router (workers/router, env eu) takes it: at that cutover this line goes.
-			"routes": [{ "pattern": "eu.flockstack.io", "custom_domain": true }],
+			// eu.flockstack.io belongs to the router Worker (flockstack-router-eu, workers/router) since the EU cutover.
 			"triggers": { "crons": ["0 * * * *", "30 6 * * *"] },
 			"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
 			"d1_databases": [{ "binding": "DB", "database_name": "flockstack-eu", "database_id": "3ffda07e-c73f-46ee-a933-1eb4feb18f70", "migrations_dir": "migrations" }],
