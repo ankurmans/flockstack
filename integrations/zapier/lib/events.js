@@ -10,5 +10,6 @@ module.exports = [
 	{ type: "campaign.sent", key: "campaign_sent", noun: "Campaign", label: "Campaign sent", description: "Triggers when a campaign finishes going out." },
 	{ type: "audio.ready", key: "audio_ready", noun: "Audio version", label: "Audio version ready", description: "Triggers when the audio version of an issue is made." },
 	{ type: "order.paid", key: "order_paid", noun: "Order", label: "Order paid", description: "Triggers when a reader pays for a digital product." },
+	{ type: "approval.decided", key: "approval_decided", noun: "Approval", label: "Approval decided", description: "Triggers when you approve or reject something an AI agent asked to do, or it expires." },
 	{ type: "automation.step", key: "automation_step", noun: "Automation step", label: "Automation step", description: "Triggers when a contact reaches a webhook step of an automation." },
 ];
