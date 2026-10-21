@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, test } from "node:test";
 import Stripe from "stripe";
-import { activate, addSentIssue, anonymous, as, callApi, catchNotFound, catchRedirect, form, jsonRequest, listPlanPrices, mockStripe, signIn, startTestApp } from "./helpers/app.mjs";
+import { activate, addSentIssue, anonymous, as, callApi, callRoute, catchNotFound, catchRedirect, form, jsonRequest, listPlanPrices, mockStripe, signIn, startTestApp } from "./helpers/app.mjs";
 import { published } from "./stubs/qstash.mjs";
 import { state } from "./stubs/ses.mjs";
 
@@ -74,7 +74,7 @@ async function callTool(key, name) {
 		},
 		body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: {} } }),
 	});
-	const text = await (await anonymous(() => m.mcpRoute.POST(request))).text();
+	const text = await (await callRoute(m.mcpRoute, "POST", request)).text();
 	return JSON.parse(text.split("\n").find((line) => line.startsWith("data: ")).slice(6)).result;
 }
 

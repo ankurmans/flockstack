@@ -6,7 +6,7 @@ import { getDeliveryEmail } from "../lib/email-aliases.js";
 import { getEventPlan } from "../lib/email-event-rules.js";
 import { normalizePostshibaEvent } from "../lib/email-provider/postshiba-events.js";
 import { getSesEventPlan } from "../lib/ses-event-mapping.js";
-import { activate, anonymous, as, callApi, catchNotFound, catchRedirect, form, jsonRequest, signIn, startTestApp } from "./helpers/app.mjs";
+import { activate, as, callApi, callRoute, catchNotFound, catchRedirect, form, jsonRequest, signIn, startTestApp } from "./helpers/app.mjs";
 import { POSTSHIBA } from "./helpers/postshiba.mjs";
 import { runWithRequest } from "./stubs/next-headers.mjs";
 import { flushAfter } from "./stubs/next-server.mjs";
@@ -136,7 +136,7 @@ describe("the never-email list", () => {
 			},
 			body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "add_contact", arguments: { email } } }),
 		});
-		const text = await (await anonymous(() => m.mcpRoute.POST(request))).text();
+		const text = await (await callRoute(m.mcpRoute, "POST", request)).text();
 		return JSON.parse(text.split("\n").find((line) => line.startsWith("data: ")).slice(6)).result;
 	}
 

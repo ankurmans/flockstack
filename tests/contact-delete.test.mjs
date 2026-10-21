@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import { createUnsubscribeToken } from "../lib/unsubscribe.js";
-import { activate, anonymous, as, callApi, catchRedirect, form, jsonRequest, signIn, startTestApp } from "./helpers/app.mjs";
+import { activate, as, callApi, callRoute, catchRedirect, form, jsonRequest, signIn, startTestApp } from "./helpers/app.mjs";
 import { runWithRequest } from "./stubs/next-headers.mjs";
 import { flushAfter } from "./stubs/next-server.mjs";
 import { published } from "./stubs/qstash.mjs";
@@ -58,7 +58,7 @@ async function callTool(key, name, args) {
 		},
 		body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } }),
 	});
-	const text = await (await anonymous(() => m.mcpRoute.POST(request))).text();
+	const text = await (await callRoute(m.mcpRoute, "POST", request)).text();
 	return JSON.parse(text.split("\n").find((line) => line.startsWith("data: ")).slice(6)).result;
 }
 

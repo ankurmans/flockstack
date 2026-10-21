@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { activate, anonymous, as, callApi, catchRedirect, form, signIn } from "./app.mjs";
+import { activate, as, callApi, callRoute, catchRedirect, form, signIn } from "./app.mjs";
 
 // An account with two newsletters and a key of each level, for the tests of what an agent may do. Keys are made on the API
 // keys page, the way a person makes them.
@@ -61,7 +61,7 @@ export async function mcp(m, key, method, params = {}) {
 		},
 		body: JSON.stringify({ jsonrpc: "2.0", method, params, id: ++nextId }),
 	});
-	const response = await anonymous(() => m.mcpRoute.POST(request));
+	const response = await callRoute(m.mcpRoute, "POST", request);
 	const text = await response.text();
 	const data = text.split("\n").find((line) => line.startsWith("data: "));
 	return { status: response.status, body: data ? JSON.parse(data.slice(6)) : text ? JSON.parse(text) : null };

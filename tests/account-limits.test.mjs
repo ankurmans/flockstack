@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
-import { activate, anonymous, as, callApi, catchRedirect, form, signIn, startTestApp } from "./helpers/app.mjs";
+import { activate, as, callApi, callRoute, catchRedirect, form, signIn, startTestApp } from "./helpers/app.mjs";
 import { dnsRecords } from "./stubs/dns-broker.mjs";
 import { state } from "./stubs/ses.mjs";
 
@@ -54,7 +54,7 @@ async function callTool(key, name, args = {}) {
 		},
 		body: JSON.stringify({ jsonrpc: "2.0", method: "tools/call", params: { name, arguments: args }, id: ++nextId }),
 	});
-	const text = await (await anonymous(() => m.mcpRoute.POST(request))).text();
+	const text = await (await callRoute(m.mcpRoute, "POST", request)).text();
 	const { result } = JSON.parse(text.split("\n").find((line) => line.startsWith("data: ")).slice(6));
 	return result.isError ? JSON.parse(result.content[0].text) : result.structuredContent;
 }

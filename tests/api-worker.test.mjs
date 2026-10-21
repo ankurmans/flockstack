@@ -51,7 +51,8 @@ async function throughNext(request, segments) {
 	return m.rest[request.method](request, { params: Promise.resolve({ path: segments }) });
 }
 
-const read = async (response) => ({ status: response.status, body: await response.clone().text(), type: response.headers.get("content-type"), challenge: response.headers.get("www-authenticate"), allow: response.headers.get("allow"), cors: response.headers.get("access-control-allow-origin") });
+// A call counts against its key (callsToday, lastUsedAt), so the second of two identical calls sees the first.
+const read = async (response) => ({ status: response.status, body: (await response.clone().text()).replace(/"callsToday":\d+/g, '"callsToday":0').replace(/"lastUsedAt":("[^"]*"|null)/g, '"lastUsedAt":null'), type: response.headers.get("content-type"), challenge: response.headers.get("www-authenticate"), allow: response.headers.get("allow"), cors: response.headers.get("access-control-allow-origin") });
 
 function fill(path) {
 	return path.replace(/\{[^}]+\}/g, "abc");
@@ -83,7 +84,7 @@ describe("the same routes in both", () => {
 	test("the read-only actions answer the same with a key", async () => {
 		const headers = { authorization: `Bearer ${owner.fullKey}` };
 		let compared = 0;
-		for (const action of m.registry.ACTIONS.filter((candidate) => candidate.http.method === "GET" && !candidate.http.path.includes("{") && !candidate.http.path.includes("export"))) {
+		for (const action of m.registry.ACTIONS.filter((candidate) => candidate.http.method === "GET" && !candidate.http.path.includes("{") && !candidate.http.path.includes("export") && !candidate.http.path.includes("activity"))) {
 			const path = `/api/v1${action.http.path}`;
 			const segments = path.replace(/^\/api\/v1\//, "").split("/");
 			const next = await read(await throughNext(jsonRequest(path, { headers }), segments));
@@ -92,6 +93,16 @@ describe("the same routes in both", () => {
 			compared++;
 		}
 		assert.ok(compared >= 15, `${compared} read-only actions compared`);
+	});
+
+	test("the guard runs in the Worker: a call is logged under its request id, and an approval waits as a 202", async () => {
+		const headers = { authorization: `Bearer ${owner.fullKey}` };
+		const call = await worker(jsonRequest("/api/v1/connected-apps", { headers }));
+		assert.equal(call.status, 200);
+		const requestId = call.headers.get("x-request-id");
+		assert.match(requestId, /^req_/);
+		const log = await (await worker(jsonRequest("/api/v1/agent-activity", { headers }))).json();
+		assert.ok(log.activity.some((entry) => entry.requestId === requestId && entry.action === "list_connected_apps"), `the call is in the activity log: ${requestId} ${JSON.stringify(log.activity.slice(0, 3))}`);
 	});
 
 	test("the preflight, the signups key's CORS answer and a rate limit are the same", async () => {

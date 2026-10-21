@@ -6,9 +6,9 @@ import { fileURLToPath } from "node:url";
 // The suites that go through /api/v1, /mcp and the OAuth endpoints, run again with FLOCKSTACK_API_TARGET=worker: the requests go to
 // the lean API Worker's fetch handler (workers/api) instead of the Next.js route handlers, and every assertion stays the same. This is
 // the "same behavior" test of the Worker: the REST API with all its actions, MCP (tools, errors, the SDK client), OAuth (discovery,
-// registration, tokens, consent, revocation), keys and limits. `FLOCKSTACK_API_TARGET=worker npm test` runs the whole suite so.
+// registration, tokens, consent, revocation), keys and limits, and agent safety (scopes, per-newsletter keys, caps, expiry, approvals and the 202, the activity log, OAuth access levels). `FLOCKSTACK_API_TARGET=worker npm test` runs the whole suite so.
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
-const SUITES = ["api", "mcp", "oauth", "parity", "api-keys", "account-limits", "account-blocks", "free-plans", "tags-fields"];
+const SUITES = ["api", "mcp", "oauth", "parity", "api-keys", "account-limits", "account-blocks", "free-plans", "tags-fields", "agent-keys", "agent-approvals", "agent-scopes", "agent-activity"];
 
 test("the API, MCP and OAuth suites pass against the lean API Worker", { timeout: 600_000 }, async () => {
 	if (process.env.FLOCKSTACK_API_TARGET === "worker") return; // already the whole suite, so nothing to start

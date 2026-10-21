@@ -153,7 +153,8 @@ describe("the reference", () => {
 	});
 
 	test("the MCP instructions tell an assistant what to do with a request that waits", async () => {
-		const { MCP_INSTRUCTIONS } = await import("../lib/mcp/server.js");
+		const { getMcpInstructions } = await import("../lib/mcp/server.js");
+		const MCP_INSTRUCTIONS = await getMcpInstructions();
 		assert.match(MCP_INSTRUCTIONS, /approval_required/);
 		assert.match(MCP_INSTRUCTIONS, /do not call the tool again/);
 		assert.match(MCP_INSTRUCTIONS, /get_approval_status/);

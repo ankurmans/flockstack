@@ -1,9 +1,9 @@
 {
 	"_about": "Sizes the Workers must stay under (scripts/perf-budget.mjs, tests/perf-budget.test.mjs). Measured on 2026-10-21 with a little room; raise one only in a change that says why a Worker had to grow. Bytes.",
 	"budgets": {
-		"app-handler": { "label": "app handler.mjs (OpenNext)", "file": ".open-next/server-functions/default/handler.mjs", "maxBytes": 28000000, "measured": 26900000 },
-		"app-upload": { "label": "app script Wrangler uploads (.worker/worker-entry.js)", "file": ".worker/worker-entry.js", "maxBytes": 30500000, "measured": 29150000 },
-		"api-worker": { "label": "API Worker (workers/api/dist/index.js)", "file": "workers/api/dist/index.js", "maxBytes": 8500000, "measured": 7690000, "build": "api" },
+		"app-handler": { "label": "app handler.mjs (OpenNext)", "file": ".open-next/server-functions/default/handler.mjs", "maxBytes": 28000000, "measured": 27690000 },
+		"app-upload": { "label": "app script Wrangler uploads (.worker/worker-entry.js)", "file": ".worker/worker-entry.js", "maxBytes": 30500000, "measured": 29950000 },
+		"api-worker": { "label": "API Worker (workers/api/dist/index.js)", "file": "workers/api/dist/index.js", "maxBytes": 8500000, "measured": 7800000, "build": "api" },
 		"router": { "label": "router Worker, bundled and minified", "bundle": "workers/router/index.js", "maxBytes": 9000, "measured": 6911 },
 		"public-handler": { "label": "public pages Worker handler, bundled and minified", "bundle": "workers/public/handler.js", "maxBytes": 6000, "measured": 3500 }
 	}
