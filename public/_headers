@@ -1,0 +1,4 @@
+# Cloudflare's static assets read this file (and do not serve it): the files Next.js names by a hash of their content never
+# change, so a browser may keep them for good instead of asking again on every page.
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable

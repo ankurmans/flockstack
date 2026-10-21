@@ -54,7 +54,7 @@ export function bundleWorker({ force = false } = {}) {
 	mkdirSync(join(OUT, "wrangler"), { recursive: true });
 	writeFileSync(
 		join(OUT, "bundle.jsonc"),
-		JSON.stringify({ name: "bundle", main: "../worker-entry.mjs", compatibility_date: config.compatibility_date, compatibility_flags: config.compatibility_flags })
+		JSON.stringify({ name: "bundle", main: "../worker-entry.mjs", compatibility_date: config.compatibility_date, compatibility_flags: config.compatibility_flags, keep_names: false })
 	);
 	const require = createRequire(join(ROOT, "package.json"));
 	const wranglerBin = join(dirname(require.resolve("wrangler/package.json")), "bin", "wrangler.js");

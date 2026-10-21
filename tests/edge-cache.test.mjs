@@ -1,6 +1,20 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { FRESH_SECONDS, STALE_SECONDS, canStoreResponse, canUseEdgeCache, edgeCacheKey, isEdgeCachedPath, serveWithEdgeCache } from "../lib/edge-cache.js";
+import {
+	ARCHIVE_FRESH_SECONDS,
+	ARCHIVE_STALE_SECONDS,
+	EDGE_CACHE_POLICIES,
+	FRESH_SECONDS,
+	STALE_SECONDS,
+	canStoreResponse,
+	canUseEdgeCache,
+	edgeCacheKey,
+	getEdgeCacheKind,
+	hasOwnCookie,
+	isArchiveCachedPath,
+	isEdgeCachedPath,
+	serveWithEdgeCache,
+} from "../lib/edge-cache.js";
 
 const can = (overrides) => canUseEdgeCache({ method: "GET", hostname: "flockstack.io", appHostname: "flockstack.io", pathname: "/terms", search: "", headers: new Headers(), hasSession: false, ...overrides });
 
@@ -61,6 +75,8 @@ describe("lib/edge-cache.js: which requests may use the cache", () => {
 		assert.equal(canStoreResponse(response(200, "text/plain; charset=utf-8")), true);
 		assert.equal(canStoreResponse(response(200, "application/json")), true);
 		assert.equal(canStoreResponse(response(200, "application/xml")), true);
+		assert.equal(canStoreResponse(response(200, "application/rss+xml; charset=utf-8")), true, "a newsletter's feed");
+		assert.equal(canStoreResponse(response(200, "application/atom+xml")), true);
 		assert.equal(canStoreResponse(response(404, "text/html")), false);
 		assert.equal(canStoreResponse(response(307, "text/html")), false);
 		assert.equal(canStoreResponse(response(200, "text/html", { "set-cookie": "a=b" })), false);
@@ -137,5 +153,139 @@ describe("lib/edge-cache.js: serving", () => {
 		});
 		assert.equal(await response.text(), "ok");
 		await Promise.all(pending);
+	});
+});
+
+const kind = (overrides) => getEdgeCacheKind({ method: "GET", hostname: "flockstack.io", appHostname: "flockstack.io", pathname: "/terms", search: "", headers: new Headers(), hasSession: false, ...overrides });
+const archive = (overrides) => kind({ hostname: "news.example.com", pathname: "/", ...overrides });
+
+describe("lib/edge-cache.js: a newsletter's public pages on its own host", () => {
+	test("the pages everyone sees the same, and none that has a form, a price, a reader's own or a mailed link", () => {
+		for (const pathname of ["/", "/issues", "/links", "/sitemap.xml", "/robots.txt", "/llms.txt", "/feed.xml", "/podcast.xml", "/p/an-issue", "/p/issue-2024-1", "/tags/news", "/authors/ana"]) {
+			assert.equal(archive({ pathname }), "archive", pathname);
+			assert.equal(isArchiveCachedPath(pathname), true, pathname);
+		}
+		for (const pathname of ["/subscribe", "/shop", "/shop/a-product", "/give", "/offer/CODE12", "/signin", "/account", "/unsubscribe", "/confirm", "/keep", "/reader/in", "/poll", "/survey", "/preferences", "/pledge", "/gift", "/o/token", "/c/token", "/api/views", "/api/visit", "/api/unsubscribe", "/embed/0123456789abcdef01234567", "/f/0123456789abcdef01234567", "/audio/an-issue.mp3", "/p/", "/p/UPPER", "/p/a/b", "/tags", "/authors", "/_next/static/a.js", "/favicon.ico", "/docs", "/terms", "/api/v1/contacts", "/archive/news"]) {
+			assert.equal(archive({ pathname }), null, pathname);
+		}
+	});
+
+	test("only for a visitor with no cookie of their own, no query and a plain GET", () => {
+		assert.equal(archive({ headers: new Headers({ cookie: "__cf_bm=abc; _cfuvid=def; cf_clearance=ghi" }) }), "archive");
+		for (const cookie of ["fs_reader_news=abc", "fs_reader_news_on=1", "better-auth.session_token=x", "__Secure-flockstack-eu.session_token=x", "fs_consent=accepted", "other=1", "__cf_bm=abc; fs_reader_news=abc"]) {
+			assert.equal(archive({ headers: new Headers({ cookie }) }), null, cookie);
+		}
+		assert.equal(hasOwnCookie(""), false);
+		assert.equal(hasOwnCookie(null), false);
+		assert.equal(hasOwnCookie("a=1"), true);
+		assert.equal(archive({ search: "?ref=abc" }), null);
+		assert.equal(archive({ search: "?page=2" }), null);
+		assert.equal(archive({ method: "POST" }), null);
+		assert.equal(archive({ method: "HEAD" }), null);
+		assert.equal(archive({ hasSession: true }), null);
+		for (const name of ["rsc", "next-router-prefetch", "next-action", "range", "authorization"]) assert.equal(archive({ headers: new Headers({ [name]: "1" }) }), null, name);
+		assert.equal(archive({ appHostname: "" }), null);
+	});
+
+	test("never on FlockStack's own host as an archive, nor FlockStack's pages on a newsletter's host", () => {
+		assert.equal(kind({ hostname: "flockstack.io", pathname: "/p/an-issue" }), null);
+		assert.equal(kind({ hostname: "flockstack.io", pathname: "/" }), null);
+		assert.equal(kind({ hostname: "flockstack.io", pathname: "/docs/api" }), "app");
+		assert.equal(archive({ pathname: "/docs/api" }), null);
+		assert.equal(archive({ pathname: "/terms" }), null);
+	});
+
+	test("stays fresh for a minute and may answer for ten more, and the plan's numbers are the app's own for FlockStack's pages", () => {
+		assert.deepEqual(EDGE_CACHE_POLICIES.archive, { fresh: ARCHIVE_FRESH_SECONDS, stale: ARCHIVE_STALE_SECONDS });
+		assert.deepEqual(EDGE_CACHE_POLICIES.app, { fresh: FRESH_SECONDS, stale: STALE_SECONDS });
+		assert.equal(ARCHIVE_FRESH_SECONDS, 60);
+		assert.equal(ARCHIVE_STALE_SECONDS, 600);
+	});
+
+	test("an issue is stored for the archive's short time, and the key keeps the newsletter's host apart", async () => {
+		const { cache, clock, calls, serve } = setup({ body: "<h1>An issue</h1>", env: { CF_VERSION_METADATA: { id: "v1" } } });
+		const serveArchive = async (url) => {
+			const pending = [];
+			const response = await serveWithEdgeCache({ request: new Request(url), env: { CF_VERSION_METADATA: { id: "v1" } }, ctx: { waitUntil: (promise) => pending.push(promise) }, cache, render: async (request) => { calls.push(request.url); return new Response("<h1>An issue</h1>", { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "private, no-cache, no-store" } }); }, now: () => clock.ms, policy: EDGE_CACHE_POLICIES.archive });
+			const text = await response.text();
+			await Promise.all(pending);
+			return { response, text };
+		};
+		void serve;
+		assert.equal((await serveArchive("https://news.example.com/p/an-issue")).response.headers.get("x-edge-cache"), "MISS");
+		assert.equal((await serveArchive("https://news.example.com/p/an-issue")).response.headers.get("x-edge-cache"), "HIT");
+		assert.equal((await serveArchive("https://other.example.com/p/an-issue")).response.headers.get("x-edge-cache"), "MISS", "another newsletter's host is another key");
+		clock.ms += (ARCHIVE_FRESH_SECONDS + 1) * 1000;
+		assert.equal((await serveArchive("https://news.example.com/p/an-issue")).response.headers.get("x-edge-cache"), "STALE");
+		clock.ms += (ARCHIVE_STALE_SECONDS + 1) * 1000;
+		assert.equal((await serveArchive("https://news.example.com/p/an-issue")).response.headers.get("x-edge-cache"), "MISS", "past ten minutes the app answers again");
+		const stored = [...cache.entries.values()][0];
+		assert.equal(stored.headers.get("cache-control"), `public, s-maxage=${ARCHIVE_STALE_SECONDS}`);
+	});
+
+	test("a page of an unpublished or missing issue (404), a redirect and an answer that sets a cookie are never stored", async () => {
+		for (const [status, headers] of [[404, {}], [301, {}], [307, {}], [500, {}], [200, { "set-cookie": "fs_reader_news=x; Path=/" }]]) {
+			const { cache, serve } = setup({ status, headers });
+			const { response } = await serve("https://news.example.com/p/gone");
+			assert.equal(response.headers.get("x-edge-cache"), "BYPASS", String(status));
+			assert.equal(cache.entries.size, 0);
+		}
+	});
+});
+
+describe("lib/edge-cache.js: pages that carry the analytics", () => {
+	test("the HTML of the docs and the legal pages is not stored where a POSTHOG_KEY is set, the files are", () => {
+		for (const pathname of ["/docs", "/docs/api", "/terms", "/privacy", "/sub-processors"]) {
+			assert.equal(kind({ pathname, hasAnalytics: true }), null, pathname);
+			assert.equal(kind({ pathname, hasAnalytics: false }), "app", `${pathname} without analytics`);
+		}
+		for (const pathname of ["/robots.txt", "/sitemap.xml", "/llms.txt", "/llms-full.txt", "/llms-docs.txt", "/api/v1/openapi.json"]) {
+			assert.equal(kind({ pathname, hasAnalytics: true }), "app", pathname);
+		}
+	});
+});
+
+describe("lib/edge-cache.js: a feed reader that already has the copy", () => {
+	function feedSetup() {
+		const cache = fakeCache();
+		const pending = [];
+		const calls = [];
+		const clock = { ms: 5_000_000 };
+		const serve = async (headers = {}) => {
+			const response = await serveWithEdgeCache({
+				request: new Request("https://news.example.com/feed.xml", { headers }),
+				env: { CF_VERSION_METADATA: { id: "v1" } },
+				ctx: { waitUntil: (promise) => pending.push(promise) },
+				cache,
+				render: async () => {
+					calls.push(1);
+					return new Response("<rss/>", { headers: { "content-type": "application/rss+xml; charset=utf-8", etag: '"abc"', "last-modified": "Tue, 20 Oct 2026 10:00:00 GMT", "access-control-allow-origin": "*" } });
+				},
+				now: () => clock.ms,
+				policy: EDGE_CACHE_POLICIES.archive,
+			});
+			const text = await response.text();
+			await Promise.all(pending.splice(0));
+			return { response, text };
+		};
+		return { calls, serve };
+	}
+
+	test("is told it has it, with no body, and a reader without it gets the feed", async () => {
+		const { calls, serve } = feedSetup();
+		assert.equal((await serve()).response.headers.get("x-edge-cache"), "MISS");
+		const full = await serve();
+		assert.equal(full.response.status, 200);
+		assert.equal(full.text, "<rss/>");
+		assert.equal(full.response.headers.get("etag"), '"abc"');
+		const same = await serve({ "if-none-match": '"abc"' });
+		assert.equal(same.response.status, 304);
+		assert.equal(same.text, "");
+		assert.equal(same.response.headers.get("etag"), '"abc"');
+		assert.equal(same.response.headers.get("x-edge-cache"), "HIT");
+		assert.equal(same.response.headers.get("access-control-allow-origin"), "*");
+		assert.equal((await serve({ "if-none-match": 'W/"abc", "other"' })).response.status, 304);
+		assert.equal((await serve({ "if-none-match": '"stale"' })).response.status, 200);
+		assert.equal(calls.length, 1, "the app rendered the feed once");
 	});
 });

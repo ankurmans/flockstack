@@ -18,6 +18,9 @@
 	"upload_source_maps": false,
 	// The version's ID keys the cached public pages (lib/edge-cache.js), so a deploy never serves an old page from the cache.
 	"version_metadata": { "binding": "CF_VERSION_METADATA" },
+	// flockstack.io is this Worker's until the router Worker (workers/router, docs/ARCHITECTURE-WORKERS.md) takes it; at that cutover
+	// the flockstack.io line goes (deploy-all.mjs refuses to deploy while it and the router both claim the domain). A newsletter's
+	// own domain, like newsletter.ankur.works, stays here for good: it never goes through the router.
 	"routes": [
 		{ "pattern": "flockstack.io", "custom_domain": true },
 		{ "pattern": "newsletter.ankur.works", "custom_domain": true }
@@ -33,7 +36,8 @@
 	// Workers AI for the help chat's assistant, through AI Gateway's "default" gateway (README, Support assistant).
 	// Without it the help chat doesn't render.
 	"ai": { "binding": "AI" },
-	// The marketing website, a separate Worker: worker-entry.mjs hands it the paths in lib/website-routing.js. Deploy it first,
+	// The marketing website, a separate Worker. The router Worker hands it its paths (lib/website-routing.js); this binding stays
+	// for a domain that points straight at this Worker (the rollback) and for the router's fallback. Deploy the website first,
 	// since a deploy that binds a Worker which does not exist fails. Without the binding those paths fall through to the app.
 	"services": [{ "binding": "WEBSITE", "service": "flockstack-website" }],
 	"vars": {
@@ -43,7 +47,7 @@
 	},
 	// The EU deployment: the same code as a second Worker with its own EU-jurisdiction database and buckets
 	// (README, Regions). Wrangler environments inherit no bindings, vars or routes, so everything it needs is here.
-	// Deploy it with `npx wrangler deploy --env eu`, or both with `node scripts/deploy-all.mjs`.
+	// Deploy it with `npx wrangler deploy --env eu`, or everything with `node scripts/deploy-all.mjs`.
 	"env": {
 		"eu": {
 			"name": "flockstack-eu",
@@ -59,6 +63,7 @@
 			"observability": { "enabled": true },
 			"upload_source_maps": false,
 			"version_metadata": { "binding": "CF_VERSION_METADATA" },
+			// eu.flockstack.io is this Worker's until the EU router (workers/router, env eu) takes it: at that cutover this line goes.
 			"routes": [{ "pattern": "eu.flockstack.io", "custom_domain": true }],
 			"triggers": { "crons": ["0 * * * *", "30 6 * * *"] },
 			"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
