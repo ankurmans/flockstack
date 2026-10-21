@@ -192,6 +192,8 @@ describe("the pieces", () => {
 		const read = (path) => JSON.parse(readFileSync(join(ROOT, path), "utf8").replace(/^\s*\/\/.*$/gm, ""));
 		const apiConfig = read("workers/api/wrangler.jsonc");
 		const routerConfig = read("workers/router/wrangler.jsonc");
+		assert.equal(apiConfig.build.command, "npm run build:api", "Wrangler builds it wherever it is run from");
+		assert.equal(apiConfig.env.eu.build.command, "npm run build:api");
 		assert.equal(REGIONS.us.apiWorker, apiConfig.name);
 		assert.deepEqual(REGIONS.us.apiArgs, ["--config", "workers/api/wrangler.jsonc"]);
 		assert.equal(REGIONS.eu.apiWorker, apiConfig.env.eu.name);
