@@ -1,6 +1,6 @@
-# FlockStack Cloud: four Workers behind one domain
+# FlockStack Cloud: five Workers behind one domain
 
-FlockStack Cloud answers `flockstack.io` and `eu.flockstack.io` with a small router Worker that hands each request to the Worker that can answer it without starting the whole app. The app Worker is a 40 MB script: a new isolate needs one to several seconds to load it, so with few visitors most requests used to pay that. The public pages (the website, the docs, the legal pages) now come from Workers that start in milliseconds, and only the dashboard, the API, the MCP server and the other routes that need the app start it.
+FlockStack Cloud answers `flockstack.io` and `eu.flockstack.io` with a small router Worker that hands each request to the Worker that can answer it without starting the whole app. The app Worker is a 40 MB script: a new isolate needs one to several seconds to load it, so with few visitors most requests used to pay that. The public pages (the website, the docs, the legal pages) come from Workers that start in milliseconds, and the REST API, the MCP server and the OAuth endpoints MCP clients call come from a lean API Worker of about 8 MB that starts in a fraction of a second; only the dashboard and the other routes that need the app start it. (The app's script is 29 MB, down from 40 MB: `docs/PERFORMANCE.md`.)
 
 **Self-hosted servers have none of this.** A server without `FLOCKSTACK_CLOUD=true` runs from the one app Worker (`wrangler.jsonc`), exactly as before: no router, no public pages Worker, and `worker-entry.mjs` does what it always did. Nothing in this document is needed to self-host, and nothing in it changes what a self-hosted server serves.
 
@@ -11,25 +11,29 @@ FlockStack Cloud answers `flockstack.io` and `eu.flockstack.io` with a small rou
                                   │
                        ┌──────────▼───────────┐
                        │  router (a few KB)   │  workers/router
-                       └──┬───────┬────────┬──┘
-        website paths, and │       │        │ everything else
-        "/" without a      │       │        │ (and whatever fails open)
-        session            │       │ docs, legal pages, llms files,
-                           │       │ openapi.json, sitemap, robots, manifest
-                 ┌─────────▼┐  ┌───▼────────┐  ┌▼──────────────────────────┐
-                 │ website  │  │ public     │  │ app (40 MB): flockstack,  │
-                 │ (private │  │ pages      │  │ flockstack-eu. Every route│
-                 │  repo)   │  │ (static)   │  │ the product has.          │
-                 └──────────┘  └────────────┘  └───────────────────────────┘
-                                  workers/public
+                       └──┬──────┬──────┬──┬──┘
+        website paths, and │      │      │  │ everything else
+        "/" without a      │      │      │  │ (and whatever fails open)
+        session            │      │      │  │
+                           │      │ docs, legal pages, llms files,
+                           │      │ openapi.json, sitemap, robots, manifest
+                 ┌─────────▼┐ ┌───▼──────┐   │      /api/v1, /mcp, OAuth endpoints,
+                 │ website  │ │ public   │   │      /.well-known metadata
+                 │ (private │ │ pages    │ ┌─▼────────────────┐  ┌▼──────────────────────────┐
+                 │  repo)   │ │ (static) │ │ API (8 MB)       │  │ app (29 MB): flockstack,  │
+                 └──────────┘ └──────────┘ │ flockstack-api,  │  │ flockstack-eu. Every route│
+                              workers/public│ -api-eu          │  │ the product has.          │
+                                           │ workers/api      │  └───────────────────────────┘
+                                           └──────────────────┘
 ```
 
 | Worker | Where | What it does |
 | --- | --- | --- |
-| `flockstack-router`, `flockstack-router-eu` | `workers/router` | Owns the domain. Plain JavaScript, three small imports, under 5 KB. Picks WEBSITE, PUBLIC or APP for each request, adds `x-served-by` and `server-timing`, and falls back to APP when WEBSITE or PUBLIC fails. |
+| `flockstack-router`, `flockstack-router-eu` | `workers/router` | Owns the domain. Plain JavaScript, four small imports, about 7 KB. Picks WEBSITE, PUBLIC, API or APP for each request, adds `x-served-by` and `server-timing`, and falls back to APP when WEBSITE, PUBLIC or API fails (API: see below). |
+| `flockstack-api`, `flockstack-api-eu` | `workers/api` | The REST API (`/api/v1`), the MCP server (`/mcp`, `/api/mcp`), the OAuth endpoints an MCP client calls (token, introspection, revocation, registration, userinfo, jwks) and the discovery documents (`/.well-known/oauth-*`, `openid-configuration`). The same source modules as the app's routes, built without Next.js or React. Bound to its region's database and buckets. Receives nothing until the router's `API_ENABLED` says so. |
 | `flockstack-website` | the website repository (private) | The marketing website. Unchanged: the router asks it for the same paths, with the same host, cookies and `cf-*` headers as before. |
 | `flockstack-public`, `flockstack-public-eu` | `workers/public` | The docs, the legal pages and the files for agents and crawlers, rendered once per deploy (`npm run build:public`) and served as files. A script of 3 KB fills in each visitor's analytics settings. |
-| `flockstack`, `flockstack-eu` | the rest of this repository | The app. It keeps every route, so rolling back is pointing the domain back. |
+| `flockstack`, `flockstack-eu` | the rest of this repository | The app. It keeps every route, the API's included, so rolling back is pointing the domain back or switching `API_ENABLED` off. |
 
 Two routers, not one with a table per host, because each has a different APP binding and reads a different session cookie, and a mistake in one region's deploy then stays in that region. The public pages Worker is also one per region: its files contain the names of the JavaScript files of the build its own app Worker runs, so a region deployed alone never serves pages that point at another build's files.
 
@@ -43,17 +47,32 @@ Two routers, not one with a table per host, because each has a different APP bin
 | `/` without a session cookie | WEBSITE |
 | `/` with a session cookie (`better-auth.session_token` in the US, `flockstack-eu.session_token` in the EU, each with or without `__Secure-`) | APP, the dashboard |
 | The docs (every page in `lib/docs/pages.js`), `/terms`, `/privacy`, `/sub-processors`, `/llms-docs.txt`, `/llms-full.txt`, `/api/v1/openapi.json`, `/sitemap.xml`, `/robots.txt`, `/site.webmanifest`, `/icon.svg`, `/apple-icon.png` (`lib/public-routing.js`) | PUBLIC, for a GET or HEAD |
-| Everything else: the dashboard, `/api`, `/mcp`, `/oauth`, `/.well-known`, sign-in, readers' pages, webhooks, jobs, QStash, Polar, Stripe, uploads, `/_next/static`, `/custom`, `/recommendations`, and every POST | APP |
+| `/api/v1/*` (every method), `/mcp` and `/api/mcp`, the four `/.well-known` documents of OAuth and MCP discovery, and the machine endpoints of OAuth under `/api/auth` (`/oauth2/token`, `/oauth2/introspect`, `/oauth2/revoke`, `/oauth2/register`, `/oauth2/userinfo`, `/jwks`): `lib/api-routing.js`, the one list, with the groups `rest`, `mcp`, `wellknown`, `oauth`. Only when the router has the API binding and `API_ENABLED` names the group. `/api/v1/openapi.json` stays PUBLIC's for a plain GET | API |
+| Everything else: the dashboard, the rest of `/api` (`/api/auth/oauth2/authorize`, sign-in, callbacks), `/oauth/consent`, other `/.well-known` paths (Cloudflare for SaaS certificate checks), sign-in, readers' pages, webhooks, jobs, QStash, Polar, Stripe, uploads, `/_next/static`, `/custom`, `/recommendations`, and every POST outside the API's paths | APP |
 
 Files of the app's static assets (`/_next/static/*`, `/favicon.ico`, `/icon-192.png`, `/icon-512.png`) go to APP too, and the platform answers them from the assets without starting the app's script (measured on a deployed stack: no `x-iso-app` header). `public/_headers` makes the hashed files under `/_next/static` immutable for browsers, which Cloudflare's static assets did not do by themselves (they sent `max-age=0, must-revalidate`, so every page asked again for every script).
 
 **Fail open.** WEBSITE and PUBLIC get three seconds (`ROUTER_TIMEOUT_MS`) to start answering. If one throws, times out, answers 502, 503 or 504, or (PUBLIC) says it has no copy of the page, the router asks APP, which still has every route. Only a GET or HEAD is ever retried. What WEBSITE or PUBLIC answered otherwise, a 404 included, is the answer: a legal page that is not published yet is a 404 on purpose.
 
-**Nothing is rewritten on the way to APP.** The app gets the visitor's own `Request` object: method, URL, headers (cookies, `cf-connecting-ip`, `cf-ipcountry`, webhook signatures) and the body as a stream the router never reads. Standard Webhooks and Stripe signatures cover the exact bytes of the body, and they arrive as they were sent. Responses come back with their status, redirects, cookies and body stream untouched, plus `x-served-by` (`router`, `website`, `public` or `app`) and `server-timing`.
+**API fails open only where that is safe.** A GET, HEAD or OPTIONS to the API Worker gets ten seconds (`ROUTER_API_TIMEOUT_MS`) and then, like the pages, the app answers if the API Worker threw, timed out or answered 502, 503 or 504 (or said `x-fs-api-miss`, a path that is not its own). A POST, PATCH, PUT or DELETE is sent once, never timed out and never sent again: by the time something fails it may have been carried out, and a retry could send a campaign twice. A failure then answers `502 {"error":{"code":"unavailable","message":...}}`. The one exception is the API Worker itself saying that it did nothing (`503` with `x-fs-api-unprocessed`: `API_DISABLED=true` on it, or no database bound), before it reads a body: the router copied the request beforehand if its body was 1 MiB or smaller (`MAX_REPLAY_BYTES`) and asks the app with that copy, bytes and signature headers as they came; a bigger body is not copied, and the 503 is the answer. The kill switches: `wrangler secret delete API_ENABLED` on the router (seconds, no deploy) or `API_DISABLED=true` on an API Worker.
+
+**Nothing is rewritten on the way to APP or API.** The app gets the visitor's own `Request` object: method, URL, headers (cookies, `cf-connecting-ip`, `cf-ipcountry`, webhook signatures) and the body as a stream the router never reads. Standard Webhooks and Stripe signatures cover the exact bytes of the body, and they arrive as they were sent. Responses come back with their status, redirects, cookies and body stream untouched, plus `x-served-by` (`router`, `website`, `public`, `api` or `app`) and `server-timing` (`router;dur=` is the whole time in the router; `app;dur=` or `api;dur=` is the Worker's own handler, without starting its isolate, and `app-wait;dur=` or `api-wait;dur=` is how long the router waited for it, a cold start included).
 
 **Next.js asks for the data of a page when a link comes into view or is clicked.** A docs page has twenty links, so without care each visit to a public page would start the app for those requests. When such a request is for a page WEBSITE or PUBLIC serves, or is made from a public page, the router answers it itself: a prefetch gets a 204 (Next.js drops it), and a click gets a short HTML page, which Next.js cannot read as page data and so loads the address as a plain page, served from PUBLIC. The click on a docs link is therefore a normal page load of a static file.
 
 **The router's own address:** `/__router/health` answers `200 ok` with `x-served-by: router`. `scripts/deploy-all.mjs` uses it to see whether the router holds a domain.
+
+## The API Worker
+
+`workers/api` serves what the REST API, MCP and the OAuth endpoints need and nothing else: no Next.js, no React, no server components. One implementation, not a copy: `scripts/build-api-worker.mjs` bundles the **same route modules** the app serves (`app/api/v1/[...path]/route.js`, `app/mcp/route.js`, `app/api/mcp/route.js`, `app/.well-known/*/route.js`, `app/api/auth/[...all]/route.js`) with esbuild, and `workers/api/handler.js` calls them the way Next.js does (`API_ROUTES` is the table; `tests/api-routing.test.mjs` keeps it equal to the files of `app/`). The shared code imports a few Next.js and OpenNext modules, and the build puts small adapters in their place (`workers/api/shims`): `next/headers` and `next/navigation` throw if a request-scoped call is ever made (Better Auth's cookie plugin reads that as "no request scope" and does nothing), `react`'s `cache` is the function itself, `@opennextjs/cloudflare`'s `getCloudflareContext` returns the Worker's bindings, and `lib/runtime-hooks.js` (`revalidatePath`, `after`) is replaced by `workers/api/runtime-hooks.js`.
+
+**Cache invalidation.** An action in the API Worker that drops a page (`revalidatePath`) cannot do it itself; it notes the page and, when the response is complete (an MCP tool's, when its stream ends), sends one signed request to the app over the `APP` service binding: `POST /api/internal/revalidate`, signed with a key derived from `BETTER_AUTH_SECRET` (`lib/internal-revalidate.js`), refused if older than five minutes or naming anything but the archive and campaign pages the shared code revalidates. The app drops them. A failure is logged and nothing else, as with the app's own revalidation. `after()` is `ctx.waitUntil`.
+
+**Secrets and bindings.** Secrets belong to one Worker, so `flockstack-api` and `flockstack-api-eu` each need their own copy of what the app has for the routes they serve: `node scripts/api-env.mjs` lists the variables the bundle reads (at least `BETTER_AUTH_SECRET`, `SUPPRESSION_HASH_KEY`, `APP_URL`, `UPSTASH_*`, `STRIPE_SECRET_KEY`, `SES_*`, `QSTASH_TOKEN`, `POLAR_ACCESS_TOKEN`, `IMAGES_*`, `EMAIL_*`), and `workers/api/wrangler.jsonc` binds the region's D1 database and R2 buckets, Workers AI and the app. It has no routes, no `workers.dev` address and no cron: only the router reaches it.
+
+**What it costs to start.** About 7.7 MB of script, against the app's 29 MB. Each group of routes loads its code on its first request, not at start (`dynamic import`), and inside the REST API the file of actions for the one action asked for (`lib/actions/manifest.js` knows every action's route; `lib/actions/lazy.js` loads the file on demand), Better Auth only for OAuth, the AWS clients only when used. Measured numbers: `docs/PERFORMANCE.md`.
+
+**Parity.** `FLOCKSTACK_API_TARGET=worker npm test` runs the whole suite with every API, MCP and OAuth request going to the Worker's `fetch` handler instead of the Next.js route (`tests/helpers/app.mjs`, `callRoute`); `npm test` runs the nine suites that matter most that way as well (`tests/api-worker-parity.test.mjs`) and compares the two answer for answer for every action (`tests/api-worker.test.mjs`).
 
 ## What does not go through the router
 
@@ -96,7 +115,7 @@ The two scripts are for FlockStack Cloud's pages: the build always renders with 
 
 `node scripts/deploy-all.mjs [--only us|eu] [--skip-build] [--dry-run] [--skip-router-check]`
 
-For each region, in this order: the app (`wrangler deploy`), the public pages Worker (`--config workers/public/wrangler.jsonc`, `--env eu` for the EU), then the router. The build and the rendering run once first. The website Worker is deployed from the website repository, before anything here. A deploy of the app and of the public pages Worker is not one step: for the seconds between them a visitor who loads a docs page gets a page that points at JavaScript and CSS files of the old build; deploying the app first keeps that window short and in the pages' favour (the files of the new build exist).
+For each region, in this order: the app (`wrangler deploy`), the API Worker (`--config workers/api/wrangler.jsonc`, `--env eu` for the EU: it asks the app to drop pages, so the app goes first, and the router binds it, so it must exist before the router), the public pages Worker (`--config workers/public/wrangler.jsonc`, `--env eu` for the EU), then the router. The build, the rendering, the API Worker's build and the size budgets (`perf-budgets.json`, `npm run perf:budget`) run once first. Deploying the API Worker sends it nothing: the router does, when `API_ENABLED` says so. The website Worker is deployed from the website repository, before anything here. A deploy of the app and of the public pages Worker is not one step: for the seconds between them a visitor who loads a docs page gets a page that points at JavaScript and CSS files of the old build; deploying the app first keeps that window short and in the pages' favour (the files of the new build exist).
 
 `wrangler deploy` takes a custom domain back or drops it according to the routes in `wrangler.jsonc`, and a domain belongs to one Worker at a time. So deploy-all first asks the region's `/__router/health` and compares with `wrangler.jsonc`: if the router answers and the app still lists the domain it stops (the deploy would take the domain back from the router); if the router does not answer and the app no longer lists the domain it stops (the deploy would leave the domain with no Worker). While the app still lists the domain, the router is deployed *staged*: on `workers.dev` only, without the domain.
 
@@ -169,6 +188,29 @@ After the US has held for a day: the same with `--env eu`, `https://eu.flockstac
 
 The staged top-level router and `workers.dev` addresses can stay: they answer only for `workers.dev`. Delete a staging Worker with `npx wrangler delete --name <name>`.
 
+### 5. Turn the API Worker on
+
+The router sends `/api/v1`, `/mcp` and the OAuth endpoints to the API Worker only when it has the `API` binding **and** its secret `API_ENABLED` says so. Until then (a router deployed with the binding and no secret) everything is the app's, as before. Do it one group at a time, US first, EU a day later.
+
+1. **Secrets.** For each region: `npx wrangler secret put <NAME> --config workers/api/wrangler.jsonc [--env eu]` for every name `node scripts/api-env.mjs` lists that the app has (the app's values; the API Worker cannot read the app's secrets). Check with `npx wrangler secret list --config workers/api/wrangler.jsonc [--env eu]`.
+2. **Deploy.** `node scripts/deploy-all.mjs --only us` deploys the app, the API Worker, the public Worker and the router (the binding exists, `API_ENABLED` does not: nothing changes for visitors). Check: `curl -s -o /dev/null -w '%{http_code}\n' https://flockstack.io/api/v1/openapi.json` (200, PUBLIC) and `curl -sI https://flockstack.io/api/v1/contacts | grep -i x-served-by` (`app`).
+3. **Stage it on workers.dev first.** The staged router and the domain's are one Worker (`flockstack-router`; for the EU `flockstack-router-eu`), so a request to its `workers.dev` address has a switch of its own: `echo all | npx wrangler secret put API_ENABLED_WORKERS_DEV --config workers/router/wrangler.jsonc` (EU: `--env eu-staged`). `API_ENABLED` is the domain's and stays unset. Try `R=https://flockstack-router.$SUB.workers.dev` (the API Worker's metadata names `APP_URL`, the real domain):
+   - `curl -si $R/api/v1/contacts -H 'authorization: Bearer <test key>'` is 200 with `x-served-by: api`; the same without a key 401 with `www-authenticate`; `curl -si -X OPTIONS $R/api/v1/contacts -H 'origin: https://x.example' -H 'access-control-request-method: POST'` is 204 with the CORS headers;
+   - `curl -si $R/.well-known/oauth-protected-resource`, `$R/.well-known/oauth-authorization-server` (the issuer and endpoints name `APP_URL`, the real domain);
+   - an MCP client against `$R/mcp` with a test key: initialize, tools/list, a read tool, a write tool on a test newsletter;
+   - `curl -s $R/api/v1/openapi.json | head -c 200` and `/api/v1/account/export.zip?token=bad` (401 in the API's error shape);
+   - `npx wrangler tail flockstack-api --format json` shows `outcome: ok` and no `[revalidate]` warnings after a write that drops a page.
+4. **Turn on one group on the domain**, the least risky first: `echo wellknown | npx wrangler secret put API_ENABLED --config workers/router/wrangler.jsonc`, check, then `wellknown,oauth`, then `wellknown,oauth,mcp`, then `all` (REST). Each `secret put` takes effect in seconds and needs no deploy; the router's logs (`npx wrangler tail flockstack-router`) show `[router] api ...` lines whenever the API Worker failed and the app answered. After each step check `x-served-by: api` and `server-timing: api;dur=...` on the group, a real MCP client connecting with OAuth (ChatGPT or Claude: discovery, consent in the app, token, a tool call), and the error rate of `flockstack-api` in the dashboard.
+5. **EU:** the same with `--env eu` for the API Worker's secrets and `flockstack-router-eu` (`--env eu` for `API_ENABLED`, `--env eu-staged` for the trial).
+
+**Rollback, in seconds.**
+
+- One group or all: `npx wrangler secret delete API_ENABLED --config workers/router/wrangler.jsonc` (or `put` a shorter list; EU: add `--env eu`). `API_ENABLED_WORKERS_DEV` is the same switch for `workers.dev` addresses. Everything goes back to the app, which has every route and was never changed by this.
+- The API Worker itself broke but the router still sends to it: `echo true | npx wrangler secret put API_DISABLED --config workers/api/wrangler.jsonc`. It then answers 503 with `x-fs-api-unprocessed`, which the router turns into the app's answer for every method (bodies up to 1 MiB are copied for that), without touching the router.
+- A bad API Worker version: `npx wrangler rollback --config workers/api/wrangler.jsonc`.
+
+What to watch: `server-timing` and `x-served-by` on API calls; 502s with `"code":"unavailable"` (the router could not get an answer for a write: the write may or may not have happened, so check it before retrying); `[router] api failed` lines; a difference between the two stacks' answers for the same call, which `FLOCKSTACK_API_TARGET=worker npm test` should have caught.
+
 ## Things that can go wrong, and what to look at
 
 - **A page looks unstyled or does not respond to clicks for some seconds after a deploy.** The window between deploying the app and the public pages Worker (above). `deploy-all` runs them back to back.
@@ -177,3 +219,5 @@ The staged top-level router and `workers.dev` addresses can stay: they answer on
 - **A new page one segment under `/` for the website** is a new entry in `lib/website-routing.js`, as before; the router imports that file, so it changes there once.
 - **The analytics of the public pages stop.** `POSTHOG_KEY` is a secret of each public Worker, not inherited from the app.
 - **A visitor sees the app's 404 for a marketing page.** WEBSITE failed and the router fell back (`[router] website ...` in `wrangler tail`).
+- **A new API route or action.** An action is picked up by the REST API and MCP from the registry as before, but `lib/actions/manifest.js` (what the API Worker routes by) is generated: `node --import ./tests/setup/register.mjs scripts/build-action-manifest.mjs` after changing an action's name, method, path or permission or adding a file of actions (`lib/actions/groups.js`); `tests/action-manifest.test.mjs` fails until it does. A new route file under `app/api/v1`, `app/mcp` or `app/.well-known` needs an entry in `API_ROUTES` (`workers/api/handler.js`) and in `lib/api-routing.js`; `tests/api-routing.test.mjs` fails until both agree.
+- **An API call is slower on the API Worker than it was.** Read `server-timing` (`api;dur=` is the handler, `api-wait;dur=` the router's wait: the difference is a cold start or queueing), then `docs/PERFORMANCE.md`.

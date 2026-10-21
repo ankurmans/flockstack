@@ -50,8 +50,11 @@ export function chooseRoute({ method, url, headers, env }) {
 	if (url.hostname !== appHostname && !url.hostname.endsWith(".workers.dev")) return "app";
 	// The API: REST, MCP and the OAuth endpoints an MCP client calls, every method (lib/api-routing.js). Off unless the router has the
 	// API binding and API_ENABLED names the request's group, so it can be switched off in seconds without a deploy.
+	// A workers.dev address (a router being tried; the same Worker as the domain's) has a switch of its own, API_ENABLED_WORKERS_DEV, so
+	// the API Worker can be tried there while the domain still goes to the app.
 	const apiGroup = env.API ? getApiGroup(url.pathname) : null;
-	if (apiGroup && parseEnabledGroups(env.API_ENABLED).has(apiGroup) && !(env.PUBLIC && isPublicPath(url.pathname) && isPlainVisit({ method, headers }))) return "api";
+	const isTrial = url.hostname !== appHostname;
+	if (apiGroup && parseEnabledGroups(isTrial ? env.API_ENABLED_WORKERS_DEV : env.API_ENABLED).has(apiGroup) && !(env.PUBLIC && isPublicPath(url.pathname) && isPlainVisit({ method, headers }))) return "api";
 	if (method !== "GET" && method !== "HEAD") return "app";
 	const hasSession = hasSessionCookie(headers.get("cookie"), getCookiePrefix(env));
 	const toWebsite = Boolean(env.WEBSITE) && shouldForwardToWebsite({ method, hostname: appHostname, appHostname, pathname: url.pathname, hasSession });

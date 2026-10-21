@@ -9,8 +9,9 @@
 	// Each region's router binds that region's own public pages Worker (flockstack-public, flockstack-public-eu) and app.
 	// The API binding is the lean API Worker (workers/api, flockstack-api and flockstack-api-eu), which a deploy needs to exist first.
 	// The router sends it nothing until API_ENABLED says so: a secret of the router (`wrangler secret put API_ENABLED`, "all" or a
-	// list of rest, mcp, wellknown, oauth; `wrangler secret delete API_ENABLED` is the off switch). It is a secret, not a var, so a
-	// deploy does not put it back. docs/ARCHITECTURE-WORKERS.md has the runbook.
+	// list of rest, mcp, wellknown, oauth; `wrangler secret delete API_ENABLED` is the off switch), API_ENABLED_WORKERS_DEV the same
+	// for requests to a workers.dev address, so it can be tried there first. Secrets, not vars, so a deploy does not put them back.
+	// docs/ARCHITECTURE-WORKERS.md has the runbook.
 	// Names without "-env" suffix: an environment that sets `name` deploys as that Worker.
 	"name": "flockstack-router",
 	"main": "index.js",
