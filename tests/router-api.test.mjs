@@ -87,7 +87,20 @@ describe("which requests go to the API Worker", () => {
 		const { env } = stack();
 		assert.equal(route(env, "https://news.example.com/api/v1/contacts"), "app");
 		assert.equal(route(env, "https://abc.flockstackmail.com/mcp", { method: "POST" }), "app");
-		assert.equal(route(env, "https://flockstack-router.me.workers.dev/mcp", { method: "POST" }), "api", "a workers.dev address is routed like the domain");
+	});
+
+	test("a workers.dev address has a switch of its own, so the API Worker can be tried there while the domain goes to the app", () => {
+		const trial = "https://flockstack-router.me.workers.dev/mcp";
+		const { env } = stack({ enabled: "all" });
+		assert.equal(route(env, trial, { method: "POST" }), "app", "API_ENABLED is the domain's");
+		env.API_ENABLED_WORKERS_DEV = "mcp";
+		assert.equal(route(env, trial, { method: "POST" }), "api");
+		assert.equal(route(env, "https://flockstack-router.me.workers.dev/api/v1/contacts"), "app", "only the groups it names");
+		assert.equal(route(env, `${APP}/mcp`, { method: "POST" }), "api", "and the domain keeps its own");
+		const off = stack({ enabled: null });
+		off.env.API_ENABLED_WORKERS_DEV = "all";
+		assert.equal(route(off.env, trial, { method: "POST" }), "api", "the domain can be off while the trial is on");
+		assert.equal(route(off.env, `${APP}/mcp`, { method: "POST" }), "app");
 	});
 
 	test("trailing slashes and groups agree with the lists", () => {
