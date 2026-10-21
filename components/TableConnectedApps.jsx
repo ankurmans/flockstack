@@ -4,9 +4,10 @@ import { revokeConnectedApp } from "@/app/(app)/api-keys/actions";
 import ButtonCopy from "@/components/ButtonCopy";
 import ButtonRevoke from "@/components/ButtonRevoke";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PRESET_INFO } from "@/lib/action-scopes";
 import { formatDate, formatRelative } from "@/lib/format";
 
-// Apps connected with OAuth (ChatGPT, Claude): each has full access until it's revoked here.
+// Apps connected with OAuth (ChatGPT, Claude): each has the access the owner allowed when connecting it, until it's revoked here.
 export default function TableConnectedApps({ apps, mcpUrl }) {
 	if (apps.length === 0) {
 		return (
@@ -32,6 +33,7 @@ export default function TableConnectedApps({ apps, mcpUrl }) {
 				<TableHeader>
 					<TableRow className="hover:bg-transparent">
 						<TableHead className="pl-4">App</TableHead>
+						<TableHead className="hidden md:table-cell">Can do</TableHead>
 						<TableHead className="hidden sm:table-cell">Connected</TableHead>
 						<TableHead className="hidden sm:table-cell">Last used</TableHead>
 						<TableHead className="w-24 pr-2" />
@@ -50,6 +52,10 @@ export default function TableConnectedApps({ apps, mcpUrl }) {
 										{app.host && app.host !== app.name && <span className="block truncate text-xs text-muted-foreground">{app.host}</span>}
 									</span>
 								</div>
+							</TableCell>
+							<TableCell className="hidden max-w-60 text-muted-foreground md:table-cell">
+								<span className="block font-medium text-foreground">{PRESET_INFO[app.level]?.label ?? "Full access"}</span>
+								<span className="block text-xs text-pretty">{PRESET_INFO[app.level]?.can}</span>
 							</TableCell>
 							<TableCell className="hidden text-muted-foreground sm:table-cell">{formatDate(app.createdAt)}</TableCell>
 							<TableCell className="hidden text-muted-foreground sm:table-cell">

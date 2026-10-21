@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import BannerApprovals from "@/components/BannerApprovals";
 import BannerBlocked from "@/components/BannerBlocked";
 import BannerWatch from "@/components/BannerWatch";
 import LogoWordmark from "@/components/LogoWordmark";
@@ -54,6 +55,9 @@ export default async function LayoutDashboard({ user, account, isAdmin, children
 				/>
 				<main className="min-w-0 flex-1">
 					<div className="mx-auto w-full max-w-6xl px-4 py-6 md:px-10 md:py-10">
+						<Suspense fallback={null}>
+							<BannerApprovals account={account} />
+						</Suspense>
 						<BannerWatch account={account} />
 						{children}
 					</div>

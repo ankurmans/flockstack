@@ -18,7 +18,11 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { scoped } from "@/lib/account-scope";
+import { PRESET_INFO } from "@/lib/action-scopes";
+import { getDayCounts } from "@/lib/agent-activity";
 import { getKeyLevel, listApiKeys } from "@/lib/api-keys";
+import { isKeyExpired } from "@/lib/api-key-tokens";
 import { requireAccount } from "@/lib/auth";
 import { getAppUrl } from "@/lib/config";
 import { connectDb } from "@/lib/db";
@@ -26,20 +30,31 @@ import { getMcpClients, getMcpConnectors, getMcpUrl } from "@/lib/docs/mcp-clien
 import { formatDate, formatRelative } from "@/lib/format";
 import { listConnectedApps } from "@/lib/oauth";
 import { cn } from "@/lib/utils";
+import Newsletter from "@/models/Newsletter";
 
 export const metadata = { title: "API keys" };
-
-const LEVEL_LABELS = { full: "Full access", signups: "Signups only" };
 
 export default async function ApiKeysPage() {
 	const { account } = await requireAccount();
 	await connectDb();
-	const [apiKeys, connectedApps] = await Promise.all([listApiKeys(account), listConnectedApps(account)]);
+	const [apiKeys, connectedApps, newsletters] = await Promise.all([
+		listApiKeys(account),
+		listConnectedApps(account),
+		Newsletter.find(scoped(account)).sort({ createdAt: 1, _id: 1 }).select({ name: 1 }).lean(),
+	]);
+	const calls = await getDayCounts(account, apiKeys.map(({ _id }) => String(_id)));
+	const newsletterNames = new Map(newsletters.map(({ _id, name }) => [String(_id), name]));
 	const appUrl = getAppUrl();
 
 	return (
 		<>
 			<HeaderPage title="API keys">
+				<Button asChild variant="outline">
+					<Link href="/approvals">Approvals</Link>
+				</Button>
+				<Button asChild variant="outline">
+					<Link href="/agent-activity">Activity</Link>
+				</Button>
 				<Button asChild variant="outline">
 					<Link href="/docs">
 						Docs
@@ -47,7 +62,7 @@ export default async function ApiKeysPage() {
 					</Link>
 				</Button>
 				<GatePlan reason="apiKey">
-					<DialogCreateApiKey />
+					<DialogCreateApiKey newsletters={newsletters.map(({ _id, name }) => ({ id: String(_id), name }))} />
 				</GatePlan>
 			</HeaderPage>
 
@@ -61,9 +76,10 @@ export default async function ApiKeysPage() {
 								<TableRow className="hover:bg-transparent">
 									<TableHead className="pl-4">Name</TableHead>
 									<TableHead>Key</TableHead>
-									<TableHead className="hidden md:table-cell">Access</TableHead>
-									<TableHead className="hidden sm:table-cell">Created</TableHead>
+									<TableHead className="hidden md:table-cell">Can do</TableHead>
 									<TableHead className="hidden sm:table-cell">Last used</TableHead>
+									<TableHead className="hidden lg:table-cell">Calls today</TableHead>
+									<TableHead className="hidden lg:table-cell">Expires</TableHead>
 									<TableHead className="w-24 pr-2" />
 								</TableRow>
 							</TableHeader>
@@ -72,14 +88,22 @@ export default async function ApiKeysPage() {
 									<TableRow key={apiKey._id.toString()}>
 										<TableCell className="py-2.5 pl-4 font-medium">{apiKey.name}</TableCell>
 										<TableCell className="font-mono text-xs text-muted-foreground">{apiKey.prefix}</TableCell>
-										<TableCell className="hidden text-muted-foreground md:table-cell">
-											{LEVEL_LABELS[getKeyLevel(apiKey)]}
-										</TableCell>
-										<TableCell className="hidden text-muted-foreground sm:table-cell">
-											{formatDate(apiKey.createdAt)}
+										<TableCell className="hidden max-w-72 py-2.5 text-muted-foreground md:table-cell">
+											<span className="block font-medium text-foreground">{PRESET_INFO[getKeyLevel(apiKey)].label}</span>
+											<span className="block text-xs text-pretty">
+												{PRESET_INFO[getKeyLevel(apiKey)].can}
+												{apiKey.newsletterId && ` Only ${newsletterNames.get(String(apiKey.newsletterId)) ?? "one newsletter"}.`}
+											</span>
 										</TableCell>
 										<TableCell className="hidden text-muted-foreground sm:table-cell">
 											{apiKey.lastUsedAt ? formatRelative(apiKey.lastUsedAt) : "Never"}
+										</TableCell>
+										<TableCell className="hidden text-muted-foreground tabular-nums lg:table-cell">
+											{calls.get(String(apiKey._id))?.calls ?? 0}
+											{apiKey.dailyCap ? ` of ${apiKey.dailyCap}` : ""}
+										</TableCell>
+										<TableCell className="hidden text-muted-foreground lg:table-cell">
+											{apiKey.expiresAt ? (isKeyExpired(apiKey) ? "Expired" : formatDate(apiKey.expiresAt)) : "Never"}
 										</TableCell>
 										<TableCell className="pr-2 text-right">
 											{apiKey.revokedAt ? (

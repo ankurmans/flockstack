@@ -4,6 +4,7 @@ import { switchAccount } from "@/app/oauth/consent/actions";
 import ButtonSignout from "@/components/ButtonSignout";
 import FormConsent from "@/components/FormConsent";
 import LogoFlockstack from "@/components/LogoFlockstack";
+import { PRESET_INFO, getPresetOfScopes, getPresetsUpTo } from "@/lib/action-scopes";
 import { isDeletionPending } from "@/lib/account-state";
 import { getCurrentAccount } from "@/lib/auth";
 import { readOAuthRequest } from "@/lib/oauth";
@@ -11,14 +12,11 @@ import { isLoopbackRedirect } from "@/lib/oauth-rules";
 
 export const metadata = { title: "Connect an app" };
 
-const ACCESS = [
-	"Read and change your newsletter, campaigns, contacts and domains",
-	"Send campaigns to your subscribers",
-	"Create and revoke API keys, and open billing",
-];
+// The level a new connection starts on when the app asked for full access: the one that asks you before anything goes out.
+const SUGGESTED = "send_with_approval";
 
 // Better Auth sends people here with the app's signed authorization request when it needs their consent (and
-// for prompt=select_account). The app gets the same access as a full access API key.
+// for prompt=select_account). The app gets at most what it asked for, at the levels of an API key; the owner can give less.
 export default async function ConsentPage({ searchParams }) {
 	const oauthRequest = await readOAuthRequest(await searchParams);
 	if (!oauthRequest || oauthRequest.isExpired) return <Expired />;
@@ -28,7 +26,11 @@ export default async function ConsentPage({ searchParams }) {
 
 	const { client, query, redirectUri, scopes } = oauthRequest;
 	const redirectHost = getHost(redirectUri);
-	const access = scopes.some((scope) => scope === "email" || scope === "profile") ? [...ACCESS, "See your name and email address"] : ACCESS;
+	const asked = getPresetOfScopes(scopes) ?? "full";
+	// Highest first. An app that asked for less than full is offered no more than it asked.
+	const choices = getPresetsUpTo(asked).toReversed();
+	const selected = choices.includes(SUGGESTED) ? SUGGESTED : asked;
+	const hasProfile = scopes.some((scope) => scope === "email" || scope === "profile");
 
 	return (
 		<main className="flex min-h-dvh items-center justify-center px-4 py-16">
@@ -48,18 +50,34 @@ export default async function ConsentPage({ searchParams }) {
 				</div>
 
 				<div className="overflow-hidden rounded-xl shadow-border">
-					<div className="flex flex-col gap-3 p-4">
-						<p className="text-sm font-medium">{client.name} will be able to</p>
-						<ul className="flex flex-col gap-2.5">
-							{access.map((line) => (
-								<li key={line} className="flex gap-2.5 text-sm text-pretty text-muted-foreground">
-									<Check className="mt-0.5 size-4 shrink-0 text-foreground" />
-									{line}
-								</li>
-							))}
-						</ul>
-						<p className="text-xs text-muted-foreground">The same access as a full access API key.</p>
-					</div>
+					<fieldset className="flex flex-col gap-2 p-4">
+						<legend className="mb-1 text-sm font-medium">What {client.name} may do</legend>
+						{choices.map((preset) => (
+							<label
+								key={preset}
+								className="group flex cursor-pointer items-start gap-3 rounded-lg p-3 shadow-border transition-[box-shadow,background-color] duration-150 hover:shadow-border-hover has-checked:bg-muted/60 has-checked:shadow-border-hover"
+							>
+								<input type="radio" name="access" value={preset} form="consent" defaultChecked={preset === selected} className="mt-0.5 size-4 shrink-0 accent-foreground" />
+								<span className="flex flex-col gap-1.5">
+									<span className="text-sm font-medium">
+										{PRESET_INFO[preset].label}
+										{preset === SUGGESTED && <span className="ml-2 text-xs font-normal text-muted-foreground">Recommended</span>}
+									</span>
+									<span className="hidden flex-col gap-1.5 group-has-checked:flex">
+										{[...PRESET_INFO[preset].consent, ...(hasProfile ? ["See your name and email address"] : [])].map((line) => (
+											<span key={line} className="flex gap-2 text-xs text-pretty text-muted-foreground">
+												<Check className="mt-0.5 size-3.5 shrink-0 text-foreground" />
+												{line}
+											</span>
+										))}
+									</span>
+								</span>
+							</label>
+						))}
+						<p className="text-xs text-muted-foreground">
+							Same levels as an API key. You can disconnect it anytime, and approve or reject what it asks to do on the Approvals page.
+						</p>
+					</fieldset>
 					<form action={switchAccount} className="flex items-center justify-between gap-3 border-t border-border/60 bg-muted/40 px-4 py-2.5">
 						<input type="hidden" name="oauth_query" value={query} />
 						<p className="min-w-0 truncate text-sm">
