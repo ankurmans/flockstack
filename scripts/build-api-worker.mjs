@@ -67,11 +67,11 @@ export function createPlugin() {
 	};
 }
 
-export async function buildApiWorker({ sourcemap = false, metafile = false, minifyWhitespace = true, outFile = OUT_FILE } = {}) {
+export async function buildApiWorker({ sourcemap = false, metafile = false, minifyWhitespace = true, outFile = OUT_FILE, entry = join(API, "index.js") } = {}) {
 	const esbuild = loadEsbuild();
 	mkdirSync(dirname(outFile), { recursive: true });
 	const result = await esbuild.build({
-		entryPoints: [join(API, "index.js")],
+		entryPoints: [entry],
 		outfile: outFile,
 		bundle: true,
 		format: "esm",

@@ -47,7 +47,7 @@ export async function api(user, method, path, body) {
 	const response = await callApi(method, `/api/v1${path}`, { key: user.key, body });
 	if (response.status < 300) {
 		const segments = new URL(path, "http://x").pathname.split("/").filter(Boolean).map(decodeURIComponent);
-		const { action } = rest.matchRoute(method, segments);
+		const { action } = await rest.matchRoute(method, segments);
 		const checked = action.output.safeParse(response.body);
 		assert.ok(checked.success, `${action.name} answered outside its schema: ${checked.error?.message}`);
 	}

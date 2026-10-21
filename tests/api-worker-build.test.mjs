@@ -29,6 +29,33 @@ after(() => {
 	rmSync(folder, { recursive: true, force: true });
 });
 
+// What a module loads when it loads, before anything it imports on demand: the static closure of an entry in esbuild's metafile.
+function staticClosure(meta, entry) {
+	const seen = new Set();
+	const visit = (file) => {
+		if (seen.has(file) || !meta.inputs[file]) return;
+		seen.add(file);
+		for (const item of meta.inputs[file].imports) if (item.kind === "import-statement" || item.kind === "require-call") visit(item.path);
+	};
+	visit(entry);
+	return seen;
+}
+
+describe("what a request loads", () => {
+	test("the REST route and the MCP route load no file of actions, no registry and no Better Auth until a request needs them", async () => {
+		const { ACTION_FILES } = await import("../lib/actions/groups.js");
+		const actionFiles = Object.keys(ACTION_FILES).map((file) => `lib/actions/${file}.js`);
+		for (const entry of ["app/api/v1/[...path]/route.js", "app/mcp/route.js"]) {
+			const out = join(folder, "light.js");
+			await buildApiWorker({ outFile: out, metafile: true, entry: join(process.cwd(), entry) });
+			const closure = staticClosure(JSON.parse(readFileSync(`${out}.meta.json`, "utf8")), entry);
+			const bad = [...closure].filter((file) => actionFiles.includes(file) || ["lib/actions/registry.js", "lib/auth.js", "lib/oauth.js", "lib/docs/openapi.js"].includes(file) || /node_modules\/(better-auth|@better-auth|stripe|@aws-sdk)\//.test(file));
+			assert.deepEqual(bad, [], `${entry} loads ${bad.slice(0, 5).join(", ")}`);
+			assert.ok(closure.has("lib/actions/lazy.js"));
+		}
+	});
+});
+
 describe("the built API Worker", () => {
 	test("has no Next.js, React or server component code in it, and its adapters are the only stand-ins", () => {
 		const meta = JSON.parse(readFileSync(`${outFile}.meta.json`, "utf8"));

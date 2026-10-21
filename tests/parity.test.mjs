@@ -73,14 +73,14 @@ before(async () => {
 after(() => app?.stop());
 
 describe("every action", () => {
-	test("has its own REST route, which leads back to it", () => {
+	test("has its own REST route, which leads back to it", async () => {
 		const routes = new Set();
 		for (const action of m.registry.ACTIONS) {
 			const route = `${action.http.method} ${action.http.path}`;
 			assert.ok(!routes.has(route), `${route} belongs to two actions`);
 			routes.add(route);
 			const segments = action.http.path.split("/").filter(Boolean).map((part) => (part.startsWith("{") ? SAMPLE_ID : part));
-			assert.equal(m.rest.matchRoute(action.http.method, segments)?.action.name, action.name, `${route} should run ${action.name}`);
+			assert.equal((await m.rest.matchRoute(action.http.method, segments))?.action.name, action.name, `${route} should run ${action.name}`);
 		}
 	});
 

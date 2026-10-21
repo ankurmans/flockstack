@@ -27,7 +27,7 @@ async function api(key, method, path, body) {
 	const response = await callApi(method, `/api/v1${path}`, { key, body });
 	if (response.status < 300) {
 		const segments = new URL(path, "http://x").pathname.split("/").filter(Boolean).map(decodeURIComponent);
-		const { action } = m.rest.matchRoute(method, segments);
+		const { action } = await m.rest.matchRoute(method, segments);
 		const checked = action.output.safeParse(response.body);
 		assert.ok(checked.success, `${action.name} answered outside its schema: ${checked.error?.message}`);
 	}
@@ -488,7 +488,7 @@ describe("contacts", () => {
 		const curl = m.reference.getAddContactCurl("http://localhost:3000", user.slug);
 		const [, method, url] = curl.match(/^curl -X ([A-Z]+) "([^"]+)"/);
 		const { pathname } = new URL(url);
-		assert.equal(m.rest.matchRoute(method, pathname.split("/").filter(Boolean).slice(2))?.action.name, "add_contact");
+		assert.equal((await m.rest.matchRoute(method, pathname.split("/").filter(Boolean).slice(2)))?.action.name, "add_contact");
 		const headers = Object.fromEntries(
 			[...curl.matchAll(/-H "([^:]+): ([^"]+)"/g)].map(([, name, value]) => [name.toLowerCase(), value.replace("YOUR_API_KEY", user.signupsKey)])
 		);
