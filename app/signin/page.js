@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { getSession, getSignupError, isAppleEnabled, isGoogleEnabled } from "@/lib/auth";
 import { isCloud } from "@/lib/config";
 import { getPublishedLegalPages } from "@/lib/legal";
-import { readOAuthRequest } from "@/lib/oauth";
+import { pickSignedOAuthQuery } from "@/lib/oauth-rules";
 import { REGION_PLACES, getOtherRegion, getRegion, getRegionOptions, getSigninUrl } from "@/lib/region";
 import { readRegionChoice } from "@/lib/region-choice";
 import { DELETION_GRACE_DAYS } from "@/lib/retention";
@@ -28,7 +28,8 @@ export default async function SigninPage({ searchParams }) {
 	const params = await searchParams;
 	const { next, error, deleted } = params;
 	const nextPath = toSafeNextPath(next);
-	const oauthRequest = await readOAuthRequest(params);
+	// lib/oauth.js is Better Auth's: a visit that is not an app asking to connect never loads it.
+	const oauthRequest = pickSignedOAuthQuery(params) ? await (await import("@/lib/oauth")).readOAuthRequest(params) : null;
 	if (!oauthRequest && (await getSession())) redirect(nextPath);
 	const oauthQuery = oauthRequest && !oauthRequest.isExpired ? oauthRequest.query : null;
 	const intro = getIntro(oauthRequest, deleted !== undefined);
