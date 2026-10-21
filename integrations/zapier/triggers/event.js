@@ -28,6 +28,18 @@ const SAMPLES = {
 		finishedAt: "2026-10-20T07:12:00.000Z",
 		stats: { recipients: 4210, sent: 4208 },
 	},
+	Approval: {
+		id: "6650f1c2e9b1d4a0123456a1",
+		newsletterId: "6650f1c2e9b1d4a0123456aa",
+		action: "send_campaign",
+		summary: "Send a campaign now (id: 6650f1c2e9b1d4a0123456bb)",
+		status: "approved",
+		note: "Looks good",
+		decidedAt: "2026-10-21T09:00:00.000Z",
+		executed: true,
+		error: null,
+		actor: { type: "key", id: "6650f1c2e9b1d4a0123456b2", name: "Newsletter assistant" },
+	},
 	Order: {
 		id: "6650f1c2e9b1d4a0123456cc",
 		newsletterId: "6650f1c2e9b1d4a0123456aa",
@@ -45,8 +57,8 @@ const SAMPLES = {
 // (changes, interval…). id is unique per event, so Zapier never runs the Zap twice for one.
 function flatten(event) {
 	const { type, timestamp, data = {} } = event;
-	const { subscriber, campaign, order, ...extras } = data;
-	const item = subscriber || campaign || order || data;
+	const { subscriber, campaign, order, approval, ...extras } = data;
+	const item = subscriber || campaign || order || approval || data;
 	return { ...item, ...extras, id: `${type}:${item.id || ""}:${timestamp}`, objectId: item.id, event: type, eventAt: timestamp };
 }
 
@@ -59,6 +71,7 @@ async function listRecent(z, bundle, { type, noun }) {
 		const response = await z.request({ url: apiUrl(bundle, `/campaigns?${query({ status: "sent", limit: 3, newsletter })}`) });
 		return response.data.campaigns.map((campaign) => flatten({ type, timestamp, data: { campaign } }));
 	}
+	if (noun === "Approval") return [];
 	if (noun === "Order") {
 		const response = await z.request({ url: apiUrl(bundle, `/orders?${query({ status: "paid", limit: 3 })}`) });
 		return response.data.orders.map((order) => flatten({ type, timestamp, data: { order } }));

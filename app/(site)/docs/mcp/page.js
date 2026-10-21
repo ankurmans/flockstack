@@ -25,8 +25,8 @@ export default function McpPage() {
 		<>
 			<HeaderDocs kicker="Guides" title="MCP server" product={{ href: "/newsletter-mcp-server", label: "Running a newsletter from an AI agent" }}>
 				ChatGPT, Claude and Grok Bot connect to <code className="font-mono text-[15px] text-foreground">{mcpUrl}</code>: you sign in to
-				FlockStack and allow them, no key to copy. Claude Code, Codex and Cursor use a full access key. Each gets one tool per
-				endpoint, with the same inputs, checks and errors.
+				FlockStack and allow them, no key to copy. Claude Code, Codex and Cursor use an API key, at the level the work needs: start
+				with send with approval, so sends wait for you. Each gets one tool per endpoint its level can run, with the same inputs, checks and errors.
 			</HeaderDocs>
 
 			<div className="flex max-w-3xl flex-col gap-10">
@@ -63,12 +63,25 @@ export default function McpPage() {
 						{sendTools.map(({ name }) => name).join(", ")} are marked destructive, and their descriptions ask the assistant to check with
 						you first. Most clients ask before running them. send_test_email sends only to the account owner or to up to 10 addresses you name, never to the list.
 					</p>
+					<p className="mt-3 text-[15px] leading-7 text-pretty text-foreground/80">
+						With a send with approval key or app, or on a newsletter set to ask before an agent sends, those tools don&apos;t send. They answer a result (not an
+						error) with <code className="font-mono text-[13px]">status: &quot;approval_required&quot;</code> and a request ID, and nothing happens until you approve it on the{" "}
+						<Link href="/approvals" className={LINK_CLASS}>
+							Approvals page
+						</Link>
+						. The assistant reads the outcome with <code className="font-mono text-[13px]">get_approval_status</code>. See{" "}
+						<Link href="/docs/agent-safety" className={LINK_CLASS}>
+							Agent safety
+						</Link>
+						.
+					</p>
 				</section>
 
 				<section id="connected-apps" style={{ "--stagger": setups + 2 }} className="scroll-mt-20 animate-enter">
 					<h2 className="text-xl font-semibold tracking-tight">Connected apps</h2>
 					<p className="mt-2 text-[15px] leading-7 text-pretty text-foreground/80">
-						An app you allow gets the same access as a full access key, in your account only. The{" "}
+						An app you allow gets the access you pick on the consent page, at the levels of an API key (read only, drafts only, send with approval or
+						full access), up to what it asked for, in your account only. The{" "}
 						<Link href="/api-keys" className={LINK_CLASS}>
 							API keys page
 						</Link>{" "}
@@ -128,7 +141,8 @@ export default function McpPage() {
 						<code className="font-mono text-[13px]">{appUrl}</code>. Apps identify themselves with a client metadata document (Grok Bot,
 						on Cursor&apos;s agents, registers instead), sign the user in with the authorization code flow and PKCE, and get tokens bound to{" "}
 						<code className="font-mono text-[13px]">{mcpUrl}</code>{" "}
-						with the <code className="font-mono text-[13px]">{MCP_SCOPE}</code> scope. Access tokens last an hour; refresh tokens rotate and
+						with the <code className="font-mono text-[13px]">{MCP_SCOPE}</code> scope, or a narrower one (<code className="font-mono text-[13px]">flockstack:read</code>,{" "}
+						<code className="font-mono text-[13px]">flockstack:drafts</code>, <code className="font-mono text-[13px]">flockstack:send</code> for send with approval). Access tokens last an hour; refresh tokens rotate and
 						keep the connection for 90 days after its last use.
 					</p>
 				</section>

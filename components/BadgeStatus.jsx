@@ -61,4 +61,12 @@ const STATUS_TONES = {
 	new: "blue",
 	contacted: "amber",
 	won: "green",
+	ok: "green",
+	done: "green",
+	approved: "green",
+	executed: "green",
+	denied: "red",
+	execution_failed: "red",
+	approval_required: "amber",
+	proposed: "amber",
 };

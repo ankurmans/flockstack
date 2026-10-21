@@ -42,6 +42,10 @@
         "value": "order.paid"
       },
       {
+        "label": "Approval decided",
+        "value": "approval.decided"
+      },
+      {
         "label": "Automation step",
         "value": "automation.step"
       }

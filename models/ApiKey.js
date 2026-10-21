@@ -1,7 +1,7 @@
 import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
 
-export const API_KEY_LEVELS = ["full", "signups"];
+export const API_KEY_LEVELS = ["read_only", "drafts", "send_with_approval", "full", "signups"];
 
 const apiKeySchema = new mongoose.Schema(
 	{
@@ -9,9 +9,15 @@ const apiKeySchema = new mongoose.Schema(
 		prefix: { type: String, required: true },
 		// The key itself is the lookup: unique across accounts, and it decides the account.
 		hash: { type: String, required: true, unique: true },
-		// full: every customer action. signups: only adding contacts, for keys in website code. Keys made
-		// before levels existed have none and count as signups (lib/api-key-tokens.js getKeyLevel).
+		// What the key may do (lib/action-scopes.js): full is every customer action, signups only adding contacts for keys in
+		// website code. Keys made before levels existed have none and count as signups (lib/api-key-tokens.js getKeyLevel).
 		level: { type: String, enum: API_KEY_LEVELS },
+		// A key limited to one newsletter reaches nothing of the account's others.
+		newsletterId: { type: mongoose.Schema.Types.ObjectId, ref: "Newsletter" },
+		// Calls a day (UTC), counted in AgentDay; none means no cap.
+		dailyCap: { type: Number },
+		// After this the key answers unauthorized, like a revoked one.
+		expiresAt: { type: Date },
 		lastUsedAt: { type: Date },
 		revokedAt: { type: Date },
 	},

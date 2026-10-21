@@ -6,6 +6,7 @@ import mongoose from "@/lib/docdb";
 import { activate, anonymous, as, callRoute, catchRedirect, form, platformEmails, startTestApp } from "./helpers/app.mjs";
 import { metadataDocuments } from "./stubs/cimd-node.mjs";
 import { flushAfter } from "./stubs/next-server.mjs";
+import { renderToStaticMarkup } from "react-dom/server";
 
 // OAuth for MCP clients, the way ChatGPT and Claude connect: discovery from /mcp's 401, a client metadata
 // document instead of registration (Grok Bot registers), the authorization code flow with PKCE through sign-in
@@ -143,12 +144,12 @@ async function customer(email, { slug } = {}) {
 
 // What the browser does between the app and FlockStack: open the authorization URL, answer the consent page
 // when it shows, and land on the app's redirect URI.
-async function authorizeInBrowser(user, authorizationUrl, { decision = "allow" } = {}) {
+async function authorizeInBrowser(user, authorizationUrl, { decision = "allow", access } = {}) {
 	const response = await as(user, () => m.authRoute.GET(new Request(authorizationUrl, { headers: { cookie: cookieOf(user) } })));
 	assert.equal(response.status, 302, await response.clone().text());
 	const location = new URL(response.headers.get("location"), APP_URL);
 	if (location.pathname !== "/oauth/consent") return location;
-	return new URL(await as(user, () => catchRedirect(m.consent.answerConsentRequest(null, form({ oauth_query: location.search.slice(1), decision })))));
+	return new URL(await as(user, () => catchRedirect(m.consent.answerConsentRequest(null, form({ oauth_query: location.search.slice(1), decision, ...(access && { access }) })))));
 }
 
 // An MCP client app's side, as the SDK expects it: the client metadata document URL (without one, the client
@@ -327,7 +328,7 @@ describe("discovery", () => {
 			const metadata = await response.json();
 			assert.equal(metadata.resource, MCP_URL);
 			assert.deepEqual(metadata.authorization_servers, [APP_URL]);
-			assert.deepEqual(metadata.scopes_supported, [MCP_SCOPE], "offline_access and OpenID scopes stay with the authorization server");
+			assert.deepEqual(metadata.scopes_supported, ["flockstack:read", "flockstack:drafts", "flockstack:send", MCP_SCOPE], "the four access levels; offline_access and OpenID scopes stay with the authorization server");
 			assert.deepEqual(metadata.bearer_methods_supported, ["header"]);
 		}
 	});
@@ -946,3 +947,115 @@ async function finishGoogleSignIn(user, toGoogle, { email }) {
 		globalThis.fetch = previousFetch;
 	}
 }
+
+describe("access levels", () => {
+	// The whole flow by hand, for a client that asks for the scopes it picks: the owner's choice on the consent page
+	// (access) is what the token's app may do.
+	async function obtainToken(user, { scope = `${MCP_SCOPE} offline_access`, access } = {}) {
+		const { challenge, verifier } = pkce();
+		const callback = await authorizeInBrowser(user, authorizationUrl(AGENT, { challenge, scope, prompt: "consent" }), { access });
+		const token = await postToken({
+			grant_type: "authorization_code",
+			code: callback.searchParams.get("code"),
+			redirect_uri: AGENT.redirectUri,
+			client_id: AGENT.clientId,
+			code_verifier: verifier,
+			resource: MCP_URL,
+		});
+		assert.equal(token.status, 200, JSON.stringify(token.body));
+		return token.body;
+	}
+
+	async function toolNames(token) {
+		return (await mcpRequest(token, "tools/list")).body.result.tools.map(({ name }) => name);
+	}
+
+	async function renderConsent(user, scope) {
+		const { challenge } = pkce();
+		const params = await openConsentPage(user, authorizationUrl(AGENT, { challenge, scope, prompt: "consent" }));
+		const { default: ConsentPage } = await import("../app/oauth/consent/page.js");
+		return renderToStaticMarkup(await as(user, () => ConsentPage({ searchParams: Promise.resolve(params) })));
+	}
+
+	test("the consent page offers the levels in plain words, up to what the app asked for, and starts on the one that asks first", async () => {
+		const html = await renderConsent(users.owner, `${MCP_SCOPE} offline_access`);
+		for (const label of ["Full access", "Send with approval", "Drafts only", "Read only"]) assert.match(html, new RegExp(label), label);
+		assert.match(html, /Ask you first on the Approvals page before it sends, schedules, deletes/);
+		assert.match(html, /Send campaigns to your subscribers with no review/);
+		assert.match(html, /<input[^>]*checked=""[^>]*value="send_with_approval"|<input[^>]*value="send_with_approval"[^>]*checked=""/, "the safer level is the one pre-selected");
+		assert.doesNotMatch(html, /<input[^>]*checked=""[^>]*value="full"|<input[^>]*value="full"[^>]*checked=""/);
+
+		const narrow = await renderConsent(users.owner, "flockstack:drafts offline_access");
+		assert.match(narrow, /Drafts only/);
+		assert.match(narrow, /Read only/);
+		assert.doesNotMatch(narrow, /Full access|Send with approval/, "an app that asked for drafts is not offered more");
+		assert.match(narrow, /<input[^>]*checked=""[^>]*value="drafts"|<input[^>]*value="drafts"[^>]*checked=""/);
+	});
+
+	test("what the owner chooses is what the app gets: its tools, its answers and the connected apps list", async () => {
+		const user = await customer("oauth-levels@example.com", { slug: "oauth-levels" });
+		const drafts = await obtainToken(user, { access: "drafts" });
+		const names = await toolNames(drafts.access_token);
+		assert.ok(names.includes("create_campaign") && names.includes("update_campaign"));
+		assert.ok(!names.includes("send_campaign") && !names.includes("create_api_key") && !names.includes("delete_campaign"));
+		const made = await callTool(drafts.access_token, "create_campaign", { subject: "From a drafts app", content: "x" });
+		assert.equal(made.structuredContent.status, "draft");
+		const apps = await m.oauth.listConnectedApps({ ownerId: user.userId });
+		assert.equal(apps.find(({ clientId }) => clientId === AGENT.clientId).level, "drafts");
+
+		const read = await obtainToken(user, { access: "read_only" });
+		const readTools = await toolNames(read.access_token);
+		assert.ok(readTools.includes("list_campaigns") && !readTools.includes("create_campaign"), "connecting again replaces the choice");
+		assert.equal((await m.oauth.listConnectedApps({ ownerId: user.userId })).length, 1);
+
+		const full = await obtainToken(user, { access: "full" });
+		assert.equal((await toolNames(full.access_token)).length, m.registry.ACTIONS.length);
+		const withheld = await obtainToken(user, { access: "root" });
+		assert.equal((await toolNames(withheld.access_token)).length, m.registry.ACTIONS.length, "something that isn't a level changes nothing: the app gets what it asked for");
+	});
+
+	test("an app that asks for a narrower scope gets no more, whatever the owner picks", async () => {
+		const user = await customer("oauth-narrow@example.com", { slug: "oauth-narrow" });
+		const token = await obtainToken(user, { scope: "flockstack:read offline_access", access: "full" });
+		const names = await toolNames(token.access_token);
+		assert.ok(names.includes("list_campaigns") && !names.includes("create_campaign"));
+		assert.equal(token.scope.includes("flockstack:read"), true);
+		const refused = await callTool(token.access_token, "create_campaign", { subject: "x" });
+		assert.ok(refused === undefined || refused.isError === true);
+	});
+
+	test("an app with send with approval waits for the owner, who decides in the dashboard, and it runs as the app", async () => {
+		const user = await customer("oauth-approval@example.com", { slug: "oauth-approval" });
+		const token = await obtainToken(user, { access: "send_with_approval" });
+		const draft = await callTool(token.access_token, "create_campaign", { subject: "Needs a yes", content: "x" });
+		const waiting = await callTool(token.access_token, "delete_campaign", { id: draft.structuredContent.id });
+		assert.notEqual(waiting.isError, true);
+		assert.equal(waiting.structuredContent.status, "approval_required");
+		const { default: ApprovalRequest } = await import("../models/ApprovalRequest.js");
+		const row = await ApprovalRequest.findOne({ accountId: user.accountId, _id: waiting.structuredContent.approvalId }).lean();
+		assert.deepEqual([row.actorType, row.actorName, row.via, row.preset], ["app", "Agent", "mcp", "send_with_approval"]);
+		assert.equal(JSON.parse((await callTool(token.access_token, "get_approval_status", { id: row._id })).content[0].text).status, "pending");
+
+		const { decideApproval } = await import("../app/(app)/approvals/actions.js");
+		const decided = await as(user, () => decideApproval(String(row._id), "approve", "Yes"));
+		assert.deepEqual([decided.approval.status, decided.approval.executed], ["approved", true]);
+		assert.equal((await m.Campaign.findOne({ _id: draft.structuredContent.id, accountId: user.accountId }).lean()).status, "canceled");
+		assert.equal((await callTool(token.access_token, "get_approval_status", { id: row._id })).structuredContent.executed, true);
+
+		const second = await callTool(token.access_token, "delete_campaign", { id: (await callTool(token.access_token, "create_campaign", { subject: "Second", content: "x" })).structuredContent.id });
+		await m.oauth.revokeConnectedApp({ _id: user.accountId, ownerId: user.userId }, (await m.oauth.listConnectedApps({ ownerId: user.userId }))[0].id);
+		const afterRevoke = await as(user, () => decideApproval(second.structuredContent.approvalId, "approve"));
+		assert.equal(afterRevoke.approval.execution.error.code, "unauthorized", "a disconnected app's request is not run");
+	});
+
+	test("a connection from before access levels keeps full access", async () => {
+		const user = await customer("oauth-legacy@example.com", { slug: "oauth-legacy" });
+		const token = await obtainToken(user);
+		await mongoose.connection.db.collection("oauthConsent").updateMany({ userId: user.userId }, { $unset: { flockstackLevel: "", flockstackClientName: "" } });
+		assert.equal((await toolNames(token.access_token)).length, m.registry.ACTIONS.length);
+		const apps = await m.oauth.listConnectedApps({ ownerId: user.userId });
+		assert.equal(apps[0].level, "full");
+		const waiting = await callTool(token.access_token, "list_api_keys");
+		assert.equal(waiting.structuredContent.apiKeys.length, 0, "and it still reaches the keys");
+	});
+});

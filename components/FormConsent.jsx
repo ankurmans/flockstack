@@ -10,7 +10,7 @@ export default function FormConsent({ oauthQuery }) {
 	const [decision, setDecision] = useState(null);
 
 	return (
-		<form action={action} className="flex flex-col gap-3">
+		<form id="consent" action={action} className="flex flex-col gap-3">
 			<input type="hidden" name="oauth_query" value={oauthQuery} />
 			{state?.error && (
 				<p role="alert" className="text-center text-sm text-pretty text-destructive">

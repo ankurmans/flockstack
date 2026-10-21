@@ -1,0 +1,16 @@
+CREATE TABLE IF NOT EXISTS c_agentactivities (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_agentactivities__accountId ON c_agentactivities (accountId);
+CREATE INDEX IF NOT EXISTS i_agentactivities__accountId__createdAt_d ON c_agentactivities (accountId ASC, json_extract(data, '$.createdAt') DESC);
+CREATE INDEX IF NOT EXISTS i_agentactivities__accountId__actorId__createdAt_d ON c_agentactivities (accountId ASC, json_extract(data, '$.actorId') ASC, json_extract(data, '$.createdAt') DESC);
+CREATE INDEX IF NOT EXISTS i_agentactivities__createdAt ON c_agentactivities (json_extract(data, '$.createdAt') ASC);
+CREATE TABLE IF NOT EXISTS c_agentdays (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_agentdays__accountId ON c_agentdays (accountId);
+CREATE UNIQUE INDEX IF NOT EXISTS u_agentdays__actorId__day ON c_agentdays (json_extract(data, '$.actorId') ASC, json_extract(data, '$.day') ASC);
+CREATE INDEX IF NOT EXISTS i_agentdays__accountId__day_d ON c_agentdays (accountId ASC, json_extract(data, '$.day') DESC);
+CREATE TABLE IF NOT EXISTS c_approvalrequests (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_approvalrequests__accountId ON c_approvalrequests (accountId);
+CREATE INDEX IF NOT EXISTS i_approvalrequests__accountId__status__createdAt_d ON c_approvalrequests (accountId ASC, json_extract(data, '$.status') ASC, json_extract(data, '$.createdAt') DESC);
+CREATE INDEX IF NOT EXISTS i_approvalrequests__accountId__actorId__createdAt_d ON c_approvalrequests (accountId ASC, json_extract(data, '$.actorId') ASC, json_extract(data, '$.createdAt') DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS u_approvalrequests__pendingKey ON c_approvalrequests (json_extract(data, '$.pendingKey') ASC) WHERE json_extract(data, '$.pendingKey') IS NOT NULL;
+CREATE INDEX IF NOT EXISTS i_approvalrequests__status__expiresAt ON c_approvalrequests (json_extract(data, '$.status') ASC, json_extract(data, '$.expiresAt') ASC);
+CREATE INDEX IF NOT EXISTS i_approvalrequests__createdAt ON c_approvalrequests (json_extract(data, '$.createdAt') ASC);
