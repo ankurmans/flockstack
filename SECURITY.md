@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Report it privately on GitHub: open the [Security tab](https://github.com/marclou/mailcheap/security) and click Report a vulnerability. Please don't open a public issue for a security report.
+Report it privately by email to hello@flockstack.io, with "Security" in the subject, the affected version or commit, and the steps to reproduce it. Please don't open a public issue or pull request for a security report.
 
 ## Accounts and data
 

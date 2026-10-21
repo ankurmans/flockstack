@@ -131,10 +131,12 @@ export default function MovingPage() {
 			<Section title="What doesn't" stagger={4}>
 				<ul className="list-disc space-y-2 pl-5">
 					<li>
-						Subscribers: download them from the old platform and use the contact import on the Contacts page (or <Code>import_contacts</Code>
-						), which reads Substack&apos;s, beehiiv&apos;s and Ghost&apos;s files as they are.
+						Subscribers: download them from the old platform and use the contact import on the Contacts page, one CSV file at a time (unzip an archive first). It
+						recognizes the column names that the exports of Substack, beehiiv, Mailchimp, Kit, MailerLite, Buttondown, Ghost and EmailOctopus use, with each reader&apos;s status and signup date, so the file needs no editing. Those
+						names come from each platform&apos;s own documentation or open-source migration tools, not from a live export of every platform: import a few rows first. From the API, <Code>import_contacts</Code>{" "}
+						takes the rows as JSON, 1,000 a call, and reads no file.
 					</li>
-					<li>Paid subscriptions: moving them from your Stripe account is a separate feature, coming next.</li>
+					<li>Paid subscriptions: they are not moved. FlockStack can&apos;t attach a subscription that exists on another platform to a contact, so a reader who pays there subscribes again.</li>
 					<li>Drafts, pages, podcasts and their audio, comments, tags, and embedded videos, polls and posts, which keep only their text or link.</li>
 				</ul>
 			</Section>

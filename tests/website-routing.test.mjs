@@ -15,7 +15,7 @@ const forward = (overrides) => shouldForwardToWebsite({ method: "GET", hostname:
 
 describe("lib/website-routing.js", () => {
 	test("forwards the website's paths, with or without a session", () => {
-		for (const pathname of ["/pricing", "/compare", "/changelog", "/blog", "/blog/a-post", "/blog/feed.xml", "/vs", "/vs/mailchimp", "/alternatives", "/alternatives/mailchimp", "/switch", "/switch/mailchimp", "/newsletter-api", "/newsletter-mcp-server", "/newsletter-automation", "/paid-newsletter-platform", "/cheapest-newsletter-platform", "/amazon-ses-newsletter", "/self-hosted-newsletter", "/tools/newsletter-cost-calculator", "/llms.txt", "/sitemap-website.xml", "/_website/_next/static/a.js", "/_website/og/home", "/_website/site.webmanifest"]) {
+		for (const pathname of ["/pricing", "/compare", "/changelog", "/blog", "/blog/a-post", "/blog/feed.xml", "/vs", "/vs/mailchimp", "/alternatives", "/alternatives/mailchimp", "/switch", "/switch/mailchimp", "/newsletter-api", "/newsletter-mcp-server", "/newsletter-automation", "/paid-newsletter-platform", "/low-cost-newsletter-platform", "/cheapest-newsletter-platform", "/amazon-ses-newsletter", "/about", "/pricing-explained", "/who-its-for", "/authors", "/self-hosted-newsletter", "/tools/newsletter-cost-calculator", "/llms.txt", "/sitemap-website.xml", "/_website/_next/static/a.js", "/_website/og/home", "/_website/site.webmanifest"]) {
 			assert.equal(forward({ pathname }), true, pathname);
 			assert.equal(forward({ pathname, hasSession: true }), true, `${pathname} signed in`);
 		}
@@ -27,7 +27,7 @@ describe("lib/website-routing.js", () => {
 	});
 
 	test("leaves everything else to the app", () => {
-		for (const pathname of ["/docs", "/docs/api", "/signin", "/terms", "/privacy", "/sub-processors", "/custom", "/robots.txt", "/sitemap.xml", "/site.webmanifest", "/llms-full.txt", "/llms-docs.txt", "/api/v1/contacts", "/mcp", "/archive/x", "/pricing/extra", "/blogger", "/vsx", "/newsletter-api/extra", "/newsletter", "/_websitefoo", "/campaigns", "/billing", "/tools", "/tools/", "/tools/other", "/tools/newsletter-cost-calculator/extra", "/tools/newsletter-cost-calculator/", "/tool"]) {
+		for (const pathname of ["/docs", "/docs/api", "/signin", "/terms", "/privacy", "/sub-processors", "/custom", "/robots.txt", "/sitemap.xml", "/site.webmanifest", "/llms-full.txt", "/llms-docs.txt", "/api/v1/contacts", "/mcp", "/archive/x", "/pricing/extra", "/about/", "/about/team", "/authors/ada", "/who-its-for/", "/pricing-explained/more", "/low-cost-newsletter-platform/", "/blogger", "/vsx", "/newsletter-api/extra", "/newsletter", "/_websitefoo", "/campaigns", "/billing", "/tools", "/tools/", "/tools/other", "/tools/newsletter-cost-calculator/extra", "/tools/newsletter-cost-calculator/", "/tool"]) {
 			assert.equal(forward({ pathname }), false, pathname);
 		}
 	});

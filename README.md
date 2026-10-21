@@ -13,7 +13,7 @@
 
 <p align="center">
   Newsletters where you pay for the emails you send, not for dormant subscribers.<br>
-  A fraction of the price of beehiiv and the like.
+  Prices and comparisons, each fact sourced and dated: <a href="https://flockstack.io/compare">flockstack.io/compare</a>.
 </p>
 
 <p align="center">
@@ -39,7 +39,7 @@ FlockStack is a newsletter app: write an issue, send it to your list, publish it
 - **Subject line tests and resends.** Try up to 4 subject lines on a slice of the audience; after the wait the winner, by unique clicks or opens, goes to everyone else by itself. Once an issue is out, send it again with a new subject to the readers who didn't open it, or didn't click, a day later by default.
 - **AI writing tools** (Cloudflare Workers AI): select text in the editor and rewrite, shorten, expand, fix or translate it, or change its tone; get five subject lines and three preview texts from the draft, and send subject lines to the subject line test; draft LinkedIn and X posts for an issue, to edit and post yourself. You see a suggestion first and nothing changes until you accept it. Each plan has a daily allowance, and a server without Workers AI hides the buttons ([AI writing tools](#ai-writing-tools)).
 - **Editor and dashboard tools.** Version history for drafts (the last 30 states, restorable), a live word count and read time, find and replace (Cmd/Ctrl+F), a media library with folders and a search by name, free Unsplash photos where the server has a key ([Stock photos](#stock-photos)), a calendar of scheduled and sent issues, a Cmd/Ctrl+K command palette, bulk actions on campaigns (delete drafts, list, unlist, move), a link-in-bio page at `/links` on each newsletter's website, tag colors, and a dashboard that installs as an app from the browser (a manifest and icons only: no service worker, nothing works offline). All of it is in the REST API and MCP too, except the palette and the install, which are pages.
-- **Imports from beehiiv, Substack and Mailchimp.** Their CSV exports import as they are, with each reader's status and signup date, and so do Kit's, MailerLite's, Buttondown's, Ghost's and EmailOctopus's.
+- **Imports from beehiiv, Substack, Mailchimp, Kit, MailerLite, Buttondown, Ghost and EmailOctopus.** One CSV import, not a preset for each platform: it recognizes the column names their exports use (and the statuses and dates in them), so the file needs no editing, one CSV at a time (unzip an archive first; Mailchimp gives one file for each status). The names come from each platform's documentation or open-source migration tools and are tested against files built from them (`tests/import-presets.test.mjs`), not against live exports: import a few rows first. Past posts have their own import, from Substack, beehiiv, WordPress and Ghost archives. Paid subscriptions are not moved.
 - **Your archive comes too.** Upload a Substack, beehiiv, WordPress or Ghost export: every published post becomes an issue on your website on its original date, with its pictures copied and no email sent, and each old address redirects to its new page.
 - **Tags, custom fields and merge tags.** Label contacts with free-form tags and give a newsletter custom fields (text, number, date, date and time, true or false, lists) for a first name, a plan, a renewal date. Set them from the dashboard, imports (a tags column and columns named like the fields), the signup form and API, and REST and MCP. Write `{{first_name|there}}` in a subject or body and each reader's email has their own value.
 - **Blocks, polls, surveys and a preference center.** The editor adds a call-to-action button in the newsletter's accent color, embeds (YouTube, X, Instagram, TikTok, Bluesky, Spotify, Apple Podcasts), a paywall break, two columns, tables, file attachments and footnotes, each built for email tables and the website. A poll's answers are one-click signed links that record one vote per subscriber, can set a field or a tag, and show live results; a survey saves answers to custom fields, runs after signup or on the unsubscribe page and exports as CSV; the preference center lets readers change the fields you open to them. Segments filter on a poll's answers.
@@ -86,11 +86,11 @@ All names and addresses in the screenshots are made up.
 | Who signs in | Anyone who signs up | The emails you allow |
 | Limits | Emails a month and active subscribers, by plan | None |
 | Setup | A few minutes | About an hour, most of it waiting for DNS and production access (SES) |
-| Support | A chat in the dashboard | None: issues are off |
+| Support | A chat in the dashboard | None: a self-hosted server comes without support |
 
 FlockStack Cloud is this repository with `FLOCKSTACK_CLOUD=true`, which adds open sign-up, plans and billing (Polar or Stripe). Only active subscribers count toward a plan, not the ones list cleanup marked dormant. Its marketing website (the home page, pricing, comparison, blog and release notes) is a separate program in a private repository, a Worker of its own. On FlockStack Cloud a small router Worker owns the domain and hands the website its paths (`lib/website-routing.js`), the docs, the legal pages and the files for agents to a Worker that serves them as files rendered at deploy time, and everything else to this app's Worker, so a visit to a public page doesn't start the whole app (`workers/router`, `workers/public`, [docs/ARCHITECTURE-WORKERS.md](docs/ARCHITECTURE-WORKERS.md)). The app keeps every route, serves `/llms-docs.txt` (the docs part of the website's merged `/llms.txt`) and still hands the website its paths itself through the `WEBSITE` service binding when a domain points straight at it. A self-hosted server has none of this: no router, no public pages Worker and no binding, and the one app Worker answers everything. The analytics, the help chat and the legal pages (`/terms`, `/privacy` and `/sub-processors`, which a self-hosted server doesn't serve, see [Legal pages](#legal-pages)) are in this repository. Every change to the app ships to both.
 
-With your own sending account, you pay your provider for the emails you send: 10,000 readers and 4 issues a month is 40,000 emails, about $4 to $6 on Amazon SES.
+With your own sending account, you pay your provider for the emails you send: 10,000 readers and 4 issues a month is 40,000 emails, about $4 to $6.40 on Amazon SES, at the prices on [AWS's pricing page](https://aws.amazon.com/ses/pricing/) when this was written.
 
 ## Regions
 
@@ -618,7 +618,7 @@ ChatGPT, Claude and Grok Bot add `https://<your-app>/mcp` as a connector or cust
 
 ## Contributing
 
-Read [AGENTS.md](AGENTS.md) first, whether you're a person or an AI agent: how the app is organized, FlockStack Cloud and self-hosting, the rules (no secrets or personal data in code, tests or commits), code style and tests. [SECURITY.md](SECURITY.md) covers what's built in and the known gaps. Issues are off, and pull requests may not be reviewed.
+Read [AGENTS.md](AGENTS.md) first, whether you're a person or an AI agent: how the app is organized, FlockStack Cloud and self-hosting, the rules (no secrets or personal data in code, tests or commits), code style and tests. [SECURITY.md](SECURITY.md) covers what's built in and the known gaps. A self-hosted server comes without support, and pull requests may not be reviewed.
 
 You need Node.js 22+ (local runs and tests use its built-in SQLite):
 

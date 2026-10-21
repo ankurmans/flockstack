@@ -115,7 +115,7 @@ describe("wrangler configurations", () => {
 		assert.equal(service(router.env["eu-staged"], "APP"), app.env.eu.name);
 		assert.equal(router.routes, undefined, "the top level is the staged US router: no domain");
 		assert.equal(router.env["eu-staged"].routes, undefined, "so is the staged EU one");
-		assert.deepEqual(router.env.us.routes, [{ pattern: "flockstack.io", custom_domain: true }]);
+		assert.deepEqual(router.env.us.routes, [{ pattern: "flockstack.io", custom_domain: true }, { pattern: "www.flockstack.io", custom_domain: true }], "www is the router's too, to be redirected to the domain");
 		assert.deepEqual(router.env.eu.routes, [{ pattern: "eu.flockstack.io", custom_domain: true }]);
 		assert.equal(router.env.us.name, router.name, "the US environment is the same Worker as the staged one");
 		assert.equal(router.env.eu.name, router.env["eu-staged"].name);
