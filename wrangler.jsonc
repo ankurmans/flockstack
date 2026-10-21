@@ -18,13 +18,9 @@
 	"upload_source_maps": false,
 	// The version's ID keys the cached public pages (lib/edge-cache.js), so a deploy never serves an old page from the cache.
 	"version_metadata": { "binding": "CF_VERSION_METADATA" },
-	// flockstack.io is this Worker's until the router Worker (workers/router, docs/ARCHITECTURE-WORKERS.md) takes it; at that cutover
-	// the flockstack.io line goes (deploy-all.mjs refuses to deploy while it and the router both claim the domain). A newsletter's
-	// own domain, like newsletter.ankur.works, stays here for good: it never goes through the router.
-	"routes": [
-		{ "pattern": "flockstack.io", "custom_domain": true },
-		{ "pattern": "newsletter.ankur.works", "custom_domain": true }
-	],
+	// flockstack.io belongs to the router Worker (workers/router, docs/ARCHITECTURE-WORKERS.md) since the US cutover, so it is no
+	// longer a route here. A newsletter's own domain, like newsletter.ankur.works, stays here for good: it never goes through the router.
+	"routes": [{ "pattern": "newsletter.ankur.works", "custom_domain": true }],
 	"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
 	"d1_databases": [{ "binding": "DB", "database_name": "flockstack", "database_id": "97615845-8aa2-413f-ad98-89821937069f", "migrations_dir": "migrations" }],
 	"r2_buckets": [
