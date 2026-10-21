@@ -35,6 +35,7 @@ FlockStack is a newsletter app: write an issue, send it to your list, publish it
 ## Features
 
 - **AI agents and the dashboard.** Everything the dashboard does also works from an AI agent through the MCP server, and from code through the REST API, with the same checks and limits. ChatGPT, Claude and Grok Bot connect with OAuth; Claude Code, Codex and Cursor with an API key. MCP marks sending as an action that can't be undone, so agents ask you first.
+- **Built for agents you can trust.** Agents propose, you approve: a key or connected app can be read only, drafts only, send with approval or full access, limited to one newsletter, capped at a number of calls a day and set to expire. With send with approval, the sends, schedules and deletes an agent asks for wait on an Approvals page with the exact input and who asked, and run once, as that key, when you approve (an agent can never approve its own request). Everything an agent changes is in an Agent activity log (ids and counts only, kept 90 days). See [Agent safety](#agent-safety).
 - **Write, review, send.** Write in an editor with slash commands, images and boxes, or send Markdown or a complete HTML email through the API and MCP. Review shows what to fix before sending: subject, preview text, unsubscribe link, Gmail's 100 KB clip, postal address, sender. Then send it, schedule it, or start with your most engaged readers and send to more later. Send by email and web, email only or web only, under the issue's own sender name, with test emails to up to 10 people.
 - **Subject line tests and resends.** Try up to 4 subject lines on a slice of the audience; after the wait the winner, by unique clicks or opens, goes to everyone else by itself. Once an issue is out, send it again with a new subject to the readers who didn't open it, or didn't click, a day later by default.
 - **AI writing tools** (Cloudflare Workers AI): select text in the editor and rewrite, shorten, expand, fix or translate it, or change its tone; get five subject lines and three preview texts from the draft, and send subject lines to the subject line test; draft LinkedIn and X posts for an issue, to edit and post yourself. You see a suggestion first and nothing changes until you accept it. Each plan has a daily allowance, and a server without Workers AI hides the buttons ([AI writing tools](#ai-writing-tools)).
@@ -594,7 +595,7 @@ Every subscription event re-reads the subscription from Stripe, so events arrivi
 
 ## AI agents, REST API and MCP
 
-Create a key on the **API keys** page and send it as `Authorization: Bearer <key>`. Keys start with `mc_`, or `mc_eu_` on an EU region's Worker (see [Regions](#regions)), followed by 43 characters; to find them in code or logs, match `(?<![A-Za-z0-9_-])mc_(?:eu_)?[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])`. A full access key can do everything the dashboard can; a signups only key can only add contacts, for keys that sit in a website's code. Every key gets 300 requests a minute.
+Create a key on the **API keys** page and send it as `Authorization: Bearer <key>`. Keys start with `mc_`, or `mc_eu_` on an EU region's Worker (see [Regions](#regions)), followed by 43 characters; to find them in code or logs, match `(?<![A-Za-z0-9_-])mc_(?:eu_)?[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])`. A key has a level: read only, drafts only, send with approval, full access (everything the dashboard can) or signups only (only adds contacts, for keys that sit in a website's code). Every key gets 300 requests a minute.
 
 **Add a contact**: `POST /api/v1/contacts`
 
@@ -605,16 +606,22 @@ curl -X POST https://<your-app>/api/v1/contacts \
   -d '{"email":"jane@example.com","source":"website","ip":"203.0.113.7"}'
 ```
 
-**MCP**: connect Claude Code with a full access key. Every action is a tool.
+**MCP**: connect Claude Code with an API key, send with approval to start. Every action its level can run is a tool.
 
 ```bash
 claude mcp add --transport http --scope user flockstack https://<your-app>/mcp \
   --header "Authorization: Bearer $FLOCKSTACK_API_KEY"
 ```
 
-ChatGPT, Claude and Grok Bot add `https://<your-app>/mcp` as a connector or custom MCP server and sign in with OAuth: you sign in to FlockStack and allow the app on a consent page, and it gets full access to that account. The **API keys** page lists connected apps and revokes them. They need the server to be reachable over HTTPS from the internet.
+ChatGPT, Claude and Grok Bot add `https://<your-app>/mcp` as a connector or custom MCP server and sign in with OAuth: you sign in to FlockStack and allow the app on a consent page, where you pick what it may do (read only, drafts only, send with approval or full access, up to what it asked for). The **API keys** page lists connected apps and revokes them. They need the server to be reachable over HTTPS from the internet.
 
 `/docs` on your server has every endpoint, the errors, the MCP setup for ChatGPT, Claude, Grok Bot, Claude Code, Codex and Cursor, and the OpenAPI document at `/api/v1/openapi.json`. On FlockStack Cloud, the same at [flockstack.io/docs](https://flockstack.io/docs) and `https://flockstack.io/mcp`.
+
+### Agent safety
+
+Every action has a scope class (read, write-draft, write, send, destructive, admin) in `lib/action-scopes.js`, and a key's or app's level allows some of them: read only, drafts only (campaigns, templates, segments and automations as drafts), send with approval (all but keys, billing and money; its send and destructive classes wait for the owner) and full. `tests/agent-scopes.test.mjs` fails when an action has no class, and checks each level over the whole registry. A key can be limited to one newsletter, capped at calls a day and given an expiry (`create_api_key`). Keys and apps from before levels keep their meaning.
+
+An action that waits for approval answers `202` with `status: "approval_required"` (REST) or a tool result with the same fields (MCP) and is stored in `ApprovalRequest` (`lib/agent-guard.js`, `lib/approvals.js`): the owner approves or rejects it on **Approvals** (`/approvals`), approving runs it once as the key that asked, requests expire after 24 hours, and `get_approval_status` and the `approval.decided` webhook tell the agent. "Ask me before an agent sends" is a per-newsletter switch on the same page that makes even a full access key wait. Deciding is a registry action marked `dashboardOnly`, so no key, app or tool can do it. **Agent activity** (`/agent-activity`, `list_agent_activity`) logs what keys and apps changed or read of contacts, with ids and counts only, for 90 days; the hourly cron purges it. The docs page is `/docs/agent-safety`.
 
 ## Contributing
 
