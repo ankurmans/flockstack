@@ -274,9 +274,26 @@ export function jsonRequest(url, { method = "GET", body, headers = {} } = {}) {
 	});
 }
 
+// Which implementation answers the API, MCP and OAuth requests of the tests: the Next.js route handlers (the default), or the
+// lean API Worker's fetch handler (workers/api), with FLOCKSTACK_API_TARGET=worker. Both run the same source modules, so
+// the same tests must pass against both (tests/api-worker-parity.test.mjs runs them).
+export const API_TARGET = process.env.FLOCKSTACK_API_TARGET === "worker" ? "worker" : "next";
+
+// Calls a route handler module the way its host does. For the Worker target a request the router sends to the API Worker (lib/api-routing.js)
+// goes to the Worker's handler instead, with no Next.js request scope (the Worker has none); any other stays with the app's route.
+export async function callRoute(route, method, request, extra) {
+	const { getApiGroup } = await import("../../lib/api-routing.js");
+	if (API_TARGET === "worker" && getApiGroup(new URL(request.url).pathname)) {
+		const { handleApiRequest } = await import("../../workers/api/handler.js");
+		const response = await handleApiRequest(request);
+		if (response.headers.get("x-fs-api-miss")) return new Response("Not found", { status: 404 });
+		return response;
+	}
+	return runWithRequest({ jar: new Map() }, () => route[method](request, extra));
+}
+
 // A request to /api/v1 through its route handler, as Next.js routes it: the path after /api/v1 as params.
 export async function callApi(method, path, { key, body, headers = {}, jar = new Map() } = {}) {
-	const route = await import("../../app/api/v1/[...path]/route.js");
 	const url = new URL(path, "http://localhost:3000");
 	const segments = url.pathname.replace(/^\/api\/v1\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);
 	const request = jsonRequest(`${url.pathname}${url.search}`, {
@@ -284,6 +301,10 @@ export async function callApi(method, path, { key, body, headers = {}, jar = new
 		body,
 		headers: { ...(key && { authorization: `Bearer ${key}` }), ...headers },
 	});
-	const response = await runWithRequest({ jar }, () => route[method](request, { params: Promise.resolve({ path: segments }) }));
+	const route = await import("../../app/api/v1/[...path]/route.js");
+	const response =
+		API_TARGET === "worker"
+			? await callRoute(route, method, request)
+			: await runWithRequest({ jar }, () => route[method](request, { params: Promise.resolve({ path: segments }) }));
 	return { status: response.status, headers: response.headers, body: await response.json().catch(() => null) };
 }

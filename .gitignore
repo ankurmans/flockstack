@@ -50,3 +50,4 @@ next-env.d.ts
 
 # the public pages Worker's rendered files (npm run build:public)
 /workers/public/dist/
+/workers/api/dist/

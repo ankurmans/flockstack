@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { after, before, describe, test } from "node:test";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
 import mongoose from "@/lib/docdb";
-import { activate, anonymous, as, catchRedirect, form, platformEmails, startTestApp } from "./helpers/app.mjs";
+import { activate, anonymous, as, callRoute, catchRedirect, form, platformEmails, startTestApp } from "./helpers/app.mjs";
 import { metadataDocuments } from "./stubs/cimd-node.mjs";
 import { flushAfter } from "./stubs/next-server.mjs";
 
@@ -115,7 +115,7 @@ async function appFetch(input, init) {
 	if (url.origin !== APP_URL) throw new Error(`Unexpected request to ${url}`);
 	const route = findRoute(url.pathname);
 	if (!route?.[request.method]) return new Response("Not found", { status: 404 });
-	return anonymous(() => route[request.method](request));
+	return callRoute(route, request.method, request);
 }
 
 function cookieOf(user) {
@@ -218,7 +218,7 @@ async function mcpRequest(token, method = "tools/list", params = {}) {
 		},
 		body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
 	});
-	const response = await anonymous(() => m.mcpRoute.POST(request));
+	const response = await callRoute(m.mcpRoute, "POST", request);
 	const text = await response.text();
 	const data = text.split("\n").find((line) => line.startsWith("data: "));
 	return { status: response.status, headers: response.headers, body: data ? JSON.parse(data.slice(6)) : text ? JSON.parse(text) : null };

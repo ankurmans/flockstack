@@ -13,6 +13,8 @@ const eslintConfig = defineConfig([
     ".open-next/**",
     ".wrangler/**",
     ".worker/**",
+    // The lean API Worker's build output (scripts/build-api-worker.mjs).
+    "workers/api/dist/**",
   ]),
 ]);
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
-import { activate, anonymous, as, catchRedirect, form, signIn, startTestApp } from "./helpers/app.mjs";
+import { activate, as, callRoute, catchRedirect, form, signIn, startTestApp } from "./helpers/app.mjs";
 
 // The MCP server through its route handler, the way Claude Code, Codex and Cursor reach it today: 2025-era
 // Streamable HTTP (initialize, then tools/list and tools/call), each request carrying the API key.
@@ -22,7 +22,7 @@ async function mcp(key, method, params = {}, { route = m.mcpRoute, path = "/mcp"
 		},
 		body: JSON.stringify({ jsonrpc: "2.0", method, params, ...(!isNotification && { id: ++nextId }) }),
 	});
-	const response = await anonymous(() => route.POST(request));
+	const response = await callRoute(route, "POST", request);
 	const text = await response.text();
 	const data = text.split("\n").find((line) => line.startsWith("data: "));
 	return { status: response.status, headers: response.headers, body: data ? JSON.parse(data.slice(6)) : text ? JSON.parse(text) : null };
@@ -107,7 +107,7 @@ describe("connecting", () => {
 		const { Client, StreamableHTTPClientTransport } = await import("@modelcontextprotocol/client");
 		const fetchRoute = (input, init) => {
 			const request = new Request(input, init);
-			return anonymous(() => m.mcpRoute[request.method](request));
+			return callRoute(m.mcpRoute, request.method, request);
 		};
 		for (const mode of [{ pin: "2026-07-28" }, "legacy"]) {
 			const client = new Client({ name: "flockstack-test", version: "1.0.0" }, { versionNegotiation: { mode } });
