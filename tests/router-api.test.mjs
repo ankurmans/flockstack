@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 import router from "../workers/router/index.js";
 import { API_UNPROCESSED_HEADER, MAX_REPLAY_BYTES, chooseRoute } from "../workers/router/routing.js";
@@ -230,5 +231,68 @@ describe("failing open", () => {
 		}
 		assert.equal(API.calls.length, 0);
 		assert.equal(appBinding.calls.length, 4);
+	});
+});
+
+describe("the API combined with http, www and workers.dev", () => {
+	const EU = { FLOCKSTACK_REGION: "eu", APP_URL: "https://eu.flockstack.io" };
+	const stackFor = (config) => {
+		const { env, ...rest } = stack();
+		return { env: { ...env, ...config }, ...rest };
+	};
+
+	test("an API call, an MCP call or a token request on http or www is sent on with a 308 and reaches nobody", async () => {
+		for (const [config, host] of [[US, "flockstack.io"], [EU, "eu.flockstack.io"]]) {
+			for (const [method, path, www] of [["GET", "/api/v1/contacts?limit=2", false], ["POST", "/api/v1/campaigns/abc/send", false], ["POST", "/mcp", false], ["POST", "/api/auth/oauth2/token", false], ["GET", "/.well-known/oauth-protected-resource/mcp", false], ["POST", "/api/v1/contacts", true], ["POST", "/mcp", true]]) {
+				const { env, API, APP: appBinding } = stackFor(config);
+				const origin = www ? `https://www.${host}` : `http://${host}`;
+				const body = method === "POST" ? '{"a":1}' : undefined;
+				const response = await send(env, `${origin}${path}`, { method, body, headers: { authorization: "Bearer k", "content-type": "application/json" } });
+				assert.equal(response.status, 308, `${method} ${origin}${path}`);
+				assert.equal(response.headers.get("location"), `https://${host}${path}`, "the path and query are kept, the method is the client's to keep (308)");
+				assert.equal(response.headers.get("cache-control"), method === "GET" ? "public, max-age=3600" : "no-store", "only a read may be remembered");
+				assert.equal(API.calls.length + appBinding.calls.length, 0, "nothing was processed, so nothing was lost or sent twice");
+			}
+		}
+	});
+
+	test("the same calls on https at the domain go to the API Worker, with the body untouched", async () => {
+		const { env, API } = stack();
+		const request = new Request(`${APP}/mcp`, { method: "POST", body: '{"jsonrpc":"2.0"}', headers: { "content-type": "application/json", "content-length": "17" }, redirect: "manual" });
+		await router.fetch(request, env);
+		assert.equal(API.calls.length, 1);
+		assert.equal(API.calls[0].request, request);
+	});
+
+	test("certificate checks over http are not redirected", async () => {
+		const { env, APP: appBinding } = stack();
+		const response = await send(env, "http://flockstack.io/.well-known/acme-challenge/token123");
+		assert.equal(response.status, 200);
+		assert.equal(appBinding.calls.length, 1);
+		assert.equal((await send(env, "http://flockstack.io/.well-known/pki-validation/x.txt")).status, 200);
+	});
+
+	test("a router being tried at its own workers.dev address redirects nothing, and the API answers there with noindex", async () => {
+		const trial = { FLOCKSTACK_REGION: "us", APP_URL: "https://flockstack-router.me.workers.dev" };
+		const { env, API } = stackFor(trial);
+		for (const url of ["http://flockstack-router.me.workers.dev/api/v1/contacts", "https://www.flockstack-router.me.workers.dev/api/v1/contacts"]) {
+			assert.notEqual((await send(env, url)).status, 308, url);
+		}
+		const response = await send(env, "https://flockstack-router.me.workers.dev/api/v1/contacts");
+		assert.equal(response.headers.get("x-served-by"), "api");
+		assert.equal(response.headers.get("x-robots-tag"), "noindex, nofollow");
+		assert.ok(API.calls.length >= 1);
+		const domain = await send(stack().env, `${APP}/api/v1/contacts`);
+		assert.equal(domain.headers.get("x-robots-tag"), null, "the domain is indexable");
+	});
+
+	test("www is a custom domain of the US router only: the staged routers and the EU keep their own addresses", () => {
+		const strip = (text) => text.replace(/^\s*\/\/.*$/gm, "");
+		const config = JSON.parse(strip(readFileSync(new URL("../workers/router/wrangler.jsonc", import.meta.url), "utf8")));
+		assert.deepEqual(config.env.us.routes.map(({ pattern }) => pattern), ["flockstack.io", "www.flockstack.io"]);
+		assert.ok(config.env.us.routes.every((route) => route.custom_domain));
+		assert.deepEqual(config.env.eu.routes.map(({ pattern }) => pattern), ["eu.flockstack.io"], "no www.eu.flockstack.io");
+		assert.equal(config.routes, undefined, "the staged US router has no domain");
+		assert.equal(config.env["eu-staged"].routes, undefined);
 	});
 });

@@ -11,18 +11,24 @@
 // Cloud only: a self-hosted server has none of this and runs from the one app Worker. Newsletters' own domains and the shared
 // archive hosts are not routed here either (Cloudflare for SaaS sends them straight to the app Worker, lib/custom-hostnames.js).
 // Fail open: when WEBSITE or PUBLIC throws, is slow or answers 502, 503 or 504, the app answers instead, and nothing is lost
-// because the app still has every page. The API Worker fails open the same way for a request that only reads (GET, HEAD, OPTIONS);
-// a request that may have changed something is never sent twice (askApi). docs/ARCHITECTURE-WORKERS.md has the picture.
+// because the app still has every page (the website's own files under /_website/ are the exception: the app has none, so they are
+// asked for again and then answered 503). The API Worker fails open the same way for a request that only reads (GET, HEAD, OPTIONS);
+// a request that may have changed something is never sent twice (askApi). Plain http and www.<domain> are sent to https://<domain>
+// first, with a 308. docs/ARCHITECTURE-WORKERS.md has the picture.
 import {
 	API_MISS_HEADER,
 	API_UNPROCESSED_HEADER,
+	ASSET_PREFIX,
 	DEFAULT_API_TIMEOUT_MS,
+	DEFAULT_ASSET_RETRY_MS,
 	DEFAULT_TIMEOUT_MS,
 	FALLBACK_STATUSES,
 	HEALTH_PATH,
 	MAX_REPLAY_BYTES,
 	SAFE_METHODS,
+	chooseRedirect,
 	chooseRoute,
+	isWorkersDevHost,
 } from "./routing.js";
 
 // The Worker's answer, or null where there is none to give: it threw, it did not start answering in time, or it said it is
@@ -111,42 +117,68 @@ function stamp(response, servedBy, startedAt, upstreamMs) {
 // What a Next.js client gets for data it asked for and will not get from the app (see chooseRoute): not RSC, never stored.
 const RSC_ANSWER_HEADERS = { "cache-control": "no-store", vary: "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch" };
 
+async function handle(request, env) {
+	const startedAt = Date.now();
+	const url = new URL(request.url);
+
+	if (url.pathname === HEALTH_PATH && (request.method === "GET" || request.method === "HEAD")) {
+		return stamp(new Response(request.method === "HEAD" ? null : "ok\n", { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } }), "router", startedAt, 0);
+	}
+
+	const redirectTo = chooseRedirect({ url, env });
+	if (redirectTo) {
+		// 308 keeps the method and the body for a client that follows it. Only a read may be remembered: a URL of a write, or one that
+		// carries a token in its query, is not something a cache should keep for an hour.
+		const isRead = request.method === "GET" || request.method === "HEAD";
+		return stamp(new Response(null, { status: 308, headers: { location: redirectTo, "cache-control": isRead ? "public, max-age=3600" : "no-store" } }), "router", startedAt, 0);
+	}
+
+	const route = chooseRoute({ method: request.method, url, headers: request.headers, env });
+	if (route === "skip-prefetch") return stamp(new Response(null, { status: 204, headers: RSC_ANSWER_HEADERS }), "router", startedAt, 0);
+	if (route === "hard-navigation") {
+		return stamp(new Response(request.method === "HEAD" ? null : "<!doctype html><title>FlockStack</title>\n", { headers: { ...RSC_ANSWER_HEADERS, "content-type": "text/html; charset=utf-8" } }), "router", startedAt, 0);
+	}
+	let appRequest = request;
+	if (route === "api") {
+		const askedAt = Date.now();
+		const { response, replay } = await askApi(request, env);
+		if (response) return stamp(response, "api", startedAt, Date.now() - askedAt);
+		appRequest = replay ?? request;
+	} else if (route !== "app") {
+		const timeoutMs = Number(env.ROUTER_TIMEOUT_MS) > 0 ? Number(env.ROUTER_TIMEOUT_MS) : DEFAULT_TIMEOUT_MS;
+		const askedAt = Date.now();
+		const binding = route === "website" ? env.WEBSITE : env.PUBLIC;
+		let response = await ask(route, binding, request, timeoutMs);
+		const isAsset = route === "website" && url.pathname.startsWith(ASSET_PREFIX);
+		if (!response && isAsset) {
+			// A file only the website has: ask again, for longer, and answer "try later" before the app's 404.
+			const retryMs = Number(env.ROUTER_ASSET_RETRY_MS) > 0 ? Number(env.ROUTER_ASSET_RETRY_MS) : DEFAULT_ASSET_RETRY_MS;
+			response = await ask(route, binding, request, retryMs);
+			if (!response) {
+				return stamp(new Response("The website is not answering. Try again in a moment.\n", { status: 503, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "retry-after": "5" } }), "router", startedAt, 0);
+			}
+		}
+		if (response) return stamp(response, route, startedAt, Date.now() - askedAt);
+	}
+
+	// The app gets the request itself, not a copy: method, headers, cookies and the body, which is neither read nor buffered
+	// here (webhook signatures cover its exact bytes).
+	const askedAt = Date.now();
+	try {
+		return stamp(await env.APP.fetch(appRequest), "app", startedAt, Date.now() - askedAt);
+	} catch (error) {
+		console.error(`[router] the app failed: ${error?.message ?? error}`);
+		return stamp(new Response("The app is not answering. Try again in a moment.\n", { status: 502, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } }), "router", startedAt, 0);
+	}
+}
+
 const router = {
 	async fetch(request, env) {
-		const startedAt = Date.now();
-		const url = new URL(request.url);
-
-		if (url.pathname === HEALTH_PATH && (request.method === "GET" || request.method === "HEAD")) {
-			return stamp(new Response(request.method === "HEAD" ? null : "ok\n", { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } }), "router", startedAt, 0);
-		}
-
-		const route = chooseRoute({ method: request.method, url, headers: request.headers, env });
-		if (route === "skip-prefetch") return stamp(new Response(null, { status: 204, headers: RSC_ANSWER_HEADERS }), "router", startedAt, 0);
-		if (route === "hard-navigation") {
-			return stamp(new Response(request.method === "HEAD" ? null : "<!doctype html><title>FlockStack</title>\n", { headers: { ...RSC_ANSWER_HEADERS, "content-type": "text/html; charset=utf-8" } }), "router", startedAt, 0);
-		}
-		let appRequest = request;
-		if (route === "api") {
-			const askedAt = Date.now();
-			const { response, replay } = await askApi(request, env);
-			if (response) return stamp(response, "api", startedAt, Date.now() - askedAt);
-			appRequest = replay ?? request;
-		} else if (route !== "app") {
-			const timeoutMs = Number(env.ROUTER_TIMEOUT_MS) > 0 ? Number(env.ROUTER_TIMEOUT_MS) : DEFAULT_TIMEOUT_MS;
-			const askedAt = Date.now();
-			const response = await ask(route, route === "website" ? env.WEBSITE : env.PUBLIC, request, timeoutMs);
-			if (response) return stamp(response, route, startedAt, Date.now() - askedAt);
-		}
-
-		// The app gets the request itself, not a copy: method, headers, cookies and the body, which is neither read nor buffered
-		// here (webhook signatures cover its exact bytes).
-		const askedAt = Date.now();
-		try {
-			return stamp(await env.APP.fetch(appRequest), "app", startedAt, Date.now() - askedAt);
-		} catch (error) {
-			console.error(`[router] the app failed: ${error?.message ?? error}`);
-			return stamp(new Response("The app is not answering. Try again in a moment.\n", { status: 502, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } }), "router", startedAt, 0);
-		}
+		const response = await handle(request, env);
+		if (response.status === 101 || response.webSocket || !isWorkersDevHost(new URL(request.url).hostname)) return response;
+		const copy = new Response(response.body, response);
+		copy.headers.set("x-robots-tag", "noindex, nofollow");
+		return copy;
 	},
 };
 

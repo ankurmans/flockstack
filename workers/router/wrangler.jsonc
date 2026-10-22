@@ -41,7 +41,12 @@
 			"preview_urls": false,
 			"observability": { "enabled": true },
 			"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
-			"routes": [{ "pattern": "flockstack.io", "custom_domain": true }],
+			// www.flockstack.io has no DNS record of its own: a custom domain makes Cloudflare create the proxied record, and the router
+			// answers it with a permanent redirect to flockstack.io (workers/router/routing.js, chooseRedirect).
+			"routes": [
+				{ "pattern": "flockstack.io", "custom_domain": true },
+				{ "pattern": "www.flockstack.io", "custom_domain": true }
+			],
 			"services": [
 				{ "binding": "WEBSITE", "service": "flockstack-website" },
 				{ "binding": "PUBLIC", "service": "flockstack-public" },

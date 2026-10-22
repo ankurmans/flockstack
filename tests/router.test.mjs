@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import router from "../workers/router/index.js";
-import { DEFAULT_TIMEOUT_MS, HEALTH_PATH, chooseRoute } from "../workers/router/routing.js";
+import { DEFAULT_ASSET_RETRY_MS, DEFAULT_TIMEOUT_MS, HEALTH_PATH, chooseRedirect, chooseRoute, isWorkersDevHost } from "../workers/router/routing.js";
 import { PUBLIC_EXACT_PATHS } from "../lib/public-routing.js";
 import { WEBSITE_EXACT_PATHS, WEBSITE_PREFIXES } from "../lib/website-routing.js";
 
@@ -376,5 +376,145 @@ describe("failing open", () => {
 			assert.equal(response.status, status);
 			assert.equal(APP.calls.length, 0);
 		}
+	});
+});
+
+describe("the trust pages and the renamed page (2026-10-21)", () => {
+	const NEW_PATHS = ["/low-cost-newsletter-platform", "/cheapest-newsletter-platform", "/about", "/pricing-explained", "/who-its-for", "/authors"];
+
+	test("go to WEBSITE without a session and with one, in both regions, and only by their exact paths", () => {
+		for (const [config, host, cookie] of [[US, "flockstack.io", SESSION_US], [EU, "eu.flockstack.io", SESSION_EU]]) {
+			const { env } = stack(config);
+			for (const path of NEW_PATHS) {
+				assert.equal(route(env, `https://${host}${path}`), "website", `${host}${path}`);
+				assert.equal(route(env, `https://${host}${path}`, { headers: cookie }), "website", `${host}${path} signed in`);
+				assert.equal(route(env, `https://${host}${path}?utm_source=x`), "website", `${host}${path} with a query`);
+				assert.equal(route(env, `https://${host}${path}/`), "app", `${host}${path}/ is not the page`);
+				assert.equal(route(env, `https://${host}${path}/extra`), "app", `${host}${path}/extra`);
+				assert.equal(route(env, `https://${host}${path}`, { method: "POST" }), "app", `${host}${path} written to`);
+			}
+		}
+	});
+
+	test("a newsletter's own domain keeps its own /about and /authors", () => {
+		const { env } = stack();
+		for (const path of ["/about", "/authors", "/pricing-explained"]) assert.equal(route(env, `https://news.example.com${path}`), "app", path);
+	});
+
+	test("the website's permanent redirect from the old address reaches the visitor as it is, with the query", async () => {
+		const redirect = () => new Response(null, { status: 308, headers: { location: "/low-cost-newsletter-platform?utm_source=x" } });
+		const { env, APP, WEBSITE } = stack(US, { website: redirect });
+		const response = await router.fetch(get("https://flockstack.io/cheapest-newsletter-platform?utm_source=x"), env);
+		assert.equal(response.status, 308);
+		assert.equal(response.headers.get("location"), "/low-cost-newsletter-platform?utm_source=x");
+		assert.equal(response.headers.get("x-served-by"), "website");
+		assert.equal(APP.calls.length, 0);
+		assert.equal(WEBSITE.calls[0].request.redirect, "manual", "the router does not follow it");
+		assert.equal(WEBSITE.calls[0].request.url, "https://flockstack.io/cheapest-newsletter-platform?utm_source=x");
+	});
+});
+
+describe("the domain itself: https first, and no www", () => {
+	test("plain http goes to https, with the path and the query, as a 308", async () => {
+		for (const [config, host] of [[US, "flockstack.io"], [EU, "eu.flockstack.io"]]) {
+			const { env, APP, WEBSITE, PUBLIC } = stack(config);
+			for (const [method, path] of [["GET", "/pricing?a=1&b=2"], ["HEAD", "/docs/api"], ["GET", "/"], ["POST", "/api/v1/contacts"]]) {
+				const response = await router.fetch(new Request(`http://${host}${path}`, { method, redirect: "manual", ...(method === "POST" && { body: "{}" }) }), env);
+				assert.equal(response.status, 308, `${method} ${path}`);
+				assert.equal(response.headers.get("location"), `https://${host}${path}`);
+			}
+			assert.equal(APP.calls.length + WEBSITE.calls.length + PUBLIC.calls.length, 0, "no Worker is started for a redirect");
+		}
+	});
+
+	test("www goes to the domain, on http and on https", async () => {
+		const { env } = stack(US);
+		for (const url of ["http://www.flockstack.io/blog/a-post?x=1", "https://www.flockstack.io/blog/a-post?x=1"]) {
+			const response = await router.fetch(get(url), env);
+			assert.equal(response.status, 308, url);
+			assert.equal(response.headers.get("location"), "https://flockstack.io/blog/a-post?x=1");
+		}
+	});
+
+	test("https on the domain, a workers.dev address and another host are not redirected; the health check answers on http too", async () => {
+		const { env } = stack(US);
+		assert.equal((await router.fetch(get("https://flockstack.io/pricing"), env)).status, 200);
+		assert.equal((await router.fetch(get("http://router.example.workers.dev/pricing"), env)).status, 200);
+		assert.equal((await router.fetch(get("http://news.example.com/pricing"), env)).status, 200);
+		const health = await router.fetch(get(`http://flockstack.io${HEALTH_PATH}`), env);
+		assert.equal(health.status, 200);
+		assert.equal(await health.text(), "ok\n");
+	});
+
+	test("a redirect never leaves the router's own host: the host in the address cannot choose where it goes", () => {
+		const env = US;
+		for (const url of ["http://flockstack.io//evil.example/x", "http://flockstack.io/%2F%2Fevil.example", "http://www.flockstack.io/@evil.example"]) {
+			const target = new URL(chooseRedirect({ url: new URL(url), env }));
+			assert.equal(target.origin, "https://flockstack.io", url);
+		}
+		assert.equal(chooseRedirect({ url: new URL("http://flockstack.io/x"), env: {} }), null);
+	});
+});
+
+describe("the website's own files under /_website/", () => {
+	const unavailable = () => new Response("bad gateway", { status: 502 });
+
+	test("a website that fails once and then answers gives the file, and the app is never asked", async () => {
+		let calls = 0;
+		const { env, APP, WEBSITE } = stack(US, { website: () => (++calls === 1 ? unavailable() : new Response("png", { headers: { "content-type": "image/png" } })), env: { ROUTER_TIMEOUT_MS: "40", ROUTER_ASSET_RETRY_MS: "200" } });
+		const response = await router.fetch(get("https://flockstack.io/_website/og/pricing"), env);
+		assert.equal(response.status, 200);
+		assert.equal(response.headers.get("content-type"), "image/png");
+		assert.equal(response.headers.get("x-served-by"), "website");
+		assert.equal(WEBSITE.calls.length, 2);
+		assert.equal(APP.calls.length, 0);
+	});
+
+	test("a website that does not answer at all gets 503 and Retry-After, not the app's 404", async () => {
+		const never = () => new Promise(() => {});
+		const { env, APP, WEBSITE } = stack(US, { website: never, env: { ROUTER_TIMEOUT_MS: "30", ROUTER_ASSET_RETRY_MS: "30" } });
+		const response = await router.fetch(get("https://flockstack.io/_website/og/content/vs/kit"), env);
+		assert.equal(response.status, 503);
+		assert.equal(response.headers.get("retry-after"), "5");
+		assert.equal(response.headers.get("cache-control"), "no-store");
+		assert.equal(response.headers.get("x-served-by"), "router");
+		assert.equal(WEBSITE.calls.length, 2);
+		assert.equal(APP.calls.length, 0);
+		assert.equal(DEFAULT_ASSET_RETRY_MS, 10000);
+	});
+
+	test("pages still fail open to the app, as before", async () => {
+		const { env, APP } = stack(US, { website: unavailable });
+		const response = await router.fetch(get("https://flockstack.io/vs/kit"), env);
+		assert.equal(await response.text(), "from app");
+		assert.equal(APP.calls.length, 1);
+	});
+});
+
+describe("a workers.dev address is not indexed", () => {
+	test("is a workers.dev host, exactly", () => {
+		assert.equal(isWorkersDevHost("flockstack-router.example.workers.dev"), true);
+		assert.equal(isWorkersDevHost("workers.dev"), true);
+		for (const host of ["flockstack.io", "eu.flockstack.io", "notworkers.dev", "workers.dev.example.com"]) assert.equal(isWorkersDevHost(host), false, host);
+	});
+
+	test("answers carry noindex on workers.dev, whoever answered, and never on the domain", async () => {
+		for (const path of ["/pricing", "/docs", "/dashboard", "/__router/health"]) {
+			const staged = stack();
+			const onWorkersDev = await router.fetch(get(`https://flockstack-router.example.workers.dev${path}`), staged.env);
+			assert.equal(onWorkersDev.headers.get("x-robots-tag"), "noindex, nofollow", path);
+			const live = stack();
+			const onDomain = await router.fetch(get(`https://flockstack.io${path}`), live.env);
+			assert.equal(onDomain.headers.get("x-robots-tag"), null, `${path} on the domain`);
+		}
+	});
+
+	test("keeps the answer's own status, body and headers", async () => {
+		const { env } = stack(US, { website: () => new Response("page", { status: 200, headers: { "content-type": "text/html", "x-test": "kept" } }) });
+		const response = await router.fetch(get("https://flockstack-router.example.workers.dev/pricing"), env);
+		assert.equal(response.status, 200);
+		assert.equal(await response.text(), "page");
+		assert.equal(response.headers.get("x-test"), "kept");
+		assert.equal(response.headers.get("x-served-by"), "website");
 	});
 });

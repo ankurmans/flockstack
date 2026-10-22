@@ -20,6 +20,36 @@ export const API_MISS_HEADER = "x-fs-api-miss";
 // API Worker says it did nothing. A bigger one is not copied: the API Worker's answer is the answer.
 export const MAX_REPLAY_BYTES = 1024 * 1024;
 export const SAFE_METHODS = ["GET", "HEAD", "OPTIONS"];
+// The website's scripts, fonts, social cards and manifest (lib/website-routing.js, "/_website/"). The app has no copy of them, so
+// when the website is slow to start they are asked for again, for longer, and never handed to the app: its answer would be a 404
+// that a crawler keeps as the share image's answer. ROUTER_ASSET_RETRY_MS overrides the second wait.
+// A workers.dev address is a staging door, not a page of the site: whatever answers on it is told not to be indexed, so a search
+// engine that finds it never holds a second copy of flockstack.io. The header is only for those hostnames.
+export const isWorkersDevHost = (hostname) => hostname === "workers.dev" || hostname.endsWith(".workers.dev");
+
+export const ASSET_PREFIX = "/_website/";
+export const DEFAULT_ASSET_RETRY_MS = 10000;
+
+// Where a request for the domain itself must go first, or null: plain http goes to https, and www.<domain> goes to <domain>, with the
+// path and the query kept, as a permanent redirect that keeps the method (308). Only the router's own hosts: a workers.dev address,
+// which is https only, and any other host are left alone. Pure, so the whole table is tested without a Worker.
+export function chooseRedirect({ url, env }) {
+	if (!env.APP_URL) return null;
+	const appHostname = new URL(env.APP_URL).hostname;
+	// A router being tried has its own workers.dev address as APP_URL (wrangler.jsonc): nothing there to send anywhere.
+	if (isWorkersDevHost(appHostname) || isWorkersDevHost(url.hostname)) return null;
+	// Certificate checks over plain http (Cloudflare for SaaS, ACME) must reach whoever answers them as they are.
+	if (url.pathname.startsWith("/.well-known/acme-challenge/") || url.pathname.startsWith("/.well-known/pki-validation/")) return null;
+	const isApp = url.hostname === appHostname;
+	const isWww = url.hostname === `www.${appHostname}`;
+	if (!isApp && !isWww) return null;
+	if (url.protocol !== "http:" && !isWww) return null;
+	const target = new URL(url);
+	target.protocol = "https:";
+	target.hostname = appHostname;
+	target.port = "";
+	return target.toString();
+}
 
 const PREFETCH_HEADERS = ["next-router-prefetch", "next-router-segment-prefetch"];
 
