@@ -145,6 +145,12 @@ export async function listHeldSends() {
 	};
 }
 
+// What the bar and the report ask every few seconds while a send goes out.
+export async function readProgress(id) {
+	const { output, failure } = await runDashboardAction("get_campaign_progress", { id: String(id) });
+	return failure ? toFormError(failure) : output;
+}
+
 // The review step's ready-to-send check (lib/ready-check.js).
 export async function checkCampaign(id) {
 	const { output, failure } = await runDashboardAction("check_campaign", { id: String(id) });

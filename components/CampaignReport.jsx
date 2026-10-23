@@ -13,11 +13,11 @@ import ButtonCampaignAction from "@/components/ButtonCampaignAction";
 import ButtonCopy from "@/components/ButtonCopy";
 import ButtonSocialPosts from "@/components/ButtonSocialPosts";
 import GatePlan from "@/components/GatePlan";
-import CardStat from "@/components/CardStat";
 import DialogLinkClicks from "@/components/DialogLinkClicks";
 import DialogResend from "@/components/DialogResend";
 import DialogSendMore from "@/components/DialogSendMore";
 import HeaderPage from "@/components/HeaderPage";
+import LiveResults from "@/components/LiveResults";
 import IconWarmup from "@/components/IconWarmup";
 import ImageFavicon from "@/components/ImageFavicon";
 import CardSeo from "@/components/CardSeo";
@@ -38,13 +38,15 @@ import {
 import { VARIANT_LABELS, hasAbTest } from "@/lib/ab-test-rules";
 import { isPlanLimitCode } from "@/lib/account-state";
 import { getArchiveUrls } from "@/lib/archive-hosts";
-import { FIRST_SEND, LIMITS, isSendingEnabled } from "@/lib/config";
+import { FIRST_SEND, isSendingEnabled } from "@/lib/config";
 import { formatCount, formatDate, formatNumber, formatRate } from "@/lib/format";
-import { rateTone } from "@/lib/health";
 import { PROVIDER_DOMAINS, PROVIDER_LABELS } from "@/lib/providers";
 import { renderEmail, withPreviewLinks, withResponsiveImages } from "@/lib/render-email";
 import { getAudienceLabel } from "@/lib/tiers";
 import CardPollResults from "@/components/CardPollResults";
+
+const RECENT_MS = 5 * 60 * 1000;
+const COUNT_KEYS = ["recipients", "sent", "delivered", "opened", "clicked", "bounced", "unsubscribed", "complained", "failed"];
 
 export default function CampaignReport({
 	campaign,
@@ -67,7 +69,6 @@ export default function CampaignReport({
 	const id = campaign._id.toString();
 	const isOnArchive = newsletter.archiveEnabled && Boolean(campaign.archiveSlug) && campaign.archiveListed !== false;
 	const reached = stats.delivered || stats.sent;
-	const progress = stats.recipients ? Math.min(stats.sent / stats.recipients, 1) : 0;
 	const { html } = renderEmail({
 		format: campaign.format,
 		markdown: campaign.markdown,
@@ -173,77 +174,25 @@ export default function CampaignReport({
 						Nothing has been queued, counted or emailed yet.
 					</p>
 				)}
-				{["sending", "paused"].includes(campaign.status) && (
-					<div className="flex flex-col gap-2 animate-enter">
-						<div className="flex justify-between text-sm tabular-nums">
-							<span className="text-muted-foreground">
-								{formatNumber(stats.sent)} of {formatNumber(stats.recipients)}
+				<LiveResults campaignId={id} initial={getLiveStart(campaign)}>
+					{campaign.status === "sending" && campaign.firstSend?.held > 0 && !campaign.firstSend.checkedAt && (
+						<p className="text-xs text-pretty text-muted-foreground">
+							{formatNumber(campaign.firstSend.slice)} contacts who never got an email from you go first. The other{" "}
+							{formatNumber(campaign.firstSend.held)} follow {FIRST_SEND.waitMinutes / 60} hours after them if their bounces and
+							complaints stay low. If they don&apos;t, the rest waits for you to resume, and if they&apos;re far over, your account is
+							blocked.
+						</p>
+					)}
+					{campaign.status === "sending" && campaign.sendingUntil && campaign.spreadHours > 0 && (
+						<p className="flex gap-1.5 text-xs text-pretty text-muted-foreground">
+							<IconWarmup className="size-3.5 translate-y-px" />
+							<span>
+								It goes out over hours while your account warms up{pace?.warmup ? "" : " to sends this size"}: about{" "}
+								{formatCount(hoursUntil(campaign.sendingUntil), "hour")} to go.
 							</span>
-							<span>{Math.round(progress * 100)}%</span>
-						</div>
-						<div className="h-1.5 overflow-hidden rounded-full bg-muted">
-							<div
-								className="h-full rounded-full bg-foreground transition-[width] duration-500"
-								style={{ width: `${progress * 100}%` }}
-							/>
-						</div>
-						{campaign.status === "sending" && campaign.firstSend?.held > 0 && !campaign.firstSend.checkedAt && (
-							<p className="text-xs text-pretty text-muted-foreground">
-								{formatNumber(campaign.firstSend.slice)} contacts who never got an email from you go first. The other{" "}
-								{formatNumber(campaign.firstSend.held)} follow {FIRST_SEND.waitMinutes / 60} hours after them if their bounces and
-								complaints stay low. If they don&apos;t, the rest waits for you to resume, and if they&apos;re far over, your account is
-								blocked.
-							</p>
-						)}
-						{campaign.status === "sending" && campaign.sendingUntil && campaign.spreadHours > 0 && (
-							<p className="flex gap-1.5 text-xs text-pretty text-muted-foreground">
-								<IconWarmup className="size-3.5 translate-y-px" />
-								<span>
-									It goes out over hours while your account warms up{pace?.warmup ? "" : " to sends this size"}: about{" "}
-									{formatCount(hoursUntil(campaign.sendingUntil), "hour")} to go.
-								</span>
-							</p>
-						)}
-					</div>
-				)}
-
-				<div
-					style={{ "--stagger": 1 }}
-					className="grid grid-cols-2 gap-3 animate-enter sm:grid-cols-3 lg:grid-cols-6"
-				>
-					<CardStat
-						label="Delivered"
-						value={formatRate(stats.delivered, stats.sent)}
-						detail={formatNumber(stats.delivered)}
-					/>
-					<CardStat
-						label="Opened"
-						value={formatRate(stats.opened, reached)}
-						detail={formatNumber(stats.opened)}
-					/>
-					<CardStat
-						label="Clicked"
-						value={formatRate(stats.clicked, reached)}
-						detail={formatNumber(stats.clicked)}
-					/>
-					<CardStat
-						label="Bounced"
-						value={formatRate(stats.bounced, stats.sent, 2)}
-						detail={formatNumber(stats.bounced)}
-						tone={rateTone(stats.bounced, stats.sent, LIMITS.pause.bounceRate)}
-					/>
-					<CardStat
-						label="Complaints"
-						value={formatRate(stats.complained, stats.sent, 3)}
-						detail={formatNumber(stats.complained)}
-						tone={rateTone(stats.complained, stats.sent, LIMITS.pause.complaintRate)}
-					/>
-					<CardStat
-						label="Unsubscribed"
-						value={formatRate(stats.unsubscribed, reached, 2)}
-						detail={formatNumber(stats.unsubscribed)}
-					/>
-				</div>
+						</p>
+					)}
+				</LiveResults>
 
 				{audioCard}
 
@@ -486,6 +435,19 @@ function TextPauseReason({ reason, code }) {
 			)}
 		</p>
 	);
+}
+
+// What the numbers at the top start from: the campaign's counters as the server read them, and whether they are worth watching.
+function getLiveStart(campaign) {
+	const { stats } = campaign;
+	const isLive = campaign.status === "sending" || campaign.status === "held";
+	const finishedAt = campaign.finishedAt ?? campaign.sentAt;
+	return {
+		status: campaign.status,
+		isLive,
+		watch: isLive || (campaign.status === "sent" && Boolean(finishedAt) && Date.now() - new Date(finishedAt).getTime() < RECENT_MS),
+		counts: Object.fromEntries(COUNT_KEYS.map((key) => [key, stats[key] ?? 0])),
+	};
 }
 
 // Whole hours left, at least one: the last batch's time is approximate.

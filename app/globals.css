@@ -452,6 +452,28 @@ html:has([data-support-chat]) {
   }
 }
 
+/* BarSend's "Sent to…": a ring that opens once and fades, and a check that draws itself. Neither runs with reduced motion, where
+   the check just shows. */
+@keyframes celebrate-ring {
+  from {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+
+@keyframes celebrate-check {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 /* Streamed content taking its skeleton's place: same size, so it only fades. */
 @keyframes fade-in {
   from {
