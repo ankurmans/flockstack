@@ -161,6 +161,13 @@ describe("wrangler configurations", () => {
 		for (const config of [router, router.env.us, router.env.eu, router.env["eu-staged"]]) assert.equal(JSON.stringify(config).includes("newsletter.ankur.works"), false, "no router holds a newsletter's domain");
 	});
 
+	test("an EU app deploy cannot inherit the US app's custom domains", () => {
+		assert.ok(app.routes.length > 0, "the US app has its own domain routes");
+		assert.deepEqual(app.env.eu.routes, [], "Wrangler inherits top-level routes when the environment omits them");
+		const effectiveEuRoutes = app.env.eu.routes ?? app.routes;
+		assert.equal(effectiveEuRoutes.some((route) => app.routes.some((usRoute) => route.pattern === usRoute.pattern)), false);
+	});
+
 	test("the app never turns on the marker mode", () => {
 		assert.equal(JSON.stringify(app).includes("FLOCKSTACK_PRERENDER"), false);
 	});
