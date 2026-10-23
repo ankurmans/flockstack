@@ -13,7 +13,6 @@ import NoticeWelcomePaused from "@/components/NoticeWelcomePaused";
 import StateEmpty from "@/components/StateEmpty";
 import { Button } from "@/components/ui/button";
 import { getWelcomePauseNotice, isPaidStatus } from "@/lib/account-state";
-import { getDedicatedIpOutput, getExtraEmailsOutput } from "@/lib/actions/billing";
 import { requireAccount } from "@/lib/auth";
 import { getBillingProviderName, hasBillingCustomer, isBillingConfigured } from "@/lib/billing-provider";
 import { isCloud } from "@/lib/config";
@@ -38,6 +37,8 @@ export default async function BillingPage({ searchParams }) {
 	const lapsedPlan = getLapsedPlan(account);
 	const notice = getNotice({ account, isPaid, lapsedPlan, ...params });
 
+	// The action definitions (their schemas are 500 KB of zod) load here and on the API's billing calls, not with every page.
+	const { getDedicatedIpOutput, getExtraEmailsOutput } = await import("@/lib/actions/billing");
 	const [usage, extraEmails, dedicatedIp] = await Promise.all([getUsage(account), getExtraEmailsOutput(account), getDedicatedIpOutput(account)]);
 	const isWelcomePaused = usage.welcomeEmailsPaused && (await hasWelcomeEmailsOn(account._id));
 	const isGifted = isOnFreePlan(account);

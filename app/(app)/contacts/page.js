@@ -37,7 +37,6 @@ import { listRemovals } from "@/lib/bulk-removal";
 import { getAppUrl } from "@/lib/config";
 import { CONTACTS_PAGE_SIZE, findContactsPage } from "@/lib/contacts";
 import { listCustomFields, toFieldOutput } from "@/lib/custom-fields";
-import { getAddContactCurl } from "@/lib/docs/reference";
 import { formatDate, formatNumber } from "@/lib/format";
 import { toNewsletterOption } from "@/lib/newsletters";
 import { getSelectedNewsletter, openNewsletter } from "@/lib/selected-newsletter";
@@ -86,6 +85,9 @@ export default async function ContactsPage({ searchParams }) {
 
 	// Deleting the last page's last contact leaves the page past the end.
 	if (page > pageCount) redirect(href({ page: pageCount }));
+
+	// The API example for an empty account only: the reference builds every action's schema, which a list of contacts has no use for.
+	const addContactCurl = hasContacts ? null : (await import("@/lib/docs/reference")).getAddContactCurl(getAppUrl(), selected?.slug);
 
 	return (
 		<>
@@ -144,7 +146,7 @@ export default async function ContactsPage({ searchParams }) {
 				)}
 
 				{!hasContacts ? (
-					<CardAddContacts newsletter={newsletter} curl={getAddContactCurl(getAppUrl(), selected?.slug)} />
+					<CardAddContacts newsletter={newsletter} curl={addContactCurl} />
 				) : contacts.length === 0 ? (
 					<StateEmpty icon={Users} title="No contacts match" />
 				) : (

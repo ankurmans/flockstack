@@ -28,7 +28,7 @@ import { getAppUrl } from "@/lib/config";
 import { connectDb } from "@/lib/db";
 import { getMcpClients, getMcpConnectors, getMcpUrl } from "@/lib/docs/mcp-clients";
 import { formatDate, formatRelative } from "@/lib/format";
-import { listConnectedApps } from "@/lib/oauth";
+import { listConnectedApps } from "@/lib/oauth-apps";
 import { cn } from "@/lib/utils";
 import Newsletter from "@/models/Newsletter";
 

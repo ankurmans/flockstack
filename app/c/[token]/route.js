@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import { isBlocked } from "@/lib/account-state";
 import { findTrackedMessage, recordEngagement } from "@/lib/email-events";
-import { escapeHtml } from "@/lib/render-email";
+import { escapeHtml } from "@/lib/escape-html";
 import { readClickToken } from "@/lib/tracking";
 
 // A blocked account's links stop lending this domain to its emails: no redirect, no destination. Nothing keeps the
