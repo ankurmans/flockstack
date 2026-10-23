@@ -11,8 +11,9 @@ const campaignVersionSchema = new mongoose.Schema(
 		format: { type: String, enum: ["markdown", "html", "rich"], default: "rich" },
 		markdown: { type: String, default: "" },
 		html: { type: String, default: "" },
-		// autosave: the state before an edit. restore: the state a restore replaced.
-		reason: { type: String, enum: ["autosave", "restore"], default: "autosave" },
+		// autosave: the state before an edit. restore: the state a restore replaced. edit: the web page of a sent issue before an
+		// edit changed it (lib/actions/published-issues.js).
+		reason: { type: String, enum: ["autosave", "restore", "edit"], default: "autosave" },
 	},
 	{ timestamps: true }
 );

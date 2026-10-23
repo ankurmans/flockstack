@@ -109,7 +109,7 @@ describe("restoring", () => {
 		assert.equal((await t.api(user.key, "GET", `/campaigns/${id}`)).body.content, "Changed body.", "undone");
 	});
 
-	test("works on drafts only, and only on the account's own versions", async () => {
+	test("works on drafts and sent issues' pages only (not a send in progress), and only on the account's own versions", async () => {
 		const user = await customer();
 		const other = await customer();
 		const id = await t.draft(user, { subject: "Mine", content: "Words." });
@@ -121,7 +121,7 @@ describe("restoring", () => {
 		t.assertError(await t.api(other.key, "POST", `/campaigns/${otherId}/versions/${version.id}/restore`, {}), 404, "not_found");
 		t.assertError(await t.api(user.key, "GET", `/campaigns/${id}/versions/6650f1c2e9b1d4a012345678`), 404, "not_found");
 
-		await t.m.Campaign.updateOne({ _id: id, accountId: user.accountId }, { $set: { status: "sent", sentAt: new Date() } });
+		await t.m.Campaign.updateOne({ _id: id, accountId: user.accountId }, { $set: { status: "sending", startedAt: new Date() } });
 		t.assertError(await t.api(user.key, "POST", `/campaigns/${id}/versions/${version.id}/restore`, {}), 409, "conflict");
 	});
 

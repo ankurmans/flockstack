@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Copy, Eye, EyeOff, ExternalLink, Globe, Pause, Pin, PinOff, Play, Repeat } from "lucide-react";
+import { Copy, Eye, EyeOff, ExternalLink, Globe, Pause, PencilLine, Pin, PinOff, Play, Repeat } from "lucide-react";
 import {
 	duplicateCampaign,
 	pauseCampaign,
@@ -156,6 +156,14 @@ export default function CampaignReport({
 						{campaign.archiveListed === false ? <Eye data-icon="inline-start" /> : <EyeOff data-icon="inline-start" />}
 						{campaign.archiveListed === false ? "List on website" : "Unlist"}
 					</ButtonCampaignAction>
+				)}
+				{campaign.status === "sent" && campaign.archiveSlug && campaign.publishTo !== "email" && !campaign.resend?.of && campaign.abTest?.status !== "testing" && (
+					<Button variant="outline" asChild>
+						<Link href={`/campaigns/${id}/edit`}>
+							<PencilLine data-icon="inline-start" />
+							Edit web version
+						</Link>
+					</Button>
 				)}
 				<ButtonCampaignAction action={duplicateCampaign} id={id}>
 					<Copy data-icon="inline-start" />

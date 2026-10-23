@@ -145,6 +145,29 @@ export async function listHeldSends() {
 	};
 }
 
+// A sent issue's web page: its title, subtitle, body, tags and search settings. The emails that went out stay as they were.
+export async function savePublishedIssue(id, { title, subtitle, body, format, tags, seo } = {}) {
+	const { failure } = await runDashboardAction("update_published_issue", {
+		id: String(id),
+		title: String(title ?? "").slice(0, MAX_SUBJECT_LENGTH),
+		subtitle: String(subtitle ?? "").slice(0, MAX_PREVIEW_TEXT_LENGTH),
+		content: String(body ?? ""),
+		...(format && { format }),
+		tags: String(tags ?? "")
+			.split(",")
+			.map((tag) => tag.trim())
+			.filter(Boolean),
+		seoTitle: String(seo?.title ?? ""),
+		seoDescription: String(seo?.description ?? ""),
+		socialImage: String(seo?.image ?? ""),
+		noindex: seo?.noindex === true,
+	});
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	revalidatePath(`/campaigns/${id}/edit`);
+	return { ok: true };
+}
+
 // What the bar and the report ask every few seconds while a send goes out.
 export async function readProgress(id) {
 	const { output, failure } = await runDashboardAction("get_campaign_progress", { id: String(id) });

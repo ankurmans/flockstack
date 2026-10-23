@@ -12,18 +12,18 @@ import { cn } from "@/lib/utils";
 // The draft's earlier states (lib/campaign-versions.js): pick one to read it, and restore it. The draft as it is now is kept
 // first, so a restore can be undone the same way. onSave saves what the editor holds, so the list is current; the page
 // reloads after a restore.
-export default function DialogVersionHistory({ campaignId, isOpen, onOpenChange, onSave }) {
+export default function DialogVersionHistory({ campaignId, isOpen, onOpenChange, onSave, isPublished = false }) {
 	return (
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-2xl">
-				<PanelVersions campaignId={campaignId} onSave={onSave} onClose={() => onOpenChange(false)} />
+				<PanelVersions campaignId={campaignId} onSave={onSave} isPublished={isPublished} onClose={() => onOpenChange(false)} />
 			</DialogContent>
 		</Dialog>
 	);
 }
 
 // Mounted when the dialog opens, so every opening starts with a fresh list.
-function PanelVersions({ campaignId, onSave, onClose }) {
+function PanelVersions({ campaignId, onSave, isPublished, onClose }) {
 	const [versions, setVersions] = useState(null);
 	const [error, setError] = useState(null);
 	const [selected, setSelected] = useState(null);
@@ -63,7 +63,11 @@ function PanelVersions({ campaignId, onSave, onClose }) {
 		<>
 			<DialogHeader>
 				<DialogTitle>Version history</DialogTitle>
-				<DialogDescription>Earlier states of this draft, kept as you write. Restoring one keeps the draft as it is now first.</DialogDescription>
+				<DialogDescription>
+					{isPublished
+						? "Earlier states of this issue's web page, kept before each edit. Restoring one keeps the page as it is now first. Emails already sent are not changed."
+						: "Earlier states of this draft, kept as you write. Restoring one keeps the draft as it is now first."}
+				</DialogDescription>
 			</DialogHeader>
 			{error && (
 				<p role="alert" className="rounded-lg bg-muted p-3 text-sm">
@@ -94,7 +98,7 @@ function PanelVersions({ campaignId, onSave, onClose }) {
 									<span className="block font-medium">{formatRelative(version.createdAt)}</span>
 									<span className="block truncate text-xs text-muted-foreground">
 										{version.subject || "No subject"} · {formatCount(version.words, "word")}
-										{version.reason === "restore" ? " · before a restore" : ""}
+										{version.reason === "restore" ? " · before a restore" : version.reason === "edit" ? " · before an edit" : ""}
 									</span>
 								</button>
 							</li>
