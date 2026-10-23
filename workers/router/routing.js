@@ -2,6 +2,7 @@
 // its handler, and the tests want these. Three small imports, no Next.js.
 import { getApiGroup, parseEnabledGroups } from "../../lib/api-routing.js";
 import { getCookiePrefix } from "../../lib/region.js";
+import { getReaderGroup, parseReaderGroups } from "../../lib/reader-routing.js";
 import { isPlainVisit, isPublicPath } from "../../lib/public-routing.js";
 import { hasSessionCookie, shouldForwardToWebsite } from "../../lib/website-routing.js";
 
@@ -16,6 +17,19 @@ export const DEFAULT_API_TIMEOUT_MS = 10_000;
 // The API Worker's own words for "I did nothing, ask the app" (it is switched off or has no database), sent before it reads a body.
 export const API_UNPROCESSED_HEADER = "x-fs-api-unprocessed";
 export const API_MISS_HEADER = "x-fs-api-miss";
+// The same two words from the readers Worker (workers/readers), and how long it gets to start answering a GET or HEAD: the pixel and
+// the redirect are tiny, so a Worker that has not answered in 5 s has failed (READERS_TIMEOUT_MS overrides it).
+export const READERS_UNPROCESSED_HEADER = "x-fs-readers-unprocessed";
+export const READERS_MISS_HEADER = "x-fs-readers-miss";
+export const DEFAULT_READERS_TIMEOUT_MS = 5000;
+// Warming the app (see warmApp in index.js): the app's script takes seconds to start in a data center where nothing has asked it for a
+// few minutes, and a visitor who reads the website or the docs is the one likely to sign in next. The paths that start it and run what
+// a first page needs: /api/health boots the server, /signin renders React once. At most once per WARM_INTERVAL_MS per router instance.
+export const WARM_PATHS = ["/api/health", "/signin"];
+export const DEFAULT_WARM_INTERVAL_MS = 20_000;
+export const WARM_HEADER = "x-fs-warm";
+// The routes whose visitors may be about to use the app.
+export const WARM_ROUTES = ["website", "public"];
 // A request with a body this big or smaller is copied before the API Worker gets it, so the app can be asked in its place if the
 // API Worker says it did nothing. A bigger one is not copied: the API Worker's answer is the answer.
 export const MAX_REPLAY_BYTES = 1024 * 1024;
@@ -64,7 +78,7 @@ function readOriginPath(headers) {
 	}
 }
 
-// Which Worker takes a request: "website", "public", "api" or "app", or what the router answers itself: "skip-prefetch" and
+// Which Worker takes a request: "website", "public", "api", "readers" or "app", or what the router answers itself: "skip-prefetch" and
 // "hard-navigation". Pure, so the whole table is tested without a Worker.
 //
 // Next.js's links ask for a page's data (an RSC request) before and when it is clicked. The data of a page the website or PUBLIC
@@ -75,6 +89,13 @@ function readOriginPath(headers) {
 export function chooseRoute({ method, url, headers, env }) {
 	if (!env.APP_URL) return "app";
 	const appHostname = new URL(env.APP_URL).hostname;
+	// What a reader's mail client or browser sends by itself (lib/reader-routing.js): the open pixel, the click redirect, unsubscribe, the
+	// archive's beacons and the signup form's address, every method. Unlike the API these arrive on any host the router holds: the links
+	// in a newsletter's emails are on its own host, which reaches the router only where that host's route points at it (docs/ARCHITECTURE-WORKERS.md).
+	// Off unless the router has the READERS binding and READERS_ENABLED names the request's group, so it can be switched off in seconds;
+	// a workers.dev address has READERS_ENABLED_WORKERS_DEV, so the Worker can be tried there first.
+	const readerGroup = env.READERS ? getReaderGroup(url.pathname) : null;
+	if (readerGroup && parseReaderGroups(url.hostname.endsWith(".workers.dev") ? env.READERS_ENABLED_WORKERS_DEV : env.READERS_ENABLED).has(readerGroup)) return "readers";
 	// The domain is the app's own host. So is a workers.dev address, which only a router that is being tried out has (the
 	// routers that hold a domain have workers_dev off): the routing can be tested there before the domain moves.
 	if (url.hostname !== appHostname && !url.hostname.endsWith(".workers.dev")) return "app";

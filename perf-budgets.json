@@ -4,7 +4,8 @@
 		"app-handler": { "label": "app handler.mjs (OpenNext)", "file": ".open-next/server-functions/default/handler.mjs", "maxBytes": 28000000, "measured": 27690000 },
 		"app-upload": { "label": "app script Wrangler uploads (.worker/worker-entry.js)", "file": ".worker/worker-entry.js", "maxBytes": 30500000, "measured": 29950000 },
 		"api-worker": { "label": "API Worker (workers/api/dist/index.js)", "file": "workers/api/dist/index.js", "maxBytes": 8500000, "measured": 7800000, "build": "api" },
-		"router": { "label": "router Worker, bundled and minified", "bundle": "workers/router/index.js", "maxBytes": 9000, "measured": 6911 },
+		"readers-worker": { "label": "readers Worker (workers/readers/dist/index.js)", "file": "workers/readers/dist/index.js", "maxBytes": 2800000, "measured": 2270000, "build": "readers" },
+		"router": { "label": "router Worker, bundled and minified", "bundle": "workers/router/index.js", "maxBytes": 11000, "measured": 9435 },
 		"public-handler": { "label": "public pages Worker handler, bundled and minified", "bundle": "workers/public/handler.js", "maxBytes": 6000, "measured": 3500 }
 	}
 }

@@ -6,6 +6,9 @@
 //   PUBLIC   the pages that look the same to everyone, rendered at deploy time (lib/public-routing.js)
 //   API      the lean API Worker: /api/v1, /mcp and the OAuth endpoints an MCP client calls (lib/api-routing.js), when the router
 //            has the binding and API_ENABLED switches the request's group on (workers/api)
+//   READERS  the lean readers Worker: the open pixel, the click redirect, unsubscribe, the archive's beacons and the signup form's
+//            address (lib/reader-routing.js), on any host the router holds, when the router has the binding and READERS_ENABLED
+//            switches the request's group on (workers/readers)
 //   APP      the region's app Worker, which keeps every route: the dashboard, /api, /mcp, /oauth, webhooks, jobs, uploads
 //
 // Cloud only: a self-hosted server has none of this and runs from the one app Worker. Newsletters' own domains and the shared
@@ -18,6 +21,10 @@
 import {
 	API_MISS_HEADER,
 	API_UNPROCESSED_HEADER,
+	DEFAULT_READERS_TIMEOUT_MS,
+	DEFAULT_WARM_INTERVAL_MS,
+	READERS_MISS_HEADER,
+	READERS_UNPROCESSED_HEADER,
 	ASSET_PREFIX,
 	DEFAULT_API_TIMEOUT_MS,
 	DEFAULT_ASSET_RETRY_MS,
@@ -26,6 +33,9 @@ import {
 	HEALTH_PATH,
 	MAX_REPLAY_BYTES,
 	SAFE_METHODS,
+	WARM_HEADER,
+	WARM_PATHS,
+	WARM_ROUTES,
 	chooseRedirect,
 	chooseRoute,
 	isWorkersDevHost,
@@ -49,7 +59,7 @@ async function ask(name, binding, request, timeoutMs) {
 			console.warn(`[router] ${name} did not answer in ${timeoutMs} ms, the app answers`);
 			return null;
 		}
-		if (FALLBACK_STATUSES.includes(response.status) || response.headers.get("x-fs-public-miss") || response.headers.get(API_MISS_HEADER) || response.headers.get(API_UNPROCESSED_HEADER)) {
+		if (FALLBACK_STATUSES.includes(response.status) || response.headers.get("x-fs-public-miss") || response.headers.get(API_MISS_HEADER) || response.headers.get(API_UNPROCESSED_HEADER) || response.headers.get(READERS_MISS_HEADER) || response.headers.get(READERS_UNPROCESSED_HEADER)) {
 			await response.body?.cancel();
 			console.warn(`[router] ${name} answered ${response.status}, the app answers`);
 			return null;
@@ -65,36 +75,62 @@ async function ask(name, binding, request, timeoutMs) {
 
 const UNAVAILABLE_BODY = JSON.stringify({ error: { code: "unavailable", message: "The API did not answer. If this request changes something, check its result before sending it again." } });
 
-// The API Worker's answer for a request, or null to have the app answer instead.
-//  - GET, HEAD, OPTIONS change nothing, so they fail open like the pages do: the Worker threw, was slow (10 s to start answering)
-//    or answered 502, 503 or 504, and the app is asked next.
+// The API or readers Worker's answer for a request, or null to have the app answer instead.
+//  - GET, HEAD, OPTIONS change nothing, so they fail open like the pages do: the Worker threw, was slow (10 s to start answering for
+//    the API, 5 s for the readers) or answered 502, 503 or 504, and the app is asked next.
 //  - Anything else (POST, PATCH, PUT, DELETE) may have been carried out by the time something fails, so it is sent once and the
-//    answer is the answer; a failure is a 502 in the API's error shape. The one exception is the API Worker saying in so many words
-//    that it did nothing (x-fs-api-unprocessed: it is switched off or has no database, before it reads a body): then the app is
-//    asked, with a copy of the request made beforehand when its body is small enough to copy (MAX_REPLAY_BYTES).
-// The request itself goes to the API Worker, never a rebuilt one: method, headers, cookies and the body stream, whose exact bytes
+//    answer is the answer; a failure is a 502 in the API's error shape. The one exception is the Worker saying in so many words
+//    that it did nothing (x-fs-api-unprocessed, x-fs-readers-unprocessed: it is switched off or has no database, before it reads a
+//    body): then the app is asked, with a copy of the request made beforehand when its body is small enough to copy (MAX_REPLAY_BYTES).
+// The request itself goes to the Worker, never a rebuilt one: method, headers, cookies and the body stream, whose exact bytes
 // signatures cover. Returns { response } or { response: null, replay } for the app.
-async function askApi(request, env) {
-	const isSafe = SAFE_METHODS.includes(request.method);
-	if (isSafe) {
-		const timeoutMs = Number(env.ROUTER_API_TIMEOUT_MS) > 0 ? Number(env.ROUTER_API_TIMEOUT_MS) : DEFAULT_API_TIMEOUT_MS;
-		return { response: await ask("api", env.API, request, timeoutMs), replay: request };
-	}
+async function askWorker(name, binding, request, { timeoutMs, unprocessedHeader }) {
+	if (SAFE_METHODS.includes(request.method)) return { response: await ask(name, binding, request, timeoutMs), replay: request };
 	const length = request.headers.get("content-length");
 	const canCopy = !request.body || (length !== null && Number(length) <= MAX_REPLAY_BYTES && !request.headers.has("transfer-encoding"));
 	const replay = canCopy ? request.clone() : null;
 	try {
-		const response = await env.API.fetch(request);
-		if (response.headers.get(API_UNPROCESSED_HEADER) && replay) {
+		const response = await binding.fetch(request);
+		if (response.headers.get(unprocessedHeader) && replay) {
 			await response.body?.cancel();
-			console.warn("[router] api said it did nothing, the app answers");
+			console.warn(`[router] ${name} said it did nothing, the app answers`);
 			return { response: null, replay };
 		}
 		return { response };
 	} catch (error) {
-		console.error(`[router] api failed on a ${request.method}, not asked again: ${error?.message ?? error}`);
+		console.error(`[router] ${name} failed on a ${request.method}, not asked again: ${error?.message ?? error}`);
 		return { response: new Response(UNAVAILABLE_BODY, { status: 502, headers: { "content-type": "application/json", "cache-control": "no-store", "retry-after": "5" } }) };
 	}
+}
+
+const askApi = (request, env) =>
+	askWorker("api", env.API, request, { timeoutMs: Number(env.ROUTER_API_TIMEOUT_MS) > 0 ? Number(env.ROUTER_API_TIMEOUT_MS) : DEFAULT_API_TIMEOUT_MS, unprocessedHeader: API_UNPROCESSED_HEADER });
+const askReaders = (request, env) =>
+	askWorker("readers", env.READERS, request, { timeoutMs: Number(env.ROUTER_READERS_TIMEOUT_MS) > 0 ? Number(env.ROUTER_READERS_TIMEOUT_MS) : DEFAULT_READERS_TIMEOUT_MS, unprocessedHeader: READERS_UNPROCESSED_HEADER });
+
+// Starts the app's isolate while a visitor reads a page the app does not serve. A new isolate of the 28 MB app costs seconds on the
+// platform and 0.2 s once it has answered anything (measured: docs/PERFORMANCE.md), and the next page of a visitor who reads the
+// docs or the pricing page is sign-in, then the dashboard. So the first such request after WARM_INTERVAL_MS (this router instance
+// keeps the time) asks the app, behind the response and without waiting for it, for /api/health and then /signin: the script is loaded,
+// Next.js is up and React has rendered once by the time the visitor clicks. It reads nothing and writes nothing, takes the app's own
+// answers away from nobody, and costs one short invocation a few times an hour in each data center a visitor reads from. Off unless the
+// router's WARM_APP is "true" (a secret, like the other switches); a failure is ignored.
+const warmedAt = new WeakMap();
+
+function warmApp(env, ctx) {
+	if (!ctx || !env.APP || String(env.WARM_APP ?? "").toLowerCase() !== "true") return;
+	const interval = env.WARM_INTERVAL_MS !== undefined && Number(env.WARM_INTERVAL_MS) >= 0 ? Number(env.WARM_INTERVAL_MS) : DEFAULT_WARM_INTERVAL_MS;
+	const now = Date.now();
+	if (now - (warmedAt.get(env.APP) ?? 0) < interval) return;
+	warmedAt.set(env.APP, now);
+	ctx.waitUntil(
+		(async () => {
+			for (const path of WARM_PATHS) {
+				const response = await env.APP.fetch(new Request(new URL(path, env.APP_URL), { headers: { [WARM_HEADER]: "1", "user-agent": "flockstack-router-warm" } }));
+				await response.body?.cancel();
+			}
+		})().catch((error) => console.warn(`[router] warming the app failed: ${error?.message ?? error}`))
+	);
 }
 
 // The answer with the Worker that gave it and the time it took, for whoever asks why a page was slow. A WebSocket upgrade
@@ -117,7 +153,7 @@ function stamp(response, servedBy, startedAt, upstreamMs) {
 // What a Next.js client gets for data it asked for and will not get from the app (see chooseRoute): not RSC, never stored.
 const RSC_ANSWER_HEADERS = { "cache-control": "no-store", vary: "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch" };
 
-async function handle(request, env) {
+async function handle(request, env, ctx) {
 	const startedAt = Date.now();
 	const url = new URL(request.url);
 
@@ -138,11 +174,12 @@ async function handle(request, env) {
 	if (route === "hard-navigation") {
 		return stamp(new Response(request.method === "HEAD" ? null : "<!doctype html><title>FlockStack</title>\n", { headers: { ...RSC_ANSWER_HEADERS, "content-type": "text/html; charset=utf-8" } }), "router", startedAt, 0);
 	}
+	if (WARM_ROUTES.includes(route)) warmApp(env, ctx);
 	let appRequest = request;
-	if (route === "api") {
+	if (route === "api" || route === "readers") {
 		const askedAt = Date.now();
-		const { response, replay } = await askApi(request, env);
-		if (response) return stamp(response, "api", startedAt, Date.now() - askedAt);
+		const { response, replay } = await (route === "api" ? askApi : askReaders)(request, env);
+		if (response) return stamp(response, route, startedAt, Date.now() - askedAt);
 		appRequest = replay ?? request;
 	} else if (route !== "app") {
 		const timeoutMs = Number(env.ROUTER_TIMEOUT_MS) > 0 ? Number(env.ROUTER_TIMEOUT_MS) : DEFAULT_TIMEOUT_MS;
@@ -173,8 +210,8 @@ async function handle(request, env) {
 }
 
 const router = {
-	async fetch(request, env) {
-		const response = await handle(request, env);
+	async fetch(request, env, ctx) {
+		const response = await handle(request, env, ctx);
 		if (response.status === 101 || response.webSocket || !isWorkersDevHost(new URL(request.url).hostname)) return response;
 		const copy = new Response(response.body, response);
 		copy.headers.set("x-robots-tag", "noindex, nofollow");

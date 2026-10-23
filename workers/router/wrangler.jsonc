@@ -11,6 +11,11 @@
 	// The router sends it nothing until API_ENABLED says so: a secret of the router (`wrangler secret put API_ENABLED`, "all" or a
 	// list of rest, mcp, wellknown, oauth; `wrangler secret delete API_ENABLED` is the off switch), API_ENABLED_WORKERS_DEV the same
 	// for requests to a workers.dev address, so it can be tried there first. Secrets, not vars, so a deploy does not put them back.
+	// The READERS binding is the lean readers Worker (workers/readers, flockstack-readers and flockstack-readers-eu): the open pixel, the
+	// click redirect, unsubscribe, the archive's beacons and the signup forms' address. Same switches: READERS_ENABLED ("all" or a list
+	// of tracking, unsubscribe, beacons, forms) and READERS_ENABLED_WORKERS_DEV, secrets of the router, off until set. A newsletter's own
+	// host sees it only once that host's route points at the router (scripts/route-archive-hosts.mjs). Deploy order: the readers Worker
+	// before the router.
 	// docs/ARCHITECTURE-WORKERS.md has the runbook.
 	// Names without "-env" suffix: an environment that sets `name` deploys as that Worker.
 	"name": "flockstack-router",
@@ -24,7 +29,8 @@
 		{ "binding": "WEBSITE", "service": "flockstack-website" },
 		{ "binding": "PUBLIC", "service": "flockstack-public" },
 		{ "binding": "APP", "service": "flockstack" },
-		{ "binding": "API", "service": "flockstack-api" }
+		{ "binding": "API", "service": "flockstack-api" },
+		{ "binding": "READERS", "service": "flockstack-readers" }
 	],
 	"vars": {
 		"FLOCKSTACK_REGION": "us",
@@ -51,7 +57,8 @@
 				{ "binding": "WEBSITE", "service": "flockstack-website" },
 				{ "binding": "PUBLIC", "service": "flockstack-public" },
 				{ "binding": "APP", "service": "flockstack" },
-				{ "binding": "API", "service": "flockstack-api" }
+				{ "binding": "API", "service": "flockstack-api" },
+				{ "binding": "READERS", "service": "flockstack-readers" }
 			],
 			"vars": { "FLOCKSTACK_REGION": "us", "APP_URL": "https://flockstack.io" }
 		},
@@ -67,7 +74,8 @@
 				{ "binding": "WEBSITE", "service": "flockstack-website" },
 				{ "binding": "PUBLIC", "service": "flockstack-public-eu" },
 				{ "binding": "APP", "service": "flockstack-eu" },
-				{ "binding": "API", "service": "flockstack-api-eu" }
+				{ "binding": "API", "service": "flockstack-api-eu" },
+				{ "binding": "READERS", "service": "flockstack-readers-eu" }
 			],
 			"vars": { "FLOCKSTACK_REGION": "eu", "APP_URL": "https://eu.flockstack.io" }
 		},
@@ -84,7 +92,8 @@
 				{ "binding": "WEBSITE", "service": "flockstack-website" },
 				{ "binding": "PUBLIC", "service": "flockstack-public-eu" },
 				{ "binding": "APP", "service": "flockstack-eu" },
-				{ "binding": "API", "service": "flockstack-api-eu" }
+				{ "binding": "API", "service": "flockstack-api-eu" },
+				{ "binding": "READERS", "service": "flockstack-readers-eu" }
 			],
 			"vars": { "FLOCKSTACK_REGION": "eu", "APP_URL": "https://eu.flockstack.io" }
 		}
