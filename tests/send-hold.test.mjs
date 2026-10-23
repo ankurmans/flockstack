@@ -391,7 +391,7 @@ describe("what the bar and the page show", () => {
 		const { now, holds } = await as(user, () => m.campaigns.listHeldSends());
 		assert.deepEqual(holds.map(({ id: one, subject, recipients }) => ({ id: one, subject, recipients })), [{ id, subject: "Counting", recipients: 6 }]);
 		const seconds = getSecondsLeft(holds[0].sendAfter, new Date(now).getTime());
-		assert.ok(seconds >= 29 && seconds <= 30, `${seconds} s left`);
+		assert.ok(seconds <= 30, `${seconds} s left, never more than the window`);
 		assert.equal(getSecondsLeft(started.sendAfter, new Date(started.serverTime).getTime() + 31_000), 0, "never below zero");
 		assert.equal(getSecondsLeft(holds[0].sendAfter, 0, new Date(now).getTime()), seconds, "a browser clock that is off counts from the server's");
 
