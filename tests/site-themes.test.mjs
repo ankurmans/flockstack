@@ -118,7 +118,7 @@ describe("the stylesheet", () => {
 
 	test("sets the fonts only for a pair that isn't the default, from the pairs' own stacks", () => {
 		assert.doesNotMatch(getSiteCss({ brand: { fontPair: "sans" } }), /--site-font/);
-		for (const id of ["serif", "editorial", "modern"]) {
+		for (const id of ["serif", "editorial", "modern", "helvetica"]) {
 			const css = getSiteCss({ brand: { fontPair: id } });
 			assert.ok(css.includes(`--site-font-body:${FONT_PAIRS[id].body}`), id);
 			assert.ok(css.includes(`--site-font-heading:${FONT_PAIRS[id].heading}`), id);

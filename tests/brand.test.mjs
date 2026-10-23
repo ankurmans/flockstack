@@ -56,9 +56,9 @@ describe("a brand's colors", () => {
 		assert.equal(getBrand(null).theme, "classic");
 	});
 
-	test("offer four themes and four font pairs of fonts every device has", () => {
+	test("offer four themes and five font pairs of fonts every device has", () => {
 		assert.deepEqual(THEME_IDS, ["classic", "magazine", "minimal", "bold"]);
-		assert.deepEqual(FONT_PAIR_IDS, ["sans", "serif", "editorial", "modern"]);
+		assert.deepEqual(FONT_PAIR_IDS, ["sans", "serif", "editorial", "modern", "helvetica"]);
 		for (const pair of Object.values(FONT_PAIRS)) {
 			assert.match(pair.heading, /(Arial|serif)$/, "ends in a generic fallback");
 			assert.match(pair.body, /(Arial|serif)$/);
@@ -111,6 +111,22 @@ describe("an email in a newsletter's brand", () => {
 			const out = renderEmail({ ...ISSUE, newsletter: { ...NEWSLETTER, brand: { fontPair: id } } }).html;
 			assert.ok(out.includes(FONT_PAIRS[id].body), id);
 		}
+	});
+
+	test("Helvetica sets one stack, with Arial where a device has no Helvetica, on the text, the headings and the links", () => {
+		assert.deepEqual(FONT_PAIRS.helvetica, {
+			label: "Helvetica",
+			description: "Helvetica throughout",
+			heading: "'Helvetica Neue',Helvetica,Arial,sans-serif",
+			body: "'Helvetica Neue',Helvetica,Arial,sans-serif",
+		});
+		const newsletter = { ...NEWSLETTER, brand: { fontPair: "helvetica" } };
+		const { html } = renderEmail({ ...ISSUE, newsletter });
+		assert.ok(html.includes("max-width:600px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;"), "body text");
+		assert.ok(html.includes("<h2 style=\"font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#09090b;\">Heading</h2>"), "a heading carries its font inline");
+		assert.match(html, /\.body h1, \.body h2, \.body h3 \{ font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif;/);
+		assert.equal(getBrand(newsletter).isCustom, true, "a chosen pair styles the email's headings itself");
+		assert.equal(getBrand(newsletter).linkOnLight, getBrand({ ...newsletter, brand: { fontPair: "serif" } }).linkOnLight, "the pair never changes a color");
 	});
 
 	test("opens with the logo and name, then the header image, in tables, with the name as text", () => {
@@ -196,6 +212,24 @@ describe("saving a brand", () => {
 		const cleared = await patch(user, created.body.slug, { brand: { headerUrl: "" } });
 		assert.equal(cleared.body.brand.headerUrl, "");
 		assert.equal((await callApi("GET", `/api/v1/newsletters/${created.body.slug}`, { key: user.key })).body.brand.theme, "bold");
+	});
+
+	test("accepts Helvetica from the API and the settings form, and shows it with its words", async () => {
+		const user = await customer();
+		const created = await callApi("POST", "/api/v1/newsletters", { key: user.key, body: { name: "Helvetica notes" } });
+		const saved = await patch(user, created.body.slug, { brand: { fontPair: "helvetica" } });
+		assert.equal(saved.status, 200, JSON.stringify(saved.body));
+		assert.equal(saved.body.brand.fontPair, "helvetica");
+		assert.equal((await callApi("GET", `/api/v1/newsletters/${created.body.slug}`, { key: user.key })).body.brand.fontPair, "helvetica");
+
+		const { createElement } = await import("react");
+		const { renderToStaticMarkup } = await import("react-dom/server");
+		const page = await as(user, () => import("../app/(app)/newsletters/page.js").then(({ default: render }) => render()));
+		const { TooltipProvider } = await import("../components/ui/tooltip.jsx");
+		const html = renderToStaticMarkup(createElement(TooltipProvider, null, page));
+		assert.match(html, /<input type="hidden" name="fontPair" value="helvetica"\/>/);
+		assert.match(html, /<span[^>]*font-family:[^>]*Helvetica Neue[^>]*>Helvetica<\/span>/);
+		assert.match(html, /Helvetica throughout/);
 	});
 
 	test("refuses a theme or a font pair that doesn't exist, and a header that isn't an https address", async () => {
