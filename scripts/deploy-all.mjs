@@ -1,7 +1,8 @@
 // Builds FlockStack once, applies the migrations that are missing from each region's database, then deploys the same build
 // to each region: its app Worker (flockstack, flockstack-eu), the lean API Worker built from the same source (flockstack-api,
-// flockstack-api-eu), the public pages Worker rendered from that build (flockstack-public, flockstack-public-eu) and the router that
-// fronts the domain (flockstack-router, flockstack-router-eu). wrangler.jsonc has the apps, workers/api, workers/public and
+// flockstack-api-eu), the lean readers Worker (flockstack-readers, flockstack-readers-eu: the open pixel, the click redirect, unsubscribe),
+// the public pages Worker rendered from that build (flockstack-public, flockstack-public-eu) and the router that
+// fronts the domain (flockstack-router, flockstack-router-eu). wrangler.jsonc has the apps, workers/api, workers/readers, workers/public and
 // workers/router the others (docs/ARCHITECTURE-WORKERS.md). Deploying the API Worker does not send it any traffic: the router does,
 // once API_ENABLED says so (the runbook in the same document).
 //   node scripts/deploy-all.mjs [--only us|eu] [--dry-run] [--skip-build] [--skip-router-check] [--baseline 0006]
@@ -9,8 +10,8 @@
 // and runs none, and talks to nothing. --skip-build deploys the .open-next folder and workers/public/dist as they are.
 // Placeholders left in lib/legal.js don't stop it: the legal pages stay hidden until they are filled, and it says which are left.
 //
-// Order, for each region: the app, then the API Worker (it asks the app, through a binding, to drop cached pages), then the public
-// pages (which point at the files of the build the app now has), then the router (which binds the API Worker and needs it to exist).
+// Order, for each region: the app, then the API Worker and the readers Worker (they ask the app, through a binding, to drop cached pages), then the public
+// pages (which point at the files of the build the app now has), then the router (which binds the API and readers Workers and needs them to exist).
 // While the app still lists the region's domain (before the cutover) the router is deployed without the domain, on workers.dev only,
 // to be tried there; once the app has let the domain go, the router is deployed with it, which keeps it.
 // The website Worker (flockstack-website) is the website repository's and is deployed from there, before anything here.
@@ -48,6 +49,8 @@ export const REGIONS = {
 		wranglerArgs: [],
 		apiWorker: "flockstack-api",
 		apiArgs: ["--config", "workers/api/wrangler.jsonc"],
+		readersWorker: "flockstack-readers",
+		readersArgs: ["--config", "workers/readers/wrangler.jsonc"],
 		publicWorker: "flockstack-public",
 		publicArgs: ["--config", "workers/public/wrangler.jsonc"],
 		routerWorker: "flockstack-router",
@@ -60,6 +63,8 @@ export const REGIONS = {
 		wranglerArgs: ["--env", "eu"],
 		apiWorker: "flockstack-api-eu",
 		apiArgs: ["--config", "workers/api/wrangler.jsonc", "--env", "eu"],
+		readersWorker: "flockstack-readers-eu",
+		readersArgs: ["--config", "workers/readers/wrangler.jsonc", "--env", "eu"],
 		publicWorker: "flockstack-public-eu",
 		publicArgs: ["--config", "workers/public/wrangler.jsonc", "--env", "eu"],
 		routerWorker: "flockstack-router-eu",
@@ -245,6 +250,8 @@ export async function main(argv = process.argv.slice(2), { migrationsDir = MIGRA
 		// Wrangler builds it again at each deploy (workers/api/wrangler.jsonc); here a failure stops the run before any migration.
 		console.log("\n==> Build the API Worker");
 		run("npm", ["run", "build:api"], options);
+		console.log("\n==> Build the readers Worker");
+		run("npm", ["run", "build:readers"], options);
 		// A Worker whose script grew past its budget is a slower cold start for everybody: stop before anything is changed.
 		// The app's upload is the bundle Wrangler builds, so it is made here too (scripts/bundle-worker.mjs).
 		console.log("\n==> Size budgets");
@@ -255,18 +262,20 @@ export async function main(argv = process.argv.slice(2), { migrationsDir = MIGRA
 	for (const region of regions) migrate(region, files, options);
 
 	for (const region of regions) {
-		const { worker, wranglerArgs, apiWorker, apiArgs, publicWorker, publicArgs, routerWorker, routerArgs, routerStagedArgs } = REGIONS[region];
+		const { worker, wranglerArgs, apiWorker, apiArgs, readersWorker, readersArgs, publicWorker, publicArgs, routerWorker, routerArgs, routerStagedArgs } = REGIONS[region];
 		console.log(`\n==> Deploy: ${worker}`);
 		run("npx", ["wrangler", "deploy", ...wranglerArgs], options);
 		console.log(`\n==> Deploy: ${apiWorker} (it gets no traffic until the router's API_ENABLED says so)`);
 		run("npx", ["wrangler", "deploy", ...apiArgs], options);
+		console.log(`\n==> Deploy: ${readersWorker} (it gets no traffic until the router's READERS_ENABLED says so)`);
+		run("npx", ["wrangler", "deploy", ...readersArgs], options);
 		console.log(`\n==> Deploy: ${publicWorker}`);
 		run("npx", ["wrangler", "deploy", ...publicArgs], options);
 		const isStaged = appHoldsDomain(region, wranglerConfig);
 		console.log(`\n==> Deploy: ${routerWorker}${isStaged ? " (staged: workers.dev only, the domain is still the app's)" : ""}`);
 		run("npx", ["wrangler", "deploy", ...(isStaged ? routerStagedArgs : routerArgs)], options);
 	}
-	const names = regions.flatMap((region) => [REGIONS[region].worker, REGIONS[region].apiWorker, REGIONS[region].publicWorker, REGIONS[region].routerWorker]);
+	const names = regions.flatMap((region) => [REGIONS[region].worker, REGIONS[region].apiWorker, REGIONS[region].readersWorker, REGIONS[region].publicWorker, REGIONS[region].routerWorker]);
 	console.log(options.isDryRun ? "\nDry run done." : `\nDeployed ${names.join(", ")}.`);
 }
 

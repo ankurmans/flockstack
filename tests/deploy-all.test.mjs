@@ -60,6 +60,7 @@ if (args[0] === "run" && args[1] === "render:public") { appendFileSync(process.e
 if (args[0] === "run" && args[1] === "bundle:app") { process.exit(0); }
 if (args[0] === "run" && args[1] === "perf:budget") { appendFileSync(process.env.FAKE_LOG, JSON.stringify({ budget: args.slice(2) }) + "\\n"); process.exit(0); }
 if (args[0] === "run" && args[1] === "build:api") { appendFileSync(process.env.FAKE_LOG, JSON.stringify({ buildApi: true }) + "\\n"); process.exit(0); }
+if (args[0] === "run" && args[1] === "build:readers") { appendFileSync(process.env.FAKE_LOG, JSON.stringify({ buildReaders: true }) + "\\n"); process.exit(0); }
 console.error("unexpected npm call", args);
 process.exit(2);
 `;
@@ -70,20 +71,24 @@ process.exit(2);
 const DEPLOYS_BOTH = [
 	[],
 	["--config", "workers/api/wrangler.jsonc"],
+	["--config", "workers/readers/wrangler.jsonc"],
 	["--config", "workers/public/wrangler.jsonc"],
 	["--config", "workers/router/wrangler.jsonc"],
 	["--env", "eu"],
 	["--config", "workers/api/wrangler.jsonc", "--env", "eu"],
+	["--config", "workers/readers/wrangler.jsonc", "--env", "eu"],
 	["--config", "workers/public/wrangler.jsonc", "--env", "eu"],
 	["--config", "workers/router/wrangler.jsonc", "--env", "eu-staged"],
 ];
 const DEPLOYS_CUT_OVER = [
 	[],
 	["--config", "workers/api/wrangler.jsonc"],
+	["--config", "workers/readers/wrangler.jsonc"],
 	["--config", "workers/public/wrangler.jsonc"],
 	["--config", "workers/router/wrangler.jsonc", "--env", "us"],
 	["--env", "eu"],
 	["--config", "workers/api/wrangler.jsonc", "--env", "eu"],
+	["--config", "workers/readers/wrangler.jsonc", "--env", "eu"],
 	["--config", "workers/public/wrangler.jsonc", "--env", "eu"],
 	["--config", "workers/router/wrangler.jsonc", "--env", "eu"],
 ];
@@ -221,6 +226,37 @@ describe("the pieces", () => {
 		assert.equal(apiConfig.env.eu.vars.SES_REGION, appConfig.env.eu.vars.SES_REGION);
 	});
 
+	test("the readers Workers of each region are the ones in workers/readers, bound to their region's database and app, and the routers bind them", () => {
+		const read = (path) => JSON.parse(readFileSync(join(ROOT, path), "utf8").replace(/^\s*\/\/.*$/gm, ""));
+		const appConfig = read("wrangler.jsonc");
+		const readersConfig = read("workers/readers/wrangler.jsonc");
+		const routerConfig = read("workers/router/wrangler.jsonc");
+		assert.equal(readersConfig.build.command, "npm run build:readers");
+		assert.equal(readersConfig.env.eu.build.command, "npm run build:readers");
+		assert.equal(REGIONS.us.readersWorker, readersConfig.name);
+		assert.deepEqual(REGIONS.us.readersArgs, ["--config", "workers/readers/wrangler.jsonc"]);
+		assert.equal(REGIONS.eu.readersWorker, readersConfig.env.eu.name);
+		assert.deepEqual(REGIONS.eu.readersArgs, ["--config", "workers/readers/wrangler.jsonc", "--env", "eu"]);
+		const bound = (config) => config.services.find(({ binding }) => binding === "READERS").service;
+		assert.equal(bound(routerConfig), REGIONS.us.readersWorker);
+		assert.equal(bound(routerConfig.env.us), REGIONS.us.readersWorker);
+		assert.equal(bound(routerConfig.env["eu-staged"]), REGIONS.eu.readersWorker);
+		assert.equal(bound(routerConfig.env.eu), REGIONS.eu.readersWorker);
+		assert.deepEqual(readersConfig.d1_databases[0].database_id, appConfig.d1_databases[0].database_id);
+		assert.deepEqual(readersConfig.env.eu.d1_databases[0].database_id, appConfig.env.eu.d1_databases[0].database_id);
+		assert.equal(readersConfig.services.find(({ binding }) => binding === "APP").service, appConfig.name);
+		assert.equal(readersConfig.env.eu.services.find(({ binding }) => binding === "APP").service, appConfig.env.eu.name);
+		for (const config of [readersConfig, readersConfig.env.eu]) {
+			assert.equal(config.workers_dev, false, "nothing reaches it from outside");
+			assert.equal(config.routes, undefined);
+			assert.equal(config.r2_buckets, undefined, "none of these endpoints stores a file");
+			assert.equal(config.no_bundle, true);
+		}
+		assert.equal(readersConfig.vars.FLOCKSTACK_REGION, "us");
+		assert.equal(readersConfig.env.eu.vars.FLOCKSTACK_REGION, "eu");
+		assert.equal(readersConfig.env.eu.vars.SES_REGION, appConfig.env.eu.vars.SES_REGION);
+	});
+
 	test("the public pages and router Workers of each region are the ones in workers/public and workers/router", () => {
 		const read = (path) => JSON.parse(readFileSync(join(ROOT, path), "utf8").replace(/^\s*\/\/.*$/gm, ""));
 		const publicConfig = read("workers/public/wrangler.jsonc");
@@ -311,8 +347,10 @@ describe("a run", () => {
 		assert.ok(calls.findIndex((call) => call.render) < calls.findIndex((call) => call.d1), "then the pages, before anything is changed");
 		assert.equal(calls.filter((call) => call.buildApi).length, 1, "and one build of the API Worker, before anything is changed");
 		assert.ok(calls.findIndex((call) => call.buildApi) < calls.findIndex((call) => call.d1));
-		assert.deepEqual(calls.filter((call) => call.deploy).map(({ deploy }) => deploy), DEPLOYS_BOTH, "per region: the app, then the API Worker, then the public pages, then the router");
-		assert.equal(calls.findIndex((call) => call.deploy), calls.length - 8, "the deploys come last, after every migration");
+		assert.equal(calls.filter((call) => call.buildReaders).length, 1, "and one build of the readers Worker");
+		assert.ok(calls.findIndex((call) => call.buildReaders) < calls.findIndex((call) => call.d1));
+		assert.deepEqual(calls.filter((call) => call.deploy).map(({ deploy }) => deploy), DEPLOYS_BOTH, "per region: the app, then the API and readers Workers, then the public pages, then the router");
+		assert.equal(calls.findIndex((call) => call.deploy), calls.length - 10, "the deploys come last, after every migration");
 		assert.deepEqual(
 			[...new Set(calls.filter((call) => call.d1).map(({ d1, env, remote }) => `${d1}:${env}:${remote}`))],
 			["flockstack:null:true", "flockstack-eu:eu:true"]
@@ -327,7 +365,7 @@ describe("a run", () => {
 		await run(["--baseline", "0"]);
 		const second = readLog().slice(before);
 		assert.equal(second.filter((call) => call.file).length, 0);
-		assert.equal(second.filter((call) => call.deploy).length, 8, "it deploys again all the same");
+		assert.equal(second.filter((call) => call.deploy).length, 10, "it deploys again all the same");
 	});
 
 	test("a file added later is the only one that runs", async () => {
@@ -346,7 +384,7 @@ describe("a run", () => {
 	test("--only eu leaves the US database and Worker alone", async () => {
 		await run(["--only", "eu", "--baseline", "0"]);
 		const calls = readLog();
-		assert.deepEqual(calls.filter((call) => call.deploy).map(({ deploy }) => deploy), DEPLOYS_BOTH.slice(4));
+		assert.deepEqual(calls.filter((call) => call.deploy).map(({ deploy }) => deploy), DEPLOYS_BOTH.slice(5));
 		assert.ok(calls.filter((call) => call.d1).every(({ d1 }) => d1 === "flockstack-eu"));
 		assert.deepEqual(readdirSync(join(folder, "dbs")), ["flockstack-eu.sqlite"]);
 	});
@@ -360,7 +398,7 @@ describe("a run", () => {
 		writeFileSync(join(migrations, "0004_broken.sql"), "CREATE TABLE four (id TEXT);\n");
 		await run(["--skip-build"]);
 		assert.ok(recordedIn("flockstack").includes("0004_broken.sql"));
-		assert.equal(readLog().filter((call) => call.deploy).length, 8);
+		assert.equal(readLog().filter((call) => call.deploy).length, 10);
 	});
 
 	test("--dry-run prints the commands and runs none", async () => {
@@ -372,6 +410,8 @@ describe("a run", () => {
 		assert.match(output, /\$ npx wrangler d1 execute flockstack-eu --remote --yes --env eu/);
 		assert.match(output, /\$ npm run render:public/);
 		assert.match(output, /\$ npm run build:api/);
+		assert.match(output, /\$ npm run build:readers/);
+		assert.match(output, /\$ npx wrangler deploy --config workers\/readers\/wrangler\.jsonc --env eu\n/);
 		assert.match(output, /\$ npm run perf:budget -- --require-app/);
 		assert.match(output, /\$ npx wrangler deploy --config workers\/api\/wrangler\.jsonc --env eu\n/);
 		assert.match(output, /\$ npx wrangler deploy\n/);
@@ -387,8 +427,8 @@ describe("a run", () => {
 	test("placeholders left in lib/legal.js don't stop it: it names them, says the legal pages stay hidden and deploys", async () => {
 		const output = await run(["--baseline", "0"], { legalTodos: [["EFFECTIVE_DATE", "TODO: a date"], ["SERVICES_LIVE_CONFIRMED", "TODO: once live"]] });
 		assert.match(output, /Legal pages stay hidden until these are filled in lib\/legal\.js: EFFECTIVE_DATE, SERVICES_LIVE_CONFIRMED\./);
-		assert.equal(readLog().filter((call) => call.deploy).length, 8);
-		assert.match(output, /Deployed flockstack, flockstack-api, flockstack-public, flockstack-router, flockstack-eu, flockstack-api-eu, flockstack-public-eu, flockstack-router-eu\./);
+		assert.equal(readLog().filter((call) => call.deploy).length, 10);
+		assert.match(output, /Deployed flockstack, flockstack-api, flockstack-readers, flockstack-public, flockstack-router, flockstack-eu, flockstack-api-eu, flockstack-readers-eu, flockstack-public-eu, flockstack-router-eu\./);
 		writeFileSync(join(folder, "calls.log"), "");
 		assert.doesNotMatch(await run(["--skip-build"]), /Legal pages/);
 	});
@@ -470,7 +510,7 @@ describe("the domain and the Worker that holds it", () => {
 	test("goes on with --skip-router-check, and says it skipped", async () => {
 		const output = await run(["--baseline", "0", "--skip-router-check"], { fetchImpl: routed });
 		assert.match(output, /Skipped \(--skip-router-check\)/);
-		assert.equal(readLog().filter((call) => call.deploy).length, 8);
+		assert.equal(readLog().filter((call) => call.deploy).length, 10);
 	});
 
 	test("goes on when the domain is still the app's own, which is how it is until the cutover", async () => {
