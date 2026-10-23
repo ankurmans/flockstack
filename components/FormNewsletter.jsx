@@ -32,6 +32,7 @@ import { getSlugFormatProblem } from "@/lib/newsletter-settings";
 import { MAX_AUTHOR_BIO_LENGTH, MAX_DESCRIPTION_LENGTH } from "@/lib/newsletters";
 import { UNSUBSCRIBE_PLACEHOLDER, renderEmail } from "@/lib/render-email";
 import { getSharedAddress } from "@/lib/sender-rules";
+import { UNDO_LABELS, UNDO_SECONDS } from "@/lib/send-hold-rules";
 import { slugify } from "@/lib/slug";
 import { toast } from "@/lib/toast";
 import { usePaywall } from "@/lib/use-paywall";
@@ -410,6 +411,21 @@ export default function FormNewsletter({
 						<Switch name="utmLinks" checked={isUtmTagged} onCheckedChange={(isChecked) => set("isUtmTagged", isChecked)} aria-label="Add UTM parameters to the links in issues" />
 						On links in issues
 					</span>
+				</Field>
+				<Field label="Undo send" hint="After you press Send, the send waits this long so you can still take it back. Sends from the API and from AI agents don't wait." as="div">
+					<input type="hidden" name="sendUndoSeconds" value={draft.sendUndoSeconds} />
+					<Select value={draft.sendUndoSeconds} onValueChange={(value) => set("sendUndoSeconds", value)}>
+						<SelectTrigger className="w-40" aria-label="Undo send">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{UNDO_SECONDS.map((seconds) => (
+								<SelectItem key={seconds} value={String(seconds)}>
+									{UNDO_LABELS[seconds]}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 				</Field>
 			</Section>
 

@@ -5,7 +5,7 @@ import { PUBLISH_TARGETS } from "../lib/archive-issues.js";
 import { RESEND_TARGETS } from "../lib/resend-rules.js";
 import { AUDIENCES } from "../lib/tiers.js";
 
-export const CAMPAIGN_STATUSES = ["draft", "scheduled", "sending", "paused", "sent", "canceled"];
+export const CAMPAIGN_STATUSES = ["draft", "scheduled", "held", "sending", "paused", "sent", "canceled"];
 
 const counter = { type: Number, default: 0 };
 
@@ -58,6 +58,15 @@ const campaignSchema = new mongoose.Schema(
 		// The series (models/SeriesPlan.js) that made this issue.
 		seriesId: { type: mongoose.Schema.Types.ObjectId, ref: "SeriesPlan" },
 		scheduledAt: { type: Date },
+		// A send the dashboard holds for its undo window (lib/send-hold.js): held until sendAfter, then a job releases it. claimedAt
+		// is the release taking it, after which undo is too late. before: the audience fields as they were, for undo.
+		hold: {
+			sendAfter: { type: Date },
+			seconds: { type: Number },
+			recipients: { type: Number },
+			claimedAt: { type: Date },
+			before: { type: mongoose.Schema.Types.Mixed },
+		},
 		startedAt: { type: Date },
 		// A send spread over hours (lib/send-spread.js): about when its last batch goes out, and the hours its size gave
 		// it next to the account's proven volume, kept for its resumes. Each next step gets its own.
@@ -170,6 +179,8 @@ campaignSchema.plugin(accountScoped);
 campaignSchema.index({ newsletterId: 1, createdAt: -1 });
 campaignSchema.index({ accountId: 1, status: 1 });
 campaignSchema.index({ newsletterId: 1, startedAt: -1 });
+// The hourly sweep of held sends nobody released.
+campaignSchema.index({ status: 1, "hold.sendAfter": 1 });
 campaignSchema.index(
 	{ newsletterId: 1, importKey: 1 },
 	{ unique: true, partialFilterExpression: { importKey: { $type: "string" } } }

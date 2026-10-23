@@ -65,6 +65,8 @@ const newsletterSchema = new mongoose.Schema(
 		// Issues' outgoing links get utm_source (the newsletter), utm_medium=email and utm_campaign (the issue) added
 		// (lib/link-utm.js), unless a link has UTM parameters of its own.
 		utmLinks: { type: Boolean },
+		// How long the dashboard holds a send so it can be undone: 0, 10, 30 or 60 seconds (lib/send-hold-rules.js). Unset: 30.
+		sendUndoSeconds: { type: Number },
 		// The website's signup pop-up and the gate (lib/popup-rules.js): when it opens, how long closing it snoozes it, where it
 		// shows, and whether older issues show only their beginning to readers who haven't subscribed. Unsaved: the defaults.
 		popup: {

@@ -106,6 +106,45 @@ export async function sendCampaign(id, { audienceLimit, audience } = {}) {
 	return failure ? toFormError(failure) : { ok: true };
 }
 
+// The Send button: like sendCampaign, but the send waits the newsletter's undo window first (lib/send-hold.js). What it answers
+// tells the bar at the bottom of the dashboard what to count down to, or what to celebrate when nothing waited.
+export async function startSend(id, { audienceLimit, audience } = {}) {
+	const { output, failure } = await runDashboardAction("send_campaign", {
+		id: String(id),
+		audienceLimit: readCount(audienceLimit),
+		audience: readAudience(audience),
+		holdForUndo: true,
+	});
+	refresh(id);
+	if (failure) return toFormError(failure);
+	return {
+		ok: true,
+		status: output.status,
+		subject: output.subject,
+		recipients: output.hold?.recipients ?? output.stats.recipients,
+		...(output.hold && { sendAfter: output.hold.sendAfter, serverTime: new Date().toISOString() }),
+	};
+}
+
+// Takes a held send back to a draft; answers whether it was still in time.
+export async function undoSend(id) {
+	const { failure } = await runDashboardAction("undo_campaign_send", { id: String(id) });
+	refresh(id);
+	return failure ? toFormError(failure) : { ok: true };
+}
+
+// The sends waiting for their undo window, for the bar at the bottom of every dashboard page.
+export async function listHeldSends() {
+	const { output, failure } = await runDashboardAction("list_campaigns", { status: "held", limit: 5 });
+	if (failure) return toFormError(failure);
+	return {
+		now: new Date().toISOString(),
+		holds: output.campaigns
+			.filter(({ hold }) => hold)
+			.map(({ id, subject, hold }) => ({ id, subject, sendAfter: hold.sendAfter, recipients: hold.recipients })),
+	};
+}
+
 export async function scheduleCampaign(id, { scheduledAt, audienceLimit, audience } = {}) {
 	const { failure } = await runDashboardAction("schedule_campaign", {
 		id: String(id),

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import BannerApprovals from "@/components/BannerApprovals";
 import BannerBlocked from "@/components/BannerBlocked";
 import BannerWatch from "@/components/BannerWatch";
+import BarSend from "@/components/BarSend";
 import LogoWordmark from "@/components/LogoWordmark";
 import MenuUser from "@/components/MenuUser";
 import NavLinks from "@/components/NavLinks";
@@ -71,6 +72,7 @@ export default async function LayoutDashboard({ user, account, isAdmin, children
 					<PanelGetStarted account={account} />
 				</Suspense>
 			)}
+			<BarSend />
 			{SupportChat && (
 				<Suspense fallback={null}>
 					<SupportChat user={user} account={account} />

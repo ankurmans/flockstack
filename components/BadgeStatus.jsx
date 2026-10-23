@@ -42,6 +42,7 @@ const STATUS_TONES = {
 	verified: "green",
 	healthy: "green",
 	scheduled: "blue",
+	held: "amber",
 	running: "blue",
 	drafted: "amber",
 	sending: "blue",

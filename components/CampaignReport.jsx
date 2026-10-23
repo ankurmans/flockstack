@@ -166,6 +166,13 @@ export default function CampaignReport({
 				{campaign.status === "paused" && campaign.pauseReason && (
 					<TextPauseReason reason={campaign.pauseReason} code={campaign.pauseCode} />
 				)}
+				{campaign.status === "held" && campaign.hold?.sendAfter && (
+					<p className="rounded-xl bg-amber-500/10 px-4 py-3 text-sm text-pretty animate-enter">
+						Held: this send waits until{" "}
+						<TimeLocal value={campaign.hold.sendAfter} options={{ hour: "numeric", minute: "2-digit", second: "2-digit" }} /> so you can still undo it.
+						Nothing has been queued, counted or emailed yet.
+					</p>
+				)}
 				{["sending", "paused"].includes(campaign.status) && (
 					<div className="flex flex-col gap-2 animate-enter">
 						<div className="flex justify-between text-sm tabular-nums">

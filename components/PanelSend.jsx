@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { FIRST_SEND } from "@/lib/config";
 import { formatCount, formatNumber, formatSendTime } from "@/lib/format";
+import { getUndoSeconds } from "@/lib/send-hold-rules";
 import { getPaceHours } from "@/lib/send-spread";
 import { slugify } from "@/lib/slug";
 import { useIsClient } from "@/lib/use-is-client";
@@ -61,6 +62,7 @@ export default function PanelSend({
 	const isOverPlan = isNow && emailsLeft !== null && sending.sendEmails > emailsLeft;
 	const isTesting = (campaign.abTest?.variants?.length ?? 0) >= 2;
 	const isWebOnly = campaign.publishTo === "web";
+	const undoSeconds = isWebOnly || scheduledAt ? 0 : getUndoSeconds(newsletter);
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -223,6 +225,7 @@ export default function PanelSend({
 							{isTesting
 								? " The subject line test goes to a slice of them first, and the winner to the rest after the wait."
 								: sending.sendRecipients < sending.issueAudience && " Send it to more later from its page."}
+							{undoSeconds > 0 && ` You'll have ${undoSeconds} seconds to undo it.`}
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>

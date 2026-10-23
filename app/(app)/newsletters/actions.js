@@ -37,6 +37,7 @@ function readSettings(formData) {
 		},
 		preferencesLink: formData.get("preferencesLink") === "on",
 		utmLinks: formData.get("utmLinks") === "on",
+		...(formData.has("sendUndoSeconds") && { sendUndoSeconds: Number(readText(formData, "sendUndoSeconds")) }),
 		author: { bio: readText(formData, "authorBio"), imageUrl: readText(formData, "authorImageUrl") },
 		socialLinks: readText(formData, "socialLinks").split(/[\s,]+/).filter(Boolean),
 		requireConfirmation: formData.get("requireConfirmation") === "on",
