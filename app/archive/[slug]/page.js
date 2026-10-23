@@ -3,14 +3,15 @@ import { notFound } from "next/navigation";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import CardIssue from "@/components/CardIssue";
 import FormSubscribe from "@/components/FormSubscribe";
+import PageComingSoon from "@/components/PageComingSoon";
 import LinksSocial from "@/components/LinksSocial";
 import ListIssues from "@/components/ListIssues";
 import ListRecommendations from "@/components/ListRecommendations";
 import ScriptJsonLd from "@/components/ScriptJsonLd";
 import TriggerSubscribe from "@/components/TriggerSubscribe";
-import { HOME_ISSUES, countReaders, getArchiveNewsletter, listHomeIssues, listSignupFields } from "@/lib/archive-data";
+import { HOME_ISSUES, countReaders, getArchiveSite, listHomeIssues, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
-import { getCustomJsonLd, getHomeSeo } from "@/lib/archive-seo";
+import { getComingSoonSeo, getCustomJsonLd, getHomeSeo } from "@/lib/archive-seo";
 import { getBrand } from "@/lib/brand";
 import { formatNumber } from "@/lib/format";
 import { getPopupSettings, getTriggerProps, isPopupOn } from "@/lib/popup-rules";
@@ -24,13 +25,15 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }) {
-	const newsletter = await getArchiveNewsletter((await params).slug);
-	return newsletter ? getHomeSeo(newsletter).metadata : {};
+	const newsletter = await getArchiveSite((await params).slug);
+	if (!newsletter) return {};
+	return newsletter.comingSoon ? getComingSoonSeo(newsletter) : getHomeSeo(newsletter).metadata;
 }
 
 export default async function ArchivePage({ params }) {
-	const newsletter = await getArchiveNewsletter((await params).slug);
+	const newsletter = await getArchiveSite((await params).slug);
 	if (!newsletter) notFound();
+	if (newsletter.comingSoon) return <PageComingSoon newsletter={newsletter} signupFields={await listSignupFields(newsletter)} />;
 
 	const [home, readers, signupFields, recommendations] = await Promise.all([
 		listHomeIssues(newsletter),

@@ -25,14 +25,16 @@ export default function FooterArchive({ newsletter, indexHref, feedHref, navLink
 				<p className="tabular-nums">
 					© {currentYear()} {newsletter.name}
 				</p>
-				<a
-					href={feedHref}
-					type="application/rss+xml"
-					className="inline-flex items-center gap-1.5 transition-colors duration-150 hover:text-foreground"
-				>
-					<Rss className="size-3.5" aria-hidden="true" />
-					RSS feed
-				</a>
+				{feedHref && (
+					<a
+						href={feedHref}
+						type="application/rss+xml"
+						className="inline-flex items-center gap-1.5 transition-colors duration-150 hover:text-foreground"
+					>
+						<Rss className="size-3.5" aria-hidden="true" />
+						RSS feed
+					</a>
+				)}
 			</div>
 			{newsletter.sentWith && (
 				<p className="mx-auto max-w-5xl px-5 pb-8 text-xs text-muted-foreground">

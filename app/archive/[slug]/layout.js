@@ -5,15 +5,17 @@ import HeaderArchive from "@/components/HeaderArchive";
 import ProviderSubscribe from "@/components/ProviderSubscribe";
 import StyleSite from "@/components/StyleSite";
 import TrackVisit from "@/components/TrackVisit";
-import { countReaders, getArchiveNewsletter, getShopPayments, listPublishedPages, listShopProducts, listSignupFields } from "@/lib/archive-data";
+import { countReaders, getArchiveSite, getShopPayments, listPublishedPages, listShopProducts, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getLaunchBanner } from "@/lib/offers";
 import { getBrand } from "@/lib/brand";
 import { getNavLinks } from "@/lib/site-navigation";
 
 export default async function ArchiveLayout({ children, params }) {
-	const newsletter = await getArchiveNewsletter((await params).slug);
+	const newsletter = await getArchiveSite((await params).slug);
 	if (!newsletter) notFound();
+	// Before its first issue the website is one page: no shop, no navigation, no feed to link to.
+	const { comingSoon } = newsletter;
 
 	const [readers, products, payments, signupFields, pages, banner] = await Promise.all([
 		countReaders(newsletter),
@@ -26,9 +28,9 @@ export default async function ArchiveLayout({ children, params }) {
 	const urls = getArchiveUrls(newsletter);
 	const { index, shop, subscribe, feed } = urls;
 	const theme = getBrand(newsletter).theme;
-	const navLinks = getNavLinks(newsletter, pages, urls);
-	const hasProducts = payments.ready && products.length > 0;
-	const shopLink = hasProducts || (payments.ready && (newsletter.paidTier?.enabled || newsletter.paidTier?.pledges?.enabled)) ? { href: hasProducts || newsletter.paidTier?.enabled ? shop : subscribe, label: hasProducts ? "Shop" : newsletter.paidTier?.enabled ? "Go paid" : "Pledge" } : null;
+	const navLinks = comingSoon ? [] : getNavLinks(newsletter, pages, urls);
+	const hasProducts = !comingSoon && payments.ready && products.length > 0;
+	const shopLink = comingSoon ? null : hasProducts || (payments.ready && (newsletter.paidTier?.enabled || newsletter.paidTier?.pledges?.enabled)) ? { href: hasProducts || newsletter.paidTier?.enabled ? shop : subscribe, label: hasProducts ? "Shop" : newsletter.paidTier?.enabled ? "Go paid" : "Pledge" } : null;
 	const pitch = {
 		name: newsletter.name,
 		slug: newsletter.slug,
@@ -41,7 +43,7 @@ export default async function ArchiveLayout({ children, params }) {
 		<ProviderSubscribe newsletter={pitch} readers={readers}>
 			<StyleSite newsletter={newsletter} only={theme} />
 			<div data-site-theme={theme} className="theme-neutral flex min-h-dvh flex-col bg-background text-foreground">
-				{banner && payments.ready && <BannerOffer text={banner.text} href={banner.offerCode ? urls.offer(banner.offerCode) : subscribe} />}
+				{!comingSoon && banner && payments.ready && <BannerOffer text={banner.text} href={banner.offerCode ? urls.offer(banner.offerCode) : subscribe} />}
 				<HeaderArchive
 					newsletter={newsletter}
 					indexHref={index}
@@ -51,7 +53,7 @@ export default async function ArchiveLayout({ children, params }) {
 					accountHref={urls.account}
 				/>
 				<main className="flex-1">{children}</main>
-				<FooterArchive newsletter={newsletter} indexHref={index} feedHref={feed} navLinks={navLinks} />
+				<FooterArchive newsletter={newsletter} indexHref={index} feedHref={comingSoon ? null : feed} navLinks={navLinks} />
 				<TrackVisit slug={newsletter.slug} />
 			</div>
 		</ProviderSubscribe>

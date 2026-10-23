@@ -661,7 +661,7 @@ export default function FormNewsletter({
 						!isArchiveEnabled ? (
 							"Your website is off. Turn it on above to give every issue you send a page."
 						) : !hasSentIssue ? (
-							"Goes live after your first issue."
+							"Until your first issue, it shows a \"first issue coming soon\" page with your signup form."
 						) : !hasPlan ? (
 							<>
 								It goes online with a plan.{" "}

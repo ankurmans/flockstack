@@ -10,11 +10,12 @@ import { revalidatedPaths } from "./stubs/next-cache.mjs";
 import { flushAfter } from "./stubs/next-server.mjs";
 
 // A newsletter's website, its archive at <slug>.<shared domain>, starts on for new newsletters, however they're created.
-// Until the first issue goes out nothing of it is public: its host answers as for a website that's off, while signups
-// and the confirm and unsubscribe links keep working there. The first send puts it online. Newsletters saved before
-// keep their setting.
+// Until the first issue goes out its home page is a "first issue coming soon" page with the signup form and nothing else
+// is public: its issues, sitemap and robots answer as for a website that's off, while signups and the confirm and
+// unsubscribe links keep working there. The first send puts it online. Newsletters saved before keep their setting.
 const SHARED_DOMAIN = "flockstackmail.com";
 const HIDDEN = { home: false, issue: false, sitemap: 404, robots: 404 };
+const SOON = { ...HIDDEN, home: true };
 const LIVE = { home: true, issue: true, sitemap: 200, robots: 200 };
 let app;
 let m;
@@ -129,13 +130,13 @@ describe("new newsletters", () => {
 });
 
 describe("before the first issue", () => {
-	test("nothing is public, as when the website is off, while signups, confirm and unsubscribe links keep working", async () => {
+	test("only the coming soon page is public, unlike a website that's off, while signups, confirm and unsubscribe links keep working", async () => {
 		const user = await customer("website-waiting@example.com");
 		const waiting = await createNewsletter(user, { name: "Waiting notes" });
 		const off = await createNewsletter(user, { name: "Off notes", archiveEnabled: false });
 		assert.equal(waiting.archiveEnabled, true);
-		assert.deepEqual(await visitWebsite(waiting.slug, "first-issue"), HIDDEN);
-		assert.deepEqual(await visitWebsite(off.slug, "first-issue"), HIDDEN, "the same as a website that's off");
+		assert.deepEqual(await visitWebsite(waiting.slug, "first-issue"), SOON);
+		assert.deepEqual(await visitWebsite(off.slug, "first-issue"), HIDDEN, "a website that's off has no page at all");
 		for (const path of ["/unsubscribe?token=token", "/api/unsubscribe?token=token", "/confirm?token=token"]) {
 			assert.equal((await visitHost(waiting.slug, path)).headers.get("x-middleware-next"), "1", path);
 		}
@@ -165,14 +166,14 @@ describe("the first issue", () => {
 		const newsletter = await createNewsletter(user, { name: "Live notes", postalAddress: "1 Main St, Paris" });
 		const address = `https://live-notes.${SHARED_DOMAIN}`;
 		const settings = await renderSettings(user);
-		assert.match(settings, /Goes live after your first issue\./);
+		assert.match(settings, /Until your first issue, it shows a &quot;first issue coming soon&quot; page with your signup form\./);
 		assert.doesNotMatch(settings, new RegExp(`href="${address}"`), "the address isn't a link yet");
 
 		const rows = [{ email: "first-reader@example.org", status: "active" }];
 		await as(user, () => m.contacts.importContacts({ newsletterId: newsletter.id, consent: true, rows }));
 		const id = (await as(user, () => catchRedirect(m.campaigns.createCampaign(newsletter.id)))).split("/").at(-1);
 		await as(user, () => m.campaigns.saveCampaign(id, { subject: "First issue", previewText: "Hello", body: "<p>Hello readers</p>" }));
-		assert.deepEqual(await visitWebsite(newsletter.slug, "first-issue"), HIDDEN, "a draft isn't an issue");
+		assert.deepEqual(await visitWebsite(newsletter.slug, "first-issue"), SOON, "a draft isn't an issue");
 
 		const revalidatedBefore = revalidatedPaths.length;
 		assert.deepEqual(await as(user, () => m.campaigns.sendCampaign(id, {})), { ok: true });
@@ -187,7 +188,7 @@ describe("the first issue", () => {
 		assert.match(await sitemap.text(), new RegExp(`<loc>${address}/p/${archiveSlug}</loc>`));
 
 		const live = await renderSettings(user);
-		assert.doesNotMatch(live, /Goes live after your first issue/);
+		assert.doesNotMatch(live, /first issue coming soon/);
 		assert.match(live, new RegExp(`href="${address}"`));
 		const pending = await m.Contact.create({ accountId: user.accountId, newsletterId: newsletter.id, email: "later@example.org", status: "pending" });
 		assert.equal(await confirmPageArchiveUrl(createConfirmToken({ contactId: pending._id, newsletterId: newsletter.id })), `${address}/`);
