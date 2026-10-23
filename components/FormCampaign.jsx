@@ -34,9 +34,8 @@ import DialogSaveTemplate from "@/components/DialogSaveTemplate";
 import DialogTestEmail from "@/components/DialogTestEmail";
 import DialogVersionHistory from "@/components/DialogVersionHistory";
 import EditorRich from "@/components/EditorRich";
-import IconWarmup from "@/components/IconWarmup";
-import ListChecks from "@/components/ListChecks";
 import NavSteps from "@/components/NavSteps";
+import PanelReady, { PreviewReady } from "@/components/PanelReady";
 import PanelSend from "@/components/PanelSend";
 import RowCampaign from "@/components/RowCampaign";
 import { Button } from "@/components/ui/button";
@@ -47,7 +46,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { sendToAbTest } from "@/lib/ai-client";
-import { getCheckFix } from "@/lib/campaign-steps";
 import { formatCount, formatSendTime } from "@/lib/format";
 import { markdownToHtml } from "@/lib/markdown";
 import { fillMergeTags } from "@/lib/merge-tags";
@@ -60,6 +58,7 @@ import { useMediaQuery } from "@/lib/use-media-query";
 import { usePaywall } from "@/lib/use-paywall";
 import { useSendCampaign } from "@/lib/use-send-campaign";
 import { useAiRun } from "@/lib/use-ai-run";
+import { useReadyCheck } from "@/lib/use-ready-check";
 import { useToastError } from "@/lib/use-toast-error";
 import { useAutosave } from "@/lib/use-autosave";
 import { cn } from "@/lib/utils";
@@ -150,7 +149,7 @@ export default function FormCampaign({
 		() => withResponsiveImages(fillMergeTags(withPreviewLinks(rendered.html), null, { escape: escapeHtml })),
 		[rendered.html]
 	);
-	const { checks, blocking } = getPresendChecks({
+	const { blocking } = getPresendChecks({
 		campaign: { ...campaign, ...values },
 		newsletter,
 		rendered,
@@ -158,9 +157,17 @@ export default function FormCampaign({
 		isSendingEnabled,
 		planProblem,
 	});
+	// The review step's check runs on the server, on the saved draft each time the step opens (lib/use-ready-check.js); a blocker
+	// it found keeps the send off while the draft is still the one it looked at.
+	const ready = useReadyCheck({
+		campaignId: campaign._id,
+		isActive: step === "review",
+		persist,
+		key: `${values.subject}\u0000${values.previewText}\u0000${values.body}`,
+	});
+	const serverBlocker = ready.isFresh ? ready.result.items.find(({ status }) => status === "blocker") : null;
 	// Without a plan, Send and Schedule open the paywall first; the checks wait until there's one.
-	const blockingMessage = !hasPlan ? null : isUploading ? UPLOADING_MESSAGE : blocking[0]?.message;
-	const reviewChecks = checks.map((check) => ({ ...check, fix: getCheckFix(check, { newsletterId: newsletter._id }) }));
+	const blockingMessage = !hasPlan ? null : isUploading ? UPLOADING_MESSAGE : (blocking[0]?.message ?? serverBlocker?.message);
 	const warmupCheck = getWarmupCheck(pace, { emails: audienceCount, newContacts });
 	const sending = useSendCampaign({
 		campaignId: campaign._id,
@@ -187,6 +194,7 @@ export default function FormCampaign({
 			const result = await sendTestCampaign(campaign._id, Array.isArray(to) ? to : undefined);
 			if (result?.error) return toastError(result);
 			setIsTestOpen(false);
+			ready.refresh();
 			toast.success(`Test sent to ${result.sentTo?.join(", ") ?? testEmail}`);
 			if (result.skipped?.length > 0) toast.error(`Not sent to ${result.skipped.join(", ")}: they can't receive email`);
 		});
@@ -405,20 +413,15 @@ export default function FormCampaign({
 				</section>
 
 				<section aria-label="Review" hidden={step !== "review"} className="flex flex-col gap-6">
-					<ListChecks
-						checks={warmupCheck ? [...reviewChecks, warmupCheck] : reviewChecks}
-						renderFix={({ fix }) =>
-							fix && (
-								<ButtonFix
-									fix={fix}
-									onEdit={editField}
-									onTest={sendTest}
-									isTesting={isTesting}
-									isTestDisabled={isTestDisabled}
-								/>
-							)
-						}
+					<PanelReady
+						ready={ready}
+						extra={warmupCheck ? [warmupCheck] : []}
+						onFix={(target) => (target === "send" ? goToStep("send") : editField(target))}
+						onTest={() => sendTest()}
+						isTesting={isTesting}
+						isTestDisabled={isTestDisabled}
 					/>
+					<PreviewReady html={previewHtml} />
 					<CardSettings title="Test and preview" stagger={1}>
 						<ButtonRow
 							icon={FlaskConical}
@@ -531,10 +534,10 @@ function getWarmupCheck(pace, { emails, newContacts }) {
 	const { warmup } = pace;
 	return {
 		id: "warmup",
-		label: hours ? `Goes out over ${formatCount(hours, "hour")}` : "Sends now",
-		detail: warmup ? (warmup.hasStarted ? `Warm-up day ${warmup.day} of ${warmup.days}` : "Starts the warm-up") : null,
-		isOk: true,
-		icon: IconWarmup,
+		status: "info",
+		title: hours ? `Goes out over ${formatCount(hours, "hour")}` : "Sends now",
+		message: warmup ? (warmup.hasStarted ? `Warm-up day ${warmup.day} of ${warmup.days}.` : "This send starts the account's warm-up.") : "",
+		fix: null,
 	};
 }
 
@@ -640,28 +643,6 @@ function TextProblem({ children }) {
 			<CircleAlert className="size-3.5 shrink-0" aria-hidden="true" />
 			<span className="line-clamp-2 text-pretty xl:max-w-48">{children}</span>
 		</span>
-	);
-}
-
-function ButtonFix({ fix, onEdit, onTest, isTesting, isTestDisabled }) {
-	if (fix.href) {
-		return (
-			<Button asChild variant="outline" size="sm">
-				<Link href={fix.href}>{fix.label}</Link>
-			</Button>
-		);
-	}
-	if (fix.action === "test") {
-		return (
-			<Button variant="outline" size="sm" onClick={onTest} disabled={isTestDisabled || isTesting} className="min-w-24">
-				{isTesting ? <Loader2 className="animate-spin" /> : fix.label}
-			</Button>
-		);
-	}
-	return (
-		<Button variant="outline" size="sm" onClick={() => onEdit(fix.field)}>
-			{fix.label}
-		</Button>
 	);
 }
 

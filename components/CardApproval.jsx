@@ -4,12 +4,15 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Bot, Check, Loader2, TriangleAlert, X } from "lucide-react";
 import { decideApproval } from "@/app/(app)/approvals/actions";
+import ApprovalCheck from "@/components/ApprovalCheck";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { formatRelative } from "@/lib/format";
 import { toast } from "@/lib/toast";
 
 const MAX_INPUT_CHARS = 6000;
+// Requests that start a campaign's send, whose draft has the ready-to-send check.
+const CHECKED_ACTIONS = new Set(["send_campaign", "schedule_campaign"]);
 const REASONS = {
 	key: "This key asks before it sends or deletes.",
 	newsletter: "This newsletter asks before an agent sends or deletes.",
@@ -81,6 +84,8 @@ export default function CardApproval({ approval, staleness = null }) {
 					))}
 				</p>
 			)}
+
+			{CHECKED_ACTIONS.has(approval.action) && approval.input?.id && <ApprovalCheck campaignId={String(approval.input.id)} />}
 
 			<details className="text-sm">
 				<summary className="cursor-pointer text-muted-foreground">The exact input that will run</summary>

@@ -14,6 +14,7 @@ import { expireGrants } from "@/lib/grant-access";
 import { resumeConversions } from "@/lib/pledge-conversion";
 import { purgeOldFeeds } from "@/lib/feed-fetch";
 import { checkPostshibaStatus } from "@/lib/postshiba-status";
+import { purgeOldLinkChecks } from "@/lib/link-check";
 import { sweepHeldSends } from "@/lib/send-hold";
 
 export const dynamic = "force-dynamic";
@@ -23,9 +24,9 @@ export const maxDuration = 60;
 // exports whose links ran out, the owners' digests of new comments and reports, the extra emails Polar hasn't been told
 // about yet, dedicated IPs that no longer match their add-on, the day of every IP warm-up and the stock of spare IPs, the reminders to signups that haven't confirmed, and the
 // Custom plan requests past their two years, the RSS feeds' kept copies nobody has read for a day, comps and gifts that ran out, and
-// pledge charging whose job went quiet, and the agent approvals nobody decided and the agent activity past its 90 days, and the held sends whose release job never ran.
+// pledge charging whose job went quiet, and the agent approvals nobody decided and the agent activity past its 90 days, the held sends whose release job never ran, and the link checks nobody looked at for a week.
 export const GET = withCronSecret(async () => {
-	const [postshiba, telegram, expiredExports, commentDigests, extraEmails, dedicatedIps, ipWarmups, ipInventory, reminders, customRequests, feedCopies, grants, pledges, giftsSent, giftsExpired, agentRecords, heldSends] = await Promise.all([
+	const [postshiba, telegram, expiredExports, commentDigests, extraEmails, dedicatedIps, ipWarmups, ipInventory, reminders, customRequests, feedCopies, grants, pledges, giftsSent, giftsExpired, agentRecords, heldSends, linkChecks] = await Promise.all([
 		checkPostshibaStatus(),
 		announceTelegram(),
 		expireAccountExports(),
@@ -43,7 +44,8 @@ export const GET = withCronSecret(async () => {
 		expireGifts(),
 		runAgentHousekeeping(),
 		sweepHeldSends(),
+		purgeOldLinkChecks(),
 	]);
-	console.info(`[hourly] ${JSON.stringify({ postshiba, telegram, expiredExports, commentDigests, extraEmails, dedicatedIps, ipWarmups, ipInventory, reminders, customRequests, feedCopies, grants, pledges, giftsSent, giftsExpired, agentRecords, heldSends })}`);
+	console.info(`[hourly] ${JSON.stringify({ postshiba, telegram, expiredExports, commentDigests, extraEmails, dedicatedIps, ipWarmups, ipInventory, reminders, customRequests, feedCopies, grants, pledges, giftsSent, giftsExpired, agentRecords, heldSends, linkChecks })}`);
 	return { postshiba, telegram };
 });

@@ -145,6 +145,12 @@ export async function listHeldSends() {
 	};
 }
 
+// The review step's ready-to-send check (lib/ready-check.js).
+export async function checkCampaign(id) {
+	const { output, failure } = await runDashboardAction("check_campaign", { id: String(id) });
+	return failure ? toFormError(failure) : output;
+}
+
 export async function scheduleCampaign(id, { scheduledAt, audienceLimit, audience } = {}) {
 	const { failure } = await runDashboardAction("schedule_campaign", {
 		id: String(id),
