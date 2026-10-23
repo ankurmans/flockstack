@@ -23,7 +23,22 @@ describe("the Worker's metadata fetcher", () => {
 			seen.push({ url: request.url, method: request.method, init });
 			return new Response('{"client_id":"https://claude.ai/oauth/claude-code-client-metadata"}', { status: 200, headers: { "content-type": "application/json" } });
 		};
-		const response = await fetchClientMetadataResourceOnWorkers("https://claude.ai/oauth/claude-code-client-metadata", { headers: { accept: "application/json" } });
+		// The plugin calls it with redirect: "error", which Workers' Request does not accept: the request must be built as "manual".
+		const requestRedirects = [];
+		const RealRequest = globalThis.Request;
+		globalThis.Request = class extends RealRequest {
+			constructor(input, init) {
+				requestRedirects.push(init?.redirect);
+				super(input, init);
+			}
+		};
+		let response;
+		try {
+			response = await fetchClientMetadataResourceOnWorkers("https://claude.ai/oauth/claude-code-client-metadata", { headers: { accept: "application/json" }, redirect: "error" });
+		} finally {
+			globalThis.Request = RealRequest;
+		}
+		assert.deepEqual(requestRedirects, ["manual"]);
 		assert.equal(response.status, 200);
 		assert.equal(seen.length, 1);
 		assert.equal(seen[0].url, "https://claude.ai/oauth/claude-code-client-metadata");
