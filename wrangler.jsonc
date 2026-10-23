@@ -60,6 +60,8 @@
 			"upload_source_maps": false,
 			"version_metadata": { "binding": "CF_VERSION_METADATA" },
 			// eu.flockstack.io belongs to the router Worker (flockstack-router-eu, workers/router) since the EU cutover.
+			// Routes inherit from the top level unless explicitly empty. An EU deploy must never claim the US app's domains.
+			"routes": [],
 			"triggers": { "crons": ["0 * * * *", "30 6 * * *"] },
 			"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
 			"d1_databases": [{ "binding": "DB", "database_name": "flockstack-eu", "database_id": "3ffda07e-c73f-46ee-a933-1eb4feb18f70", "migrations_dir": "migrations" }],
