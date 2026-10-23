@@ -29,6 +29,7 @@ import {
 	isLegalPublished,
 } from "@/lib/legal";
 import { REGION_NAMES } from "@/lib/region";
+import { WEBSITE_ICON_NOTICE } from "@/lib/subprocessors";
 import { DELETION_GRACE_DAYS, EXPORT_LINK_DAYS } from "@/lib/retention";
 import { getPageMetadata } from "@/lib/site";
 
@@ -207,6 +208,7 @@ export default function PrivacyPage() {
 						privacy policy (YouTube through its privacy-enhanced address). Emails show a picture or a link instead, and the YouTube picture loads
 						from YouTube. Files a creator attaches are stored with their images.
 					</li>
+					<li><Strong>Website icons:</Strong> {WEBSITE_ICON_NOTICE}</li>
 					<li>
 						<Strong>Surveys and preferences:</Strong> a subscriber who answers a survey from a link has their answers stored with their
 						subscription, and in the survey&apos;s responses with their email address for the creator to see; a reader without a link answers
