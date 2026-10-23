@@ -48,7 +48,7 @@ for region in "$@"; do
   case "$region" in us|eu) ;; *) echo "region must be us or eu" >&2; exit 1 ;; esac
   extra=(--config workers/api/wrangler.jsonc); [ "$region" = eu ] && extra+=(--env eu)
   echo; echo "=== $region: flockstack-api$([ "$region" = eu ] && echo -eu) ==="
-  while IFS='|' read -r name kind note; do
+  while IFS='|' read -r -u 3 name kind note; do
     [ -z "$name" ] && continue
     default=$(suggest "$region" "$name"); keepvar="KEEP_$name"; [ -z "$default" ] && default="${!keepvar:-}"
     prompt="$name ($note)"; [ -n "$default" ] && [ "$kind" = plain ] && prompt="$prompt [$default]"
@@ -59,7 +59,7 @@ for region in "$@"; do
     printf %s "$value" | npx wrangler secret put "$name" "${extra[@]}" 2>&1 | grep -E "Success|ERROR" | sed "s/^/  /"
     case "$name" in ADMIN_EMAILS|EMAIL_FROM|EMAIL_PROVIDER|SENDING_ENABLED|SES_ACCESS_KEY_ID|SES_SECRET_ACCESS_KEY|SES_AWS_ACCOUNT_ID|POLAR_ACCESS_TOKEN|CLOUDFLARE_API_TOKEN|CLOUDFLARE_SAAS_ZONE_ID|ARCHIVE_TRUSTED_HOSTS) printf -v "KEEP_$name" %s "$value" ;; esac
     unset value
-  done <<< "$NAMES"
+  done 3<<< "$NAMES"
 done
 echo; echo "Done. Names now on the API Worker:"
 for region in "$@"; do
