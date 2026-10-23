@@ -31,7 +31,7 @@ export default function PageComingSoon({ newsletter, signupFields }) {
 							{newsletter.description}
 						</p>
 					)}
-					<p style={{ "--stagger": 3 }} className="site-label mt-6 inline-flex h-7 items-center gap-2 rounded-full px-3 text-sm font-medium text-muted-foreground shadow-border animate-enter">
+					<p style={{ "--stagger": 3 }} className="mt-6 inline-flex h-7 items-center gap-2 rounded-full px-3 text-sm font-medium text-muted-foreground shadow-border animate-enter">
 						<span aria-hidden="true" className="size-1.5 rounded-full bg-emerald-500" />
 						First issue coming soon
 					</p>

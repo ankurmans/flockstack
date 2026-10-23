@@ -135,8 +135,9 @@ export default function BarSend() {
 
 	if (!isHolding && celebrations.length === 0) return null;
 
+	// Above the editor's or a form's save bar while one shows (app/globals.css, the save-bar variant).
 	return (
-		<div className="pointer-events-none fixed right-(--dock-right) bottom-(--dock-bottom) left-4 z-40 flex flex-col items-center gap-2 md:left-64">
+		<div className="pointer-events-none fixed right-(--dock-right) bottom-(--dock-bottom) left-4 z-40 flex flex-col items-center gap-2 save-bar:bottom-[calc(var(--dock-bottom)+4.25rem)] md:left-64">
 			{celebrations.map((one) => (
 				<RowSent key={one.key} recipients={one.recipients} campaignId={one.id} onClose={() => setCelebrations((current) => current.filter((item) => item.key !== one.key))} />
 			))}

@@ -131,7 +131,7 @@ const SCHEMES = [
 
 // Clients that darken an email on their own turn the white page dark and the dark text light, and leave pictures alone. This
 // does the same to the page, as an approximation of what readers of those clients see.
-const DARK_STYLE = "<style>html{background:#fff;filter:invert(1) hue-rotate(180deg)}img,video{filter:invert(1) hue-rotate(180deg)}</style>";
+const DARK_STYLE = "<style>html{background:#000}body{min-height:100vh;filter:invert(1) hue-rotate(180deg)}img,video{filter:invert(1) hue-rotate(180deg)}</style>";
 
 // The email at the two widths readers see it at, light and dark, in a frame that runs nothing: sandbox="" gives it no scripts,
 // no forms and no origin of its own.
