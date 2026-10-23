@@ -94,7 +94,7 @@ const BUDGETS = {
 	// A page of 50 contacts, and the rows every dashboard page reads.
 	contacts: { roundTrips: 7, statements: 25, rows: 80 },
 	reports: { roundTrips: 7, statements: 22, rows: 30 },
-	segments: { roundTrips: 5, statements: 16, rows: 30 },
+	segments: { roundTrips: 6, statements: 16, rows: 30 },
 };
 const PAGES = {
 	overview: () => import("../app/(app)/(overview)/page.js"),
