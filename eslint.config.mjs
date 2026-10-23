@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     ".worker/**",
     // The lean API Worker's build output (scripts/build-api-worker.mjs).
     "workers/api/dist/**",
+    // The readers Worker's (scripts/build-readers-worker.mjs).
+    "workers/readers/dist/**",
   ]),
 ]);
 

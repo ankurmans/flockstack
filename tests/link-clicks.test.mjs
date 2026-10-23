@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
-import { anonymous, startTestApp } from "./helpers/app.mjs";
+import { anonymous, readerRoute, startTestApp } from "./helpers/app.mjs";
 import { QSTASH_KEYS, act, createDraft, loadSendingModules, runJobs, sendRoutes, setupSender } from "./helpers/sending.mjs";
 import { flushAfter } from "./stubs/next-server.mjs";
 
@@ -76,7 +76,7 @@ describe("a campaign's clicks per link", () => {
 
 	before(async () => {
 		app = await startTestApp(QSTASH_KEYS);
-		m = { ...(await loadSendingModules()), clickRoute: await import("../app/c/[token]/route.js"), CampaignLink: (await import("../models/CampaignLink.js")).default };
+		m = { ...(await loadSendingModules()), clickRoute: await readerRoute("app/c/[token]/route.js"), CampaignLink: (await import("../models/CampaignLink.js")).default };
 		user = await setupSender(m, "clicks@example.com", { contacts: 4 });
 		campaignId = await createDraft(m, user, {
 			subject: "Links",

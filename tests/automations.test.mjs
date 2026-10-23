@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import { checkSteps, describeStep, describeTrigger } from "../lib/automation-rules.js";
-import { jsonRequest } from "./helpers/app.mjs";
+import { jsonRequest, readerRoute } from "./helpers/app.mjs";
 import { setupAudienceTests } from "./helpers/audience.mjs";
 import { sent as sesEmails } from "./stubs/ses.mjs";
 
@@ -15,7 +15,7 @@ before(async () => {
 	m = {
 		automations: await import("../lib/automations.js"),
 		jobRoute: await import("../app/api/jobs/run-automations/route.js"),
-		unsubscribeRoute: await import("../app/api/unsubscribe/route.js"),
+		unsubscribeRoute: await readerRoute("app/api/unsubscribe/route.js"),
 		unsubscribe: await import("../lib/unsubscribe.js"),
 		Automation: (await import("../models/Automation.js")).default,
 		Enrollment: (await import("../models/AutomationEnrollment.js")).default,

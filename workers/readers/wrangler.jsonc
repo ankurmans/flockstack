@@ -1,0 +1,53 @@
+{
+	"$schema": "../../node_modules/wrangler/config-schema.json",
+	// FlockStack Cloud's lean readers Worker (docs/ARCHITECTURE-WORKERS.md): the open pixel, the click redirect, unsubscribe, the archive's
+	// beacons and the signup forms' address, without Next.js. One script (scripts/build-readers-worker.mjs builds it, as Wrangler's
+	// build step) deployed twice, one per region, bound to the same database as that region's app Worker. Nothing reaches it from
+	// outside: the router holds the domains and hands it requests through its READERS service binding, so no workers.dev address and
+	// no routes here.
+	//
+	// It needs a few of the app's secrets and variables (`node scripts/readers-env.mjs` lists the ones the bundle reads and says which
+	// endpoint needs which; `bash scripts/set-reader-secrets.sh us eu` asks for them). BETTER_AUTH_SECRET signs the links of the emails
+	// already sent, so it must be the same value as the app's of the same region. Secrets are per Worker.
+	// There is no R2 bucket or AI binding: none of these endpoints stores a file or asks a model.
+	"name": "flockstack-readers",
+	"main": "dist/index.js",
+	"no_bundle": true,
+	"build": { "command": "npm run build:readers" },
+	"compatibility_date": "2026-09-01",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"workers_dev": false,
+	"preview_urls": false,
+	"observability": { "enabled": true },
+	"upload_source_maps": false,
+	"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
+	"d1_databases": [{ "binding": "DB", "database_name": "flockstack", "database_id": "97615845-8aa2-413f-ad98-89821937069f" }],
+	// The region's app Worker: where a page revalidation goes (lib/internal-revalidate.js). Deploy the app first.
+	"services": [{ "binding": "APP", "service": "flockstack" }],
+	"vars": {
+		"FLOCKSTACK_CLOUD": "true",
+		"FLOCKSTACK_REGION": "us"
+	},
+	"env": {
+		"eu": {
+			"name": "flockstack-readers-eu",
+			"main": "dist/index.js",
+			"no_bundle": true,
+			"build": { "command": "npm run build:readers" },
+			"compatibility_date": "2026-09-01",
+			"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+			"workers_dev": false,
+			"preview_urls": false,
+			"observability": { "enabled": true },
+			"upload_source_maps": false,
+			"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
+			"d1_databases": [{ "binding": "DB", "database_name": "flockstack-eu", "database_id": "3ffda07e-c73f-46ee-a933-1eb4feb18f70" }],
+			"services": [{ "binding": "APP", "service": "flockstack-eu" }],
+			"vars": {
+				"FLOCKSTACK_CLOUD": "true",
+				"FLOCKSTACK_REGION": "eu",
+				"SES_REGION": "eu-west-1"
+			}
+		}
+	}
+}

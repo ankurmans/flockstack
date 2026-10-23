@@ -292,6 +292,26 @@ export async function callRoute(route, method, request, extra) {
 	return runWithRequest({ jar: new Map() }, () => route[method](request, extra));
 }
 
+// Which implementation answers the reader endpoints (lib/reader-routing.js: the open pixel, the click redirect, unsubscribe, the
+// beacons and the signup form's address): the Next.js route handlers (the default), or the lean readers Worker's handler
+// (workers/readers), with FLOCKSTACK_READERS_TARGET=worker. Both run the same route modules, so the same tests must pass against both.
+export const READERS_TARGET = process.env.FLOCKSTACK_READERS_TARGET === "worker" ? "worker" : "next";
+
+// A reader route's module as the tests call it (`route.GET(request, { params })`): the route itself, or for the Worker target an object
+// with the same methods that send the request to the readers Worker's handler instead (the Worker works out the params from the path,
+// as Next.js does). `file` is the route's file under the repository root, such as "app/c/[token]/route.js".
+export async function readerRoute(file) {
+	const route = await import(`../../${file}`);
+	if (READERS_TARGET !== "worker") return route;
+	const { handleReaderRequest } = await import("../../workers/readers/handler.js");
+	const through = async (request) => {
+		const response = await handleReaderRequest(request);
+		if (response.headers.get("x-fs-readers-miss")) return new Response("Not found", { status: 404 });
+		return response;
+	};
+	return Object.fromEntries(["GET", "HEAD", "POST", "OPTIONS"].map((method) => [method, through]));
+}
+
 // A request to /api/v1 through its route handler, as Next.js routes it: the path after /api/v1 as params.
 export async function callApi(method, path, { key, body, headers = {}, jar = new Map() } = {}) {
 	const url = new URL(path, "http://localhost:3000");

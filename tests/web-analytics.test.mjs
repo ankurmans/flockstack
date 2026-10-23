@@ -6,7 +6,7 @@ import { after, before, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { buildVisit, hasOptedOut, readVisitedPage } from "../lib/visit-beacon.js";
 import { api, assertError, creator, nextIp } from "./helpers/growth.mjs";
-import { startTestApp } from "./helpers/app.mjs";
+import { readerRoute, startTestApp } from "./helpers/app.mjs";
 import { runWithRequest } from "./stubs/next-headers.mjs";
 
 // The website's own analytics: page views, distinct visitors per day, referrers, countries and issues, counted in one row for
@@ -18,7 +18,7 @@ let m;
 before(async () => {
 	app = await startTestApp();
 	m = {
-		route: await import("../app/api/visit/route.js"),
+		route: await readerRoute("app/api/visit/route.js"),
 		lib: await import("../lib/web-analytics.js"),
 		proxy: (await import("../proxy.js")).proxy,
 		NextRequest: (await import("next/server")).NextRequest,

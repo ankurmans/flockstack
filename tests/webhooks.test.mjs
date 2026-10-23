@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { after, before, beforeEach, describe, test } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { activate, anonymous, as, form, jsonRequest, platformEmails, startTestApp, withEnv } from "./helpers/app.mjs";
+import { activate, anonymous, as, form, jsonRequest, platformEmails, readerRoute, startTestApp, withEnv } from "./helpers/app.mjs";
 import { WEBHOOK_SECRET, api, assertError, buy, createProduct, createSeller, installFakeStripe, payForSession, postPaymentEvent } from "./helpers/shop.mjs";
 import { flushAfter } from "./stubs/next-server.mjs";
 import { published } from "./stubs/qstash.mjs";
@@ -87,7 +87,7 @@ before(async () => {
 		plans: await import("../lib/plans.js"),
 		contacts: await import("../lib/contacts.js"),
 		unsubscribe: await import("../lib/unsubscribe.js"),
-		unsubscribeRoute: await import("../app/api/unsubscribe/route.js"),
+		unsubscribeRoute: await readerRoute("app/api/unsubscribe/route.js"),
 		jobRoute: await import("../app/api/jobs/deliver-webhook/route.js"),
 		sendBatchRoute: await import("../app/api/jobs/send-batch/route.js"),
 		Account: (await import("../models/Account.js")).default,

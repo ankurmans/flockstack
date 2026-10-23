@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import nextConfig from "../next.config.mjs";
 import { EMBED_SCRIPT } from "../lib/embed-script.js";
 import { api, assertError, creator, findContact, nextIp, visit, visitAndFlush } from "./helpers/growth.mjs";
-import { as, jsonRequest, startTestApp } from "./helpers/app.mjs";
+import { as, jsonRequest, readerRoute, startTestApp } from "./helpers/app.mjs";
 import { flushAfter } from "./stubs/next-server.mjs";
 import { sent as sesEmails } from "./stubs/ses.mjs";
 
@@ -20,7 +20,7 @@ before(async () => {
 	app = await startTestApp();
 	m = {
 		embedPage: await import("../app/embed/[id]/page.js"),
-		postRoute: await import("../app/f/[id]/route.js"),
+		postRoute: await readerRoute("app/f/[id]/route.js"),
 		scriptRoute: await import("../app/api/embed-script/route.js"),
 		listPage: await import("../app/(app)/forms/page.js"),
 		formPage: await import("../app/(app)/forms/[id]/page.js"),
@@ -207,7 +207,7 @@ describe("posting to a form", () => {
 	});
 
 	test("has a CORS preflight for every origin, and answers refusals with the reason", async () => {
-		const preflight = m.postRoute.OPTIONS();
+		const preflight = await m.postRoute.OPTIONS(new Request("https://example.test/f/6650f1c2e9b1d4a012345678", { method: "OPTIONS" }));
 		assert.equal(preflight.status, 204);
 		assert.equal(preflight.headers.get("access-control-allow-origin"), "*");
 		assert.match(preflight.headers.get("access-control-allow-methods"), /POST/);
@@ -240,7 +240,7 @@ describe("posting to a form", () => {
 		const user = await creator("forms-noplan", { confirm: false });
 		const form = await makeForm(user);
 		const huge = await visitAndFlush(nextIp(), () =>
-			m.postRoute.POST(new Request("https://example.test/f/x", { method: "POST", headers: { "content-type": "application/json", "content-length": "50000" }, body: "{}" }), { params: Promise.resolve({ id: form.id }) })
+			m.postRoute.POST(new Request(`https://example.test/f/${form.id}`, { method: "POST", headers: { "content-type": "application/json", "content-length": "50000" }, body: "{}" }), { params: Promise.resolve({ id: form.id }) })
 		);
 		assert.equal(huge.status, 413);
 		const Account = (await import("../models/Account.js")).default;

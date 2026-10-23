@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createConfirmToken } from "../lib/confirmation.js";
 import { getNewsletterDraft } from "../lib/newsletter-form.js";
 import { createUnsubscribeToken } from "../lib/unsubscribe.js";
-import { activate, anonymous, as, callApi, catchNotFound, catchRedirect, form, signIn, startTestApp } from "./helpers/app.mjs";
+import { activate, anonymous, as, callApi, catchNotFound, catchRedirect, form, readerRoute, signIn, startTestApp } from "./helpers/app.mjs";
 import { revalidatedPaths } from "./stubs/next-cache.mjs";
 import { flushAfter } from "./stubs/next-server.mjs";
 
@@ -97,7 +97,7 @@ before(async () => {
 		robotsRoute: await import("../app/archive/[slug]/robots/route.js"),
 		confirm: await import("../app/confirm/actions.js"),
 		confirmPage: (await import("../app/confirm/page.js")).default,
-		unsubscribeRoute: await import("../app/api/unsubscribe/route.js"),
+		unsubscribeRoute: await readerRoute("app/api/unsubscribe/route.js"),
 		mcpRoute: await import("../app/mcp/route.js"),
 		proxy: (await import("../proxy.js")).proxy,
 		NextRequest: (await import("next/server")).NextRequest,

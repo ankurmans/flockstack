@@ -5,7 +5,7 @@ import { createConfirmToken } from "../lib/confirmation.js";
 import { getEventPlan } from "../lib/email-event-rules.js";
 import { getClickUrl, getOpenUrl } from "../lib/tracking.js";
 import { createUnsubscribeToken } from "../lib/unsubscribe.js";
-import { activate, anonymous, as, callApi, catchNotFound, catchRedirect, form, jsonRequest, platformEmails, signIn, startTestApp } from "./helpers/app.mjs";
+import { activate, anonymous, as, callApi, catchNotFound, catchRedirect, form, jsonRequest, platformEmails, readerRoute, signIn, startTestApp } from "./helpers/app.mjs";
 import { flushAfter } from "./stubs/next-server.mjs";
 import { published } from "./stubs/qstash.mjs";
 import { sent as sesEmails } from "./stubs/ses.mjs";
@@ -142,9 +142,9 @@ before(async () => {
 		archive: await import("../app/archive/actions.js"),
 		admin: await import("../app/admin/actions.js"),
 		sendBatchRoute: await import("../app/api/jobs/send-batch/route.js"),
-		clickRoute: await import("../app/c/[token]/route.js"),
-		openRoute: await import("../app/o/[token]/route.js"),
-		unsubscribeRoute: await import("../app/api/unsubscribe/route.js"),
+		clickRoute: await readerRoute("app/c/[token]/route.js"),
+		openRoute: await readerRoute("app/o/[token]/route.js"),
+		unsubscribeRoute: await readerRoute("app/api/unsubscribe/route.js"),
 		confirm: await import("../app/confirm/actions.js"),
 		blocks: await import("../lib/account-blocks.js"),
 		health: await import("../lib/account-health.js"),

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
 import { createUnsubscribeToken } from "../lib/unsubscribe.js";
-import { activate, as, callApi, callRoute, catchRedirect, form, jsonRequest, signIn, startTestApp } from "./helpers/app.mjs";
+import { activate, as, callApi, callRoute, catchRedirect, form, jsonRequest, readerRoute, signIn, startTestApp } from "./helpers/app.mjs";
 import { runWithRequest } from "./stubs/next-headers.mjs";
 import { flushAfter } from "./stubs/next-server.mjs";
 import { published } from "./stubs/qstash.mjs";
@@ -98,7 +98,7 @@ before(async () => {
 		apiKeys: await import("../app/(app)/api-keys/actions.js"),
 		archive: await import("../app/archive/actions.js"),
 		mcpRoute: await import("../app/mcp/route.js"),
-		unsubscribeRoute: await import("../app/api/unsubscribe/route.js"),
+		unsubscribeRoute: await readerRoute("app/api/unsubscribe/route.js"),
 		sendBatchRoute: await import("../app/api/jobs/send-batch/route.js"),
 		blocks: await import("../lib/account-blocks.js"),
 		Contact: (await import("../models/Contact.js")).default,

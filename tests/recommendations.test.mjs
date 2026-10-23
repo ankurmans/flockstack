@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createConfirmToken } from "../lib/confirmation.js";
 import { createRecommendToken } from "../lib/recommendation-token.js";
 import { RECOMMENDATIONS_TAG } from "../lib/recommendation-tags.js";
-import { addSentIssue, anonymous, activate, as, callApi, catchRedirect, form, signIn, startTestApp, withEnv } from "./helpers/app.mjs";
+import { activate, addSentIssue, anonymous, as, callApi, catchRedirect, form, readerRoute, signIn, startTestApp, withEnv } from "./helpers/app.mjs";
 import { findAll, findWhere, renderShallow } from "./helpers/shallow.mjs";
 import { runWithRequest } from "./stubs/next-headers.mjs";
 import { flushAfter } from "./stubs/next-server.mjs";
@@ -99,7 +99,7 @@ before(async () => {
 		newsletters: await import("../app/(app)/newsletters/actions.js"),
 		archive: await import("../app/archive/actions.js"),
 		confirm: await import("../app/confirm/actions.js"),
-		impressionRoute: await import("../app/api/recommendations/impression/route.js"),
+		impressionRoute: await readerRoute("app/api/recommendations/impression/route.js"),
 		dashboardPage: await import("../app/(app)/recommending/page.js"),
 		dashboardActions: await import("../app/(app)/recommending/actions.js"),
 		directoryPage: await import("../app/(site)/recommendations/page.js"),
