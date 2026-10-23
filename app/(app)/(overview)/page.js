@@ -35,17 +35,23 @@ import { cn } from "@/lib/utils";
 // newsletter; every section then loads on its own behind a skeleton of its size.
 export default async function OverviewPage({ searchParams }) {
 	const { account } = await requireAccount();
-	const [view, { newsletter: newsletterParam }, cookieStore, usage] = await Promise.all([
-		getSelectedNewsletter(),
-		searchParams,
-		cookies(),
-		getUsage(account),
-	]);
+	// The usage needs the account only, so it is asked while the newsletters are; and every section's data needs the account and the
+	// open newsletter only, so all of it is asked as soon as the newsletters are known, not after the usage has come back: the sections
+	// used to start their reads when React reached them, one round trip behind (tests/query-budget.test.mjs counts the depth).
+	const usagePromise = getUsage(account);
+	const [view, { newsletter: newsletterParam }, cookieStore] = await Promise.all([getSelectedNewsletter(), searchParams, cookies()]);
 	openNewsletter(view, newsletterParam, "/");
 	const { newsletters, selected } = view;
 	const timeZone = resolveTimeZone(cookieStore.get(TIME_ZONE_COOKIE)?.value);
 	const selectedId = selected?._id.toString();
 	const accountId = account._id;
+	const data = selected && {
+		stats: started(getEmailStats({ accountId, newsletterId: selected._id })),
+		history: started(getSubscriberHistory({ accountId, newsletterId: selected._id, timeZone })),
+		hours: started(getHourlySends({ accountId, newsletterId: selected._id, timeZone })),
+		campaigns: started(listNewsletterCampaigns(account, selected._id, 5)),
+	};
+	const usage = await usagePromise;
 	const hasPlan = hasActiveSubscription(account);
 	const pace = hasPlan && getWarmup(account) ? getPace(account, await getSendVolumes(account)) : null;
 	const isWelcomePaused = usage.welcomeEmailsPaused && (await hasWelcomeEmailsOn(accountId));
@@ -69,11 +75,11 @@ export default async function OverviewPage({ searchParams }) {
 						<Section title={`Last ${PERIOD_DAYS} days`} stagger={1}>
 							<div className="overflow-hidden rounded-2xl bg-card shadow-border">
 								<Suspense key={`stats-${selectedId}`} fallback={<SkeletonStats />}>
-									<StatsEmail accountId={accountId} newsletterId={selected._id} />
+									<StatsEmail promise={data.stats} />
 								</Suspense>
 								<div className="border-t border-border/60">
 									<Suspense key={`subscribers-${selectedId}`} fallback={<SkeletonSubscribers />}>
-										<CardSubscribers accountId={accountId} newsletterId={selected._id} timeZone={timeZone} />
+										<CardSubscribers promise={data.history} />
 									</Suspense>
 								</div>
 							</div>
@@ -81,13 +87,13 @@ export default async function OverviewPage({ searchParams }) {
 
 						<Section title="Today" stagger={2}>
 							<Suspense key={`sends-${selectedId}`} fallback={<SkeletonSends />}>
-								<CardSends accountId={accountId} newsletterId={selected._id} timeZone={timeZone} />
+								<CardSends promise={data.hours} timeZone={timeZone} />
 							</Suspense>
 						</Section>
 
 						<Section title="Campaigns" href="/campaigns" stagger={3}>
 							<Suspense key={`campaigns-${selectedId}`} fallback={<SkeletonCampaigns rows={5} />}>
-								<TableRecentCampaigns account={account} newsletter={selected} />
+								<TableRecentCampaigns promise={data.campaigns} newsletter={selected} />
 							</Suspense>
 						</Section>
 					</>
@@ -112,8 +118,14 @@ export default async function OverviewPage({ searchParams }) {
 	);
 }
 
-async function StatsEmail({ accountId, newsletterId }) {
-	const stats = await getEmailStats({ accountId, newsletterId });
+// A read that has begun: if the page redirects or fails before its section awaits it, a rejection is not an unhandled one.
+function started(promise) {
+	promise.catch(() => {});
+	return promise;
+}
+
+async function StatsEmail({ promise }) {
+	const stats = await promise;
 	return (
 		<div className="animate-fade-in">
 			<ListStats current={stats.current} previous={stats.previous} />
@@ -121,8 +133,8 @@ async function StatsEmail({ accountId, newsletterId }) {
 	);
 }
 
-async function CardSubscribers({ accountId, newsletterId, timeZone }) {
-	const history = await getSubscriberHistory({ accountId, newsletterId, timeZone });
+async function CardSubscribers({ promise }) {
+	const history = await promise;
 
 	return (
 		<div className="flex flex-col gap-6 p-5 animate-fade-in sm:p-6">
@@ -150,8 +162,8 @@ async function CardSubscribers({ accountId, newsletterId, timeZone }) {
 	);
 }
 
-async function CardSends({ accountId, newsletterId, timeZone }) {
-	const hours = await getHourlySends({ accountId, newsletterId, timeZone });
+async function CardSends({ promise, timeZone }) {
+	const hours = await promise;
 	const sentToday = hours.reduce((sum, { today }) => sum + (today ?? 0), 0);
 	const sentYesterday = hours.reduce((sum, { yesterday }) => sum + yesterday, 0);
 
@@ -180,8 +192,8 @@ async function CardSends({ accountId, newsletterId, timeZone }) {
 	);
 }
 
-async function TableRecentCampaigns({ account, newsletter }) {
-	const campaigns = await listNewsletterCampaigns(account, newsletter._id, 5);
+async function TableRecentCampaigns({ promise, newsletter }) {
+	const campaigns = await promise;
 	if (campaigns.length === 0) {
 		return (
 			<p className="rounded-xl px-4 py-6 text-center text-sm text-muted-foreground shadow-border animate-fade-in">

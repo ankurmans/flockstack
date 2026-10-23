@@ -40,6 +40,8 @@ before(async () => {
 		Campaign: (await import("../models/Campaign.js")).default,
 	});
 	driver = m.driver;
+	// D1 answers what a page asks in one turn as one batch (coalescingDriver): that is how production runs, so that is what is counted.
+	driver.setDriver(driver.coalescingDriver(await driver.getDriver()));
 	user = await m.signIn("budget@example.com");
 	await m.activate(user);
 	const url = await m.as(user, () => m.catchRedirect(m.newsletters.saveNewsletter(null, m.form({ name: "Budget news", slug: "budget-news", postalAddress: "1 Main St, Paris" }))));
@@ -77,19 +79,22 @@ async function visit(load, props = {}) {
 		await stream.allReady;
 		await new Response(stream).text();
 	});
-	const calls = log.filter(({ sql }) => !/^\s*(CREATE|PRAGMA)/i.test(sql));
-	return { calls, roundTrips: calls.length, rows: calls.reduce((total, { rows }) => total + rows, 0) };
+	// A round trip is a call to the driver; the statements are what it carried.
+	const trips = log.filter(({ sql }) => !/^\s*(CREATE|PRAGMA)/i.test(sql));
+	const calls = trips.flatMap((event) => (event.list ? event.list.map(({ sql, params }) => ({ sql, params })) : [{ sql: event.sql, params: event.params }]));
+	return { calls, statements: calls.length, roundTrips: trips.length, rows: trips.reduce((total, { rows }) => total + rows, 0) };
 }
 
-// page: how many round trips and rows it may take.
+// page: how many round trips (calls to the database, which the Worker waits on), statements (what they carry) and rows it may take.
+// Round trips were 22, 15, 22, 19 and 13 before the reads of a turn went to D1 as one batch (lib/docdb/driver.js coalescingDriver).
 const BUDGETS = {
 	// The overview reads a row for each signup of the last 60 days (the subscriber chart groups them by day in the Worker): 300 here.
-	overview: { roundTrips: 23, rows: 400 },
-	campaigns: { roundTrips: 16, rows: 60 },
+	overview: { roundTrips: 7, statements: 26, rows: 400 },
+	campaigns: { roundTrips: 7, statements: 18, rows: 60 },
 	// A page of 50 contacts, and the rows every dashboard page reads.
-	contacts: { roundTrips: 23, rows: 80 },
-	reports: { roundTrips: 20, rows: 30 },
-	segments: { roundTrips: 14, rows: 30 },
+	contacts: { roundTrips: 7, statements: 25, rows: 80 },
+	reports: { roundTrips: 7, statements: 22, rows: 30 },
+	segments: { roundTrips: 5, statements: 16, rows: 30 },
 };
 const PAGES = {
 	overview: () => import("../app/(app)/(overview)/page.js"),
@@ -103,19 +108,26 @@ describe("the dashboard's pages", () => {
 	const seen = new Map();
 
 	for (const [name, load] of Object.entries(PAGES)) {
-		test(`${name} stays inside its budget of ${BUDGETS[name].roundTrips} round trips and ${BUDGETS[name].rows} rows`, async () => {
-			const { calls, roundTrips, rows } = await visit(load);
+		test(`${name} stays inside its budget of ${BUDGETS[name].roundTrips} round trips, ${BUDGETS[name].statements} statements and ${BUDGETS[name].rows} rows`, async () => {
+			const { calls, roundTrips, statements, rows } = await visit(load);
 			for (const { sql, params } of calls) seen.set(sql, params);
 			assert.ok(roundTrips <= BUDGETS[name].roundTrips, `${name} made ${roundTrips} round trips (budget ${BUDGETS[name].roundTrips}): ${calls.map(({ sql }) => sql.replace(/\s+/g, " ").slice(0, 70)).join("\n  ")}`);
+			assert.ok(statements <= BUDGETS[name].statements, `${name} ran ${statements} statements (budget ${BUDGETS[name].statements})`);
 			assert.ok(rows <= BUDGETS[name].rows, `${name} read ${rows} rows (budget ${BUDGETS[name].rows})`);
 		});
 	}
 
-	test("a session, its user and its account are each read once per visit", async () => {
+	test("a user and an account are each read once per visit, and a session twice: Better Auth's, and the one that finds the account beside it", async () => {
 		const { calls } = await visit(PAGES.campaigns);
-		for (const table of ["c_sessions", "c_users", "c_accounts"]) {
-			assert.equal(calls.filter(({ sql }) => new RegExp(`FROM ${table}\\b`).test(sql) && !/COUNT/.test(sql) && /WHERE (json_extract\(data, '\$\.token'\)|_id|json_extract\(data, '\$\.ownerId'\))/.test(sql)).length, 1, table);
-		}
+		const reads = (table) => calls.filter(({ sql }) => new RegExp(`FROM ${table}\\b`).test(sql) && !/COUNT/.test(sql) && /WHERE (json_extract\(data, '\$\.token'\)|_id|json_extract\(data, '\$\.ownerId'\))/.test(sql)).length;
+		assert.equal(reads("c_users"), 1);
+		assert.equal(reads("c_accounts"), 1);
+		assert.equal(calls.filter(({ sql }) => /FROM c_sessions\b/.test(sql)).length, 2);
+	});
+
+	test("the reads a page asks together go to the database together: far fewer round trips than statements", async () => {
+		const { roundTrips, statements } = await visit(PAGES.overview);
+		assert.ok(statements >= roundTrips * 3, `${statements} statements in ${roundTrips} round trips`);
 	});
 
 	test("a list of campaigns reads the fields it shows, not their bodies", async () => {
