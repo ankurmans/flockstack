@@ -22,7 +22,6 @@ import {
 	API_MISS_HEADER,
 	API_UNPROCESSED_HEADER,
 	DEFAULT_READERS_TIMEOUT_MS,
-	DEFAULT_WARM_INTERVAL_MS,
 	READERS_MISS_HEADER,
 	READERS_UNPROCESSED_HEADER,
 	ASSET_PREFIX,
@@ -33,9 +32,6 @@ import {
 	HEALTH_PATH,
 	MAX_REPLAY_BYTES,
 	SAFE_METHODS,
-	WARM_HEADER,
-	WARM_PATHS,
-	WARM_ROUTES,
 	chooseRedirect,
 	chooseRoute,
 	isWorkersDevHost,
@@ -108,31 +104,6 @@ const askApi = (request, env) =>
 const askReaders = (request, env) =>
 	askWorker("readers", env.READERS, request, { timeoutMs: Number(env.ROUTER_READERS_TIMEOUT_MS) > 0 ? Number(env.ROUTER_READERS_TIMEOUT_MS) : DEFAULT_READERS_TIMEOUT_MS, unprocessedHeader: READERS_UNPROCESSED_HEADER });
 
-// Starts the app's isolate while a visitor reads a page the app does not serve. A new isolate of the 28 MB app costs seconds on the
-// platform and 0.2 s once it has answered anything (measured: docs/PERFORMANCE.md), and the next page of a visitor who reads the
-// docs or the pricing page is sign-in, then the dashboard. So the first such request after WARM_INTERVAL_MS (this router instance
-// keeps the time) asks the app, behind the response and without waiting for it, for /api/health and then /signin: the script is loaded,
-// Next.js is up and React has rendered once by the time the visitor clicks. It reads nothing and writes nothing, takes the app's own
-// answers away from nobody, and costs one short invocation a few times an hour in each data center a visitor reads from. Off unless the
-// router's WARM_APP is "true" (a secret, like the other switches); a failure is ignored.
-const warmedAt = new WeakMap();
-
-function warmApp(env, ctx) {
-	if (!ctx || !env.APP || String(env.WARM_APP ?? "").toLowerCase() !== "true") return;
-	const interval = env.WARM_INTERVAL_MS !== undefined && Number(env.WARM_INTERVAL_MS) >= 0 ? Number(env.WARM_INTERVAL_MS) : DEFAULT_WARM_INTERVAL_MS;
-	const now = Date.now();
-	if (now - (warmedAt.get(env.APP) ?? 0) < interval) return;
-	warmedAt.set(env.APP, now);
-	ctx.waitUntil(
-		(async () => {
-			for (const path of WARM_PATHS) {
-				const response = await env.APP.fetch(new Request(new URL(path, env.APP_URL), { headers: { [WARM_HEADER]: "1", "user-agent": "flockstack-router-warm" } }));
-				await response.body?.cancel();
-			}
-		})().catch((error) => console.warn(`[router] warming the app failed: ${error?.message ?? error}`))
-	);
-}
-
 // The answer with the Worker that gave it and the time it took, for whoever asks why a page was slow. A WebSocket upgrade
 // is passed through as it is: copying it would drop the socket.
 function stamp(response, servedBy, startedAt, upstreamMs) {
@@ -153,7 +124,7 @@ function stamp(response, servedBy, startedAt, upstreamMs) {
 // What a Next.js client gets for data it asked for and will not get from the app (see chooseRoute): not RSC, never stored.
 const RSC_ANSWER_HEADERS = { "cache-control": "no-store", vary: "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch" };
 
-async function handle(request, env, ctx) {
+async function handle(request, env) {
 	const startedAt = Date.now();
 	const url = new URL(request.url);
 
@@ -174,7 +145,6 @@ async function handle(request, env, ctx) {
 	if (route === "hard-navigation") {
 		return stamp(new Response(request.method === "HEAD" ? null : "<!doctype html><title>FlockStack</title>\n", { headers: { ...RSC_ANSWER_HEADERS, "content-type": "text/html; charset=utf-8" } }), "router", startedAt, 0);
 	}
-	if (WARM_ROUTES.includes(route)) warmApp(env, ctx);
 	let appRequest = request;
 	if (route === "api" || route === "readers") {
 		const askedAt = Date.now();
@@ -210,8 +180,8 @@ async function handle(request, env, ctx) {
 }
 
 const router = {
-	async fetch(request, env, ctx) {
-		const response = await handle(request, env, ctx);
+	async fetch(request, env) {
+		const response = await handle(request, env);
 		if (response.status === 101 || response.webSocket || !isWorkersDevHost(new URL(request.url).hostname)) return response;
 		const copy = new Response(response.body, response);
 		copy.headers.set("x-robots-tag", "noindex, nofollow");

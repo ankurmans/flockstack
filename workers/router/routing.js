@@ -22,14 +22,6 @@ export const API_MISS_HEADER = "x-fs-api-miss";
 export const READERS_UNPROCESSED_HEADER = "x-fs-readers-unprocessed";
 export const READERS_MISS_HEADER = "x-fs-readers-miss";
 export const DEFAULT_READERS_TIMEOUT_MS = 5000;
-// Warming the app (see warmApp in index.js): the app's script takes seconds to start in a data center where nothing has asked it for a
-// few minutes, and a visitor who reads the website or the docs is the one likely to sign in next. The paths that start it and run what
-// a first page needs: /api/health boots the server, /signin renders React once. At most once per WARM_INTERVAL_MS per router instance.
-export const WARM_PATHS = ["/api/health", "/signin"];
-export const DEFAULT_WARM_INTERVAL_MS = 20_000;
-export const WARM_HEADER = "x-fs-warm";
-// The routes whose visitors may be about to use the app.
-export const WARM_ROUTES = ["website", "public"];
 // A request with a body this big or smaller is copied before the API Worker gets it, so the app can be asked in its place if the
 // API Worker says it did nothing. A bigger one is not copied: the API Worker's answer is the answer.
 export const MAX_REPLAY_BYTES = 1024 * 1024;
