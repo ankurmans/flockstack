@@ -70,4 +70,6 @@ const STATUS_TONES = {
 	execution_failed: "red",
 	approval_required: "amber",
 	proposed: "amber",
+	ready_for_review: "blue",
+	changes_requested: "amber",
 };
