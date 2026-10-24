@@ -80,6 +80,10 @@ export default function ExportPage() {
 					<Code>suppressions.csv</Code> lists the addresses that bounced, complained or were blocked, with the reason. Keep them off any
 					list you move to.
 				</p>
+				<p className="mt-4">
+					<Code>content-calendar/&lt;newsletter&gt;.csv</Code> is the content plan of a newsletter that has one: each issue or post with
+					its copy, funnel stage, planned day, state, visuals, references and private notes.
+				</p>
 			</Section>
 
 			<Section title="Issues" stagger={4}>

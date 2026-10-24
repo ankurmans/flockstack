@@ -475,6 +475,31 @@ describe("comments in an export", () => {
 	});
 });
 
+describe("the content calendar in an export", () => {
+	test("comes as one CSV per newsletter that has planned content, with the copy, the plan, the state and the private notes", async () => {
+		const user = await customer("export-content@example.com");
+		const second = await m.Newsletter.create({ accountId: user.accountId, name: "Quiet notes", slug: "quiet-notes-two", fromEmail: "hello@quiet-notes-two.flockstackmail.com" });
+		const batch = await callApi("POST", "/api/v1/editorial-batches", { key: user.key, body: { name: "November, with a comma" } });
+		const created = await callApi("POST", "/api/v1/content-items", {
+			key: user.key,
+			body: { channel: "linkedin", title: "Replies, not opens", body: "=Words\nover two lines", notes: "Private note", pillar: "Deliverability", plannedDate: "2026-11-10", plannedTime: "09:00", timeZone: "Europe/Paris", batch: batch.body.batch.id, references: [{ url: "https://example.com/source", kind: "evidence", label: "The study" }] },
+		});
+		assert.equal(created.status, 201, JSON.stringify(created.body));
+
+		const { latest } = await exportAndWait(user);
+		assert.equal(latest.body.status, "ready");
+		const zip = readZip(await readResponseBytes(await download(latest.body.downloadUrls[0])));
+		assert.ok(zip.has(`content-calendar/${user.newsletter.slug}.csv`));
+		assert.ok(!zip.has(`content-calendar/${second.slug}.csv`), "no file for a newsletter without any");
+		const csv = zip.get(`content-calendar/${user.newsletter.slug}.csv`).toString();
+		assert.match(csv.split("\r\n")[0], /^id,external_id,channel,title,state,funnel_stage,pillar,batch,planned_date,planned_time,time_zone,/);
+		for (const expected of ["Replies, not opens", "Private note", "Deliverability", "2026-11-10", "09:00", "Europe/Paris", "\"November, with a comma\"", "evidence The study https://example.com/source"]) assert.ok(csv.includes(expected), expected);
+		assert.ok(csv.includes("\"'=Words"), "a spreadsheet formula is kept as text");
+		assert.equal(JSON.parse(zip.get("manifest.json").toString()).counts.contentItems, 1);
+		assert.match(zip.get("README.txt").toString(), /content-calendar\/ +One CSV per newsletter that has planned content/);
+	});
+});
+
 describe("an account that is blocked, paused or back on the Free plan", () => {
 	test("can still export, by API key and from the dashboard, while its other actions stay refused", async () => {
 		const user = await customer("export-blocked@example.com");
