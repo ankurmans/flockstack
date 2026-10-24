@@ -1,8 +1,8 @@
 {
-	"_about": "Sizes the Workers must stay under (scripts/perf-budget.mjs, tests/perf-budget.test.mjs). Measured on 2026-10-23 with a little room (the app grew 0.6 MB when the SDKs and schemas became lazy: each `import()` is a chunk of its own, in both of Next.js's layers, and the dashboard evaluates 1.5 MB less of it); raise one only in a change that says why a Worker had to grow. Bytes.",
+	"_about": "Sizes the Workers must stay under (scripts/perf-budget.mjs, tests/perf-budget.test.mjs). Measured on 2026-10-23 with a little room (the app grew 0.6 MB when the SDKs and schemas became lazy: each `import()` is a chunk of its own, in both of Next.js's layers, and the dashboard evaluates 1.5 MB less of it); The content calendar (2026-10-24) took the app 0.6 MB (handler 28.60 to 29.19 MB): its three dashboard pages, a docs page, 24 actions and their schemas, in both of Next.js's layers, of which the pages' client reference manifests are 0.26 MB. Raise one only in a change that says why a Worker had to grow. Bytes.",
 	"budgets": {
-		"app-handler": { "label": "app handler.mjs (OpenNext)", "file": ".open-next/server-functions/default/handler.mjs", "maxBytes": 28800000, "measured": 28320000 },
-		"app-upload": { "label": "app script Wrangler uploads (.worker/worker-entry.js)", "file": ".worker/worker-entry.js", "maxBytes": 31300000, "measured": 30600000 },
+		"app-handler": { "label": "app handler.mjs (OpenNext)", "file": ".open-next/server-functions/default/handler.mjs", "maxBytes": 29500000, "measured": 29190000 },
+		"app-upload": { "label": "app script Wrangler uploads (.worker/worker-entry.js)", "file": ".worker/worker-entry.js", "maxBytes": 31800000, "measured": 31470000 },
 		"api-worker": { "label": "API Worker (workers/api/dist/index.js)", "file": "workers/api/dist/index.js", "maxBytes": 8500000, "measured": 7800000, "build": "api" },
 		"readers-worker": { "label": "readers Worker (workers/readers/dist/index.js)", "file": "workers/readers/dist/index.js", "maxBytes": 2800000, "measured": 2270000, "build": "readers" },
 		"router": { "label": "router Worker, bundled and minified", "bundle": "workers/router/index.js", "maxBytes": 11000, "measured": 9435 },
