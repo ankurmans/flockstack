@@ -14,7 +14,7 @@ Three collections, defined in `models/` and created by `migrations/0029_content_
 - `EditorialBatch` (`c_editorialbatches`): `name`, `description`, `externalId`, `status` (active or archived), an optional recurring `pattern`, and when a review of the whole batch was last asked for.
 - `ContentRevision` (`c_contentrevisions`): the editable content after each change, with the version, the fields that changed and who changed them. The last 50 per item stay.
 
-Every document carries the account (`accountScoped`) and a newsletter, so a key limited to one newsletter reaches only that newsletter's items and batches. Deleting an account purges all three.
+Every document carries the account (`accountScoped`) and a newsletter, so a key limited to one newsletter reaches only that newsletter's items and batches. Deleting an account purges all three, and the account export has one CSV per newsletter that has items (`content-calendar/<slug>.csv`: copy, plan, state, visuals as media IDs with alt text, references and private notes).
 
 ### Campaigns
 
@@ -48,11 +48,15 @@ No key or connected app can approve: `decide_content_review` is a dashboard-only
 
 ### Before approval
 
-`checkReadiness` in `lib/content-rules.js` lists what stops an approval (blockers) and what is only worth a look (warnings). A LinkedIn post needs a title, copy within 3,000 characters, a call to action, a visual and alt text on every picture; a newsletter item needs a linked issue with a subject. Funnel stage, pillar, hook and a planned day are warnings. `get_content_item` returns the list and the dashboard shows it beside the editor.
+`checkReadiness` in `lib/content-rules.js` lists what stops an approval (blockers) and what is only worth a look (warnings). A LinkedIn post needs a title, copy within 3,000 characters, a call to action, a visual and alt text on every picture; a newsletter item needs a linked issue with a subject. Funnel stage, pillar, hook and a planned day are warnings. `get_content_item` returns the list, the dashboard shows it beside the editor, and every line of a list (`list_content_items`, a batch's items, the calendar's backlog) carries `canApprove`, `blockerCount` and `blockers`.
 
 ### Edits after approval
 
 What approval is about is the title, hook, body, call to action, destination, visuals and linked issue. Changing any of them on an approved item takes the approval back: `state` becomes `changes_requested`, `review.decision` is cleared and `review.editedAfterApproval` is true (with the time) until it is approved again. Planning fields (obstacle, takeaway, pillar, references, private notes, batch) and the planned day do not: a move keeps the approval and is recorded in `moves`. An issue's words live on the campaign, so approval stores a digest of the campaign's subject, preview text and content, and `get_content_item` reports `editedAfterApproval` when the campaign has changed since; requesting a review again puts such an item back in review. A delivered item stays delivered when edited.
+
+### Two people editing
+
+An edit, a review request and a decision each land only on the content version and state they were read at (`writeItem` in `lib/content-items.js` matches `contentVersion` and `state`). If the item changed in between, the call answers `conflict` and nothing is written, so an approval is never given to words the owner didn't see and an old copy never overwrites a newer one. Moving the plan is the one write that doesn't check.
 
 ### Revisions
 
@@ -83,6 +87,10 @@ A read only key reads the plan; a drafts only key plans, edits and asks for revi
 
 20 visuals and 20 references per item, 5,000 items and 200 batches per newsletter, 200 items per batch, 25 items per import, 100 days per calendar range, 1,000 entries per range, 50 revisions per item, 10 moves kept per item.
 
+## Dashboard
+
+`/campaigns/calendar` (month, week and agenda, filters, the backlog, drafts that are not in the plan with an Add to plan button, batches), `/campaigns/calendar/items/<id>` (the editor: copy, notes, references, review, plan, linked issue, visuals with copy and download, publication, revisions) and `/campaigns/calendar/batches/<id>` (review of a whole batch, a pattern form with a preview). Every form runs a registered action, so the dashboard and the API agree; reads go through the same actions. A LinkedIn post drafted for a sent issue (`draft_social_posts`, on the issue's report) can be saved to the plan as a post derived from it. Visuals download through `/campaigns/calendar/items/<id>/download/<position>`, a route that checks the session and sends the file with a download name, because a browser ignores `download` on a link to the CDN's host.
+
 ## Not in this release
 
-Automatic LinkedIn publishing (the item and the delivery model say `manual` and leave room for a publisher that reports what it supports), drag and drop, per-account default patterns, ZIP downloads of a post's visuals (each file downloads on its own) and a comment thread on an item.
+Webhook events for content changes, automatic LinkedIn publishing (the item and the delivery model say `manual` and leave room for a publisher that reports what it supports), drag and drop, per-account default patterns, ZIP downloads of a post's visuals (each file downloads on its own) and a comment thread on an item.
