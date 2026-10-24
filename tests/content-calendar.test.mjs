@@ -670,6 +670,22 @@ describe("review and approval", () => {
 		assert.equal((await ok(api(user.keys.full, "POST", `/content-items/${item.id}/assets`, { media, altText: "Another" }))).approvalWithdrawn, true, "a visual is part of the post");
 	});
 
+	test("an approval is never given to words that changed since they were read, and an edit made on a stale copy is a conflict", async () => {
+		const user = await customer();
+		const item = await post(user);
+		await ok(api(user.keys.full, "POST", `/content-items/${item.id}/review`));
+		const lib = await import("../lib/content-items.js");
+		const account = { _id: user.accountId };
+		const stale = await itemRow(user, item.id);
+		await ok(api(user.keys.full, "PATCH", `/content-items/${item.id}`, { body: "Changed while the owner was reading." }));
+		await assert.rejects(lib.decideReview(account, stale, { decision: "approve" }, "dashboard"), (error) => error.code === "conflict");
+		await assert.rejects(lib.applyContentChange(account, stale, { body: "Written on an old copy" }, { by: "test" }), (error) => error.code === "conflict");
+		assert.equal((await get(user, item.id)).state, "ready_for_review", "nothing was approved");
+		assert.equal((await get(user, item.id)).body, "Changed while the owner was reading.");
+		const fresh = await itemRow(user, item.id);
+		assert.equal((await lib.decideReview(account, fresh, { decision: "approve" }, "dashboard")).state, "approved");
+	});
+
 	test("asking for changes carries the owner's note, and a post set back to drafting is no longer approved", async () => {
 		const user = await customer();
 		const item = await post(user);
