@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
 
 // Moving an item to a day without dragging: a date, an optional time, and a button. Only the plan changes; nothing is sent or scheduled.
-export default function FormMoveItem({ id, title, date = "", time = "", timeZone }) {
+// isFolded: behind a Move disclosure, for the week and the agenda, where there is a form for every item.
+export default function FormMoveItem({ id, title, date = "", time = "", timeZone, isFolded = false }) {
 	const fieldId = useId();
 	const [values, setValues] = useState({ date, time });
 	const [isMoving, startMoving] = useTransition();
@@ -20,7 +21,7 @@ export default function FormMoveItem({ id, title, date = "", time = "", timeZone
 		});
 	}
 
-	return (
+	const form = (
 		<form
 			className="flex flex-wrap items-end gap-1.5"
 			onSubmit={(event) => {
@@ -32,13 +33,13 @@ export default function FormMoveItem({ id, title, date = "", time = "", timeZone
 				<label htmlFor={`${fieldId}-date`} className="text-xs text-muted-foreground">
 					<span className="sr-only">Plan {title} for </span>Day
 				</label>
-				<Input id={`${fieldId}-date`} type="date" value={values.date} onChange={(event) => setValues((current) => ({ ...current, date: event.target.value }))} className="h-8 w-36" required />
+				<Input id={`${fieldId}-date`} type="date" value={values.date} onChange={(event) => setValues((current) => ({ ...current, date: event.target.value }))} className="h-8 w-32 max-w-full" required />
 			</div>
 			<div className="flex flex-col gap-0.5">
 				<label htmlFor={`${fieldId}-time`} className="text-xs text-muted-foreground">
 					Time
 				</label>
-				<Input id={`${fieldId}-time`} type="time" value={values.time} onChange={(event) => setValues((current) => ({ ...current, time: event.target.value }))} className="h-8 w-28" />
+				<Input id={`${fieldId}-time`} type="time" value={values.time} onChange={(event) => setValues((current) => ({ ...current, time: event.target.value }))} className="h-8 w-24 max-w-full" />
 			</div>
 			<Button type="submit" size="sm" variant="outline" disabled={isMoving || !values.date}>
 				Move
@@ -49,5 +50,16 @@ export default function FormMoveItem({ id, title, date = "", time = "", timeZone
 				</Button>
 			)}
 		</form>
+	);
+
+	if (!isFolded) return form;
+
+	return (
+		<details className="text-xs">
+			<summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+				Move<span className="sr-only"> {title}</span>
+			</summary>
+			<div className="mt-1.5">{form}</div>
+		</details>
 	);
 }

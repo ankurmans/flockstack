@@ -63,7 +63,7 @@ export default function ListBatchItems({ batchId, items }) {
 						</div>
 					</div>
 					{item.review.editedAfterApproval && <p className="text-xs font-medium text-amber-700 dark:text-amber-300">Edited after approval</p>}
-					{item.blockerCount > 0 && <p className="text-xs text-muted-foreground">{item.blockerCount === 1 ? "1 thing is missing" : `${item.blockerCount} things are missing`} before it can be approved.</p>}
+					{item.blockerCount > 0 && <p className="text-xs text-muted-foreground">Missing before it can be approved: {item.blockers.map(({ message }) => message.replace(/\.$/, "")).join("; ")}.</p>}
 					{item.state === "ready_for_review" && (
 						<div className="flex flex-wrap gap-2">
 							<Button type="button" size="sm" disabled={isWorking || !item.canApprove} onClick={() => run(() => decideContentReview(item.id, "approve"), "Approved")}>

@@ -34,7 +34,7 @@ function ListDay({ entries, viewerTimeZone, withMove = false }) {
 				<li key={`${entry.kind}-${entry.itemId ?? entry.campaignId}`} className="flex flex-col gap-1">
 					<ChipCalendar entry={entry} viewerTimeZone={viewerTimeZone} isRoomy />
 					{withMove && entry.kind === "planned" && entry.itemId && (
-						<FormMoveItem id={entry.itemId} title={entry.title} date={entry.date} time={entry.time ?? ""} timeZone={entry.timeZone ?? undefined} />
+						<FormMoveItem id={entry.itemId} title={entry.title} date={entry.date} time={entry.time ?? ""} timeZone={entry.timeZone ?? undefined} isFolded />
 					)}
 				</li>
 			))}
@@ -134,66 +134,69 @@ export default async function CalendarPage({ searchParams }) {
 				</div>
 			</div>
 
-			<form method="get" action="/campaigns/calendar" className="mb-4 flex flex-wrap items-end gap-2" aria-label="Filter the calendar">
-				{mode !== "month" && <input type="hidden" name="view" value={mode} />}
-				{mode === "week" ? <input type="hidden" name="date" value={anchor} /> : <input type="hidden" name="month" value={month} />}
-				<label className="flex flex-col gap-1 text-xs text-muted-foreground">
-					Channel
-					<select name="channel" defaultValue={filters.channel} className={SELECT_CLASS}>
-						<option value="">All</option>
-						{CONTENT_CHANNELS.map((channel) => (
-							<option key={channel} value={channel}>
-								{CHANNEL_LABELS[channel]}
-							</option>
-						))}
-					</select>
-				</label>
-				<label className="flex flex-col gap-1 text-xs text-muted-foreground">
-					Funnel stage
-					<select name="stage" defaultValue={filters.funnelStage} className={SELECT_CLASS}>
-						<option value="">All</option>
-						{FUNNEL_STAGES.map((stage) => (
-							<option key={stage} value={stage}>
-								{stage}
-							</option>
-						))}
-					</select>
-				</label>
-				<label className="flex flex-col gap-1 text-xs text-muted-foreground">
-					Pillar
-					<input name="pillar" defaultValue={filters.pillar} maxLength={60} className={cn(SELECT_CLASS, "w-36")} />
-				</label>
-				<label className="flex flex-col gap-1 text-xs text-muted-foreground">
-					Batch
-					<select name="batch" defaultValue={filters.batch} className={SELECT_CLASS}>
-						<option value="">All</option>
-						{batches.map((batch) => (
-							<option key={batch._id} value={String(batch._id)}>
-								{batch.name}
-							</option>
-						))}
-					</select>
-				</label>
-				<label className="flex flex-col gap-1 text-xs text-muted-foreground">
-					State
-					<select name="state" defaultValue={filters.state} className={SELECT_CLASS}>
-						<option value="">All</option>
-						{CONTENT_STATES.map((state) => (
-							<option key={state} value={state}>
-								{STATE_LABELS[state]}
-							</option>
-						))}
-					</select>
-				</label>
-				<Button type="submit" variant="outline">
-					Filter
-				</Button>
-				{hasFilters(filters) && (
-					<Button asChild variant="ghost">
-						<Link href={getCalendarHref({ view: mode, month: mode === "week" ? undefined : month, date: mode === "week" ? anchor : undefined })}>Clear</Link>
+			<details className="mb-4" open={hasFilters(filters) || undefined}>
+				<summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">Filters{hasFilters(filters) && `, ${Object.values(filters).filter(Boolean).length} on`}</summary>
+				<form method="get" action="/campaigns/calendar" className="mt-3 flex flex-wrap items-end gap-2" aria-label="Filter the calendar">
+					{mode !== "month" && <input type="hidden" name="view" value={mode} />}
+					{mode === "week" ? <input type="hidden" name="date" value={anchor} /> : <input type="hidden" name="month" value={month} />}
+					<label className="flex flex-col gap-1 text-xs text-muted-foreground">
+						Channel
+						<select name="channel" defaultValue={filters.channel} className={SELECT_CLASS}>
+							<option value="">All</option>
+							{CONTENT_CHANNELS.map((channel) => (
+								<option key={channel} value={channel}>
+									{CHANNEL_LABELS[channel]}
+								</option>
+							))}
+						</select>
+					</label>
+					<label className="flex flex-col gap-1 text-xs text-muted-foreground">
+						Funnel stage
+						<select name="stage" defaultValue={filters.funnelStage} className={SELECT_CLASS}>
+							<option value="">All</option>
+							{FUNNEL_STAGES.map((stage) => (
+								<option key={stage} value={stage}>
+									{stage}
+								</option>
+							))}
+						</select>
+					</label>
+					<label className="flex flex-col gap-1 text-xs text-muted-foreground">
+						Pillar
+						<input name="pillar" defaultValue={filters.pillar} maxLength={60} className={cn(SELECT_CLASS, "w-36")} />
+					</label>
+					<label className="flex flex-col gap-1 text-xs text-muted-foreground">
+						Batch
+						<select name="batch" defaultValue={filters.batch} className={SELECT_CLASS}>
+							<option value="">All</option>
+							{batches.map((batch) => (
+								<option key={batch._id} value={String(batch._id)}>
+									{batch.name}
+								</option>
+							))}
+						</select>
+					</label>
+					<label className="flex flex-col gap-1 text-xs text-muted-foreground">
+						State
+						<select name="state" defaultValue={filters.state} className={SELECT_CLASS}>
+							<option value="">All</option>
+							{CONTENT_STATES.map((state) => (
+								<option key={state} value={state}>
+									{STATE_LABELS[state]}
+								</option>
+							))}
+						</select>
+					</label>
+					<Button type="submit" variant="outline">
+						Filter
 					</Button>
-				)}
-			</form>
+					{hasFilters(filters) && (
+						<Button asChild variant="ghost">
+							<Link href={getCalendarHref({ view: mode, month: mode === "week" ? undefined : month, date: mode === "week" ? anchor : undefined })}>Clear</Link>
+						</Button>
+					)}
+				</form>
+			</details>
 
 			<p className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
 				<span>
@@ -257,7 +260,7 @@ export default async function CalendarPage({ searchParams }) {
 						</>
 					)}
 					{mode !== "month" && (
-						<ol className={cn("flex flex-col gap-3 animate-enter", mode === "week" && "md:grid md:grid-cols-7 md:gap-2")} aria-label={`${title}, by day`}>
+						<ol className={cn("flex flex-col gap-3 animate-enter", mode === "week" && "md:grid md:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] md:gap-2")} aria-label={`${title}, by day`}>
 							{(mode === "week" ? agenda : agenda.filter(([, entries]) => entries.length > 0)).map(([date, entries]) => (
 								<li key={date} className="rounded-xl p-3 shadow-border">
 									<p className={cn("mb-2 text-xs font-medium", date === today ? "text-foreground" : "text-muted-foreground")}>{formatDateKey(date, { weekday: "short", month: "short", day: "numeric" })}</p>

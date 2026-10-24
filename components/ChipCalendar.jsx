@@ -20,12 +20,28 @@ export default function ChipCalendar({ entry, viewerTimeZone, isRoomy = false })
 		.filter(Boolean)
 		.join(" · ");
 
+	const when = entry.time ? `${entry.time}${zone}` : null;
+
+	if (isRoomy) {
+		return (
+			<Link href={getEntryHref(entry)} title={details} className={cn("block rounded px-1.5 py-1 text-sm", KIND_STYLES[entry.kind])}>
+				<span className="font-medium">{label}</span> {when && <span className="tabular-nums opacity-70">{when} </span>}
+				{entry.funnelStage && <span className="opacity-70">{entry.funnelStage} </span>}
+				{entry.title || "Untitled"}
+				{entry.editedAfterApproval && <span className="ml-1 font-medium text-amber-700 dark:text-amber-300">Edited after approval</span>}
+			</Link>
+		);
+	}
+
 	return (
-		<Link href={getEntryHref(entry)} title={details} className={cn("block rounded px-1.5 py-0.5 text-xs", isRoomy ? "py-1 text-sm" : "truncate", KIND_STYLES[entry.kind])}>
-			<span className="font-medium">{label}</span> {entry.time && <span className="tabular-nums opacity-70">{entry.time}{zone} </span>}
-			{entry.funnelStage && <span className="opacity-70">{entry.funnelStage} </span>}
-			{entry.title || "Untitled"}
-			{entry.editedAfterApproval && <span className="ml-1 font-medium text-amber-700 dark:text-amber-300">Edited after approval</span>}
+		<Link href={getEntryHref(entry)} title={details} className={cn("block rounded px-1.5 py-0.5 text-xs", KIND_STYLES[entry.kind])}>
+			<span className="block truncate text-[11px] opacity-80">
+				<span className="font-medium">{label}</span>
+				{when && <span className="tabular-nums"> {when}</span>}
+				{entry.funnelStage && <span> {entry.funnelStage}</span>}
+				{entry.editedAfterApproval && <span className="font-medium text-amber-700 dark:text-amber-300"> Edited</span>}
+			</span>
+			<span className="block truncate">{entry.title || "Untitled"}</span>
 		</Link>
 	);
 }
