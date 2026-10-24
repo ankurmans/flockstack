@@ -12,7 +12,7 @@ import { toast } from "@/lib/toast";
 
 // Plain copy for a LinkedIn post and a post on X, from the issue. FlockStack posts nothing: the writer edits it, copies it
 // and posts it where it belongs.
-export default function DialogSocialPosts({ isOpen, onOpenChange, run, onRetry }) {
+export default function DialogSocialPosts({ isOpen, onOpenChange, run, onRetry, onSave }) {
 	return (
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-2xl">
@@ -34,7 +34,7 @@ export default function DialogSocialPosts({ isOpen, onOpenChange, run, onRetry }
 				{run.status === "done" && (
 					<div className="flex max-h-[60dvh] flex-col gap-5 overflow-y-auto">
 						{Object.entries(run.data.posts).map(([platform, post]) => (
-							<PostEditor key={`${platform}:${post}`} platform={platform} initial={post} />
+							<PostEditor key={`${platform}:${post}`} platform={platform} initial={post} onSave={platform === "linkedin" ? onSave : undefined} />
 						))}
 						<NoteAiUsage usage={run.data.usage} />
 					</div>
@@ -51,9 +51,11 @@ export default function DialogSocialPosts({ isOpen, onOpenChange, run, onRetry }
 	);
 }
 
-function PostEditor({ platform, initial }) {
+function PostEditor({ platform, initial, onSave }) {
 	const [text, setText] = useState(initial);
 	const [isCopied, setIsCopied] = useState(false);
+	const [saved, setSaved] = useState(null);
+	const [isSaving, setIsSaving] = useState(false);
 	const id = `post-${platform}`;
 
 	async function copy() {
@@ -66,6 +68,14 @@ function PostEditor({ platform, initial }) {
 		}
 	}
 
+	async function save() {
+		setIsSaving(true);
+		const result = await onSave(text);
+		setIsSaving(false);
+		if (result?.error) return void toast.error(result.error);
+		setSaved(result.href);
+	}
+
 	return (
 		<div className="flex flex-col gap-2">
 			<div className="flex items-center justify-between">
@@ -76,6 +86,15 @@ function PostEditor({ platform, initial }) {
 							{text.length} / {X_LIMIT}
 						</span>
 					)}
+					{onSave && (saved ? (
+						<a href={saved} className="text-sm text-link hover:underline">
+							Saved to the plan
+						</a>
+					) : (
+						<Button variant="ghost" size="sm" onClick={save} disabled={isSaving}>
+							Save to the plan
+						</Button>
+					))}
 					<Button variant="ghost" size="sm" onClick={copy}>
 						{isCopied ? <Check data-icon="inline-start" /> : <Copy data-icon="inline-start" />}
 						{isCopied ? "Copied" : "Copy"}

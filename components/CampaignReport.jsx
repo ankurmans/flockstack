@@ -118,7 +118,7 @@ export default function CampaignReport({
 						</Link>
 					</Button>
 				)}
-				{isAiEnabled && campaign.status === "sent" && <ButtonSocialPosts campaignId={id} subject={campaign.subject} />}
+				{isAiEnabled && campaign.status === "sent" && <ButtonSocialPosts campaignId={id} newsletterId={String(campaign.newsletterId)} subject={campaign.subject} />}
 				{campaign.status === "sending" && (
 					<ButtonCampaignAction action={pauseCampaign} id={id}>
 						<Pause data-icon="inline-start" />

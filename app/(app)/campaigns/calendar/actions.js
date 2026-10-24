@@ -57,6 +57,20 @@ export async function planCampaignDraft(newsletterId, campaignId) {
 	return { ok: true, id: output.item.id };
 }
 
+// A LinkedIn post drafted for an issue, kept in the plan as a post derived from it, to finish and review.
+export async function savePostToPlan(newsletterId, campaignId, title, body) {
+	const { output, failure } = await runDashboardAction("create_content_item", {
+		newsletter: String(newsletterId ?? ""),
+		channel: "linkedin",
+		title: text(title, 200) || "LinkedIn post",
+		body: text(body, 10000),
+		campaign: String(campaignId ?? ""),
+	});
+	if (failure) return toFormError(failure);
+	refresh();
+	return { ok: true, id: output.item.id };
+}
+
 export async function saveContentItem(id, values) {
 	const { output, failure } = await runDashboardAction("update_content_item", {
 		id: String(id ?? ""),

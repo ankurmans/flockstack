@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { Share2 } from "lucide-react";
+import { savePostToPlan } from "@/app/(app)/campaigns/calendar/actions";
 import { draftSocialPosts } from "@/app/(app)/campaigns/actions";
 import DialogSocialPosts from "@/components/DialogSocialPosts";
 import { Button } from "@/components/ui/button";
 import { useAiRun } from "@/lib/use-ai-run";
 
 // A sent issue's report: LinkedIn and X drafts for it, with the issue's page link at the end of each.
-export default function ButtonSocialPosts({ campaignId, subject }) {
+export default function ButtonSocialPosts({ campaignId, newsletterId, subject }) {
 	const [isOpen, setIsOpen] = useState(false);
 	const run = useAiRun();
 	const ask = () => run.run(() => draftSocialPosts(campaignId, subject));
@@ -33,6 +34,10 @@ export default function ButtonSocialPosts({ campaignId, subject }) {
 				}}
 				run={run}
 				onRetry={ask}
+				onSave={async (text) => {
+					const result = await savePostToPlan(newsletterId, campaignId, `LinkedIn: ${subject}`, text);
+					return result?.error ? result : { ...result, href: `/campaigns/calendar/items/${result.id}` };
+				}}
 			/>
 		</>
 	);

@@ -982,6 +982,11 @@ describe("REST, MCP and the dashboard do the same", () => {
 		assert.equal(review.ok, true);
 		assert.equal((await as(user, () => m.dashboard.decideContentReview(created.id, "request_changes", "Not yet"))).ok, true);
 		assert.equal((await get(user, created.id)).review.note, "Not yet");
+		const drafted = await as(user, () => m.dashboard.savePostToPlan(user.newsletterId, issue, "LinkedIn: Dashboard issue", "A post the AI drafted for the issue."));
+		assert.equal(drafted.ok, true);
+		const kept = await get(user, drafted.id);
+		assert.deepEqual([kept.channel, kept.body, kept.campaign.id, kept.state, kept.delivery.status], ["linkedin", "A post the AI drafted for the issue.", issue, "drafting", "not_posted"], "a drafted post is kept in the plan, unpublished");
+		assert.equal((await api(user.keys.full, "POST", "/content-items", { channel: "linkedin", title: "Time only", plannedTime: "09:00" })).status, 400, "a time needs a day");
 		assert.equal((await as(user, () => m.dashboard.linkContentCampaign(created.id, issue))).ok, true, "a post can be derived from an issue that has its own item");
 		assert.equal((await get(user, created.id)).campaign.id, issue);
 		assert.equal((await as(user, () => m.dashboard.linkContentCampaign(created.id, ""))).ok, true);
