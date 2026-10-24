@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS c_contentitems (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_contentitems__accountId ON c_contentitems (accountId);
+CREATE UNIQUE INDEX IF NOT EXISTS u_contentitems__accountId__externalId ON c_contentitems (accountId ASC, json_extract(data, '$.externalId') ASC) WHERE json_type(data, '$.externalId') = 'text';
+CREATE UNIQUE INDEX IF NOT EXISTS u_contentitems__accountId__campaignId ON c_contentitems (accountId ASC, json_extract(data, '$.campaignId') ASC) WHERE json_type(data, '$.campaignId') = 'text' AND json_extract(data, '$.channel') = 'newsletter';
+CREATE INDEX IF NOT EXISTS i_contentitems__newsletterId__plannedDate ON c_contentitems (json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.plannedDate') ASC);
+CREATE INDEX IF NOT EXISTS i_contentitems__batchId__batchPosition ON c_contentitems (json_extract(data, '$.batchId') ASC, json_extract(data, '$.batchPosition') ASC);
+CREATE INDEX IF NOT EXISTS i_contentitems__newsletterId__createdAt_d ON c_contentitems (json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.createdAt') DESC);
+CREATE TABLE IF NOT EXISTS c_contentrevisions (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_contentrevisions__accountId ON c_contentrevisions (accountId);
+CREATE INDEX IF NOT EXISTS i_contentrevisions__itemId__createdAt_d ON c_contentrevisions (json_extract(data, '$.itemId') ASC, json_extract(data, '$.createdAt') DESC);
+CREATE TABLE IF NOT EXISTS c_editorialbatches (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_editorialbatches__accountId ON c_editorialbatches (accountId);
+CREATE UNIQUE INDEX IF NOT EXISTS u_editorialbatches__accountId__externalId ON c_editorialbatches (accountId ASC, json_extract(data, '$.externalId') ASC) WHERE json_type(data, '$.externalId') = 'text';
+CREATE INDEX IF NOT EXISTS i_editorialbatches__newsletterId__createdAt_d ON c_editorialbatches (json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.createdAt') DESC);
