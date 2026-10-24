@@ -14,12 +14,14 @@ function allowed(preset) {
 }
 
 // Said in words, apart from the table, so a wrong class there can't hide behind a test that reads the same table.
-const MUST_RUN_READ_ONLY = ["list_campaigns", "get_campaign", "list_contacts", "export_contacts", "get_overview", "get_growth_report", "preview_campaign_recipients", "list_segments", "get_approval_status"];
-const MUST_RUN_DRAFTS = ["create_campaign", "update_campaign", "duplicate_campaign", "send_test_email", "create_template", "update_template", "create_segment", "update_segment", "create_automation", "update_automation", "create_snippet"];
+const MUST_RUN_READ_ONLY = ["list_campaigns", "get_campaign", "list_contacts", "export_contacts", "get_overview", "get_growth_report", "preview_campaign_recipients", "list_segments", "get_approval_status", "get_content_plan", "list_content_items", "get_content_item", "get_editorial_batch"];
+const MUST_RUN_DRAFTS = ["create_campaign", "update_campaign", "duplicate_campaign", "send_test_email", "create_template", "update_template", "create_segment", "update_segment", "create_automation", "update_automation", "create_snippet",
+	"create_content_item", "update_content_item", "set_content_slot", "attach_content_asset", "request_content_review", "create_editorial_batch", "apply_editorial_pattern", "request_batch_review"];
 const NEVER_DRAFTS = [
 	"send_campaign", "schedule_campaign", "send_campaign_to_more", "resend_campaign", "resume_campaign", "delete_campaign", "delete_template", "delete_segment",
 	"import_contacts", "delete_contact", "update_contact_status", "add_contact", "update_newsletter", "activate_automation", "enroll_contacts", "add_domain", "remove_domain",
 	"change_plan", "create_api_key", "revoke_api_key", "export_account_data", "create_webhook_endpoint",
+	"delete_content_item", "delete_editorial_batch",
 ];
 const ADMIN_ONLY = [
 	"create_api_key", "revoke_api_key", "list_api_keys", "list_connected_apps", "revoke_connected_app", "create_webhook_endpoint", "get_billing", "change_plan",
@@ -28,6 +30,7 @@ const ADMIN_ONLY = [
 const WAIT_FOR_APPROVAL = [
 	"send_campaign", "schedule_campaign", "send_campaign_to_more", "resend_campaign", "resume_campaign", "delete_campaign", "bulk_update_campaigns", "delete_contact",
 	"delete_template", "delete_segment", "delete_page", "delete_automation", "activate_automation", "enroll_contacts", "add_domain", "remove_domain", "update_series", "run_series",
+	"delete_content_item", "delete_editorial_batch",
 ];
 
 describe("scope classes", () => {
