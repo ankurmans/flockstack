@@ -334,8 +334,9 @@ Set them as Worker secrets (`wrangler secret put NAME`), or as `vars` in `wrangl
 
 | Variable | What it does |
 | --- | --- |
-| `BETTER_AUTH_SECRET` | Signs sessions and every link in sent emails. 32+ random characters (`openssl rand -base64 48`), or the server refuses to start. Rotating it signs everyone out and breaks links in emails already sent |
-| `SUPPRESSION_HASH_KEY` | Keys the hashes of the never-email list every account shares. 32+ random characters of its own, never `BETTER_AUTH_SECRET`, or the server refuses to start, after an upgrade too. Changing it empties the list |
+| `BETTER_AUTH_SECRET` | Signs sessions and every link in sent emails. 32+ random characters (`openssl rand -base64 48`), or the server refuses to start. Rotating it signs everyone out and breaks links in emails already sent, unless the old value goes in `BETTER_AUTH_SECRET_PREVIOUS` first (docs/AUTH-ROTATION.md) |
+| `BETTER_AUTH_SECRET_PREVIOUS` | Only during a rotation: the values `BETTER_AUTH_SECRET` had before, comma-separated, newest first. Sessions, OAuth keys and links signed with them keep working; nothing is signed with them. `scripts/rotate-auth-secret.sh` sets it |
+| `SUPPRESSION_HASH_KEY` | Keys the hashes of the never-email list every account shares. 32+ random characters of its own, never `BETTER_AUTH_SECRET`, or the server refuses to start, after an upgrade too. Changing it empties the list, unless the old key goes in `SUPPRESSION_HASH_KEY_PREVIOUS` first |
 | `ADMIN_EMAILS` | Comma-separated emails that can sign in and open `/admin` |
 | `ALLOWED_EMAILS` | Who else can sign in: addresses and `@domain` entries, comma-separated |
 | `EMAIL_FROM` | From address of sign-in codes and alerts, on an identity your email provider verified |
