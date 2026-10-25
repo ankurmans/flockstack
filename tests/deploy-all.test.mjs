@@ -136,12 +136,19 @@ function recordedIn(name) {
 	}
 }
 
-async function run(argv, { legalTodos = [], fetchImpl = unrouted, config = HOLDS_FLOCKSTACK } = {}) {
+// The check of MCP sign-in (scripts/check-mcp-auth.mjs) after each router, answering from here: it asks the region's address, which a test must not.
+const checked = [];
+const passing = async ({ baseUrl, apiKey }) => {
+	checked.push({ baseUrl, apiKey });
+	return [{ name: "a check", ok: true, detail: null }];
+};
+
+async function run(argv, { legalTodos = [], fetchImpl = unrouted, config = HOLDS_FLOCKSTACK, checkMcp = passing } = {}) {
 	const lines = [];
 	const log = console.log;
 	console.log = (...parts) => lines.push(parts.join(" "));
 	try {
-		await main(argv, { migrationsDir: migrations, legalTodos, fetchImpl, wranglerConfig: config });
+		await main(argv, { migrationsDir: migrations, legalTodos, fetchImpl, wranglerConfig: config, checkMcp, checkPauseMs: 0 });
 	} finally {
 		console.log = log;
 	}
@@ -172,6 +179,7 @@ after(() => {
 });
 
 beforeEach(() => {
+	checked.length = 0;
 	writeFileSync(join(folder, "calls.log"), "");
 	for (const file of readdirSync(join(folder, "dbs"))) rmSync(join(folder, "dbs", file));
 	writeMigrations({
@@ -516,5 +524,74 @@ describe("the domain and the Worker that holds it", () => {
 	test("goes on when the domain is still the app's own, which is how it is until the cutover", async () => {
 		const output = await run(["--baseline", "0"], { fetchImpl: unrouted });
 		assert.match(output, /still the app's own route \(no router yet\)/);
+	});
+});
+
+describe("the check that MCP clients can still sign in, after each region's router", () => {
+	test("runs against each region's address after its router, and says it passed", async () => {
+		const output = await run(["--baseline", "0"]);
+		assert.deepEqual(checked.map(({ baseUrl }) => baseUrl), ["https://flockstack.io", "https://eu.flockstack.io"]);
+		assert.match(output, /==> Check sign-in for MCP clients: https:\/\/flockstack\.io\n[\s\S]*OK \(set FLOCKSTACK_API_KEY/);
+		const order = output.split("\n").filter((line) => /^==> (Deploy: flockstack-router|Check sign-in)/.test(line));
+		assert.deepEqual(order.map((line) => line.replace(/ \(.*$/, "")), [
+			"==> Deploy: flockstack-router",
+			"==> Check sign-in for MCP clients: https://flockstack.io",
+			"==> Deploy: flockstack-router-eu",
+			"==> Check sign-in for MCP clients: https://eu.flockstack.io",
+		]);
+	});
+
+	test("a failing check is a warning, asked a second time, and the deploy goes on and finishes", async () => {
+		let asked = 0;
+		const failing = async () => {
+			asked++;
+			return [{ name: "signing keys", ok: false, detail: "answered 502 instead of 200" }];
+		};
+		const warnings = [];
+		const warn = console.warn;
+		console.warn = (...parts) => warnings.push(parts.join(" "));
+		let output;
+		try {
+			output = await run(["--baseline", "0"], { checkMcp: failing });
+		} finally {
+			console.warn = warn;
+		}
+		assert.equal(asked, 4, "twice for each of the two regions");
+		assert.equal(warnings.length, 2);
+		assert.match(warnings[0], /WARNING: 1 of 1 checks of https:\/\/flockstack\.io failed.*node scripts\/check-mcp-auth\.mjs https:\/\/flockstack\.io/);
+		assert.match(output, /FAIL {2}signing keys\n\s+answered 502 instead of 200/);
+		assert.match(output, /Deployed flockstack, /);
+		assert.equal(readLog().filter((call) => call.deploy).length, 10, "every Worker was deployed");
+	});
+
+	test("a check that throws is a warning too", async () => {
+		const warnings = [];
+		const warn = console.warn;
+		console.warn = (...parts) => warnings.push(parts.join(" "));
+		try {
+			await run(["--baseline", "0", "--only", "us"], { checkMcp: async () => { throw new Error("offline"); } });
+		} finally {
+			console.warn = warn;
+		}
+		assert.deepEqual(warnings, ["WARNING: could not check https://flockstack.io: offline"]);
+	});
+
+	test("uses FLOCKSTACK_API_KEY only for the region the key belongs to", async () => {
+		const original = process.env.FLOCKSTACK_API_KEY;
+		process.env.FLOCKSTACK_API_KEY = `mc_eu_${"A".repeat(43)}`;
+		try {
+			await run(["--baseline", "0"]);
+		} finally {
+			if (original === undefined) delete process.env.FLOCKSTACK_API_KEY;
+			else process.env.FLOCKSTACK_API_KEY = original;
+		}
+		assert.deepEqual(checked.map(({ baseUrl, apiKey }) => [baseUrl, Boolean(apiKey)]), [["https://flockstack.io", false], ["https://eu.flockstack.io", true]]);
+	});
+
+	test("a dry run says what it would check and asks nothing", async () => {
+		const output = await run(["--dry-run", "--skip-router-check"]);
+		assert.match(output, /Would run: node scripts\/check-mcp-auth\.mjs https:\/\/flockstack\.io\n/);
+		assert.match(output, /Would run: node scripts\/check-mcp-auth\.mjs https:\/\/eu\.flockstack\.io\n/);
+		assert.equal(checked.length, 0);
 	});
 });

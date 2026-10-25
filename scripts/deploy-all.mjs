@@ -14,6 +14,8 @@
 // pages (which point at the files of the build the app now has), then the router (which binds the API and readers Workers and needs them to exist).
 // While the app still lists the region's domain (before the cutover) the router is deployed without the domain, on workers.dev only,
 // to be tried there; once the app has let the domain go, the router is deployed with it, which keeps it.
+// Last, for each region: scripts/check-mcp-auth.mjs asks its address for the OAuth discovery documents, the signing keys and /mcp's 401, the
+// things an MCP client needs, and prints a warning if one is wrong. It never stops the run (FLOCKSTACK_API_KEY also lists the tools).
 // The website Worker (flockstack-website) is the website repository's and is deployed from there, before anything here.
 // A custom domain is one Worker's at a time, and `wrangler deploy` of the app takes it back or drops it according to the routes
 // in wrangler.jsonc. So the run first checks that the domain and the file agree: when the router answers the domain's
@@ -35,6 +37,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { getLegalTodos } from "../lib/legal.js";
 import { getRegionUrls } from "../lib/region.js";
 import { readJsonc } from "./bundle-worker.mjs";
+import { formatResults, runChecks } from "./check-mcp-auth.mjs";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const MIGRATIONS_DIR = join(ROOT, "migrations");
@@ -185,6 +188,38 @@ function migrate(region, files, options) {
 	}
 }
 
+// A key only opens its own region (lib/api-key-tokens.js): mc_eu_ in the EU, mc_ in the US.
+function getKeyForRegion(region, key = process.env.FLOCKSTACK_API_KEY) {
+	if (!key) return undefined;
+	return key.startsWith("mc_eu_") === (region === "eu") ? key : undefined;
+}
+
+// After a region's router is deployed: can an MCP client still connect to its address (scripts/check-mcp-auth.mjs)? A failure is a warning
+// and never stops the run: the deploy is done, and the warning says what to look at. The Workers take a moment to be served everywhere,
+// so a failed check is run once more after a pause.
+export async function checkMcpAuth(region, { isDryRun, checkMcp = runChecks, pauseMs = 5000 }) {
+	const url = getRegionUrls()[region];
+	console.log(`\n==> Check sign-in for MCP clients: ${url}`);
+	if (isDryRun) {
+		console.log(`    Would run: node scripts/check-mcp-auth.mjs ${url}`);
+		return;
+	}
+	const apiKey = getKeyForRegion(region);
+	try {
+		let results = await checkMcp({ baseUrl: url, apiKey });
+		if (results.some(({ ok }) => !ok)) {
+			await new Promise((resolve) => setTimeout(resolve, pauseMs));
+			results = await checkMcp({ baseUrl: url, apiKey });
+		}
+		console.log(formatResults(results));
+		const failed = results.filter(({ ok }) => !ok).length;
+		if (failed > 0) console.warn(`WARNING: ${failed} of ${results.length} checks of ${url} failed. The deploy is done; MCP clients may not be able to connect. Run: node scripts/check-mcp-auth.mjs ${url} (docs/AUTH-ROTATION.md).`);
+		else console.log(`    OK${apiKey ? "" : " (set FLOCKSTACK_API_KEY to also list the tools with a key)"}.`);
+	} catch (error) {
+		console.warn(`WARNING: could not check ${url}: ${error.message}`);
+	}
+}
+
 // Whether wrangler.jsonc lists the region's domain as a route of the app Worker.
 export function appHoldsDomain(region, config = readJsonc(readFileSync(join(ROOT, "wrangler.jsonc"), "utf8"))) {
 	const host = new URL(getRegionUrls()[region]).hostname;
@@ -204,7 +239,7 @@ export async function isRouterLive(region, fetchImpl = fetch) {
 	}
 }
 
-export async function main(argv = process.argv.slice(2), { migrationsDir = MIGRATIONS_DIR, legalTodos = getLegalTodos(), fetchImpl = fetch, wranglerConfig } = {}) {
+export async function main(argv = process.argv.slice(2), { migrationsDir = MIGRATIONS_DIR, legalTodos = getLegalTodos(), fetchImpl = fetch, wranglerConfig, checkMcp = runChecks, checkPauseMs } = {}) {
 	const options = { ...parseArgs(argv), migrationsDir };
 	const regions = options.only ? [options.only] : Object.keys(REGIONS);
 	const files = listMigrations(migrationsDir);
@@ -274,6 +309,7 @@ export async function main(argv = process.argv.slice(2), { migrationsDir = MIGRA
 		const isStaged = appHoldsDomain(region, wranglerConfig);
 		console.log(`\n==> Deploy: ${routerWorker}${isStaged ? " (staged: workers.dev only, the domain is still the app's)" : ""}`);
 		run("npx", ["wrangler", "deploy", ...(isStaged ? routerStagedArgs : routerArgs)], options);
+		await checkMcpAuth(region, { isDryRun: options.isDryRun, checkMcp, pauseMs: checkPauseMs });
 	}
 	const names = regions.flatMap((region) => [REGIONS[region].worker, REGIONS[region].apiWorker, REGIONS[region].readersWorker, REGIONS[region].publicWorker, REGIONS[region].routerWorker]);
 	console.log(options.isDryRun ? "\nDry run done." : `\nDeployed ${names.join(", ")}.`);
