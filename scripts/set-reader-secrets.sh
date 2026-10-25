@@ -10,7 +10,8 @@
 # pixel, click, unsubscribe, confirm): with another value every one of those links fails (an open is not counted, a click is refused
 # as unsigned and shows the "Continue" page, an unsubscribe says the link is invalid). SUPPRESSION_HASH_KEY hashes addresses for the
 # suppression lists: with another value a suppressed address no longer matches. The two prompts accept nothing but a matching pair.
-# The regions' values are asked for separately and never offered for the other region (rotating them is per region).
+# The regions' values are asked for separately and never offered for the other region (rotating them is per region). To rotate
+# them, use scripts/rotate-auth-secret.sh (docs/AUTH-ROTATION.md): it sets the _PREVIOUS values too.
 #
 # Press Enter on a prompt to skip it (a missing one fails only what uses it). A value in [brackets] is a suggestion: Enter accepts it.
 # bash 3.2 (macOS) is enough: the list of questions is read from file descriptor 3, so each answer is read from the keyboard.
@@ -22,6 +23,8 @@ export CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-fe96ffccbfec88e9c8516169a
 # VARIABLES in scripts/readers-env.mjs (tests/readers-secrets.test.mjs checks it).
 NAMES="BETTER_AUTH_SECRET|pair|the region's app value; signs the links of emails already sent
 SUPPRESSION_HASH_KEY|pair|the region's app value; hashes addresses for the suppression lists
+BETTER_AUTH_SECRET_PREVIOUS|pair|only during a rotation: the value before, comma-separated for several; Enter skips it
+SUPPRESSION_HASH_KEY_PREVIOUS|pair|only during a rotation: the key before; Enter skips it
 APP_URL|plain|the region's address
 SHARED_DOMAIN|plain|the shared newsletter domain of the region
 ARCHIVE_CNAME_TARGET|plain|where customers point their newsletter subdomain

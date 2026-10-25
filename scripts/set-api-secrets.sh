@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Sets the secrets the lean API Worker needs, region by region, by asking for each value. Values are typed or pasted at a prompt, go
 # straight to `wrangler secret put` and are never printed. BETTER_AUTH_SECRET and SUPPRESSION_HASH_KEY are not asked for here: they
-# were rotated on the app and the API Worker together (docs/ARCHITECTURE-WORKERS.md, section 5).
+# are rotated on the app, the API Worker and the readers Worker together by scripts/rotate-auth-secret.sh (docs/AUTH-ROTATION.md).
 #   bash scripts/set-api-secrets.sh us      # or eu, or: bash scripts/set-api-secrets.sh us eu
 # Press Enter on a prompt to skip it (a missing one fails only the routes that use it). A value in [brackets] is a suggestion: Enter accepts it.
 set -u
