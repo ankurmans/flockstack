@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { getAppSecret } from "@/lib/config";
+import { getAppSecrets } from "@/lib/config";
 import { readRevalidateBody, SIGNATURE_HEADER, verifySignature } from "@/lib/internal-revalidate";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 // the request lands. The signature (lib/internal-revalidate.js) is the only credential, and the pages it may name are a short list.
 export async function POST(request) {
 	const body = await request.text();
-	if (!verifySignature(body, request.headers.get(SIGNATURE_HEADER), getAppSecret())) return Response.json({ error: "unauthorized" }, { status: 401 });
+	if (!getAppSecrets().some((secret) => verifySignature(body, request.headers.get(SIGNATURE_HEADER), secret))) return Response.json({ error: "unauthorized" }, { status: 401 });
 	const entries = readRevalidateBody(body);
 	if (!entries) return Response.json({ error: "invalid" }, { status: 400 });
 	for (const [path, type] of entries) revalidatePath(path, type);

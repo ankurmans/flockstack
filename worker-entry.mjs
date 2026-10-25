@@ -4,6 +4,7 @@ import openNext from "./.open-next/worker.js";
 import { isCertificateValidationRequest } from "./lib/certificate-validation.js";
 import { EDGE_CACHE_POLICIES, getEdgeCacheKind, serveWithEdgeCache } from "./lib/edge-cache.js";
 import { getCookiePrefix } from "./lib/region.js";
+import { unavailableResponse } from "./lib/unavailable-response.js";
 import { hasSessionCookie, shouldForwardToWebsite } from "./lib/website-routing.js";
 
 export { BucketCachePurge, DOQueueHandler, DOShardedTagCache } from "./.open-next/worker.js";
@@ -72,7 +73,14 @@ export default {
 			const response = await fetchWebsite(env.WEBSITE, request);
 			if (response) return response;
 		}
-		const render = (req) => openNext.fetch(req, env, ctx);
+		const render = async (req) => {
+			try {
+				return await openNext.fetch(req, env, ctx);
+			} catch (error) {
+				console.error(`[app] ${req.method} ${url.pathname} threw:`, error?.message ?? error);
+				return unavailableResponse(url.pathname);
+			}
+		};
 		// The public pages that are the same for everyone come from the data center's cache (lib/edge-cache.js), so a crawler's
 		// visit doesn't start the app: FlockStack's own docs and files, and a newsletter's public pages on its own host. A Worker
 		// on workers.dev has no cache: there the app answers, as before.

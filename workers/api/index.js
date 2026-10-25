@@ -14,6 +14,16 @@ function unprocessed(reason) {
 	return new Response(`${reason}\n`, { status: 503, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "x-fs-api-unprocessed": "1" } });
 }
 
+// What a request gets when something in the Worker throws, instead of the exception: the router turns an exception into a bare
+// 502, and a client that gets one starts OAuth over. A GET the router asks the app again; anything else gets this answer, in the API's
+// error shape.
+function failed() {
+	return Response.json(
+		{ error: { code: "unavailable", message: "FlockStack could not answer this request. Try again in a moment." } },
+		{ status: 503, headers: { "cache-control": "no-store", "retry-after": "5" } }
+	);
+}
+
 function withHeaders(response, startedAt) {
 	if (response.status === 101) return response;
 	const copy = new Response(response.body, response);
@@ -49,8 +59,9 @@ const apiWorker = {
 			try {
 				response = withHeaders(await handleApiRequest(request), startedAt);
 			} catch (error) {
+				console.error("[api] unhandled error:", error?.message ?? error);
 				if (store.revalidations.size > 0) ctx.waitUntil(flushRevalidations(store.revalidations, env));
-				throw error;
+				return withHeaders(failed(), startedAt);
 			}
 			// REST and OAuth answers are complete when the handler returns. An MCP tool runs while its answer streams, so what it
 			// revalidated is known when the body ends.

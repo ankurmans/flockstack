@@ -186,6 +186,28 @@ describe("the Worker's entry", () => {
 		for (const { key, value } of headers) assert.equal(response.headers.get(key), value, key);
 	});
 
+	test("an exception in the Worker is a 503 in the API's error shape, which the router retries on the app for a GET, not a thrown error", async () => {
+		const { getDriver, setDriver } = await import("../lib/docdb/driver.js");
+		const working = await getDriver();
+		const broken = async () => {
+			throw new Error("D1 is down");
+		};
+		const original = console.error;
+		console.error = () => {};
+		setDriver({ ...working, query: broken, batch: broken });
+		try {
+			const response = await m.index.fetch(jsonRequest("/api/v1/contacts", { headers: { authorization: `Bearer ${owner.fullKey}` } }), env, ctx());
+			assert.equal(response.status, 503);
+			assert.equal(response.headers.get("retry-after"), "5");
+			assert.equal(response.headers.get("x-fs-api-unprocessed"), null, "something may have happened: the router must not run it again");
+			assert.match(response.headers.get("server-timing"), /^api;dur=\d+$/);
+			assert.equal((await response.json()).error.code, "unavailable");
+		} finally {
+			setDriver(working);
+			console.error = original;
+		}
+	});
+
 	test("API_DISABLED and a missing database answer 503 with the mark that tells the router nothing happened", async () => {
 		for (const bad of [{ DB: {}, API_DISABLED: "true" }, { API_DISABLED: "TRUE", DB: {} }, {}]) {
 			const response = await m.index.fetch(jsonRequest("/api/v1/contacts", { method: "POST", body: { a: 1 } }), bad, ctx());
