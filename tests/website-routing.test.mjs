@@ -21,9 +21,9 @@ describe("lib/website-routing.js", () => {
 		}
 	});
 
-	test("sends / to the website only for a visitor with no session", () => {
+	test("keeps / public with or without a session", () => {
 		assert.equal(forward({ pathname: "/", hasSession: false }), true);
-		assert.equal(forward({ pathname: "/", hasSession: true }), false);
+		assert.equal(forward({ pathname: "/", hasSession: true }), true);
 	});
 
 	test("leaves everything else to the app", () => {
@@ -142,11 +142,11 @@ describe("worker-entry.mjs", () => {
 		}
 	});
 
-	test("keeps / for the dashboard when there is a session, in either region's cookie", async () => {
-		assert.equal((await answer("https://flockstack.io/", { cookie: "__Secure-better-auth.session_token=x" })).app, true);
+	test("keeps / public when there is a session, in either region's cookie", async () => {
+		assert.equal((await answer("https://flockstack.io/", { cookie: "__Secure-better-auth.session_token=x" })).website, true);
 		assert.equal((await answer("https://flockstack.io/", { cookie: "fs_consent=accepted" })).website, true);
 		const eu = { APP_URL: "https://eu.flockstack.io", FLOCKSTACK_REGION: "eu", WEBSITE };
-		assert.equal((await answer("https://eu.flockstack.io/", { env: eu, cookie: "__Secure-flockstack-eu.session_token=x" })).app, true);
+		assert.equal((await answer("https://eu.flockstack.io/", { env: eu, cookie: "__Secure-flockstack-eu.session_token=x" })).website, true);
 		assert.equal((await answer("https://eu.flockstack.io/", { env: eu, cookie: "better-auth.session_token=x" })).website, true, "the US cookie is not an EU session");
 		assert.equal((await answer("https://eu.flockstack.io/pricing", { env: eu })).website, true);
 	});
