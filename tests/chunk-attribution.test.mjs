@@ -39,7 +39,7 @@ describe("source maps", () => {
 	});
 });
 
-describe("a built handler", { skip: !existsSync(`${ROOT}.open-next/server-functions/default/handler.mjs.meta.json`) && "not built" }, () => {
+describe("a built handler", { skip: !(existsSync(`${ROOT}.open-next/server-functions/default/handler.mjs.meta.json`) && existsSync(`${ROOT}.next/server/chunks`)) && "not built, or .next was removed after the build" }, () => {
 	test("most of the chunk bytes have a source, in both layers, and the framework and the project both show", () => {
 		const { packages, files, layers, handlerBytes } = attributeHandler();
 		assert.ok(layers.ssr > 1e6 && layers.rsc > 1e6);

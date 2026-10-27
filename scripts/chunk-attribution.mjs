@@ -3,7 +3,7 @@
 // Each chunk has a source map in .next/server/chunks; its mappings say which source file every stretch of the chunk came from, and the length of a stretch is the
 // distance to the next one on the same line. The result is output bytes per source, in each of Next.js's two layers (ssr and rsc), which is how a library used by
 // both is counted twice. Stretches with no source (module wrappers, runtime glue) are left out: about a fifth of the chunk bytes. Read-only.
-//   node scripts/chunk-attribution.mjs [--top 40] [--json]        (after `npx opennextjs-cloudflare build`; docs/PERF-RELEASE-ANALYSIS.md)
+//   node scripts/chunk-attribution.mjs [--top 40] [--json]        (right after `npx opennextjs-cloudflare build`: it reads .next/server/chunks, which build:public and deploy-all delete; docs/PERF-RELEASE-ANALYSIS.md)
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -116,8 +116,8 @@ const total = (row) => row.ssr + row.rsc;
 const mb = (bytes) => (bytes / 1e6).toFixed(2).padStart(6);
 
 function main(argv) {
-	if (!existsSync(join(ROOT, DEFAULT, "handler.mjs.meta.json"))) {
-		console.error("No build: run `npx opennextjs-cloudflare build` first (the handler's metafile is written next to handler.mjs).");
+	if (!existsSync(join(ROOT, DEFAULT, "handler.mjs.meta.json")) || !existsSync(join(ROOT, ".next/server/chunks"))) {
+		console.error("No build: run `npx opennextjs-cloudflare build` first. It needs the handler's metafile (next to handler.mjs) and the source maps in .next/server/chunks, which `npm run build:public` and deploy-all remove after their build.");
 		return 2;
 	}
 	const top = Number(argv[argv.indexOf("--top") + 1]) || 40;
