@@ -23,6 +23,7 @@ import { findPolls } from "@/lib/editor-blocks";
 import { showsSentWithLink } from "@/lib/free-plan";
 import { getClickMapHtml, listCampaignLinks } from "@/lib/link-clicks";
 import { MESSAGE_STATS_GROUP } from "@/lib/message-stats";
+import { getGiphyKey } from "@/lib/giphy";
 import { getUnsplashKey } from "@/lib/unsplash";
 import { getPostalAddress } from "@/lib/postal-address";
 import { isResend } from "@/lib/resend-rules";
@@ -127,6 +128,7 @@ export default async function CampaignPage({ params }) {
 			segments={segments.map(({ _id, name }) => ({ id: String(_id), name }))}
 			isAiEnabled={isAiEnabled}
 			hasStockPhotos={Boolean(getUnsplashKey())}
+			hasGifs={Boolean(getGiphyKey())}
 			snippets={snippets.map(({ name, content }) => ({ name, content }))}
 			audioCard={audioCard}
 			authorControl={authorControl}

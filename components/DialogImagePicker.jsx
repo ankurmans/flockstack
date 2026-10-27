@@ -3,6 +3,7 @@
 import { Suspense, use, useEffect, useState, useTransition } from "react";
 import Image from "next/image";
 import { Check, ImageUp, Images, Loader2 } from "lucide-react";
+import PickerGif from "@/components/PickerGif";
 import PickerStock from "@/components/PickerStock";
 import PickerGeneratedImage from "@/components/PickerGeneratedImage";
 import { Button } from "@/components/ui/button";
@@ -18,8 +19,8 @@ import { cn } from "@/lib/utils";
 
 const GRID = "grid grid-cols-3 gap-2 p-4 sm:grid-cols-4";
 
-// hasStock: also offers Unsplash's free photos (the editor, where a photo's credit goes into the issue).
-export default function DialogImagePicker({ open, onOpenChange, onSelect, currentUrl, hasStock = false, hasAi = false, newsletterId = null }) {
+// hasStock: also offers Unsplash's free photos (the editor, where a photo's credit goes into the issue). hasGifs: and GIPHY's GIFs.
+export default function DialogImagePicker({ open, onOpenChange, onSelect, currentUrl, hasStock = false, hasGifs = false, hasAi = false, newsletterId = null }) {
 	function select(image) {
 		onSelect(image);
 		onOpenChange(false);
@@ -28,11 +29,12 @@ export default function DialogImagePicker({ open, onOpenChange, onSelect, curren
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-xl">
-				{hasStock || (hasAi && newsletterId) ? (
+				{hasStock || hasGifs || (hasAi && newsletterId) ? (
 					<Tabs defaultValue="yours" className="gap-0">
 						<TabsList className="mx-4 mt-4">
 							<TabsTrigger value="yours">Your images</TabsTrigger>
 							{hasStock && <TabsTrigger value="stock">Free photos</TabsTrigger>}
+							{hasGifs && <TabsTrigger value="gifs">GIFs</TabsTrigger>}
 							{hasAi && newsletterId && <TabsTrigger value="generate">Generate image</TabsTrigger>}
 						</TabsList>
 						<TabsContent value="yours">
@@ -40,6 +42,9 @@ export default function DialogImagePicker({ open, onOpenChange, onSelect, curren
 						</TabsContent>
 						{hasStock && <TabsContent value="stock" className="pt-3">
 							<PickerStock onSelect={select} />
+						</TabsContent>}
+						{hasGifs && <TabsContent value="gifs" className="pt-3">
+							<PickerGif onSelect={select} />
 						</TabsContent>}
 						{hasAi && newsletterId && <TabsContent value="generate"><PickerGeneratedImage newsletterId={newsletterId} onSelect={select} /></TabsContent>}
 					</Tabs>

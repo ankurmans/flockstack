@@ -9,6 +9,7 @@ export const platformEmails = [];
 export const telegramMessages = [];
 let stripeHandler = null;
 let unsplashHandler = null;
+let giphyHandler = null;
 let polarHandler = null;
 let telegramAnswer = null;
 let visitor = 0;
@@ -33,6 +34,12 @@ function installFetch() {
 			if (!unsplashHandler) throw new Error(`Unexpected Unsplash request: ${url}`);
 			const { pathname, searchParams } = new URL(url);
 			const result = await unsplashHandler({ path: pathname, query: searchParams, headers: new Headers(init.headers) });
+			return result instanceof Response ? result : Response.json(result);
+		}
+		if (url.startsWith("https://api.giphy.com/")) {
+			if (!giphyHandler) throw new Error(`Unexpected GIPHY request: ${url}`);
+			const { pathname, searchParams } = new URL(url);
+			const result = await giphyHandler({ path: pathname, query: searchParams, headers: new Headers(init.headers) });
 			return result instanceof Response ? result : Response.json(result);
 		}
 		if (url.startsWith("https://api.stripe.com/")) {
@@ -60,6 +67,11 @@ function installFetch() {
 // Response for an error.
 export function mockUnsplash(handler) {
 	unsplashHandler = handler;
+}
+
+// GIPHY's API (https://api.giphy.com) is answered by this handler: { path, query, headers }, like Unsplash's.
+export function mockGiphy(handler) {
+	giphyHandler = handler;
 }
 
 export function mockStripe(handler) {

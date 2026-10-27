@@ -427,6 +427,12 @@ export async function searchStock(query, page) {
 	return failure ? toFormError(failure) : output;
 }
 
+// The editor's GIF picker (GIPHY): a page of results from an offset.
+export async function searchGifs(query, offset) {
+	const { output, failure } = await runDashboardAction("search_gifs", { query: String(query ?? "").slice(0, 100), offset: Math.max(0, Math.min(4999, Math.trunc(Number(offset)) || 0)), perPage: 18 });
+	return failure ? toFormError(failure) : output;
+}
+
 export async function pickStockPhoto(id) {
 	const { output, failure } = await runDashboardAction("use_stock_photo", { id: String(id ?? "") });
 	return failure ? toFormError(failure) : output;
