@@ -138,6 +138,9 @@ function errorText(json) {
 	return error && typeof error === "object" ? ` (${String(error.code ?? "").slice(0, 40)}: ${String(error.message ?? "").slice(0, 100)})` : "";
 }
 
+// The answer of a newsletter-scoped read on an account that has none (findNewsletter in lib/actions/shared.js).
+export const isNoNewsletterAnswer = (answer) => answer.response?.status === 404 && answer.json?.error?.code === "not_found" && answer.json?.error?.message === "Create a newsletter first";
+
 export async function runSmoke({ baseUrl, apiKey, level = "full", fetchImpl = fetch, now = () => performance.now() }) {
 	const origin = new URL(baseUrl).origin;
 	const results = [];
@@ -202,6 +205,8 @@ export async function runSmoke({ baseUrl, apiKey, level = "full", fetchImpl = fe
 	});
 
 	let newsletterId = null;
+	// null until list_newsletters answered; 0 is an account with no newsletter yet, where the newsletter-scoped reads answer 404 "Create a newsletter first".
+	let newsletterCount = null;
 	for (const entry of CHECKS) {
 		const base = BY_NAME.get(entry.action);
 		if (!base) {
@@ -213,9 +218,13 @@ export async function runSmoke({ baseUrl, apiKey, level = "full", fetchImpl = fe
 			if (entry.needsNewsletter && !newsletterId) return { skipped: "no newsletter id from list_newsletters" };
 			const query = entry.query ? `?${new URLSearchParams(entry.query())}` : "";
 			const answer = await rest(`/api/v1${base.path.replace("{id}", encodeURIComponent(newsletterId ?? ""))}${query}`);
+			if (newsletterCount === 0 && isNoNewsletterAnswer(answer)) return { skipped: "the account has no newsletter yet (404: Create a newsletter first)" };
 			const problem = refused(answer, 200) ?? shapeProblem(answer.json, entry.keys);
 			if (problem) return problem;
-			if (entry.action === "list_newsletters") newsletterId = answer.json.newsletters[0]?.id ?? answer.json.newsletters[0]?.slug ?? null;
+			if (entry.action === "list_newsletters") {
+				newsletterCount = answer.json.newsletters.length;
+				newsletterId = answer.json.newsletters[0]?.id ?? answer.json.newsletters[0]?.slug ?? null;
+			}
 			if (entry.names) return { note: `${answer.json[entry.names].length} keys: ${answer.json[entry.names].map((key) => String(key.name ?? "?").slice(0, 30)).slice(0, 10).join(", ")}` };
 			return null;
 		});

@@ -12,6 +12,7 @@ const APP_URL = "http://localhost:3000";
 let app;
 let routes;
 let owner;
+let empty;
 
 async function appFetch(input, init) {
 	const request = new Request(input, init);
@@ -37,6 +38,9 @@ before(async () => {
 	owner.newsletterId = url.split("/").at(-1);
 	owner.fullKey = (await as(owner, () => apiKeys.createApiKey(null, form({ name: "Smoke full", level: "full" })))).key;
 	owner.readKey = (await as(owner, () => apiKeys.createApiKey(null, form({ name: "Smoke read", level: "read_only" })))).key;
+	empty = await signIn("smoke-empty@example.com");
+	await activate(empty);
+	empty.fullKey = (await as(empty, () => apiKeys.createApiKey(null, form({ name: "Smoke empty", level: "full" })))).key;
 });
 
 after(() => app?.stop());
@@ -55,6 +59,33 @@ describe("against the app", () => {
 		assert.ok(results.every(({ ms }) => Number.isInteger(ms) && ms >= 0));
 		assert.ok(!formatResults(results).includes(owner.fullKey), "the key is not in the report");
 		assert.deepEqual(Object.keys(summarize(results)).sort(), ["failed", "ms", "passed", "skipped"]);
+	});
+
+	test("an account with no newsletter yet skips the newsletter-scoped reads with the reason and fails nothing", async () => {
+		const results = await runSmoke({ baseUrl: APP_URL, apiKey: empty.fullKey, level: "full", fetchImpl: appFetch });
+		assert.deepEqual(failures(results), [], formatResults(results));
+		const scoped = ["REST GET /reader-settings", "REST GET /reply-rules", "REST GET /mailing-lists", "REST GET /authors", "REST GET /perks", "REST GET /creator-matches/settings"];
+		for (const name of scoped) {
+			const result = results.find((entry) => entry.name === name);
+			assert.ok(result, `${name} is a check`);
+			assert.equal(result.skipped, true, name);
+			assert.match(result.detail, /no newsletter yet \(404: Create a newsletter first\)/);
+		}
+		assert.equal(results.find(({ name }) => name === "REST GET /newsletters").ok, true);
+	});
+
+	test("the same 404 on an account that has a newsletter, or another 404 on one that has none, stays a failure", async () => {
+		const notFound = (message) => Response.json({ error: { code: "not_found", message } }, { status: 404 });
+		const replace = (message) => async (input, init) => (new URL(input).pathname === "/api/v1/reader-settings" && init.headers.authorization ? notFound(message) : appFetch(input, init));
+		const withNewsletter = await runSmoke({ baseUrl: APP_URL, apiKey: owner.fullKey, fetchImpl: replace("Create a newsletter first") });
+		const readerSettings = withNewsletter.find(({ name }) => name === "REST GET /reader-settings");
+		assert.equal(readerSettings.ok, false);
+		assert.match(readerSettings.detail, /answered 404 instead of 200/);
+		const other = await runSmoke({ baseUrl: APP_URL, apiKey: empty.fullKey, fetchImpl: replace("Newsletter not found") });
+		assert.equal(other.find(({ name }) => name === "REST GET /reader-settings").ok, false);
+		const brokenList = async (input, init) => (new URL(input).pathname === "/api/v1/newsletters" && init.headers.authorization ? new Response("down", { status: 502 }) : replace("Create a newsletter first")(input, init));
+		const unknown = await runSmoke({ baseUrl: APP_URL, apiKey: empty.fullKey, fetchImpl: brokenList });
+		assert.equal(unknown.find(({ name }) => name === "REST GET /reader-settings").ok, false, "a failed list_newsletters does not prove the account is empty");
 	});
 
 	test("a read only key skips the admin reads, expects its own tool count and fails nothing", async () => {
