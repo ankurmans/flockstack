@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useSyncExternalStore, useTransition } from "react";
 import { getReaderText } from "@/lib/reader-languages";
-import { claimMeteredRead, unlockIssue } from "@/app/archive/reader-actions";
+import { claimMeteredRead, openGift, unlockIssue } from "@/app/archive/reader-actions";
 import CardPaywall from "@/components/CardPaywall";
 import ReaderTranslation from "@/components/ReaderTranslation";
+import ShareGiftLink from "@/components/ShareGiftLink";
 import FrameIssue from "@/components/FrameIssue";
 import PlayerAudio from "@/components/PlayerAudio";
 import { readerMarkerName } from "@/lib/reader-cookies";
@@ -21,6 +22,7 @@ export default function BodyIssue({ slug, post, initial, newsletterName, subscri
 	const [unlocked, setUnlocked] = useState(null);
 	const [meter, setMeter] = useState(null);
 	const [meterError, setMeterError] = useState(null);
+	const [giftProblem, setGiftProblem] = useState(null);
 	const [claiming, startClaim] = useTransition();
 	const t = getReaderText(language);
 	function claimRead() {
@@ -52,6 +54,23 @@ export default function BodyIssue({ slug, post, initial, newsletterName, subscri
 		};
 	}, [isGated, hasSession, slug, post]);
 
+	// A gift link (?gift=) opens this one paid issue; the page is cached for everyone, so only the browser knows it came by one.
+	useEffect(() => {
+		const code = new URLSearchParams(window.location.search).get("gift");
+		if (!code || initial.kind !== "paywall") return;
+		let isCurrent = true;
+		openGift(slug, post, code)
+			.then((answer) => {
+				if (!isCurrent) return;
+				if (answer?.unlocked) setUnlocked(answer);
+				else setGiftProblem(answer?.message ?? "This gift link doesn't work.");
+			})
+			.catch(() => isCurrent && setGiftProblem("Could not open this gift link. Try again."));
+		return () => {
+			isCurrent = false;
+		};
+	}, [initial.kind, slug, post]);
+
 	const body = unlocked ?? initial;
 	return (
 		<>
@@ -64,6 +83,9 @@ export default function BodyIssue({ slug, post, initial, newsletterName, subscri
 			)}
 			</ReaderTranslation>
 			{body.kind === "paywall" && meter && <div className="mt-6 flex flex-col items-center gap-3 rounded-xl border p-5 text-center"><p className="text-sm text-muted-foreground">{t("Free reads reset on the first day of each month (UTC). We keep your claimed issue IDs until seven days after the month ends.")}</p>{meter.remaining > 0 ? <button type="button" disabled={claiming} onClick={claimRead} className="rounded-md border px-4 py-2">{claiming ? t("Opening…") : t("Read this issue ({count} free reads left)", { count: meter.remaining })}</button> : <p>{t("You have used your free reads for this month.")}</p>}{meterError && <p role="alert">{t(meterError)}</p>}</div>}
+			{unlocked?.canShare && <ShareGiftLink slug={slug} post={post} />}
+			{unlocked?.gift && <p className="mt-6 text-center text-sm text-muted-foreground text-pretty">Someone shared this issue with you.</p>}
+			{giftProblem && !unlocked && <p role="alert" className="mt-6 text-center text-sm text-muted-foreground text-pretty">{giftProblem}</p>}
 			{body.kind === "paywall" && <CardPaywall language={language} newsletterName={newsletterName} href={subscribeHref} isPartial={body.isPartial} />}
 		</>
 	);
