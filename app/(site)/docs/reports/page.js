@@ -47,12 +47,12 @@ export default function ReportsPage() {
 
 			<Section title="Your website" stagger={3}>
 				<p>
-					Page views and visitors for each day of the last year, the websites that sent them, their countries and the issues read most
+					Page views and visitors for each day of the last year, the websites that sent them, their countries, desktop, mobile and tablet views and the issues read most
 					(<Code>get_site_report</Code>). It is counted by FlockStack as pages open: no cookie, no browser storage and no script from another company, and
 					nothing is kept about a visitor. A visitor is a hash of their network address and browser that changes every day and is never stored. It only decides
 					which of a few hundred counters for that day goes up, so you see an estimate of distinct visitors for each day, within a few percent, and nobody can see who
 					they were. Someone back tomorrow is a new visitor, so the total is the days&apos; visitors added up. The country is what Cloudflare reports for the visitor&apos;s
-					network. A browser that sends Do Not Track or Global Privacy Control, and a crawler, isn&apos;t counted. Newsletters don&apos;t get third-party tracking
+					network, and the kind of device is read from the browser as the page opens: only desktop, mobile or tablet is counted, never the browser&apos;s name. A browser that sends Do Not Track or Global Privacy Control, and a crawler, isn&apos;t counted. Newsletters don&apos;t get third-party tracking
 					pixels: a reader&apos;s browser talks only to your newsletter&apos;s host.
 				</p>
 			</Section>
@@ -61,7 +61,7 @@ export default function ReportsPage() {
 				<p>
 					Every report has its export buttons, and <Code>export_report</Code> does the same from the API: <Code>report</Code> growth (a <Code>series</Code> table, one row
 					for each period, or a <Code>breakdown</Code>, one row for each group with a column for each period), issues, or site (<Code>daily</Code>,{" "}
-					<Code>referrers</Code>, <Code>countries</Code> or <Code>pages</Code>). Rates are fractions from 0 to 1, and a cell a spreadsheet would run as a formula is
+					<Code>referrers</Code>, <Code>devices</Code>, <Code>countries</Code> or <Code>pages</Code>). Rates are fractions from 0 to 1, and a cell a spreadsheet would run as a formula is
 					quoted as text.
 				</p>
 			</Section>

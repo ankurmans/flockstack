@@ -27,7 +27,7 @@ export async function POST(request) {
 		const newsletter = await findVisitedNewsletter(slug);
 		if (!newsletter) return noContent();
 		const post = ARCHIVE_SLUG_PATTERN.test(String(body.post ?? "")) ? String(body.post) : "";
-		await countVisit({ newsletter, kind: body.kind, post, referrer: typeof body.ref === "string" ? body.ref : "", country: getCountry(request.headers), ip, userAgent });
+		await countVisit({ newsletter, kind: body.kind, post, referrer: typeof body.ref === "string" ? body.ref : "", country: getCountry(request.headers), ip, userAgent, mobileHint: request.headers.get("sec-ch-ua-mobile") ?? "" });
 	} catch (error) {
 		console.error("[visits] A visit wasn't counted:", error.message);
 	}

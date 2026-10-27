@@ -126,6 +126,33 @@ describe("a visit", () => {
 		assert.equal(m.lib.estimateVisitors(day.hll), 3, "four views by three visitors");
 	});
 
+	test("counts desktop, mobile and tablet from the browser, and keeps only the class", async () => {
+		const { getDeviceClass } = m.lib;
+		const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
+		const IPAD = "Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
+		const PIXEL = "Mozilla/5.0 (Linux; Android 15; Pixel 9) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36";
+		const ANDROID_TABLET = "Mozilla/5.0 (Linux; Android 14; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
+		assert.deepEqual([FIREFOX, IPHONE, IPAD, PIXEL, ANDROID_TABLET, ""].map((agent) => getDeviceClass(agent)), ["desktop", "mobile", "tablet", "mobile", "tablet", "desktop"]);
+		assert.equal(getDeviceClass(FIREFOX, "?1"), "mobile", "the browser's own mobile hint");
+		assert.equal(getDeviceClass(FIREFOX, "?0"), "desktop");
+
+		const user = await creator("web-device");
+		const ips = visitorIps(user, 4);
+		await visit({ n: user.slug, kind: "home" }, { ip: ips[0] });
+		await visit({ n: user.slug, kind: "home" }, { ip: ips[1], userAgent: IPHONE });
+		await visit({ n: user.slug, kind: "home" }, { ip: ips[2], userAgent: PIXEL });
+		await visit({ n: user.slug, kind: "home" }, { ip: ips[3], userAgent: IPAD });
+		const day = await dayOf(user);
+		assert.deepEqual(day.devices, { desktop: 1, mobile: 2, tablet: 1 });
+		assert.doesNotMatch(JSON.stringify(day), /iPhone|Mozilla|Firefox|Pixel/i, "no user agent is stored");
+
+		const report = (await api(user.key, "GET", `/reports/site?newsletter=${user.slug}&days=7`)).body;
+		assert.deepEqual(report.devices, [{ device: "desktop", views: 1 }, { device: "mobile", views: 2 }, { device: "tablet", views: 1 }]);
+		assert.equal((await api(user.key, "GET", `/reports/export?newsletter=${user.slug}&report=site&days=7&table=devices`)).body.csv, "device,views\r\ndesktop,1\r\nmobile,2\r\ntablet,1\r\n");
+		const empty = await creator("web-device-none");
+		assert.deepEqual((await api(empty.key, "GET", `/reports/site?newsletter=${empty.slug}&days=7`)).body.devices.map(({ views }) => views), [0, 0, 0], "a quiet website still has the three classes");
+	});
+
 	test("keeps nothing that names the visitor", async () => {
 		const user = await creator("web-private");
 		const ip = "203.0.113.77";
