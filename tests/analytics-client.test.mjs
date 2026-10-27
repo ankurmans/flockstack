@@ -34,6 +34,7 @@ function fakePosthog({ optedOut = false, distinctId = "anon-1" } = {}) {
 		identify: record("identify"),
 		setPersonProperties: record("setPersonProperties"),
 		register: record("register"),
+		register_for_session: record("register_for_session"),
 		capture: record("capture"),
 		reset: record("reset"),
 		stopSessionRecording: record("stopSessionRecording"),
@@ -184,6 +185,21 @@ describe("explicit events", () => {
 				["capture", "campaign_sent", { when: "scheduled" }],
 				["capture", "signup_completed", {}],
 				["capture", "newsletter_created", {}],
+			]
+		);
+	});
+
+	test("signup_started keeps the website's sign-up button for this browser session, so signup_completed can say where the account came from", async () => {
+		const { analytics, posthog } = setup();
+		await analytics.start(SETTINGS);
+		assert.equal(analytics.track("signup_started", { cta: "hero-primary", email: "ada@example.com" }), true);
+		assert.equal(analytics.track("signup_started", { cta: "not-a-button" }), true);
+		assert.deepEqual(
+			posthog.calls.filter(([name]) => ["capture", "register_for_session"].includes(name)),
+			[
+				["capture", "signup_started", { cta: "hero-primary" }],
+				["register_for_session", { signup_cta: "hero-primary" }],
+				["capture", "signup_started", {}],
 			]
 		);
 	});

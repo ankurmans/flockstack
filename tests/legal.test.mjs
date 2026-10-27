@@ -141,6 +141,9 @@ describe("the legal pages", () => {
 			"it runs only after you accept if you are in the EU, the EEA, the UK or Switzerland, or on eu.flockstack.io",
 			"A Global Privacy Control or Do Not Track signal from your browser turns it off",
 			"Session recording is off",
+			"which sign-up button on our website you pressed",
+			"that you used the cost calculator (never what you entered)",
+			"which wording you were shown on a page that tests wording",
 			"user ID, email address and plan",
 			"fs_consent",
 			"Cookie settings",
@@ -159,6 +162,15 @@ describe("the legal pages", () => {
 		}
 		assert.doesNotMatch(processors + privacy, /EU-only|only in the EU/i);
 		assert.doesNotMatch(processors + privacy, /PostHog EU Cloud/);
+	});
+
+	test("the policy says session recording is off while it is off, and a recording that runs cannot be published without its retention", async () => {
+		assert.equal(m.legal.SESSION_RECORDING_ON, false);
+		assert.match(m.legal.ANALYTICS_RULE, /Session recording is off\.$/);
+		assert.deepEqual(m.legal.getLegalTodos().map(([name]) => name).filter((name) => name === "SESSION_RECORDING_RETENTION"), []);
+		const source = await readFile(join(ROOT, "lib/legal.js"), "utf8");
+		assert.match(source, /\.\.\.\(SESSION_RECORDING_ON && \{ SESSION_RECORDING_RETENTION \}\)/);
+		assert.match(m.legal.SESSION_RECORDING_RETENTION, /^TODO:/);
 	});
 
 	test("Sign in with Apple is described as in use, with what Apple gets and what FlockStack keeps", () => {

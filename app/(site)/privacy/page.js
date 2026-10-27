@@ -449,10 +449,12 @@ export default function PrivacyPage() {
 					</li>
 				</ul>
 				<p>
-					<Strong>Analytics.</Strong> FlockStack&apos;s own pages load PostHog, which sets its own cookies or local storage (their names start with{" "}
+					<Strong>Analytics.</Strong> FlockStack&apos;s own pages load PostHog, which sets its own cookies, local storage or session storage (their names start with{" "}
 					<code>ph_</code>) to tell visits apart. {ANALYTICS_RULE} Those are not on this list because they are not needed for the service. When you
 					sign up, set up your first newsletter or start a plan, FlockStack also sets <code>fs_goal</code> for ten minutes, which the next page reads
-					once to count that step and removes. It is set only while analytics is on. Change your choice any time with <Strong>Cookie settings</Strong>{" "}
+					once to count that step and removes. It is set only while analytics is on. When you press a sign-up button on our website while analytics is on,
+					the button&apos;s name (such as <code>hero-primary</code>) is added to the address of the sign-in page and kept in PostHog&apos;s session storage until
+					the browser session ends or you create the account, so we can see which page brought sign-ups. It is never your email address or anything you typed. Change your choice any time with <Strong>Cookie settings</Strong>{" "}
 					in the footer of the home page, the product, pricing, comparison, migration and blog pages, the docs and the legal pages, and on the sign-in page. Declining deletes the PostHog cookies and local
 					storage.
 				</p>

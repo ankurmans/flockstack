@@ -8,12 +8,15 @@ import {
 	FORBIDDEN_PROPERTY_PATTERN,
 	GOAL_EVENTS,
 	PERSON_PROPERTIES,
+	SESSION_PROPERTIES,
+	SIGNUP_SOURCES,
 	SUPER_PROPERTIES,
 	isTrackedPath,
 	sanitizeEvent,
 	stripUrl,
 	toEvent,
 	toPersonProperties,
+	toSignupSource,
 } from "../lib/marketing/analytics-privacy.js";
 
 // What FlockStack's PostHog may carry: no newsletter content, no subscriber or contact data. The names of every property
@@ -34,7 +37,7 @@ const pageview = (url, extra = {}) => ({ event: "$pageview", properties: { $curr
 
 describe("the property names", () => {
 	test("an event carries at most a few fixed properties, none of them named for content or contacts", () => {
-		assert.deepEqual(Object.keys(EVENTS), ["signup_completed", "newsletter_created", "campaign_sent", "plan_started", "support_opened", "support_answered"]);
+		assert.deepEqual(Object.keys(EVENTS), ["signup_started", "signup_completed", "newsletter_created", "campaign_sent", "plan_started", "support_opened", "support_answered"]);
 		for (const [event, properties] of Object.entries(EVENTS)) {
 			for (const [name, values] of Object.entries(properties)) {
 				assert.doesNotMatch(name, FORBIDDEN_PROPERTY_PATTERN, `${event}.${name}`);
@@ -65,6 +68,33 @@ describe("the property names", () => {
 	});
 });
 
+describe("where a sign-up came from", () => {
+	test("only a button the website names counts, each a short fixed name", () => {
+		assert.ok(SIGNUP_SOURCES.length > 0);
+		for (const name of SIGNUP_SOURCES) assert.match(name, /^[a-z0-9][a-z0-9-]{0,18}$/, name);
+		assert.equal(new Set(SIGNUP_SOURCES).size, SIGNUP_SOURCES.length);
+		assert.equal(toSignupSource("hero-primary"), "hero-primary");
+		for (const value of ["", "Hero-Primary", "hero-primary?x=1", "ada@example.com", "constructor", "__proto__", undefined, null, ["hero-primary"], 5]) assert.equal(toSignupSource(value), null, String(value));
+	});
+
+	test("signup_started carries that name and nothing else, and the session keeps one property for it", () => {
+		assert.deepEqual(EVENTS.signup_started, { cta: SIGNUP_SOURCES });
+		assert.deepEqual(toEvent("signup_started", { cta: "plan-starter", email: "ada@example.com" }), { name: "signup_started", props: { cta: "plan-starter" } });
+		assert.deepEqual(toEvent("signup_started", { cta: "ada@example.com" }), { name: "signup_started", props: {} });
+		assert.deepEqual(SESSION_PROPERTIES, ["signup_cta"]);
+		for (const name of SESSION_PROPERTIES) assert.doesNotMatch(name, FORBIDDEN_PROPERTY_PATTERN);
+	});
+
+	test("the sign-in page reaches PostHog through the extension with the raw ?cta=, which SiteAnalytics checks", async () => {
+		const page = await readFile(join(ROOT, "app/signin/page.js"), "utf8");
+		assert.match(page, /<SiteAnalytics signupSource=\{params\.cta\} \/>/);
+		assert.doesNotMatch(page, /lib\/marketing/);
+		const site = await readFile(join(ROOT, "components/marketing/SiteAnalytics.jsx"), "utf8");
+		assert.match(site, /toSignupSource\(signupSource\)/);
+		assert.match(site, /\.\.\.\(source && \{ signupSource: source \}\)/);
+	});
+});
+
 describe("track and the goals", () => {
 	test("keep a listed event and its listed properties, and drop everything else", () => {
 		assert.deepEqual(toEvent("campaign_sent", { when: "now" }), { name: "campaign_sent", props: { when: "now" } });
@@ -76,7 +106,7 @@ describe("track and the goals", () => {
 	});
 
 	test("ignore a step that isn't counted", () => {
-		for (const goal of ["page_viewed", "constructor", "__proto__", "toString", "", undefined, null, "signup_started"]) assert.equal(toEvent(goal, {}), null, String(goal));
+		for (const goal of ["page_viewed", "constructor", "__proto__", "toString", "", undefined, null, "signup_failed"]) assert.equal(toEvent(goal, {}), null, String(goal));
 	});
 
 	test("the code calls them only with names from the list", async () => {
@@ -91,7 +121,7 @@ describe("track and the goals", () => {
 				}
 			}
 		}
-		for (const name of ["campaign_sent", "newsletter_created", "plan_started", "signup_completed", "onboarding_completed"]) assert.ok(names.has(name), `${name} is reported somewhere`);
+		for (const name of ["campaign_sent", "newsletter_created", "plan_started", "signup_completed", "onboarding_completed", "signup_started"]) assert.ok(names.has(name), `${name} is reported somewhere`);
 	});
 
 	test("posthog-js is imported in one file, and nothing else captures an event or sets a person's property", async () => {

@@ -13,7 +13,7 @@ import { useIsClient } from "@/lib/use-is-client";
 // and passes what it read from the request). The browser applies the rules again: a privacy signal means nothing is
 // loaded, sent or stored, a visitor who must consent sees the banner first, and posthog-js is imported only once
 // they may be tracked. It renders the marker below for the server-rendered page and the banner once it is needed.
-export default function ProviderAnalytics({ token, host, replay, region, requiresConsent, consent: serverConsent, identity, privacyHref = null }) {
+export default function ProviderAnalytics({ token, host, replay, region, requiresConsent, consent: serverConsent, identity, signupSource = null, privacyHref = null }) {
 	const isClient = useIsClient();
 	const [choice, setChoice] = useState(null);
 	const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -35,6 +35,7 @@ export default function ProviderAnalytics({ token, host, replay, region, require
 		let isCurrent = true;
 		const person = userId ? { id: userId, email: userEmail, plan: userPlan } : null;
 		analytics.start({ token, host, replay, region, identity: person }).then(() => {
+			if (isCurrent && signupSource) analytics.track("signup_started", { cta: signupSource });
 			const goal = isCurrent ? takeGoalCookie() : null;
 			if (goal) analytics.track(goal);
 		});
@@ -43,7 +44,7 @@ export default function ProviderAnalytics({ token, host, replay, region, require
 			isCurrent = false;
 			analytics.pause();
 		};
-	}, [isClient, status, token, host, replay, region, userId, userEmail, userPlan]);
+	}, [isClient, status, token, host, replay, region, userId, userEmail, userPlan, signupSource]);
 
 	useEffect(() => {
 		const signOut = () => analytics.reset();
