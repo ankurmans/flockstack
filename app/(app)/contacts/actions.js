@@ -36,6 +36,25 @@ export async function setContactStatus(id, status) {
 	return failure ? toFormError(failure) : { ok: true };
 }
 
+// Held signups (lib/signup-approval.js): some contacts, or all of them up to a batch.
+export async function approveHeldSignups({ newsletterId, contactIds, all }) {
+	const { output, failure } = await runDashboardAction("approve_held_signups", {
+		newsletter: String(newsletterId ?? ""),
+		...(all ? { all: true } : { contactIds: (contactIds ?? []).map(String) }),
+	});
+	revalidatePath("/contacts");
+	return failure ? toFormError(failure) : output;
+}
+
+export async function rejectHeldSignups({ newsletterId, contactIds, all }) {
+	const { output, failure } = await runDashboardAction("reject_held_signups", {
+		newsletter: String(newsletterId ?? ""),
+		...(all ? { all: true } : { contactIds: (contactIds ?? []).map(String) }),
+	});
+	revalidatePath("/contacts");
+	return failure ? toFormError(failure) : output;
+}
+
 export async function deleteContact(id) {
 	const { failure } = await runDashboardAction("delete_contact", { id: String(id) });
 	revalidatePath("/contacts");

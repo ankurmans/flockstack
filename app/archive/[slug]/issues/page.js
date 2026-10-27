@@ -3,7 +3,7 @@ import ChipsTag from "@/components/ChipsTag";
 import FormSearchIssues from "@/components/FormSearchIssues";
 import ListIssues from "@/components/ListIssues";
 import PaginationIssues from "@/components/PaginationIssues";
-import { getArchiveNewsletter, listIssueTags, listIssuesPage, MAX_SEARCH_LENGTH } from "@/lib/archive-data";
+import { getOpenArchiveNewsletter, listIssueTags, listIssuesPage, MAX_SEARCH_LENGTH } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getListSeo } from "@/lib/archive-seo";
 import { getBrand } from "@/lib/brand";
@@ -18,7 +18,7 @@ function readSearch(value) {
 }
 
 export async function generateMetadata({ params, searchParams }) {
-	const newsletter = await getArchiveNewsletter((await params).slug);
+	const newsletter = await getOpenArchiveNewsletter((await params).slug);
 	if (!newsletter) return {};
 	const { q, page } = await searchParams;
 	const pageNumber = readPageNumber(page);
@@ -32,7 +32,7 @@ export async function generateMetadata({ params, searchParams }) {
 }
 
 export default async function IssuesPage({ params, searchParams }) {
-	const newsletter = await getArchiveNewsletter((await params).slug);
+	const newsletter = await getOpenArchiveNewsletter((await params).slug);
 	if (!newsletter) notFound();
 	const { q, page } = await searchParams;
 	const search = readSearch(q);

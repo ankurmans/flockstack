@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import ChipsTag from "@/components/ChipsTag";
 import ListIssues from "@/components/ListIssues";
 import PaginationIssues from "@/components/PaginationIssues";
-import { getArchiveNewsletter, listIssueTags, listIssuesPage } from "@/lib/archive-data";
+import { getOpenArchiveNewsletter, listIssueTags, listIssuesPage } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getListSeo } from "@/lib/archive-seo";
 import { getBrand } from "@/lib/brand";
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 async function getTagPage(params, searchParams) {
 	const { slug, tag } = await params;
-	const newsletter = await getArchiveNewsletter(slug);
+	const newsletter = await getOpenArchiveNewsletter(slug);
 	if (!newsletter || !TAG_SLUG_PATTERN.test(tag)) return null;
 	const [list, tags] = await Promise.all([
 		listIssuesPage(newsletter, { page: readPageNumber((await searchParams).page), tagSlug: tag }),

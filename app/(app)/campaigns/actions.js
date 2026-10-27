@@ -192,6 +192,8 @@ export async function savePublishedIssue(id, { title, subtitle, body, format, ta
 		seoDescription: String(seo?.description ?? ""),
 		socialImage: String(seo?.image ?? ""),
 		noindex: seo?.noindex === true,
+		...(seo?.schemaType && { seoSchemaType: String(seo.schemaType) }),
+		seoJsonLd: String(seo?.jsonLd ?? ""),
 	});
 	if (failure) return toFormError(failure);
 	revalidatePath(`/campaigns/${id}`);
@@ -394,9 +396,10 @@ export async function suggestPreviewText(id, subject) {
 	return failure ? { error: failure.message, code: failure.code } : output;
 }
 
-export async function draftSocialPosts(id, subject) {
+export async function draftSocialPosts(id, subject, platforms) {
 	const { output, failure } = await runDashboardAction("draft_social_posts", {
 		campaign: String(id),
+		...(Array.isArray(platforms) && platforms.length > 0 && { platforms: platforms.map(String) }),
 		...(subject && { subject: String(subject).slice(0, MAX_SUBJECT_LENGTH) }),
 	});
 	return failure ? { error: failure.message, code: failure.code } : output;
@@ -454,13 +457,15 @@ export async function bulkUpdateCampaigns(ids, operation, newsletter, options = 
 }
 
 // What search engines and social cards show for the issue's page; empty clears a field.
-export async function setCampaignSeo(id, { title, description, image, noindex } = {}) {
+export async function setCampaignSeo(id, { title, description, image, noindex, schemaType, jsonLd } = {}) {
 	const { failure } = await runDashboardAction("update_campaign_archive", {
 		id: String(id),
 		seoTitle: String(title ?? ""),
 		seoDescription: String(description ?? ""),
 		socialImage: String(image ?? ""),
 		noindex: noindex === true,
+		...(schemaType && { seoSchemaType: String(schemaType) }),
+		seoJsonLd: String(jsonLd ?? ""),
 	});
 	if (failure) return toFormError(failure);
 	revalidatePath(`/campaigns/${id}`);

@@ -931,8 +931,8 @@ describe("templates", () => {
 		const user = await customer("v2-templates@example.com");
 		const listed = await t.api(user.key, "GET", "/automation-templates");
 		assert.equal(listed.status, 200, JSON.stringify(listed.body));
-		assert.deepEqual(listed.body.templates.map(({ id }) => id), ["welcome-series", "re-engagement", "paid-onboarding", "product-buyer-thank-you", "referral-thanks"]);
-		assert.deepEqual(listed.body.templates.map(({ trigger }) => trigger.type), ["subscribed", "unengaged", "upgraded", "product_bought", "referral_credited"]);
+		assert.deepEqual(listed.body.templates.map(({ id }) => id), ["welcome-series", "re-engagement", "paid-onboarding", "product-buyer-thank-you", "paid-upsell", "referral-thanks"]);
+		assert.deepEqual(listed.body.templates.map(({ trigger }) => trigger.type), ["subscribed", "unengaged", "upgraded", "product_bought", "subscribed", "referral_credited"]);
 		assert.equal(listed.body.templates.length, AUTOMATION_TEMPLATES.length);
 		for (const template of listed.body.templates) {
 			assert.ok(template.description.length > 40 && template.steps >= 2, template.id);
@@ -977,6 +977,31 @@ describe("templates", () => {
 		assert.equal(sesEmails.slice(before).filter(({ to }) => to === user.address("ann")).length, 3);
 		assert.deepEqual(await tagsOf(user, "ann"), ["welcomed"]);
 		assert.equal((await enrollmentsOf(user, created.body))[0].status, "completed");
+	});
+
+	test("the paid upgrade offer emails free readers only, once and then once more, and leaves out anyone who paid or left", async () => {
+		const user = await customer("v2-upsell@example.com");
+		const created = await t.api(user.key, "POST", "/automations/from-template", { template: "paid-upsell" });
+		await t.api(user.key, "POST", `/automations/${created.body.id}/activate`);
+		const before = sesEmails.length;
+		await subscribe(user, "free");
+		await subscribe(user, "payer");
+		await subscribe(user, "leaver");
+		const start = new Date();
+		await run(start);
+		assert.equal(sesEmails.slice(before).length, 0, "nothing on the first day");
+
+		await t.m.Contact.updateOne({ accountId: user.accountId, email: user.address("payer") }, { $set: { tier: "paid", paidUntil: new Date(Date.now() + 90 * DAY_MS) } });
+		await t.m.Contact.updateOne({ accountId: user.accountId, email: user.address("leaver") }, { $set: { status: "unsubscribed" } });
+		await run(new Date(start.getTime() + 14 * DAY_MS + 1000));
+		const first = sesEmails.slice(before);
+		assert.deepEqual(first.map(({ to }) => to), [user.address("free")]);
+		assert.equal(first[0].subject, "What paid readers get");
+
+		await run(new Date(start.getTime() + 21 * DAY_MS + 5000));
+		assert.deepEqual(sesEmails.slice(before).map(({ subject }) => subject), ["What paid readers get", "One last note about paid issues"]);
+		assert.deepEqual(await tagsOf(user, "free"), ["upsold"]);
+		assert.deepEqual(await tagsOf(user, "payer"), []);
 	});
 
 	test("the re-engagement template tags those who came back and those who stayed quiet", async () => {

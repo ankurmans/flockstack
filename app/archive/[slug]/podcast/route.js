@@ -1,4 +1,4 @@
-import { getArchiveNewsletter } from "@/lib/archive-data";
+import { getOpenArchiveNewsletter } from "@/lib/archive-data";
 import { buildPodcastFeed } from "@/lib/audio-feed";
 import { isAudioEnabled } from "@/lib/audio-config";
 import { listPodcastEpisodes } from "@/lib/audio";
@@ -7,7 +7,7 @@ import { listPodcastEpisodes } from "@/lib/audio";
 // poll often: a conditional request gets a 304 without the body, and a cache in front may keep the file for 15 minutes.
 // Only issues for everyone with audio are in it.
 export async function GET(request, { params }) {
-	const newsletter = await getArchiveNewsletter((await params).slug);
+	const newsletter = await getOpenArchiveNewsletter((await params).slug);
 	if (!newsletter?.audio?.podcast?.enabled || !isAudioEnabled()) return new Response("Not found", { status: 404 });
 
 	const { xml, lastModified, etag } = buildPodcastFeed({ newsletter, episodes: await listPodcastEpisodes(newsletter) });

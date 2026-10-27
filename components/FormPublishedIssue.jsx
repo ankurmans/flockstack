@@ -11,12 +11,13 @@ import CardSettings, { RowSettings } from "@/components/CardSettings";
 import DialogVersionHistory from "@/components/DialogVersionHistory";
 import EditorRich from "@/components/EditorRich";
 import RowCampaign from "@/components/RowCampaign";
+import RowsSchema from "@/components/RowsSchema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MAX_ISSUE_TAGS } from "@/lib/issue-tags";
 import { markdownToHtml } from "@/lib/markdown";
-import { SEO_LIMITS } from "@/lib/seo-rules";
+import { DEFAULT_SCHEMA_TYPE, SEO_LIMITS, formatJsonLd } from "@/lib/seo-rules";
 import { toast } from "@/lib/toast";
 
 // A sent issue's page on the website: its title, subtitle, body, tags and search settings, edited on their own. What readers
@@ -34,6 +35,8 @@ export default function FormPublishedIssue({ campaign, newsletter, pageUrl, fiel
 		seoDescription: campaign.seo?.description ?? "",
 		seoImage: campaign.seo?.imageUrl ?? "",
 		noindex: Boolean(campaign.seo?.noindex),
+		schemaType: campaign.seo?.schemaType ?? DEFAULT_SCHEMA_TYPE,
+		jsonLd: formatJsonLd(campaign.seo?.jsonLd),
 	}));
 	const [saved, setSaved] = useState(initial);
 	const [values, setValues] = useState(initial);
@@ -57,7 +60,7 @@ export default function FormPublishedIssue({ campaign, newsletter, pageUrl, fiel
 				body: values.body,
 				format: isHtml ? "html" : "rich",
 				tags: values.tags,
-				seo: { title: values.seoTitle, description: values.seoDescription, image: values.seoImage, noindex: values.noindex },
+				seo: { title: values.seoTitle, description: values.seoDescription, image: values.seoImage, noindex: values.noindex, schemaType: values.schemaType, jsonLd: values.jsonLd },
 			});
 			if (result?.error) return void toast.error(result.error);
 			setSaved(values);
@@ -161,6 +164,7 @@ export default function FormPublishedIssue({ campaign, newsletter, pageUrl, fiel
 							</span>
 						</label>
 					</RowSettings>
+					<RowsSchema schemaType={values.schemaType} jsonLd={values.jsonLd} onChange={(change) => setValues((current) => ({ ...current, ...change }))} />
 				</CardSettings>
 			</div>
 

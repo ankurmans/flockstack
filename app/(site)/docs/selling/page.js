@@ -95,6 +95,11 @@ export default function SellingPage() {
 					can&apos;t be deleted: archive it, and it leaves the subscribe page while its readers keep it.
 				</p>
 				<p className="mt-4">
+					A paused subscription sends <Code>subscriber.paused</Code> after the <Code>subscriber.downgraded</Code> that says the paid issues
+					stopped, and <Code>subscriber.resumed</Code> after the <Code>subscriber.upgraded</Code> when it is active again. Both carry the
+					tier, the billing interval and the subscriber, and each is sent once per change.
+				</p>
+				<p className="mt-4">
 					A newsletter that had a paid tier before tiers keeps it: one tier named Paid subscription with its monthly and yearly prices,
 					and its readers hold it. It is written out as the lowest tier the first time you add another.
 				</p>

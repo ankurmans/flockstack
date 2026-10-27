@@ -18,7 +18,7 @@ function noop() {
 // An issue the newsletter gates (lib/popup-rules.js): its beginning, then the signup form. A browser with a reader session for
 // the newsletter (an emailed link, or a confirmation) asks for the rest like a paid reader's does (lib/reader-access.js), and the
 // server gives it only to a subscriber who is still active. Anyone else subscribes, or asks for a sign-in link if they already do.
-export default function GateIssue({ preview, newsletter, post, subscribeHref, audio = null }) {
+export default function GateIssue({ preview, newsletter, post, subscribeHref, audio = null, isPrivate = false }) {
 	const t = useReaderText();
 	// The marker cookie says this browser has a session for the newsletter; the page is cached, so only the browser can tell.
 	const hasSession = useSyncExternalStore(
@@ -46,20 +46,30 @@ export default function GateIssue({ preview, newsletter, post, subscribeHref, au
 	const onJoined = useCallback(
 		(state) => {
 			storeValue(gateReturnKey(newsletter.slug), window.location.pathname);
-			setJoined(state.pending ? "pending" : "active");
+			setJoined(state.pending ? "pending" : state.held ? "held" : "active");
 		},
 		[newsletter.slug]
 	);
 
 	if (status === "open") {
-		return <BodyIssue readerTranslations={Boolean(newsletter.readerTranslations)} language={newsletter.language ?? "en"} slug={newsletter.slug} post={post} initial={full} newsletterName={newsletter.name} subscribeHref={subscribeHref} audio={audio} isOpened />;
+		return (
+			<>
+				{isPrivate && full.title && (
+					<header className="animate-enter">
+						<h1 className="site-title text-4xl font-semibold tracking-tight text-balance sm:text-[2.75rem] sm:leading-[1.1]">{full.title}</h1>
+						{full.subtitle && <p className="mt-4 text-xl text-muted-foreground text-pretty">{full.subtitle}</p>}
+					</header>
+				)}
+				<BodyIssue readerTranslations={Boolean(newsletter.readerTranslations)} language={newsletter.language ?? "en"} slug={newsletter.slug} post={post} initial={full} newsletterName={newsletter.name} subscribeHref={subscribeHref} audio={audio} isOpened />
+			</>
+		);
 	}
 
 	return (
 		<>
-			<div className="prose-issue mt-10" dangerouslySetInnerHTML={{ __html: preview }} />
+			{!isPrivate && <div className="prose-issue mt-10" dangerouslySetInnerHTML={{ __html: preview }} />}
 			<div className="relative mt-2">
-				<div aria-hidden="true" className="pointer-events-none absolute inset-x-0 -top-24 h-24 bg-gradient-to-t from-background to-transparent" />
+				{!isPrivate && <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 -top-24 h-24 bg-gradient-to-t from-background to-transparent" />}
 				<section id="subscribe" aria-labelledby="gate-title" className="flex scroll-mt-24 flex-col items-center gap-3 rounded-2xl bg-card px-6 py-10 text-center shadow-border">
 					<span className="grid size-10 place-items-center rounded-xl bg-muted text-muted-foreground">
 						{status === "checking" ? <Loader2 className="size-5 animate-spin" aria-hidden="true" /> : <Lock className="size-5" aria-hidden="true" />}
@@ -71,17 +81,21 @@ export default function GateIssue({ preview, newsletter, post, subscribeHref, au
 					) : (
 						<>
 							<h2 id="gate-title" className="text-xl font-semibold tracking-tight text-balance">
-								{t("Subscribe to read the rest")}
+								{isPrivate ? t("This newsletter is private") : t("Subscribe to read the rest")}
 							</h2>
 							<p className="max-w-sm text-muted-foreground text-pretty">
-								{t("{name} is free. Enter your email to keep reading, and get every issue in your inbox.", { name: newsletter.name })}
+								{isPrivate
+									? t("Only approved subscribers can read it. Ask to join below, or get a sign-in link if you already have access.")
+									: t("{name} is free. Enter your email to keep reading, and get every issue in your inbox.", { name: newsletter.name })}
 							</p>
 							<FormSubscribe newsletterSlug={newsletter.slug} fields={newsletter.signupFields} via="gate" onResult={onJoined} className="mt-3 max-w-sm" />
 							{joined && (
 								<p role="status" className="max-w-sm text-sm text-pretty text-muted-foreground">
 									{joined === "pending"
 										? t("Click the confirmation link in this browser to open the full issue.")
-										: t("You're subscribed. Ask for a sign-in link below to read the rest.")}
+										: joined === "held"
+											? t("Request received. You'll get the next issue once the owner approves you.")
+											: t("You're subscribed. Ask for a sign-in link below to read the rest.")}
 								</p>
 							)}
 							<FormSignIn slug={newsletter.slug} post={post} />

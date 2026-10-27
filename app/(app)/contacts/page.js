@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { ChevronLeft, ChevronRight, Users } from "lucide-react";
 import AvatarContact from "@/components/AvatarContact";
 import BadgeTag from "@/components/BadgeTag";
+import BannerHeldSignups from "@/components/BannerHeldSignups";
 import BannerRemovals from "@/components/BannerRemovals";
 import BadgeStatus from "@/components/BadgeStatus";
 import ButtonExportContacts from "@/components/ButtonExportContacts";
@@ -104,6 +105,7 @@ export default async function ContactsPage({ searchParams }) {
 				{removals.length > 0 && (
 					<BannerRemovals key={removals.map(({ id }) => id).join()} newsletterId={newsletterId} initial={removals} />
 				)}
+				{(counts.held ?? 0) > 0 && <BannerHeldSignups newsletterId={newsletterId} count={counts.held} />}
 				{hasContacts && (
 					<>
 						<Suspense fallback={<Skeleton className="h-9 w-full rounded-lg" />}>
@@ -205,6 +207,7 @@ export default async function ContactsPage({ searchParams }) {
 										<TableCell className="pr-2 text-right">
 											<MenuContact
 												id={contact._id.toString()}
+												newsletterId={newsletterId}
 												email={contact.email}
 												status={contact.status}
 												tags={contact.tags ?? []}

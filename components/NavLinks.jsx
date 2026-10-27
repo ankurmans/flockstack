@@ -116,6 +116,7 @@ export function getGroups({ hasAudio = false } = {}) {
 			items: [
 				{ href: "/products", label: "Products", icon: ShoppingBag },
 				{ href: "/perks", label: "Subscriber perks", icon: Gift },
+				{ href: "/gift-links", label: "Gift links", icon: Link2 },
 				{ href: "/orders", label: "Orders", icon: Receipt },
 				{ href: "/payments", label: "Payments", icon: CreditCard },
 			],

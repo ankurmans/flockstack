@@ -25,6 +25,14 @@ export default function FormConfirm({ token, newsletterName, slug, fromName, fro
 		if (redirectUrl) window.location.replace(redirectUrl);
 	}, [redirectUrl]);
 
+	if (state?.ok && state.held) {
+		return (
+			<CardNotice icon={MailCheck} tone="success" title={t("You're confirmed")}>
+				{t("{name} approves new subscribers. You'll get the next issue once the owner says yes.", { name: newsletterName })}
+			</CardNotice>
+		);
+	}
+
 	if (state?.ok) {
 		// A gated issue the reader signed up on, in this browser: the full issue opens there now.
 		const gateReturn = readGateReturn(slug);

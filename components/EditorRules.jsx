@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SET_OPS, isGroup, newCondition } from "@/lib/rules-state";
 
-const STATUSES = ["active", "pending", "unsubscribed", "bounced", "complained", "dormant"];
+const STATUSES = ["active", "pending", "held", "unsubscribed", "bounced", "complained", "dormant"];
 const TYPE_LABELS = {
 	status: "Status",
 	tag: "Tag",

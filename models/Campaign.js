@@ -116,6 +116,10 @@ const campaignSchema = new mongoose.Schema(
 			description: { type: String, trim: true },
 			imageUrl: { type: String, trim: true },
 			noindex: { type: Boolean },
+			// The page's schema.org type when it is not the default BlogPosting, and the issue's own structured data as compact
+			// JSON (lib/seo-rules.js checkJsonLd): up to 5 blocks, shown next to the newsletter's.
+			schemaType: { type: String },
+			jsonLd: { type: String },
 			updatedAt: { type: Date },
 		},
 		// Pinned issues sit in the Featured row at the top of the archive.

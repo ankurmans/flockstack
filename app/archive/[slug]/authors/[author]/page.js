@@ -5,7 +5,7 @@ import LinksSocial from "@/components/LinksSocial";
 import ScriptJsonLd from "@/components/ScriptJsonLd";
 import TriggerSubscribe from "@/components/TriggerSubscribe";
 import { getArchiveAuthors } from "@/lib/archive-author";
-import { getArchiveNewsletter, listArchiveIssues } from "@/lib/archive-data";
+import { getOpenArchiveNewsletter, listArchiveIssues } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getAuthorSeo } from "@/lib/archive-seo";
 import { formatNumber } from "@/lib/format";
@@ -19,7 +19,7 @@ export function generateStaticParams() {
 
 async function getAuthorPage(params) {
 	const { slug, author: authorSlug } = await params;
-	const newsletter = await getArchiveNewsletter(slug);
+	const newsletter = await getOpenArchiveNewsletter(slug);
 	if (!newsletter) return null;
 	const author = getArchiveAuthors(newsletter).find(({ slug }) => slug === authorSlug);
 	return author ? { newsletter, author } : null;

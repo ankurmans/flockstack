@@ -11,7 +11,7 @@ import ScriptJsonLd from "@/components/ScriptJsonLd";
 import TriggerSubscribe from "@/components/TriggerSubscribe";
 import { HOME_ISSUES, countReaders, getArchiveSite, listHomeIssues, listSignupFields } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
-import { getComingSoonSeo, getCustomJsonLd, getHomeSeo } from "@/lib/archive-seo";
+import { getComingSoonSeo, getCustomJsonLd, getHomeSeo, getPrivateSeo } from "@/lib/archive-seo";
 import { getBrand } from "@/lib/brand";
 import { formatNumber } from "@/lib/format";
 import { getPopupSettings, getTriggerProps, isPopupOn } from "@/lib/popup-rules";
@@ -27,12 +27,14 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }) {
 	const newsletter = await getArchiveSite((await params).slug);
 	if (!newsletter) return {};
+	if (newsletter.privateArchive) return getPrivateSeo(newsletter);
 	return newsletter.comingSoon ? getComingSoonSeo(newsletter) : getHomeSeo(newsletter).metadata;
 }
 
 export default async function ArchivePage({ params }) {
 	const newsletter = await getArchiveSite((await params).slug);
 	if (!newsletter) notFound();
+	if (newsletter.privateArchive) return <PageComingSoon newsletter={newsletter} signupFields={await listSignupFields(newsletter)} isPrivate />;
 	if (newsletter.comingSoon) return <PageComingSoon newsletter={newsletter} signupFields={await listSignupFields(newsletter)} />;
 
 	const [home, readers, signupFields, recommendations] = await Promise.all([

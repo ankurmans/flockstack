@@ -1,11 +1,11 @@
-import { getArchiveIssue, getArchiveNewsletter } from "@/lib/archive-data";
+import { getArchiveIssue, getOpenArchiveNewsletter } from "@/lib/archive-data";
 import { getGatePreview, isGatedFor } from "@/lib/archive-gate";
 import { getArchiveMarkdown } from "@/lib/archive-markdown";
 
 export const revalidate = 3600;
 export async function GET(_request, { params }) {
 	const { slug, post } = await params;
-	const newsletter = await getArchiveNewsletter(slug);
+	const newsletter = await getOpenArchiveNewsletter(slug);
 	const issue = newsletter && await getArchiveIssue(newsletter, post);
 	if (!issue) return new Response("Not found", { status: 404 });
 	const gated = await isGatedFor(newsletter, issue);

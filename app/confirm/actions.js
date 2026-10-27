@@ -19,6 +19,8 @@ export async function confirmSubscription(token) {
 	const newsletter = await findOpenNewsletter({ _id: reference.newsletterId });
 	if (!newsletter) return { error: "invalid" };
 	const { contact, confirmed } = await confirmContact({ accountId: newsletter.accountId, ...reference });
+	// Confirmed, and now waiting for the owner (Newsletter.signupApproval): no session, no welcome, no credit yet.
+	if (contact?.status === "held") return { ok: true, held: true };
 	if (contact?.status !== "active") return { error: "invalid" };
 	// The link proved the address, so the browser can sign in to the website as this subscriber (a gated issue opens).
 	await startReaderSession(newsletter, contact._id);

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Loader2, MoreHorizontal, Tags, Trash2, UserCheck, UserX } from "lucide-react";
-import { deleteContact, setContactStatus } from "@/app/(app)/contacts/actions";
+import { approveHeldSignups, deleteContact, setContactStatus } from "@/app/(app)/contacts/actions";
 import DialogContactDetails from "@/components/DialogContactDetails";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,12 +26,13 @@ import { toast } from "@/lib/toast";
 const SUBSCRIBED_STATUSES = ["active", "dormant"];
 // Deleted, they leave their status behind (lib/contacts.js).
 const AFTER_DELETE = {
+	held: "Nothing is sent to them, and they can ask to join again.",
 	unsubscribed: "They unsubscribed, so adding them again won't email them.",
 	bounced: "Their address bounced, so adding it again won't email it.",
 	complained: "They marked an email as spam, so adding them again won't email them.",
 };
 
-export default function MenuContact({ id, email, status, tags = [], fields = {}, definitions = [], tagColors = {}, listIds = [], mailingLists = [] }) {
+export default function MenuContact({ id, newsletterId, email, status, tags = [], fields = {}, definitions = [], tagColors = {}, listIds = [], mailingLists = [] }) {
 	const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 	const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 	const [isPending, startTransition] = useTransition();
@@ -41,6 +42,14 @@ export default function MenuContact({ id, email, status, tags = [], fields = {},
 		startTransition(async () => {
 			const result = await setContactStatus(id, nextStatus);
 			if (result?.error) toast.error(result.error);
+		});
+	}
+
+	function approve() {
+		startTransition(async () => {
+			const result = await approveHeldSignups({ newsletterId, contactIds: [id] });
+			if (result?.error) toast.error(result.error);
+			else toast.success(`${email} approved`);
 		});
 	}
 
@@ -63,6 +72,12 @@ export default function MenuContact({ id, email, status, tags = [], fields = {},
 						<Tags />
 						Tags and fields
 					</DropdownMenuItem>
+					{status === "held" && (
+						<DropdownMenuItem onSelect={approve}>
+							<UserCheck />
+							Approve
+						</DropdownMenuItem>
+					)}
 					{status === "dormant" && (
 						<DropdownMenuItem onSelect={() => update("active")}>
 							<UserCheck />
@@ -80,7 +95,7 @@ export default function MenuContact({ id, email, status, tags = [], fields = {},
 					)}
 					<DropdownMenuItem variant="destructive" onSelect={() => setIsDeleteOpen(true)}>
 						<Trash2 />
-						Delete contact
+						{status === "held" ? "Turn down" : "Delete contact"}
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>

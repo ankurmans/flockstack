@@ -63,6 +63,7 @@ test("the dashboard counts the hourly limits of what costs something each call",
 			"add_dedicated_ip",
 			"add_domain",
 			"add_recommendation",
+			"approve_held_signups",
 			"bootstrap_newsletter",
 			"cancel_reader_pause",
 			"cancel_reader_subscription",
@@ -121,7 +122,6 @@ test("the dashboard counts the hourly limits of what costs something each call",
 			"upload_image",
 			"upload_sponsorship_asset",
 			"use_stock_photo",
-
 		]
 	);
 	assert.deepEqual(
@@ -162,6 +162,7 @@ test("the dashboard counts the hourly limits of what costs something each call",
 			"preview_campaign_cleanup",
 			"preview_campaign_recipients",
 			"preview_segment",
+			"reject_held_signups",
 			"remove_tag",
 			"rotate_webhook_secret",
 			"set_contact_field",

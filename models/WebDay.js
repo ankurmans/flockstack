@@ -4,7 +4,8 @@ import { accountScoped } from "../lib/account-scope.js";
 // What a newsletter's website did in one UTC day, counted as it happens (lib/web-analytics.js): never a row per visit, and
 // nothing that names a visitor. views: page views. hll: a sketch of the day's distinct visitors, small numbers by register that
 // can't be turned back into who was there, and kept for this day only. pages, referrers, countries: views by issue address,
-// referring host (dots written as commas) and country code.
+// referring host (dots written as commas) and country code. devices: views by desktop, mobile or tablet, worked out from the
+// browser on arrival; the browser itself is not kept.
 const webDaySchema = new mongoose.Schema(
 	{
 		newsletterId: { type: mongoose.Schema.Types.ObjectId, ref: "Newsletter", required: true },
@@ -14,6 +15,7 @@ const webDaySchema = new mongoose.Schema(
 		pages: { type: mongoose.Schema.Types.Mixed },
 		referrers: { type: mongoose.Schema.Types.Mixed },
 		countries: { type: mongoose.Schema.Types.Mixed },
+		devices: { type: mongoose.Schema.Types.Mixed },
 	},
 	{ timestamps: true }
 );

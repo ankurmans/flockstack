@@ -187,6 +187,44 @@ describe("subject lines, preview text and social posts", () => {
 		assert.ok(post.length + 1 + 23 <= 280, "X counts a link as 23 characters");
 	});
 
+	test("draft Facebook, Threads and Bluesky posts, each within its limit with the issue's link counted, and post nothing", async () => {
+		const user = await newCustomer();
+		const id = await t.draft(user, { subject: "Issue", content: "Notes on async work." });
+		const long = "A sentence about async work. ".repeat(30);
+		const calls = stubAi({ response: `FACEBOOK:\nA friendly note.\n\nTHREADS: ${long}\n\nBLUESKY:\n${long}\n\nLINKEDIN: Pro note\nX: Short` });
+		const asked = await t.api(user.key, "POST", "/ai/social-posts", { campaign: id, platforms: ["facebook", "threads", "bluesky"] });
+		assert.equal(asked.status, 200, JSON.stringify(asked.body));
+		assert.deepEqual(Object.keys(asked.body.posts), ["facebook", "threads", "bluesky"]);
+		assert.equal(asked.body.posts.facebook, "A friendly note.");
+		assert.ok(m.writing.countGraphemes(asked.body.posts.threads) <= 500 && m.writing.countGraphemes(asked.body.posts.bluesky) <= 300);
+		const system = calls[0].input.messages[0].content;
+		assert.match(system, /FACEBOOK:/);
+		assert.match(system, /THREADS: a conversational post under 500 characters/);
+		assert.match(system, /BLUESKY: a plain post under 300 characters/);
+		assert.doesNotMatch(system, /LINKEDIN:/, "only the platforms asked for");
+
+		await t.m.Campaign.updateOne({ _id: id, accountId: user.accountId }, { $set: { status: "sent", sentAt: new Date(), archiveSlug: "async-work-three" } });
+		await t.m.Newsletter.updateOne({ _id: user.newsletterId, accountId: user.accountId }, { $set: { archiveEnabled: true } });
+		const withLink = (await t.api(user.key, "POST", "/ai/social-posts", { campaign: id, platforms: ["threads", "bluesky"] })).body.posts;
+		for (const [platform, limit] of [["threads", 500], ["bluesky", 300]]) {
+			const split = withLink[platform].lastIndexOf("\n");
+			assert.match(withLink[platform].slice(split + 1), /\/p\/async-work-three$/);
+			assert.ok(m.writing.countGraphemes(withLink[platform]) <= limit, `${platform} with its link is within ${limit}`);
+		}
+		assert.deepEqual(Object.keys((await t.api(user.key, "POST", "/ai/social-posts", { campaign: id })).body.posts), ["linkedin", "x"], "LinkedIn and X without platforms");
+		t.assertError(await t.api(user.key, "POST", "/ai/social-posts", { campaign: id, platforms: ["mastodon"] }), 400, "validation_failed");
+	});
+
+	test("count graphemes for Bluesky and an X link as 23 characters", () => {
+		const { countGraphemes, countPost, fitToLimit, getPostLimit } = m.writing;
+		assert.equal(countGraphemes("é👨‍👩‍👧"), 2);
+		assert.equal(countPost("x", `Read this https://example.com/p/${"a".repeat(80)}`), 10 + 23);
+		assert.equal(countPost("bluesky", "https://example.com"), 19);
+		assert.equal(getPostLimit("bluesky", "https://example.com/p/a"), 300 - 24);
+		assert.equal(getPostLimit("facebook", null), null);
+		assert.equal(countGraphemes(fitToLimit("👨‍👩‍👧".repeat(10), 4)), 4);
+	});
+
 	test("read what a model returns that is not quite the format", () => {
 		const { parseOptions, parseSocialPosts, fitToLimit } = m.writing;
 		assert.deepEqual(parseOptions("Here are options:\n1. First\n2. First\n3. " + "x".repeat(300) + "\n4. Second", { count: 5, maxLength: 120 }), ["First", "Second"]);

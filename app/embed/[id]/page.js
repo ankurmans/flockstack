@@ -55,7 +55,7 @@ export default async function EmbedPage({ params, searchParams }) {
 				message={getFormMessage(form)}
 				parent={typeof query.parent === "string" ? query.parent : ""}
 				utm={utm}
-				state={done === "pending" ? "pending" : done === "1" ? "done" : ""}
+				state={done === "pending" ? "pending" : done === "held" ? "held" : done === "1" ? "done" : ""}
 				errorText={Object.hasOwn(FORM_ERRORS, errorCode ?? "") ? FORM_ERRORS[errorCode] : ""}
 			/>
 		</>

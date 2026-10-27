@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { PLATFORM_NAMES, X_LIMIT } from "@/lib/ai-writing";
+import { DEFAULT_SOCIAL_PLATFORMS, PLATFORM_NAMES, SOCIAL_PLATFORMS, countPost, getPostLimit } from "@/lib/ai-writing";
 import { toast } from "@/lib/toast";
 
-// Plain copy for a LinkedIn post and a post on X, from the issue. FlockStack posts nothing: the writer edits it, copies it
+// Plain copy for a post on each platform chosen, from the issue. FlockStack posts nothing: the writer edits it, copies it
 // and posts it where it belongs.
 export default function DialogSocialPosts({ isOpen, onOpenChange, run, onRetry, onSave }) {
+	const [platforms, setPlatforms] = useState(DEFAULT_SOCIAL_PLATFORMS);
+	const toggle = (platform) => setPlatforms((current) => (current.includes(platform) ? current.filter((item) => item !== platform) : SOCIAL_PLATFORMS.filter((item) => item === platform || current.includes(item))));
 	return (
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-2xl">
@@ -20,6 +22,15 @@ export default function DialogSocialPosts({ isOpen, onOpenChange, run, onRetry, 
 					<DialogTitle>Social posts</DialogTitle>
 					<DialogDescription>Drafts to edit and post yourself. FlockStack never posts for you.</DialogDescription>
 				</DialogHeader>
+				<fieldset className="flex flex-wrap gap-x-4 gap-y-2" disabled={run.status === "loading"}>
+					<legend className="sr-only">Platforms</legend>
+					{SOCIAL_PLATFORMS.map((platform) => (
+						<label key={platform} className="flex items-center gap-2 text-sm">
+							<input type="checkbox" checked={platforms.includes(platform)} onChange={() => toggle(platform)} className="size-4 accent-foreground" />
+							{PLATFORM_NAMES[platform]}
+						</label>
+					))}
+				</fieldset>
 				{run.status === "loading" && (
 					<div className="flex items-center gap-2 py-8 text-sm text-muted-foreground" role="status">
 						<Loader2 className="size-4 animate-spin" />
@@ -40,7 +51,7 @@ export default function DialogSocialPosts({ isOpen, onOpenChange, run, onRetry, 
 					</div>
 				)}
 				<DialogFooter>
-					<Button variant="outline" onClick={onRetry} disabled={run.status === "loading"}>
+					<Button variant="outline" onClick={() => onRetry(platforms)} disabled={run.status === "loading" || platforms.length === 0}>
 						<RefreshCw data-icon="inline-start" />
 						Write again
 					</Button>
@@ -57,6 +68,8 @@ function PostEditor({ platform, initial, onSave }) {
 	const [saved, setSaved] = useState(null);
 	const [isSaving, setIsSaving] = useState(false);
 	const id = `post-${platform}`;
+	const limit = getPostLimit(platform, null);
+	const count = countPost(platform, text);
 
 	async function copy() {
 		try {
@@ -81,9 +94,9 @@ function PostEditor({ platform, initial, onSave }) {
 			<div className="flex items-center justify-between">
 				<Label htmlFor={id}>{PLATFORM_NAMES[platform]}</Label>
 				<span className="flex items-center gap-3">
-					{platform === "x" && (
-						<span className={text.length > X_LIMIT ? "text-xs text-destructive tabular-nums" : "text-xs text-muted-foreground tabular-nums"}>
-							{text.length} / {X_LIMIT}
+					{limit && (
+						<span className={count > limit ? "text-xs text-destructive tabular-nums" : "text-xs text-muted-foreground tabular-nums"}>
+							{count} / {limit}
 						</span>
 					)}
 					{onSave && (saved ? (
@@ -101,7 +114,7 @@ function PostEditor({ platform, initial, onSave }) {
 					</Button>
 				</span>
 			</div>
-			<Textarea id={id} value={text} onChange={(event) => setText(event.target.value)} rows={platform === "x" ? 4 : 10} />
+			<Textarea id={id} value={text} onChange={(event) => setText(event.target.value)} rows={limit && limit <= 300 ? 4 : platform === "facebook" || platform === "threads" ? 6 : 10} />
 		</div>
 	);
 }

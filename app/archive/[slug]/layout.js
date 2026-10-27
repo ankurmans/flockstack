@@ -28,7 +28,8 @@ export default async function ArchiveLayout({ children, params }) {
 	const urls = getArchiveUrls(newsletter);
 	const { index, shop, subscribe, feed } = urls;
 	const theme = getBrand(newsletter).theme;
-	const navLinks = comingSoon ? [] : getNavLinks(newsletter, pages, urls);
+	const isPrivate = Boolean(newsletter.privateArchive);
+	const navLinks = comingSoon || isPrivate ? [] : getNavLinks(newsletter, pages, urls);
 	const hasProducts = !comingSoon && payments.ready && products.length > 0;
 	const shopLink = comingSoon ? null : hasProducts || (payments.ready && (newsletter.paidTier?.enabled || newsletter.paidTier?.pledges?.enabled)) ? { href: hasProducts || newsletter.paidTier?.enabled ? shop : subscribe, label: hasProducts ? "Shop" : newsletter.paidTier?.enabled ? "Go paid" : "Pledge" } : null;
 	const pitch = {
@@ -54,7 +55,7 @@ export default async function ArchiveLayout({ children, params }) {
 					accountHref={urls.account}
 				/>
 				<main className="flex-1">{children}</main>
-				<FooterArchive newsletter={newsletter} indexHref={index} feedHref={comingSoon ? null : feed} navLinks={navLinks} />
+				<FooterArchive newsletter={newsletter} indexHref={index} feedHref={comingSoon || isPrivate ? null : feed} navLinks={navLinks} />
 				<TrackVisit slug={newsletter.slug} />
 			</div>
 		</ProviderSubscribe>

@@ -8,7 +8,7 @@
 		"node": ">=22",
 		"core": "19.2.1",
 		"cli": "19.2.1",
-		"triggerCount": 52,
+		"triggerCount": 55,
 		"actions": [
 			"add_subscriber",
 			"update_subscriber",
@@ -38,12 +38,24 @@
 			"title": "Subscriber updated"
 		},
 		{
+			"type": "subscriber.approved",
+			"title": "Subscriber approved"
+		},
+		{
 			"type": "subscriber.upgraded",
 			"title": "Subscriber upgraded to paid"
 		},
 		{
 			"type": "subscriber.downgraded",
 			"title": "Subscriber downgraded to free"
+		},
+		{
+			"type": "subscriber.paused",
+			"title": "Subscription paused"
+		},
+		{
+			"type": "subscriber.resumed",
+			"title": "Subscription resumed"
 		},
 		{
 			"type": "campaign.sent",
@@ -355,8 +367,8 @@
 		},
 		{
 			"path": "integrations/make/webhooks/flockstack/parameters.iml.json",
-			"bytes": 5157,
-			"sha256": "cb2100a8acdc9ccee81a26c4c868e96e26a1e19b0031b504492a48c2b8df535a"
+			"bytes": 5443,
+			"sha256": "d5e3e346a19d802aa6b0718cf14ed630ca46ab3cfc921c224ef0ee5465625f7b"
 		},
 		{
 			"path": "integrations/zapier/authentication.js",
@@ -395,8 +407,8 @@
 		},
 		{
 			"path": "integrations/zapier/lib/events.js",
-			"bytes": 10938,
-			"sha256": "8226a5d6dc298ecf41dda2b002d997c58d32b46fb7c05ee01f4b62b0519bdb53"
+			"bytes": 11465,
+			"sha256": "8f856f13b1b06a0ba54e52a73e60972e8d69497ab2ba18ded24e4c2458d08ddf"
 		},
 		{
 			"path": "integrations/zapier/package-lock.json",

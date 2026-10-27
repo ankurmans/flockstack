@@ -19,7 +19,7 @@ function isActive(postImport) {
 	return postImport?.status === "queued" || postImport?.status === "running";
 }
 
-// A Substack, beehiiv, WordPress or Ghost export, in three steps: upload it and read the preview, start it, follow it to
+// A Substack, beehiiv, WordPress, Ghost or Mailchimp export, in three steps: upload it and read the preview, start it, follow it to
 // its report. The import runs in the background, so the page can close; the owner gets the report by email too.
 export default function CardPostImport({ newsletter, initialImports, limits, maxFileBytes }) {
 	const [imports, setImports] = useState(initialImports);
@@ -93,7 +93,7 @@ export default function CardPostImport({ newsletter, initialImports, limits, max
 				}
 			>
 				<p className="px-4 py-3 text-sm text-pretty text-muted-foreground">
-					Your Substack, beehiiv, WordPress or Ghost posts become issues of {newsletter.name}, sent on their original dates and listed on your
+					Your Substack, beehiiv, WordPress, Ghost or Mailchimp posts become issues of {newsletter.name}, sent on their original dates and listed on your
 					website. No email goes out. Each post&apos;s old address redirects to its new page once it points at FlockStack.{" "}
 					<Link href="/docs/moving" className="font-medium text-foreground underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground">
 						How to export
@@ -102,7 +102,7 @@ export default function CardPostImport({ newsletter, initialImports, limits, max
 				<form id="post-import-upload" onSubmit={upload}>
 					<RowSettings
 						label="Export"
-						hint={`Substack's ZIP, beehiiv's posts CSV, WordPress's XML or Ghost's JSON, under ${formatBytes(maxFileBytes)}.${limits ? ` Your plan imports ${formatNumber(limits.posts)} posts at a time and ${formatBytes(limits.imageBytes)} of pictures in all.` : ""}`}
+						hint={`Substack's ZIP, beehiiv's posts CSV, WordPress's XML, Ghost's JSON or a Mailchimp ZIP of the campaigns CSV and each campaign's HTML, under ${formatBytes(maxFileBytes)}.${limits ? ` Your plan imports ${formatNumber(limits.posts)} posts at a time and ${formatBytes(limits.imageBytes)} of pictures in all.` : ""}`}
 					>
 						<label
 							className={cn(

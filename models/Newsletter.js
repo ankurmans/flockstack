@@ -136,6 +136,14 @@ const newsletterSchema = new mongoose.Schema(
 		},
 		// New signups get an email with a link and only join once they click it (confirmed opt-in).
 		requireConfirmation: { type: Boolean, default: false },
+		// New signups wait as held contacts until the owner approves them (lib/signup-approval.js), after their confirmation
+		// where one is asked.
+		signupApproval: { type: Boolean, default: false },
+		// Paid subscribers may make a link to a single paid issue (lib/gift-links.js): { enabled, perReaderPerMonth, opensPerLink, days }.
+		giftLinks: { type: mongoose.Schema.Types.Mixed },
+		// The website shows no issue to anyone but a signed-in active subscriber (lib/archive-private.js): no lists, feed,
+		// sitemap or search, and every page asks to join or sign in.
+		privateArchive: { type: Boolean, default: false },
 		// Checked when an issue is sent (lib/cleanup.js). Empty numbers use the newsletter's defaults.
 		cleanup: {
 			enabled: { type: Boolean, default: false },

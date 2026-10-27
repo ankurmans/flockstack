@@ -83,6 +83,7 @@ export default async function SiteReportPage({ searchParams }) {
 						<div className="grid gap-4 md:grid-cols-2 animate-enter">
 							<Top title="Where visitors came from" rows={report.referrers} name="referrer" label={(row) => row.referrer} />
 							<Top title="Countries" rows={report.countries} name="code" label={(row) => row.country} />
+							<Top title="Devices" rows={report.devices.filter((row) => row.views > 0).map((row) => ({ ...row, label: row.device[0].toUpperCase() + row.device.slice(1) }))} name="device" label={(row) => row.label} />
 							<div className="md:col-span-2">
 								<Top title="Issues read most" rows={report.pages} name="slug" label={(row) => row.title} />
 							</div>

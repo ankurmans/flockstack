@@ -86,8 +86,8 @@ export async function POST(request, { params }) {
 	}
 	const flowUrl = result.ok && signupReference ? getSignupFlowEntry({ form, ...signupReference }) : null;
 	const redirectUrl = flowUrl || form.redirectUrl || null;
-	if (!wantsJson) return leave(request, redirectUrl ?? `${pageUrl}?done=${result.pending ? "pending" : "1"}`);
-	return json({ ok: true, ...(result.pending && { pending: true }), message: getFormMessage(form), ...(redirectUrl && { redirectUrl }) });
+	if (!wantsJson) return leave(request, redirectUrl ?? `${pageUrl}?done=${result.pending ? "pending" : result.held ? "held" : "1"}`);
+	return json({ ok: true, ...(result.pending && { pending: true }), ...(result.held && { held: true }), message: getFormMessage(form), ...(redirectUrl && { redirectUrl }) });
 }
 
 // A form's address opened in a browser leads to the form.

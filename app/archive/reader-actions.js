@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { getArchiveUrls } from "@/lib/archive-hosts";
+import { createReaderGiftLink, openGiftIssue } from "@/lib/gift-links";
 import { connectDb } from "@/lib/db";
 import { findOpenNewsletter } from "@/lib/public-newsletters";
 import { getClientIp, isRateLimited } from "@/lib/rate-limit";
@@ -19,6 +20,16 @@ const PROFILE_PER_IP = { name: "reader-profile-ip", limit: 20, window: "10 m" };
 // The browser of a reader with a session asks for an issue's paid part. { unlocked: false } for everyone but a paid reader.
 export async function unlockIssue(slug, post) {
 	return unlockIssueForReader({ slug, post });
+}
+
+// A browser that arrived on a paid issue by a gift link asks for that one issue (lib/gift-links.js).
+export async function openGift(slug, post, code) {
+	return openGiftIssue({ slug, post, code });
+}
+
+// A paid reader's own link to the issue they are reading, within the owner's allowance.
+export async function makeGiftLink(slug, post) {
+	return createReaderGiftLink({ slug, post });
 }
 
 // "Email me a sign-in link" on the website's Sign in page. The answer is the same for every address; the email goes out
