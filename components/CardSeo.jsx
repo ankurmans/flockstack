@@ -4,17 +4,18 @@ import { useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
 import { setCampaignSeo } from "@/app/(app)/campaigns/actions";
 import CardSettings, { RowSettings } from "@/components/CardSettings";
+import RowsSchema from "@/components/RowsSchema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { SEO_LIMITS } from "@/lib/seo-rules";
+import { DEFAULT_SCHEMA_TYPE, SEO_LIMITS, formatJsonLd } from "@/lib/seo-rules";
 import { toast } from "@/lib/toast";
 
 // What search engines and social cards show for an issue's page. Empty fields use the subject, the preview text and the
 // issue's first picture. seo: the campaign's stored settings. The page is /p/<slug> once the issue goes out, so a draft
 // can be set up before it does.
 export default function CardSeo({ campaignId, seo, subject, previewText, stagger = 0 }) {
-	const initial = { title: seo?.title ?? "", description: seo?.description ?? "", image: seo?.imageUrl ?? "", noindex: Boolean(seo?.noindex) };
+	const initial = { title: seo?.title ?? "", description: seo?.description ?? "", image: seo?.imageUrl ?? "", noindex: Boolean(seo?.noindex), schemaType: seo?.schemaType ?? DEFAULT_SCHEMA_TYPE, jsonLd: formatJsonLd(seo?.jsonLd) };
 	const [saved, setSaved] = useState(initial);
 	const [draft, setDraft] = useState(initial);
 	const [isPending, startTransition] = useTransition();
@@ -52,6 +53,7 @@ export default function CardSeo({ campaignId, seo, subject, previewText, stagger
 						</span>
 					</label>
 				</RowSettings>
+				<RowsSchema schemaType={draft.schemaType} jsonLd={draft.jsonLd} onChange={(change) => setDraft((current) => ({ ...current, ...change }))} />
 				<div className="flex items-center gap-3 px-4 py-3">
 					<Button type="submit" size="sm" disabled={!isDirty || isPending}>
 						{isPending && <Loader2 className="animate-spin" />}

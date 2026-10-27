@@ -24,7 +24,7 @@ import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getBrand } from "@/lib/brand";
 import { getPopupSettings, getTriggerProps, isGatedIssue, isPopupOn } from "@/lib/popup-rules";
 import { getIssueDate } from "@/lib/archive-issues";
-import { getCustomJsonLd, getIssueSeo, getPageSeo } from "@/lib/archive-seo";
+import { getCustomJsonLd, getIssueJsonLd, getIssueSeo, getPageSeo } from "@/lib/archive-seo";
 import { getTagSlug } from "@/lib/issue-tags";
 import { renderWebIssue } from "@/lib/web-issue";
 import { hasRecommendationsTag } from "@/lib/recommendation-tags";
@@ -137,7 +137,7 @@ async function renderIssue({ newsletter, issue }) {
 	return (
 		<>
 			<ScriptJsonLd data={getIssueSeo(newsletter, issue).jsonLd} />
-			{getCustomJsonLd(newsletter).map((block, index) => (
+			{[...getCustomJsonLd(newsletter), ...getIssueJsonLd(issue)].map((block, index) => (
 				<ScriptJsonLd key={index} data={block} />
 			))}
 			<article className="mx-auto max-w-2xl px-5 pt-12 sm:pt-16">

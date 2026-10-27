@@ -144,7 +144,7 @@ describe("an issue's search settings", () => {
 		assert.deepEqual([plain.metadata.title.absolute, plain.metadata.description, plain.metadata.robots], ["How to price", "Charge more.", { index: true, follow: true }]);
 
 		const set = await act(m, user, "update_campaign_archive", { id: String(campaign._id), seoTitle: "Pricing a side project | Notes", seoDescription: "A short guide to charging more.", socialImage: "https://images.example.com/card.png", noindex: true });
-		assert.deepEqual(set.seo, { title: "Pricing a side project | Notes", description: "A short guide to charging more.", image: "https://images.example.com/card.png", noindex: true });
+		assert.deepEqual(set.seo, { title: "Pricing a side project | Notes", description: "A short guide to charging more.", image: "https://images.example.com/card.png", noindex: true, schemaType: "BlogPosting", jsonLd: "" });
 
 		const stored = await m.Campaign.findOne({ accountId: user.accountId, _id: campaign._id }).lean();
 		const { metadata, jsonLd } = m.seo.getIssueSeo(newsletter, stored);
@@ -169,7 +169,7 @@ describe("an issue's search settings", () => {
 		assert.equal((await m.Campaign.findOne({ accountId: user.accountId, _id: campaign._id }).lean()).seo.updatedAt.getTime(), first.seo.updatedAt.getTime(), "nothing changed");
 
 		const cleared = await act(m, user, "update_campaign_archive", { id: String(campaign._id), seoTitle: "", socialImage: "", noindex: false });
-		assert.deepEqual(cleared.seo, { title: "", description: "A short guide to charging more.", image: "", noindex: false });
+		assert.deepEqual(cleared.seo, { title: "", description: "A short guide to charging more.", image: "", noindex: false, schemaType: "BlogPosting", jsonLd: "" });
 		await assert.rejects(act(m, user, "update_campaign_archive", { id: String(campaign._id), seoTitle: "x".repeat(121) }), { code: "validation_failed" });
 		await assert.rejects(act(m, user, "update_campaign_archive", { id: String(campaign._id), socialImage: "http://images.example.com/card.png" }), { code: "validation_failed", message: /https/ });
 		await assert.rejects(act(m, user, "update_campaign_archive", { id: String(campaign._id), socialImage: "javascript:alert(1)" }), { code: "validation_failed" });
@@ -182,6 +182,53 @@ describe("an issue's search settings", () => {
 		assert.equal((await as(user, () => m.campaignActions.setCampaignSeo(draft.id, { title: "From the form", description: "", image: "", noindex: true }))).ok, true);
 		const { seo } = await act(m, user, "get_campaign", { id: draft.id });
 		assert.deepEqual([seo.title, seo.noindex], ["From the form", true]);
+	});
+
+	test("the schema type (X6) is BlogPosting, Article or NewsArticle, and anything else is refused", async () => {
+		const id = String(campaign._id);
+		const read = async () => m.seo.getIssueSeo(newsletter, await m.Campaign.findOne({ accountId: user.accountId, _id: campaign._id }).lean()).jsonLd["@type"];
+		assert.equal(await read(), "BlogPosting");
+		for (const type of ["NewsArticle", "Article"]) {
+			assert.equal((await act(m, user, "update_campaign_archive", { id, seoSchemaType: type })).seo.schemaType, type);
+			assert.equal(await read(), type);
+			assert.equal((await act(m, user, "get_campaign", { id })).seo.schemaType, type);
+		}
+		const html = await render(m.issuePage(params({ post: "how-to-price" })));
+		assert.match(html, /"@type":"Article"/);
+		await assert.rejects(act(m, user, "update_campaign_archive", { id, seoSchemaType: "Recipe" }), { code: "validation_failed" });
+		assert.equal((await act(m, user, "update_campaign_archive", { id, seoSchemaType: "BlogPosting" })).seo.schemaType, "BlogPosting");
+		assert.equal((await m.Campaign.findOne({ accountId: user.accountId, _id: campaign._id }).lean()).seo.schemaType, undefined, "the default is stored as nothing");
+		assert.equal(m.seo.getIssueSeo(newsletter, { ...campaign.toObject(), seo: { schemaType: "Product" } }).jsonLd["@type"], "BlogPosting", "an unknown stored type reads as the default");
+	});
+
+	test("an issue's own JSON-LD (X7) is checked, stored compact, and printed escaped after the newsletter's", async () => {
+		const id = String(campaign._id);
+		const faq = { "@type": "FAQPage", mainEntity: [{ "@type": "Question", name: "Why </script><script>alert(1)</script>?", acceptedAnswer: { "@type": "Answer", text: "Because." } }] };
+		await act(m, user, "update_newsletter", { id: user.newsletterId, jsonLd: JSON.stringify({ "@type": "Organization", name: "Acme" }) });
+		newsletter = await m.Newsletter.findOne({ accountId: user.accountId, _id: user.newsletterId }).lean();
+
+		const saved = await act(m, user, "update_campaign_archive", { id, seoJsonLd: JSON.stringify([faq], null, 2) });
+		assert.equal(saved.seo.jsonLd, JSON.stringify([faq]));
+		const html = await render(m.issuePage(params({ post: "how-to-price" })));
+		const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(([, json]) => JSON.parse(json));
+		assert.deepEqual(blocks.map((block) => block["@type"]), ["BlogPosting", "Organization", "FAQPage"]);
+		assert.equal(blocks[2].mainEntity[0].name, faq.mainEntity[0].name, "and it reads back as written");
+		assert.equal(blocks[2]["@context"], "https://schema.org");
+		assert.doesNotMatch(html, /<script>alert\(1\)/);
+		assert.ok(html.includes("\\u003c/script"));
+
+		await assert.rejects(act(m, user, "update_campaign_archive", { id, seoJsonLd: "{ nope" }), { code: "validation_failed", message: /isn't valid JSON/ });
+		await assert.rejects(act(m, user, "update_campaign_archive", { id, seoJsonLd: JSON.stringify({ name: "No type" }) }), { code: "validation_failed" });
+		await assert.rejects(act(m, user, "update_campaign_archive", { id, seoJsonLd: JSON.stringify(Array.from({ length: 6 }, () => ({ "@type": "Thing" }))) }), { code: "validation_failed", message: /1 to 5 blocks/ });
+		assert.equal((await act(m, user, "get_campaign", { id })).seo.jsonLd, JSON.stringify([faq]), "a refused change leaves it");
+
+		assert.equal((await as(user, () => m.campaignActions.setCampaignSeo(id, { title: "", description: "", image: "", noindex: false, schemaType: "NewsArticle", jsonLd: JSON.stringify(faq) }))).ok, true);
+		const edited = await act(m, user, "update_published_issue", { id, seoJsonLd: "" });
+		assert.deepEqual([edited.seo.jsonLd, edited.seo.schemaType], ["", "NewsArticle"]);
+		await act(m, user, "update_published_issue", { id, seoSchemaType: "BlogPosting" });
+		assert.equal((await render(m.issuePage(params({ post: "how-to-price" })))).match(/application\/ld\+json/g).length, 2, "removed, the issue's own and the newsletter's are left");
+		await act(m, user, "update_newsletter", { id: user.newsletterId, jsonLd: "" });
+		newsletter = await m.Newsletter.findOne({ accountId: user.accountId, _id: user.newsletterId }).lean();
 	});
 });
 
