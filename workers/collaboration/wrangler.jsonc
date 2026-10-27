@@ -1,5 +1,8 @@
 {
 	"$schema": "../../node_modules/wrangler/config-schema.json",
+	// Optional realtime editing Worker (docs/OPTIONAL-WORKERS-RUNBOOK.md, A). The flag below is what a plain deploy gives; a region that
+	// lists collaboration as enabled in its optional Workers gets `--var COLLABORATION_ENABLED:true` from scripts/deploy-all.mjs, and
+	// COLLABORATION_ALLOWED_ORIGINS (test origins, off by default) the same way.
 	"name": "flockstack-collaboration",
 	"main": "dist/index.js",
 	"no_bundle": true,
@@ -9,6 +12,7 @@
 	"workers_dev": false,
 	"preview_urls": false,
 	"observability": { "enabled": true },
+	"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
 	"durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "CampaignRoom" }] },
 	"migrations": [{ "tag": "editor-v1", "new_sqlite_classes": ["CampaignRoom"] }],
 	"services": [{ "binding": "AUTHORITY", "service": "flockstack-api", "entrypoint": "CollaborationAuthority" }],
@@ -16,7 +20,17 @@
 	"env": {
 		"eu": {
 			"name": "flockstack-collaboration-eu",
+			"main": "dist/index.js",
+			"no_bundle": true,
+			"build": { "command": "npm run build:collaboration" },
+			"compatibility_date": "2026-09-01",
+			"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+			"workers_dev": false,
+			"preview_urls": false,
+			"observability": { "enabled": true },
+			"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
 			"durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "CampaignRoom" }] },
+			"migrations": [{ "tag": "editor-v1", "new_sqlite_classes": ["CampaignRoom"] }],
 			"services": [{ "binding": "AUTHORITY", "service": "flockstack-api-eu", "entrypoint": "CollaborationAuthority" }],
 			"vars": { "FLOCKSTACK_REGION": "eu", "APP_URL": "https://eu.flockstack.io", "COLLABORATION_ENABLED": "false" }
 		}

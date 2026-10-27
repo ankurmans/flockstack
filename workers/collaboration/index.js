@@ -1,11 +1,12 @@
 import { WorkerEntrypoint } from "cloudflare:workers";
+import { isAllowedOrigin } from "./origin.js";
 export { CampaignRoom } from "./room.js";
 export function roomNamespace(env) { return env.FLOCKSTACK_REGION === "eu" ? env.ROOMS.jurisdiction("eu") : env.ROOMS; }
 const collaborationWorker = {
 	async fetch(request, env) {
 		if (env.COLLABORATION_ENABLED !== "true" || new URL(request.url).pathname !== "/api/collaboration/socket") return new Response("Collaborative editing is unavailable", { status: 503 });
 		if (request.method !== "GET" || request.headers.get("upgrade")?.toLowerCase() !== "websocket") return new Response("WebSocket required", { status: 426 });
-		if (!env.APP_URL || request.headers.get("origin") !== new URL(env.APP_URL).origin) return new Response("Forbidden", { status: 403 });
+		if (!isAllowedOrigin(request.headers.get("origin"), env)) return new Response("Forbidden", { status: 403 });
 		const protocols = (request.headers.get("sec-websocket-protocol") ?? "").split(",").map(part => part.trim());
 		const tickets = protocols.filter(part => part.startsWith("ticket."));
 		if (!protocols.includes("flockstack-collaboration") || tickets.length !== 1 || tickets[0].length > 2010) return new Response("Forbidden", { status: 403 });

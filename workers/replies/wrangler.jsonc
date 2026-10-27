@@ -1,8 +1,28 @@
 {
+	"$schema": "../../node_modules/wrangler/config-schema.json",
+	// Optional inbound-replies Worker (docs/OPTIONAL-WORKERS-RUNBOOK.md, B). Cloudflare Email Routing calls it, nothing else does: no
+	// workers.dev address, no preview URLs, and logs on, because a thrown error here is a temporary failure at the sender's mail server.
+	// `node scripts/deploy-all.mjs` deploys it only for a region that lists replies in its optional Workers (docs/OPTIONAL-WORKERS-RUNBOOK.md).
 	"name": "flockstack-replies",
 	"main": "index.js",
 	"compatibility_date": "2026-10-01",
 	"compatibility_flags": ["nodejs_compat"],
+	"workers_dev": false,
+	"preview_urls": false,
+	"observability": { "enabled": true },
+	"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
 	"services": [{ "binding": "APP", "service": "flockstack" }],
-	"env": { "eu": { "name": "flockstack-replies-eu", "services": [{ "binding": "APP", "service": "flockstack-eu" }] } }
+	"env": {
+		"eu": {
+			"name": "flockstack-replies-eu",
+			"main": "index.js",
+			"compatibility_date": "2026-10-01",
+			"compatibility_flags": ["nodejs_compat"],
+			"workers_dev": false,
+			"preview_urls": false,
+			"observability": { "enabled": true },
+			"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
+			"services": [{ "binding": "APP", "service": "flockstack-eu" }]
+		}
+	}
 }
