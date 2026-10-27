@@ -4,7 +4,7 @@ import CardIssue from "@/components/CardIssue";
 import LinksSocial from "@/components/LinksSocial";
 import ScriptJsonLd from "@/components/ScriptJsonLd";
 import TriggerSubscribe from "@/components/TriggerSubscribe";
-import { getArchiveAuthor } from "@/lib/archive-author";
+import { getArchiveAuthors } from "@/lib/archive-author";
 import { getArchiveNewsletter, listArchiveIssues } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getAuthorSeo } from "@/lib/archive-seo";
@@ -21,13 +21,13 @@ async function getAuthorPage(params) {
 	const { slug, author: authorSlug } = await params;
 	const newsletter = await getArchiveNewsletter(slug);
 	if (!newsletter) return null;
-	const author = getArchiveAuthor(newsletter);
-	return author.slug === authorSlug ? { newsletter, author } : null;
+	const author = getArchiveAuthors(newsletter).find(({ slug }) => slug === authorSlug);
+	return author ? { newsletter, author } : null;
 }
 
 export async function generateMetadata({ params }) {
 	const page = await getAuthorPage(params);
-	return page ? getAuthorSeo(page.newsletter).metadata : {};
+	return page ? getAuthorSeo(page.newsletter, undefined, page.author).metadata : {};
 }
 
 export default async function AuthorPage({ params }) {
@@ -35,14 +35,14 @@ export default async function AuthorPage({ params }) {
 	if (!page) notFound();
 	const { newsletter, author } = page;
 
-	const issues = await listArchiveIssues(newsletter);
+	const issues = await listArchiveIssues(newsletter, { authorId: author.id ?? "default" });
 	const urls = getArchiveUrls(newsletter);
 	const popup = getPopupSettings(newsletter);
 	const firstName = author.name.split(" ")[0];
 
 	return (
 		<>
-			<ScriptJsonLd data={getAuthorSeo(newsletter).jsonLd} />
+			<ScriptJsonLd data={getAuthorSeo(newsletter, undefined, author).jsonLd} />
 			<section className="relative isolate overflow-hidden">
 				<div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[30rem] bg-dots" />
 				<div className="mx-auto flex max-w-2xl flex-col items-center px-5 pt-16 pb-14 text-center sm:pt-24 sm:pb-16">

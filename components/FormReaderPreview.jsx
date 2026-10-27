@@ -1,0 +1,9 @@
+"use client";
+import { submitKeepingFields } from "@/lib/submit-keeping-fields";
+import { useActionState, useState } from "react";
+import { previewReader } from "@/app/(app)/authors/actions";
+export default function FormReaderPreview({ campaign }) {
+	const [kind, setKind] = useState("free");
+	const [state, action, pending] = useActionState(previewReader, null);
+	return <div className="rounded-xl border p-4"><form action={action} onSubmit={submitKeepingFields(action)} className="flex flex-col gap-3"><input type="hidden" name="campaign" value={campaign} /><label className="flex flex-col gap-2 text-sm">Preview as<select name="reader" value={kind} onChange={(event) => setKind(event.target.value)} className="rounded-md border bg-background p-2"><option value="free">Free reader</option><option value="paid">Paid reader</option><option value="subscriber">A subscriber</option></select></label>{kind === "subscriber" && <label className="flex flex-col gap-2 text-sm">Subscriber email<input type="email" name="email" required maxLength={254} className="rounded-md border bg-background p-2" /></label>}<label className="flex flex-col gap-2 text-sm">Version<select name="mode" className="rounded-md border bg-background p-2"><option value="email">Email</option><option value="web">Web</option></select></label><p className="text-xs text-muted-foreground">Uses the saved issue and current subscriber fields and tier. It does not check segment membership or send anything. Account links are inactive in this preview.</p><button disabled={pending} className="rounded-md border px-3 py-2">{pending ? "Loading…" : "Preview saved issue"}</button>{state?.error && <p role="alert">{state.error}</p>}</form>{state?.html && <div className="mt-4"><p className="mb-2 text-sm font-medium">{state.subject}</p><iframe title="Reader preview" sandbox="" srcDoc={state.html} className="h-96 w-full rounded-md border bg-white" /></div>}</div>;
+}
