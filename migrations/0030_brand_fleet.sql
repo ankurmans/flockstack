@@ -1,0 +1,2 @@
+CREATE INDEX IF NOT EXISTS i_campaigns__accountId__newsletterId__status__sentAt ON c_campaigns (accountId ASC, json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.status') ASC, json_extract(data, '$.sentAt') ASC);
+CREATE INDEX IF NOT EXISTS i_messages__accountId__newsletterId__sentAt ON c_messages (accountId ASC, json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.sentAt') ASC);
