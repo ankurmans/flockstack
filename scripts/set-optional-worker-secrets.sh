@@ -10,7 +10,7 @@
 #                                                                     # the button), after you type the region
 #   bash scripts/set-optional-worker-secrets.sh collaboration us --off   # the app first, then the API Worker
 #   --dry-run     says what it would do, asks for nothing and changes nothing
-# The collaboration Worker's own flag is a variable of its wrangler.jsonc, not a secret: the runbook sets it with `wrangler deploy --var`.
+# The collaboration Worker's own flag is a variable of its wrangler.jsonc, not a secret: scripts/deploy-all.mjs sets it with `wrangler deploy --var` while the region is "enabled" in the optional Workers setting (docs/OPTIONAL-WORKERS-RUNBOOK.md).
 # bash 3.2 (macOS) is enough.
 set -u
 cd "$(dirname "$0")/.."
@@ -63,7 +63,7 @@ echo "=== $region: $service$([ "$off" = 1 ] && echo " (switching off)") ==="
 if [ "$service" = collaboration ]; then
   if [ "$off" = 1 ]; then
     delete_secret COLLABORATION_ENABLED app; delete_secret COLLABORATION_ENABLED api
-    echo "Off on the app and the API Worker. The collaboration Worker keeps answering 503 once its own COLLABORATION_ENABLED is false: redeploy it without --var."
+    echo "Off on the app and the API Worker. The collaboration Worker keeps answering 503 once its own COLLABORATION_ENABLED is false: set the region back to \"provisioned\" in the optional Workers setting and redeploy it without --var."
     exit 0
   fi
   if [ "$dry" = 0 ]; then

@@ -176,7 +176,7 @@ Before the 2026-10-27 release each region's app was on its last version of 2026-
 | Reader translation | **Reader settings**: turn off (cached answers are refused too) |
 | Reply inbox | **Reader settings**: off; or `bash scripts/set-optional-worker-secrets.sh replies <us\|eu> --off` * |
 | Reply Rules | The Reply Rules form on **Comments**: disable |
-| Realtime editing | `bash scripts/set-optional-worker-secrets.sh collaboration <us\|eu> --off` *, then redeploy the collaboration Worker without `--var` |
+| Realtime editing | `bash scripts/set-optional-worker-secrets.sh collaboration <us\|eu> --off` *, then set the region to `"provisioned"` in the optional Workers setting and redeploy the collaboration Worker without `--var` (docs/OPTIONAL-WORKERS-RUNBOOK.md) |
 | Account assistant | Revoke its grant on **API keys** |
 | AI images | No switch other than removing the AI binding; revoke keys that can draft |
 | Audio | `npx wrangler secret delete AUDIO_ENABLED [--env eu]` * |

@@ -58,3 +58,7 @@ workers/collaboration/dist/
 
 # Stray generated design artifacts (social banners, etc.)
 /artifacts/
+
+# One deployment's optional Workers setting and the copies of Wrangler configurations scripts/deploy-all.mjs makes for a deploy
+/optional-workers.json
+wrangler.optional.jsonc

@@ -1,6 +1,29 @@
 # Optional Workers: realtime editing and inbound replies
 
-Two services are built and deployed nowhere. `node scripts/deploy-all.mjs` does not deploy either, no config of a Worker that runs today names them, and their switches are off. This page is how to provision each, region by region, US first and EU a day later. Nothing here has been run against production; the commands that change production are marked *. For what to look at afterwards see [release QA](RELEASE-QA.md), sections 3 and 4. For the design see [editor collaboration](EDITOR-COLLABORATION.md) and [reply rules](REPLY-RULES.md) (the inbox itself is in [handover builds](HANDOVER-BUILDS.md)).
+Two services are built and deployed nowhere. `node scripts/deploy-all.mjs` deploys neither unless a region's setting says its Worker exists (next section), no config of a Worker that runs today names them, and their switches are off. This page is how to provision each, region by region, US first and EU a day later. Nothing here has been run against production; the commands that change production are marked *.
+
+## The setting that makes a deploy include them
+
+A deploy must never name a Worker that does not exist (a service binding to a missing Worker fails the deploy of the Worker that holds it), so the repository's configurations of the app, API Worker, readers, public pages and router carry no optional binding at all, and a test fails if one appears. Instead `scripts/deploy-all.mjs` reads one setting per deployment and, for a region whose Worker exists, adds the bindings to a copy of those configurations for that deploy only (`wrangler.optional.jsonc` beside each original, removed afterwards, git-ignored) and deploys the optional Worker itself.
+
+The setting is JSON, in the environment variable `FLOCKSTACK_OPTIONAL_WORKERS` or, when that is unset, in the file `optional-workers.json` at the repository root (git-ignored, because it describes one deployment; an empty variable means none, whatever the file says):
+
+```json
+{
+	"us": { "collaboration": "enabled", "replies": true },
+	"eu": { "collaboration": { "state": "provisioned", "testOrigins": ["https://flockstack-router-eu.example.workers.dev"] } }
+}
+```
+
+| Key | Values | Effect on `node scripts/deploy-all.mjs` |
+| --- | --- | --- |
+| `collaboration` | `"off"` (the default), `"provisioned"`, `"enabled"` | `provisioned`: the region's collaboration Worker is deployed first with its flag off, and the app (`COLLABORATION_SOCKET`, `COLLABORATION_STORAGE`), the API Worker (`COLLABORATION_STORAGE`) and the router (`COLLABORATION_SOCKET`, both its workers.dev and its domain variants) get the bindings. `enabled`: the same, and every deploy of the collaboration Worker passes `--var COLLABORATION_ENABLED:true`, so a later deploy never turns it back off. |
+| `collaboration.testOrigins` | up to five exact origins (`https://…`, or `http://localhost:…`), only with `provisioned` or `enabled` | The collaboration Worker also accepts sockets from those origins (`--var COLLABORATION_ALLOWED_ORIGINS`), to try realtime editing on a `workers.dev` router before a domain moves. No wildcards, no paths; the dashboard's own origin always works. Remove them when the test is over. |
+| `replies` | `true` or `false` | The replies Worker is deployed last in its region. It needs no binding anywhere else. |
+
+Set `provisioned` or `true` only after the step that creates the Worker has been done for that region (A.2, B.2 below): the setting is the one place that says it exists. A value it does not understand stops the run before anything is built, migrated or deployed. `node scripts/deploy-all.mjs --dry-run` prints an "Optional Workers" line per region, each added binding, and the commands.
+
+**`COLLABORATION_ENABLED` on the app and the API Worker is a secret** (`scripts/set-optional-worker-secrets.sh`), and Wrangler never removes a secret on deploy (`keepSecrets` in its deploy code), so a plain deploy of the app, API Worker or router leaves it as it is. The copies `deploy-all` makes deliberately never contain that name as a variable: a variable and a secret of one name would clash. Only the collaboration Worker's flag is a variable, which is why the setting's `enabled` exists. For what to look at afterwards see [release QA](RELEASE-QA.md), sections 3 and 4. For the design see [editor collaboration](EDITOR-COLLABORATION.md) and [reply rules](REPLY-RULES.md) (the inbox itself is in [handover builds](HANDOVER-BUILDS.md)).
 
 Who does a step: **owner terminal** (a shell with the Cloudflare login; hidden prompts for values), **owner browser** (the Cloudflare dashboard or FlockStack), **agent** (Claude Code or Codex in this repository, no credentials).
 
@@ -19,17 +42,17 @@ The resolved configuration (`unstable_readConfig`) shows the EU environment inhe
 
 ## Findings in the configurations
 
-Nothing was edited. Each is for the owner or the next change to decide.
+The first dry run found these. Items 1 to 5, 8 and 10 are now handled in the repository; the rest are things to know.
 
-1. **No `account_id` in `workers/collaboration/wrangler.jsonc` or `workers/replies/wrangler.jsonc`.** Every other config pins it. A token that sees more than one account makes the deploy ask or fail. The scripts here export `CLOUDFLARE_ACCOUNT_ID` for secrets; do the same for the deploy commands below, or add the line.
-2. **The replies Worker has no `workers_dev: false`, `preview_urls: false` or `observability`.** As written a deploy publishes `flockstack-replies.<subdomain>.workers.dev` (it has no `fetch`, so it only answers an error) and keeps no logs of a Worker whose failures are otherwise invisible: a thrown error becomes a temporary failure at the sender's mail server. Add the three lines as the collaboration Worker has them. `wrangler tail` shows live calls without them.
-3. **The collaboration Worker's switch is a `vars` entry set to `"false"`.** Every plain `wrangler deploy` of it puts the flag back off. Enabling it therefore needs `--var COLLABORATION_ENABLED:true` on each deploy (below), or a config edit. A secret of the same name is not a way around it: a binding name is one or the other, and what a deploy does to a secret that shares a var's name was not tried. The app's and the API Worker's flags have no `vars` entry, so a secret persists there.
-4. **The bindings that connect the Workers are in no config.** The router and the app need `COLLABORATION_SOCKET`, the app and the API Worker need `COLLABORATION_STORAGE`, and `docs/EDITOR-COLLABORATION.md` says not to add them to a normal deployment (a service binding to a Worker that does not exist fails the deploy). So enabling means editing four configs (twice for the EU) and deploying the app, the API Worker and the router. Do that on a branch and merge it after both regions work, so `main` never names a missing Worker. The snippets are in A.3.
+1. **Fixed: no `account_id` in `workers/collaboration/wrangler.jsonc` or `workers/replies/wrangler.jsonc`.** Both now pin the account like every other config, in the top level and in `env.eu`.
+2. **Fixed: the replies Worker had no `workers_dev: false`, `preview_urls: false` or `observability`.** It has them now, in both environments, so a deploy publishes no `workers.dev` address and its failures are logged (a thrown error becomes a temporary failure at the sender's mail server, so the logs matter). `wrangler tail` still shows live calls.
+3. **Fixed: the collaboration Worker's switch was a `vars` entry set to `"false"`, which every plain deploy of it put back.** `"enabled"` in the setting above makes `deploy-all` pass `--var COLLABORATION_ENABLED:true` on every deploy of that Worker, so it stays on. On the app and the API Worker the flag is a secret and Wrangler keeps secrets on every deploy (it was checked in its deploy code), so a plain deploy of the app, API Worker or router does not reset it; the generated configurations never write the name as a variable because a variable and a secret of one name would clash. If the flag was ever set as a plain variable in the dashboard, a deploy removes it: set it with the script, as a secret.
+4. **Fixed: the bindings that connect the Workers are in no config, by design.** The router and the app need `COLLABORATION_SOCKET`, the app and the API Worker need `COLLABORATION_STORAGE`, and a service binding to a Worker that does not exist fails the deploy. `deploy-all` adds them to a copy of the configuration only for a region whose setting says the collaboration Worker exists, so `main` never names a missing Worker and no branch is needed.
 5. **There is no router flag for collaboration** (unlike `API_ENABLED` and `READERS_ENABLED`). The router sends `/api/collaboration/socket` to its `COLLABORATION_SOCKET` binding when it has one, before it looks at the host, and answers 503 when it has none. The whole switch is the binding plus `COLLABORATION_ENABLED` on three Workers. The replies Worker has no router involvement at all: Email Routing calls it and it calls the app through its own binding.
 6. **Circular service bindings.** The collaboration Worker calls the API Worker (`AUTHORITY`), and the API Worker calls the collaboration Worker (`COLLABORATION_STORAGE`). That is allowed when the order below is kept: the collaboration Worker first (the API Worker exists), then the API Worker with its new binding.
 7. **Keep `COLLABORATION_STORAGE` on the app and the API Worker after switching the feature off.** The hourly cleanup of idle editor snapshots (30 days; they can hold deleted text) and account deletion's purge both need it. Without it cleanup silently does nothing (`cleanupUnavailable`) and deleting an account that used the editor is deferred with an error.
-8. **Realtime editing cannot be tried on a `workers.dev` address.** The collaboration Worker accepts only the origin in its `APP_URL` (`https://flockstack.io` or `https://eu.flockstack.io`), so the staged routers cannot reach it. The test is on the real domains, with the feature on for every account of the region while it runs (there is no per-account switch). Do it in the EU first if the US has real users, or at a quiet hour.
-9. **`COLLABORATION_ENABLED` has three readers**: the app (`process.env`, shows the button and the editor page), the API Worker (`CollaborationAuthority`, answers every ticket and checkpoint) and the collaboration Worker (`env`, refuses sockets). `scripts/set-api-secrets.sh` does not ask for it; `scripts/set-optional-worker-secrets.sh` (new) does.
+8. **Fixed: realtime editing could not be tried on a `workers.dev` address.** The collaboration Worker accepted only the origin in its `APP_URL`. It now also accepts the exact origins listed in `testOrigins` of the setting (`COLLABORATION_ALLOWED_ORIGINS`), so a staged router on `workers.dev` can be tried before a domain moves. Two things stay true. Sessions and links belong to the real domain (the EU app has no `workers.dev` address for that reason), so signing in on a `workers.dev` address may not work at all; this was not tried, and the socket's origin check is the only thing `testOrigins` changes. And the feature is still on for every account of the region while the flag is on (there is no per-account switch). Do it in the EU first if the US has real users, or at a quiet hour, and remove `testOrigins` afterwards.
+9. **`COLLABORATION_ENABLED` has three readers**: the app (`process.env`, shows the button and the editor page), the API Worker (`CollaborationAuthority`, answers every ticket and checkpoint) and the collaboration Worker (`env`, refuses sockets). `scripts/set-api-secrets.sh` does not ask for it; `scripts/set-optional-worker-secrets.sh` does.
 10. **README's Stripe webhook list is short** (not a Worker setting): it names nine events and the code handles six more, `customer.subscription.paused` and `.resumed` and the sponsorship invoice events `invoice.finalized`, `.voided`, `.marked_uncollectible` and `.updated`. See release QA, step 2.14.
 11. **What Email Routing does with a thrown error** from the replies Worker (it throws for "not configured" and for an app answer other than 2xx, 400 and 404) is not documented in this repository. Step B.5 sends a mail that provokes a clean rejection; do it before trusting the setup, and `wrangler tail` while testing.
 12. **The reader catalog has one duplicated row** (`Refresh billing`, in `lib/reader-language-copy.js`, identical both times). Harmless; the import script updates all rows of a key.
@@ -46,9 +69,9 @@ Nothing was edited. Each is for the owner or the next change to decide.
 | Durable Object | `CampaignRoom`, SQLite, migration tag `editor-v1`, binding `ROOMS`; one object per account and issue | the same, created in the EU jurisdiction (`ROOMS.jurisdiction("eu")`) |
 | Authority | `AUTHORITY` to `flockstack-api#CollaborationAuthority` (already exported by the deployed API Worker) | `flockstack-api-eu#CollaborationAuthority` |
 | On the collaboration Worker | vars `FLOCKSTACK_REGION`, `APP_URL`, `COLLABORATION_ENABLED` | the same with `eu`, `https://eu.flockstack.io` |
-| Added to the router (`env.us`, `env.eu`) | service binding `COLLABORATION_SOCKET` to the collaboration Worker | to the EU one |
-| Added to the app (root, `env.eu`) | `COLLABORATION_SOCKET` and `COLLABORATION_STORAGE` (entrypoint `CollaborationStorage`) | the same, EU Worker |
-| Added to the API Worker | `COLLABORATION_STORAGE` | the same, EU Worker |
+| Added by `deploy-all` to the router (all its variants of the region) | service binding `COLLABORATION_SOCKET` to the collaboration Worker | to the EU one |
+| Added by `deploy-all` to the app (root, `env.eu`) | `COLLABORATION_SOCKET` and `COLLABORATION_STORAGE` (entrypoint `CollaborationStorage`) | the same, EU Worker |
+| Added by `deploy-all` to the API Worker | `COLLABORATION_STORAGE` | the same, EU Worker |
 | Secrets | none | none |
 | Flag | `COLLABORATION_ENABLED=true` on the API Worker, the app (secrets) and the collaboration Worker (`--var`) | the same |
 | Queues, routes, custom domain, D1, R2 | none | none |
@@ -59,45 +82,27 @@ Sessions, seats and drafts are checked by the API Worker against D1 on every edi
 
 1. **Agent.** `npm run test:collaboration` (12 native tests; builds the API and collaboration bundles) and `npx wrangler deploy --dry-run --config workers/collaboration/wrangler.jsonc --outdir ../dry` (as above). Expect: pass.
 2. **Owner terminal*.** `npx wrangler deploy --config workers/collaboration/wrangler.jsonc` (EU: `--env eu`). Wrangler warns that several environments exist; the US is the top level. This creates the Worker, its Durable Object class (migration `editor-v1`) and the `AUTHORITY` binding. It receives nothing: it has no route and no `workers.dev` address. Expect: `Deployed flockstack-collaboration`. If it fails on the entrypoint, the API Worker does not export `CollaborationAuthority` (the deployed one was built from `6b846d6` and does).
-3. **Agent, on a branch** `release/collaboration-bindings` (not `main`): add the bindings. In `wrangler.jsonc` of the app, to `services` of the root and, with the `-eu` names, of `env.eu`:
-
-   ```jsonc
-   { "binding": "COLLABORATION_SOCKET", "service": "flockstack-collaboration" },
-   { "binding": "COLLABORATION_STORAGE", "service": "flockstack-collaboration", "entrypoint": "CollaborationStorage" }
-   ```
-
-   In `workers/api/wrangler.jsonc`, to `services` of the root and `env.eu`:
-
-   ```jsonc
-   { "binding": "COLLABORATION_STORAGE", "service": "flockstack-collaboration", "entrypoint": "CollaborationStorage" }
-   ```
-
-   In `workers/router/wrangler.jsonc`, to `services` of `env.us` and `env.eu` only:
-
-   ```jsonc
-   { "binding": "COLLABORATION_SOCKET", "service": "flockstack-collaboration" }
-   ```
-
-   `npm test` should still pass.
-4. **Owner terminal*.** `node scripts/deploy-all.mjs --only us --skip-build --dry-run`, read the plan, then without `--dry-run`. Order: app, API, readers, public, router. Nothing changes for visitors: the router now sends the socket path to the collaboration Worker, which answers 503 while its flag is false, as the router did before. Expect: all five succeed.
+3. **Owner terminal.** Say the Worker exists, in the setting of the section above: `export FLOCKSTACK_OPTIONAL_WORKERS='{"us":{"collaboration":"provisioned"}}'` (or the file `optional-workers.json`; EU: `"eu"`, and keep the US entry when both exist). Nothing in the repository changes, and `node scripts/deploy-all.mjs --only us --skip-build --dry-run` now lists the Worker and the bindings it would add to the app, the API Worker and the router.
+4. **Owner terminal*.** `node scripts/deploy-all.mjs --only us --skip-build` without `--dry-run` (read the plan first). Order: the collaboration Worker, app, API, readers, public, router. Nothing changes for visitors: the router now sends the socket path to the collaboration Worker, which answers 503 while its flag is false, as the router did before. Expect: all six succeed.
 5. **Owner terminal.** Check the wiring without any flag: `curl -si https://flockstack.io/api/collaboration/socket | head -1`. Expect: `503` ("Collaborative editing is unavailable"). Then `npx wrangler tail flockstack-collaboration` in another terminal for the next steps.
-6. **Owner terminal*.** The flags, the collaboration Worker first, then the API Worker, then the app (the app's is what shows the button):
+6. **Owner terminal*.** The flags: the secrets on the API Worker, then the app (the app's is what shows the button), and the setting's `enabled` so that every later deploy of the collaboration Worker keeps its own flag on:
 
    ```sh
-   npx wrangler deploy --config workers/collaboration/wrangler.jsonc --var COLLABORATION_ENABLED:true
    bash scripts/set-optional-worker-secrets.sh collaboration us
+   export FLOCKSTACK_OPTIONAL_WORKERS='{"us":{"collaboration":"enabled"}}'
+   npx wrangler deploy --config workers/collaboration/wrangler.jsonc --var COLLABORATION_ENABLED:true
    ```
 
-   The script asks you to type the region, then sets the API Worker's and the app's `COLLABORATION_ENABLED`. Run `bash scripts/set-optional-worker-secrets.sh collaboration us --dry-run` first to see it.
+   The script asks you to type the region, then sets the API Worker's and the app's `COLLABORATION_ENABLED`. Run `bash scripts/set-optional-worker-secrets.sh collaboration us --dry-run` first to see it. The last command is what `node scripts/deploy-all.mjs` runs for the Worker from then on; run it by hand now so the flag is on without a full deploy.
 7. **Owner terminal.** `curl -si https://flockstack.io/api/collaboration/socket | head -1`. Expect: `426` ("WebSocket required"): the router, the binding and the flag are all right. `curl -si -H 'upgrade: websocket' -H 'origin: https://other.example' https://flockstack.io/api/collaboration/socket | head -1` Expect: `403`.
-8. **Owner browser.** Release QA section 3 (two browsers). Keep `wrangler tail` open.
-9. **Agent.** Merge the branch of step 3 into `main` once both regions work (`docs/EDITOR-COLLABORATION.md` step 3 then describes `main`).
+8. **Owner browser.** Release QA section 3 (two browsers). Keep `wrangler tail` open. To try it on a staged router's `workers.dev` address first, add that exact origin to `testOrigins` (see the setting above), redeploy the collaboration Worker, and remove it afterwards.
+9. **Owner terminal.** Keep the setting (the variable in your shell profile or the file) for as long as the Worker is used: a `node scripts/deploy-all.mjs` run without it deploys the app, API Worker and router without the bindings, which turns the feature off for visitors and stops the editor housekeeping (finding 7).
 
 **Rollback.**
 
 - Switch it off, in seconds: `bash scripts/set-optional-worker-secrets.sh collaboration us --off*` (deletes the app's flag, then the API Worker's; wrangler asks to confirm each). The button disappears and tickets are refused. Open editors end at the next message.
-- Make the Worker refuse too: redeploy it without `--var` (`npx wrangler deploy --config workers/collaboration/wrangler.jsonc`, the flag is `"false"` again), or `npx wrangler rollback --config workers/collaboration/wrangler.jsonc`.
-- Leave the bindings and the Worker in place (finding 7). Removing them is a revert of the branch and a redeploy of the app, API Worker and router; do it only after `expireCollaborationSnapshots` has had its 30 days, or after exporting what you need.
+- Make the Worker refuse too: set the region back to `"provisioned"` in the setting and redeploy it without `--var` (`npx wrangler deploy --config workers/collaboration/wrangler.jsonc`, the flag is `"false"` again), or `npx wrangler rollback --config workers/collaboration/wrangler.jsonc`. Leaving `"enabled"` in the setting would turn it back on at the next `deploy-all`.
+- Leave the bindings and the Worker in place (finding 7). Removing them is setting the region back to `"off"` (or deleting its entry) and a redeploy of the app, API Worker and router with `deploy-all`; do it only after `expireCollaborationSnapshots` has had its 30 days, or after exporting what you need.
 - Drafts keep their last saved text. Editor snapshots and threads stay in D1 until the cleanup removes them or the account is deleted.
 
 ## B. Inbound replies
@@ -122,8 +127,8 @@ The two regions use different subdomains and different secrets and never share a
 
 **Steps, US; then EU.**
 
-1. **Agent.** `npx wrangler deploy --dry-run --config workers/replies/wrangler.jsonc --outdir ../dry` and the size budget `npm run perf:budget` (72.8 KB of 100 KB). Optionally fix findings 1 and 2 first.
-2. **Owner terminal*.** `npx wrangler deploy --config workers/replies/wrangler.jsonc` (EU: `--env eu`). Expect: it deploys; it has no secret yet and throws "Reply inbox is not configured" if mail reaches it, which nothing sends yet.
+1. **Agent.** `npx wrangler deploy --dry-run --config workers/replies/wrangler.jsonc --outdir ../dry` and the size budget `npm run perf:budget` (72.8 KB of 100 KB).
+2. **Owner terminal*.** `npx wrangler deploy --config workers/replies/wrangler.jsonc` (EU: `--env eu`). Expect: it deploys; it has no secret yet and throws "Reply inbox is not configured" if mail reaches it, which nothing sends yet. Then add `"replies": true` for the region to the setting (section above) so that `node scripts/deploy-all.mjs` keeps its code in step with the app from now on; it needs no binding anywhere else.
 3. **Owner terminal*.** `bash scripts/set-optional-worker-secrets.sh replies us` (`--dry-run` first to see the plan). It asks for the subdomain, then for `REPLY_INGEST_SECRET` (hidden, twice; Enter makes a random one that is never shown), and sets the secret on the app, the API Worker and the replies Worker, and the domain last on the app and the API Worker. Values go to `wrangler secret put` on standard input and are not printed. Expect: five `set ...` lines.
 4. **Owner browser*.** Cloudflare, the zone of the subdomain's parent: Email, Email Routing. Enable it for the subdomain (the dashboard's subdomain setting adds the MX and SPF records for it only), then Routing rules, catch-all: action **Send to a Worker**, destination `flockstack-replies`. Dashboard labels change; the goal is a catch-all on that subdomain only. Do not change the apex's records.
 5. **Owner terminal.** The three checks of release QA section 4 (1 to 3): the app answers `401` to an unsigned POST; a mail to `anything@<REPLIES_DOMAIN>` bounces with "Reply address not available" (the Worker reached the app and the app refused the unknown address; `npx wrangler tail flockstack-replies` shows it); then a real reply to a test issue appears in **Replies**.

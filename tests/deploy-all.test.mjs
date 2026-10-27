@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -18,6 +18,7 @@ import {
 	parseArgs,
 	parseRows,
 } from "../scripts/deploy-all.mjs";
+import { parseOptionalWorkers } from "../scripts/optional-workers.mjs";
 
 // scripts/deploy-all.mjs: one build, the missing migrations on each region's database, then each region's app, public pages and
 // router. The flow runs against stand-ins for npx and npm that keep each D1 database in a SQLite file and write down every call, and
@@ -32,7 +33,13 @@ const { DatabaseSync } = require("node:sqlite");
 const args = process.argv.slice(2);
 const log = (entry) => appendFileSync(process.env.FAKE_LOG, JSON.stringify(entry) + "\\n");
 if (args[0] === "opennextjs-cloudflare") { log({ build: true }); process.exit(0); }
-if (args[0] === "wrangler" && args[1] === "deploy") { log({ deploy: args.slice(2) }); process.exit(0); }
+if (args[0] === "wrangler" && args[1] === "deploy") {
+	// A copy of a configuration made for this deploy (scripts/optional-workers.mjs) is read now: it is removed once the deploy is over.
+	const at = args.indexOf("--config");
+	const used = at === -1 ? null : args[at + 1];
+	log({ deploy: args.slice(2), config: used && used.endsWith("wrangler.optional.jsonc") ? JSON.parse(readFileSync(used, "utf8")) : null });
+	process.exit(process.env.FAKE_FAIL_DEPLOY && args.join(" ").includes(process.env.FAKE_FAIL_DEPLOY) ? 1 : 0);
+}
 if (args[0] === "wrangler" && args[1] === "d1" && args[2] === "execute") {
 	const database = args[3];
 	const flag = (name) => (args.includes(name) ? args[args.indexOf(name) + 1] : null);
@@ -143,12 +150,12 @@ const passing = async ({ baseUrl, apiKey }) => {
 	return [{ name: "a check", ok: true, detail: null }];
 };
 
-async function run(argv, { legalTodos = [], fetchImpl = unrouted, config = HOLDS_FLOCKSTACK, checkMcp = passing } = {}) {
+async function run(argv, { legalTodos = [], fetchImpl = unrouted, config = HOLDS_FLOCKSTACK, checkMcp = passing, optional = "" } = {}) {
 	const lines = [];
 	const log = console.log;
 	console.log = (...parts) => lines.push(parts.join(" "));
 	try {
-		await main(argv, { migrationsDir: migrations, legalTodos, fetchImpl, wranglerConfig: config, checkMcp, checkPauseMs: 0 });
+		await main(argv, { migrationsDir: migrations, legalTodos, fetchImpl, wranglerConfig: config, checkMcp, checkPauseMs: 0, optionalWorkers: parseOptionalWorkers(optional) });
 	} finally {
 		console.log = log;
 	}
@@ -593,5 +600,110 @@ describe("the check that MCP clients can still sign in, after each region's rout
 		assert.match(output, /Would run: node scripts\/check-mcp-auth\.mjs https:\/\/flockstack\.io\n/);
 		assert.match(output, /Would run: node scripts\/check-mcp-auth\.mjs https:\/\/eu\.flockstack\.io\n/);
 		assert.equal(checked.length, 0);
+	});
+});
+
+describe("optional Workers", () => {
+	const COPIES = ["wrangler.optional.jsonc", "workers/api/wrangler.optional.jsonc", "workers/router/wrangler.optional.jsonc", "workers/collaboration/wrangler.optional.jsonc"];
+	const deploys = () => readLog().filter((call) => call.deploy);
+	const bindingsOf = (config) => (config.services ?? []).filter(({ binding }) => binding.startsWith("COLLABORATION_")).map(({ binding }) => binding);
+	const leftover = () => COPIES.filter((path) => existsSync(join(ROOT, path)));
+
+	test("without a setting nothing optional is deployed or bound, and the plain commands are the ones that run", async () => {
+		const output = await run(["--baseline", "0"]);
+		assert.deepEqual(deploys().map(({ deploy }) => deploy), DEPLOYS_BOTH);
+		assert.ok(deploys().every(({ config }) => config === null));
+		assert.match(output, /==> Optional Workers\n    us: none[^\n]*\n    eu: none/);
+		assert.deepEqual(leftover(), []);
+	});
+
+	test("a provisioned collaboration Worker is deployed first, with its flag off, and the app, API Worker and router get its bindings for that deploy only", async () => {
+		const output = await run(["--baseline", "0", "--only", "us"], { optional: '{"us":{"collaboration":"provisioned"}}' });
+		const calls = deploys();
+		assert.deepEqual(calls.map(({ deploy }) => deploy), [
+			["--config", "workers/collaboration/wrangler.jsonc"],
+			["--config", "wrangler.optional.jsonc"],
+			["--config", "workers/api/wrangler.optional.jsonc"],
+			["--config", "workers/readers/wrangler.jsonc"],
+			["--config", "workers/public/wrangler.jsonc"],
+			["--config", "workers/router/wrangler.optional.jsonc"],
+		]);
+		assert.deepEqual(bindingsOf(calls[1].config), ["COLLABORATION_SOCKET", "COLLABORATION_STORAGE"]);
+		assert.ok(calls[1].config.services.some(({ binding }) => binding === "WEBSITE"), "the copy keeps what the file had");
+		assert.equal(calls[1].config.main, ".worker/worker-entry.js", "and its relative paths, which hold because the copy sits beside the original");
+		assert.deepEqual(bindingsOf(calls[2].config), ["COLLABORATION_STORAGE"]);
+		assert.deepEqual(bindingsOf(calls[5].config), ["COLLABORATION_SOCKET"]);
+		assert.ok(calls.every(({ config }) => !config || !JSON.stringify(config).includes("COLLABORATION_ENABLED")), "the flag is not a variable of the app, API Worker or router");
+		assert.match(output, /==> Optional Workers\n    us: collaboration provisioned\./);
+		assert.match(output, /\+ top level: COLLABORATION_SOCKET -> flockstack-collaboration \(flockstack, this deploy only\)/);
+		assert.match(output, /Deployed flockstack, flockstack-api, flockstack-readers, flockstack-public, flockstack-router, flockstack-collaboration\./);
+		assert.deepEqual(leftover(), [], "the copies are gone");
+	});
+
+	test("an enabled collaboration Worker keeps its flag on at every deploy, with the test origins when there are some", async () => {
+		await run(["--baseline", "0", "--only", "eu"], { optional: '{"eu":{"collaboration":{"state":"enabled","testOrigins":["https://flockstack-router-eu.example.workers.dev"]}}}' });
+		const calls = deploys();
+		assert.deepEqual(calls[0].deploy, ["--config", "workers/collaboration/wrangler.jsonc", "--env", "eu", "--var", "COLLABORATION_ENABLED:true", "--var", "COLLABORATION_ALLOWED_ORIGINS:https://flockstack-router-eu.example.workers.dev"]);
+		assert.deepEqual(calls[1].deploy, ["--config", "wrangler.optional.jsonc", "--env", "eu"]);
+		assert.deepEqual(calls[2].deploy, ["--config", "workers/api/wrangler.optional.jsonc", "--env", "eu"]);
+		assert.deepEqual(calls[5].deploy, ["--config", "workers/router/wrangler.optional.jsonc", "--env", "eu-staged"], "the staged router while the app holds the domain");
+		assert.deepEqual(bindingsOf(calls[1].config.env.eu), ["COLLABORATION_SOCKET", "COLLABORATION_STORAGE"]);
+		assert.equal(calls[1].config.env.eu.services.find(({ binding }) => binding === "COLLABORATION_SOCKET").service, "flockstack-collaboration-eu");
+		assert.deepEqual(bindingsOf(calls[1].config), [], "nothing for the US part of the same file");
+	});
+
+	test("the router that holds the domain gets the binding too, and a region without the Worker is deployed as it always was", async () => {
+		await run(["--baseline", "0"], { optional: '{"us":{"collaboration":"provisioned"}}', config: RELEASED, fetchImpl: routed });
+		const commands = deploys().map(({ deploy }) => deploy);
+		assert.deepEqual(commands[5], ["--config", "workers/router/wrangler.optional.jsonc", "--env", "us"]);
+		assert.deepEqual(commands.slice(6), DEPLOYS_CUT_OVER.slice(5), "the EU is the plain commands");
+	});
+
+	test("a replies Worker is deployed last in its region and needs no binding anywhere", async () => {
+		await run(["--baseline", "0"], { optional: '{"us":{"replies":true},"eu":{"replies":true}}' });
+		assert.deepEqual(deploys().map(({ deploy }) => deploy), [
+			...DEPLOYS_BOTH.slice(0, 5),
+			["--config", "workers/replies/wrangler.jsonc"],
+			...DEPLOYS_BOTH.slice(5),
+			["--config", "workers/replies/wrangler.jsonc", "--env", "eu"],
+		]);
+		assert.ok(deploys().every(({ config }) => config === null));
+	});
+
+	test("--only leaves the other region's optional Workers alone", async () => {
+		await run(["--baseline", "0", "--only", "us"], { optional: '{"eu":{"collaboration":"enabled","replies":true}}' });
+		assert.deepEqual(deploys().map(({ deploy }) => deploy), DEPLOYS_BOTH.slice(0, 5));
+	});
+
+	test("a dry run shows the copies it would use and what they add, and writes nothing", async () => {
+		const output = await run(["--dry-run", "--only", "us"], { optional: '{"us":{"collaboration":"enabled","replies":true}}' });
+		assert.deepEqual(readLog(), []);
+		assert.deepEqual(leftover(), []);
+		assert.match(output, /\$ npx wrangler deploy --config workers\/collaboration\/wrangler\.jsonc --var COLLABORATION_ENABLED:true\n/);
+		assert.match(output, /\$ npx wrangler deploy --config wrangler\.optional\.jsonc\n/);
+		assert.match(output, /\+ top level: COLLABORATION_STORAGE -> flockstack-collaboration#CollaborationStorage \(flockstack-api, this deploy only\)/);
+		assert.match(output, /\$ npx wrangler deploy --config workers\/replies\/wrangler\.jsonc\n/);
+	});
+
+	test("a deploy that fails still removes the copy", async () => {
+		process.env.FAKE_FAIL_DEPLOY = "workers/api/wrangler.optional.jsonc";
+		try {
+			await assert.rejects(run(["--baseline", "0", "--only", "us"], { optional: '{"us":{"collaboration":"provisioned"}}' }), /npx wrangler failed with exit code 1/);
+		} finally {
+			delete process.env.FAKE_FAIL_DEPLOY;
+		}
+		assert.deepEqual(leftover(), []);
+	});
+
+	test("a setting it cannot read stops the run before anything is built, migrated or deployed", async () => {
+		const original = process.env.FLOCKSTACK_OPTIONAL_WORKERS;
+		process.env.FLOCKSTACK_OPTIONAL_WORKERS = '{"us":{"collaboration":"yes"}}';
+		try {
+			await assert.rejects(main(["--baseline", "0"], { migrationsDir: migrations, legalTodos: [], fetchImpl: unrouted, wranglerConfig: HOLDS_FLOCKSTACK, checkMcp: passing, checkPauseMs: 0 }), /collaboration for us is/);
+		} finally {
+			if (original === undefined) delete process.env.FLOCKSTACK_OPTIONAL_WORKERS;
+			else process.env.FLOCKSTACK_OPTIONAL_WORKERS = original;
+		}
+		assert.deepEqual(readLog(), []);
 	});
 });
