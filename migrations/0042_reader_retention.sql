@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS c_cancellationresponses (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_cancellationresponses__accountId ON c_cancellationresponses (accountId);
+CREATE UNIQUE INDEX IF NOT EXISTS u_cancellationresponses__accountId__retentionId__externalId ON c_cancellationresponses (accountId ASC, json_extract(data, '$.retentionId') ASC, json_extract(data, '$.externalId') ASC);
+CREATE INDEX IF NOT EXISTS i_cancellationresponses__accountId__newsletterId__createdAt_d___id_d ON c_cancellationresponses (accountId ASC, json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.createdAt') DESC, _id DESC);
+CREATE INDEX IF NOT EXISTS i_cancellationresponses__accountId__contactId ON c_cancellationresponses (accountId ASC, json_extract(data, '$.contactId') ASC);
+CREATE TABLE IF NOT EXISTS c_readerretentions (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_readerretentions__accountId ON c_readerretentions (accountId);
+CREATE UNIQUE INDEX IF NOT EXISTS u_readerretentions__accountId__subscriptionId ON c_readerretentions (accountId ASC, json_extract(data, '$.subscriptionId') ASC);
+CREATE INDEX IF NOT EXISTS i_readerretentions__accountId__contactId ON c_readerretentions (accountId ASC, json_extract(data, '$.contactId') ASC);
+CREATE INDEX IF NOT EXISTS i_readerretentions__accountId__newsletterId__updatedAt_d___id_d ON c_readerretentions (accountId ASC, json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.updatedAt') DESC, _id DESC);
+CREATE INDEX IF NOT EXISTS i_readerretentions__accountId__stripeScheduleId ON c_readerretentions (accountId ASC, json_extract(data, '$.stripeScheduleId') ASC) WHERE json_type(data, '$.stripeScheduleId') = 'text';

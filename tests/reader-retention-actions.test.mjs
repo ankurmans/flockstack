@@ -1,0 +1,63 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { after, before, test } from "node:test";
+import { startTestApp, anonymous, form } from "./helpers/app.mjs";
+import { api, installFakeStripe } from "./helpers/shop.mjs";
+import { retentionModels, retentionReader } from "./helpers/reader-retention.mjs";
+let app, m, fake;
+before(async () => { app = await startTestApp(); fake = installFakeStripe(); m = await retentionModels(); });
+after(() => app?.stop());
+test("reader billing settings require explicit flexible billing confirmation and stay account scoped", async () => {
+	const s = await retentionReader(m, fake), other = await retentionReader(m, fake);
+	await m.Newsletter.updateOne({ accountId: s.user.accountId, _id: s.newsletter._id }, { $set: { "readerRetention.pauseEnabled": false } });
+	const path = `/newsletters/${s.newsletter._id}/reader-billing/settings`;
+	assert.equal((await api(other.user, "GET", path)).status, 404);
+	assert.equal((await api(s.user, "PATCH", path, { pauseEnabled: true })).status, 400);
+	const enabled = await api(s.user, "PATCH", path, { pauseEnabled: true, confirmFlexibleBilling: true });
+	assert.equal(enabled.status, 200); assert.equal(enabled.body.newSubscriptionsFlexible, true);
+	assert.equal(s.subscription.billing_mode.type, "flexible");
+	const closed = await api(s.user, "PATCH", path, { pauseEnabled: false, saveOfferId: null }); assert.equal(closed.status, 200);
+});
+test("public creator actions return schema checked provider facts without a reader capability", async () => {
+	const s = await retentionReader(m, fake), path = `/contacts/${s.contact._id}/billing`;
+	const refreshed = await api(s.user, "POST", `${path}/refresh`, {}); assert.equal(refreshed.status, 200); assert.equal(refreshed.body.pause.canSchedule, true);
+	assert.doesNotMatch(JSON.stringify(refreshed.body), /token=|portalUrl|paidPersonalLease/);
+	const paused = await api(s.user, "POST", `${path}/pause`, { months: 3, externalId: randomUUID() }); assert.equal(paused.status, 200); assert.equal(paused.body.pause.state, "scheduled");
+	assert.equal((await api(s.user, "POST", `${path}/unpause`, { externalId: randomUUID() })).status, 200);
+	const cancel = await api(s.user, "POST", `${path}/cancel`, { externalId: randomUUID(), confirm: true }); assert.equal(cancel.status, 200); assert.equal(cancel.body.cancellation.scheduled, true); assert.equal(cancel.body.responseRecorded, false);
+});
+test("reader billing capabilities survive an email unsubscribe, expire normally, and never authorize a different reader", async () => {
+	const s = await retentionReader(m, fake), { getPortalUrl } = await import("../lib/portal-link.js"), { readReaderBillingAccess } = await import("../lib/reader-billing-access.js");
+	const token = new URL(getPortalUrl({ contactId: s.contact._id, newsletterId: s.newsletter._id }, "https://example.com")).searchParams.get("token");
+	await m.Contact.updateOne({ accountId: s.user.accountId, _id: s.contact._id }, { $set: { status: "unsubscribed" } });
+	const access = await anonymous(() => readReaderBillingAccess(token)); assert.equal(String(access.contactId), String(s.contact._id)); assert.equal(access.contact.status, "unsubscribed");
+	await assert.rejects(readReaderBillingAccess(token.slice(0, -1) + "!"), error => error.code === "not_found");
+	const old = new URL(getPortalUrl({ contactId: s.contact._id, newsletterId: s.newsletter._id }, "https://example.com", Date.now() - 401 * 86400000)).searchParams.get("token");
+	await assert.rejects(readReaderBillingAccess(old), error => error.code === "not_found");
+	const { changeReaderBilling } = await import("../app/reader/billing/actions.js");
+	const result = await anonymous(() => changeReaderBilling(null, form({ token, operation: "cancel", externalId: randomUUID(), confirm: "on", id: "6650f1c2e9b1d4a012345678" })));
+	assert.ok(result.output?.cancellation.scheduled, result.error); assert.equal(result.output.contactId, String(s.contact._id));
+	assert.equal((await m.Contact.findOne({ accountId: s.user.accountId, _id: s.contact._id }).lean()).status, "unsubscribed");
+});
+test("the existing portal link redirects enabled newsletters without creating a provider portal session on GET", async () => {
+	const s = await retentionReader(m, fake), { getPortalUrl } = await import("../lib/portal-link.js"), { GET } = await import("../app/api/shop/portal/route.js");
+	const url = getPortalUrl({ contactId: s.contact._id, newsletterId: s.newsletter._id }, "https://example.com"), before = fake.requests.length;
+	const response = await anonymous(() => GET(new Request(url)));
+	assert.equal(response.status, 302); assert.match(response.headers.get("location"), /^\/reader\/billing\?token=/); assert.equal(response.headers.get("cache-control"), "private, no-store"); assert.equal(fake.requests.length, before);
+});
+test("only new recurring purchases with enabled pauses opt into flexible billing", async () => {
+	const s = await retentionReader(m, fake), { setTier, addTier } = await import("./helpers/paid.mjs"), { createSubscriptionCheckout } = await import("../lib/payments/checkout.js");
+	await setTier(s.user);
+	const lifetime = await addTier(s.user, { name: "Lifetime", lifetimeCents: 24000 });
+	let newsletter = await m.Newsletter.findOne({ accountId: s.user.accountId, _id: s.newsletter._id }).lean();
+	await createSubscriptionCheckout({ account: s.user.account, newsletter, option: "month", email: "checkout-reader@example.com" });
+	assert.equal([...fake.sessions.values()].at(-1).subscription_data.billing_mode.type, "flexible");
+	assert.equal(fake.requests.findLast(request => request.path === "/v1/checkout/sessions").apiVersion, "2026-09-30.endive");
+	await createSubscriptionCheckout({ account: s.user.account, newsletter, tierId: lifetime.id, option: "lifetime", email: "lifetime-reader@example.com" });
+	assert.equal([...fake.sessions.values()].at(-1).subscription_data, undefined);
+	assert.equal(fake.requests.findLast(request => request.path === "/v1/checkout/sessions").apiVersion, undefined);
+	newsletter = { ...newsletter, readerRetention: { pauseEnabled: false } };
+	await createSubscriptionCheckout({ account: s.user.account, newsletter, option: "month", email: "classic-reader@example.com" });
+	assert.equal([...fake.sessions.values()].at(-1).subscription_data.billing_mode, undefined);
+	assert.equal(fake.requests.findLast(request => request.path === "/v1/checkout/sessions").apiVersion, undefined);
+});

@@ -1,0 +1,23 @@
+import { readerBillingLabel } from "@/lib/reader-billing-labels";
+import Link from "next/link";
+import HeaderPage from "@/components/HeaderPage";
+import LayoutNarrow from "@/components/LayoutNarrow";
+import PanelReaderBilling from "@/components/PanelReaderBilling";
+import FormSponsorshipAction from "@/components/FormSponsorshipAction";
+import { runDashboardAction } from "@/lib/actions/dashboard";
+import { getSelectedNewsletter } from "@/lib/selected-newsletter";
+import { settings, refresh, pause, unpause, resume, save, cancel } from "./actions.js";
+
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Reader billing" };
+export default async function ReaderBillingDashboard({ searchParams }) {
+	const { selected } = await getSelectedNewsletter();
+	if (!selected) return <LayoutNarrow><HeaderPage title="Reader billing" /><p>Create a newsletter first.</p></LayoutNarrow>;
+	const query = await searchParams, id = String(selected._id);
+	const [config, offers, responses] = await Promise.all([runDashboardAction("get_reader_retention_settings", { id }), runDashboardAction("list_offers", { id }), runDashboardAction("list_cancellation_responses", { id, ...(typeof query.cursor === "string" && { cursor: query.cursor }) })]);
+	const reader = typeof query.contact === "string" ? await runDashboardAction("refresh_reader_billing", { id: query.contact }) : null;
+	return <LayoutNarrow><HeaderPage title="Reader billing" /><div className="space-y-6">{[config, offers, responses, reader].filter(result => result?.failure).map((result, index) => <p key={index} role="alert">{result.failure.message}</p>)}{config.output && <FormSponsorshipAction action={settings} label="Save reader billing settings"><input type="hidden" name="newsletter" value={id} /><label className="flex gap-2"><input name="pauseEnabled" type="checkbox" defaultChecked={config.output.pauseEnabled} />Allow new 1, 3 or 6 month pauses</label><label className="flex gap-2"><input name="confirmFlexibleBilling" type="checkbox" />I understand new recurring purchases will use flexible Stripe billing. Existing subscriptions keep their billing mode.</label><label className="flex gap-2"><input name="surveyEnabled" type="checkbox" defaultChecked={config.output.surveyEnabled} />Offer optional cancellation feedback</label><label>Existing save offer<select className="block w-full rounded border bg-background p-2" name="saveOfferId" defaultValue={config.output.saveOfferId ?? ""}><option value="">No save offer</option>{offers.output?.offers.filter(offer => ["percent", "amount"].includes(offer.type)).map(offer => <option value={offer.id} key={offer.id}>{offer.name}</option>)}</select></label><p className="text-sm text-muted-foreground">Only an active prepared discount without a trial is eligible. Readers accept current provider terms. An existing discount is never replaced or stacked, and the save offer can be used only once per personal subscription.</p></FormSponsorshipAction>}
+		<section className="space-y-3"><h2 className="font-semibold">Manage a reader</h2><form method="get" className="flex gap-2"><label className="grow">Contact ID<input name="contact" defaultValue={typeof query.contact === "string" ? query.contact : ""} required pattern="[a-fA-F0-9]{24}" className="block w-full rounded border bg-background p-2" /></label><button className="self-end rounded border p-2">Read current billing</button></form>{reader?.output && <PanelReaderBilling key={query.contact} initial={reader.output} contactId={query.contact} actions={{ refresh, pause, unpause, resume, save, cancel }} />}</section>
+		<section className="space-y-3"><h2 className="font-semibold">Shared cancellation feedback</h2><p className="text-sm text-muted-foreground">Optional private feedback. A pending response does not confirm cancellation or establish its cause.</p>{responses.output?.responses.length === 0 && <p>No shared feedback yet.</p>}<ul className="divide-y">{responses.output?.responses.map(response => <li key={response.id} className="space-y-1 py-3 text-sm"><p>{response.reason ? readerBillingLabel(response.reason) : "No reason selected"} · {response.cancellationConfirmedAt ? "Cancellation confirmed" : "Awaiting billing confirmation"}</p><p className="whitespace-pre-wrap">{response.comment}</p><p>Shared: {response.sharedAt}</p>{response.contactId && <Link className="underline" href={`/reader-billing?contact=${response.contactId}`}>Read current billing</Link>}</li>)}</ul>{responses.output?.nextCursor && <Link className="underline" href={`/reader-billing?cursor=${encodeURIComponent(responses.output.nextCursor)}`}>More feedback</Link>}</section>
+	</div></LayoutNarrow>;
+}

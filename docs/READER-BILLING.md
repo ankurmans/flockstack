@@ -1,0 +1,21 @@
+# Reader billing choices
+
+Reader billing is off by default. In Payments → Reader billing, a creator can enable native 1, 3 or 6 month pauses, select one existing prepared discount without a trial, and offer optional cancellation feedback. The same nine creator actions are available through REST and MCP, with admin scope for billing changes and scoped contact-data auditing. API responses never return a reader billing capability.
+
+Enabling pauses requires explicit confirmation that new recurring purchases use flexible Stripe billing with the pinned `2026-09-30.endive` API. Existing subscriptions are never migrated. Classic billing, foreign schedules, mixed or metered items and unsupported provider states use the Stripe billing fallback. No application fee is added.
+
+A pause starts at the actual paid period end. Native Stripe pause schedules use 1, 3 or 6 month duration and resume on payment success. FlockStack does not simulate a pause with collection suppression, guess an access extension or give unpaid personal access while payment is pending. Early resume explicitly acknowledges renewed billing. An email-unsubscribed reader cannot resume or accept a save offer without becoming an active reader through the existing signup flow.
+
+Canceling a future pause removes only its owned pause entry. An unchanged one-phase schedule can be released; later creator phase edits are preserved. Canceling personal billing can release this flow's owned schedule and ends active billing at the paid period end, or ends already-paused/unpaid billing without a final invoice or proration. There is no automatic refund or email unsubscribe. Foreign schedules require review in Stripe. Existing funded gifts, comps and group seats stay separate.
+
+Save offers require exact current Stripe coupon terms and explicit acceptance. They never stack with or replace another discount. Once-only history is bound to the subscription, survives reader-profile deletion without retaining its profile binding, and cannot be reset by recreating a contact. Closing a feature prevents new uses and leaves existing billing management available.
+
+The existing signed billing link opens `/reader/billing` for enabled newsletters, on the app or newsletter host. It works after email unsubscribe without creating a reader session or resubscribing. The private page has no-store, no-referrer and noindex headers. State changes use authenticated server POST actions with independent mutation limits. Opening Stripe billing explicitly creates a short-lived Stripe portal session. A page GET never creates that provider session when reader billing is enabled.
+
+A stable UUID identifies each billing change and every retry. Unknown provider responses are reconciled against actual owned subscriptions, schedules, coupons and invoices. Unknown creation or resume attempts older than 23 hours require review; a known schedule ID can still be read. Concurrent and revoked reader bindings are checked before each provider write. A pending invoice does not authorize another resume invoice.
+
+Cancellation feedback is optional and shared only with explicit consent. It is stored privately in the account region and never copied to Stripe or internal retry payloads. A response's confirmation timestamp is set only after actual provider cancellation is observed. Reader-profile deletion removes feedback; private account exports include observations and feedback, and account deletion purges both models. Responses do not establish churn causes or saved revenue.
+
+## Release checks
+
+Migration `0042_reader_retention.sql` is generated locally and remains unapplied. Configure the payments webhook for `customer.subscription.paused` and `customer.subscription.resumed` as well as existing subscription events. Native pause support must be enabled and verified against the creator's actual Stripe account and pinned API version before rollout. Run provider test-mode checks for schedule creation, automatic paid-boundary pause, early and automatic resume, unpaid resume invoice, existing discount refusal, unknown-response recovery and cancellation. Local fake-provider tests do not establish live provider behavior. Reader controls have English, Spanish, French, German, Italian and Portuguese copy; human language QA remains pending.
