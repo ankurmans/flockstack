@@ -35,6 +35,11 @@ const EXPORTS = [
 		steps: "In Settings, open Import/Export (Labs on older versions) and download your content. Upload the JSON file, and give your site's address so its pictures come along.",
 		path: "/<slug>/",
 	},
+	{
+		name: "Mailchimp",
+		steps: "Export your campaigns report (Reports, then Export all campaigns) and download each sent campaign's HTML. Put the CSV and the HTML files in one ZIP and upload it. A file belongs to the row whose title, subject line or campaign ID is its file name or the title of its page. Campaigns with no send time are skipped as drafts, and the footer with the unsubscribe line is left out.",
+		path: "none: Mailchimp's archive pages live on its own address",
+	},
 ];
 
 const START = `curl -X POST $FLOCKSTACK_URL${API_BASE_PATH}/post-imports \\
@@ -53,7 +58,7 @@ const CSV = `from,to
 export default function MovingPage() {
 	return (
 		<>
-			<HeaderDocs kicker="Guides" title="Moving from Substack, beehiiv, WordPress or Ghost">
+			<HeaderDocs kicker="Guides" title="Moving from Substack, beehiiv, WordPress, Ghost or Mailchimp">
 				Bring your archive with you: every published post becomes an issue on your FlockStack website, on its original date, and the old
 				links keep working. Nothing is emailed to your readers.
 			</HeaderDocs>

@@ -74,6 +74,28 @@ function substackZip(options) {
 	return buildZip([["posts.csv", fixture("substack/posts.csv")], ...posts], options);
 }
 
+// The campaigns report Mailchimp exports and the HTML of each sent campaign, in one ZIP: one row is matched by its campaign ID in
+// the file's name, one by the subject in the page's title, one has no file, one is a draft, and one file has no row.
+const MAILCHIMP_CSV = [
+	"Title,Subject Line,Send Time,Campaign ID,Preview Text,From Name,Total Recipients",
+	"April newsletter,April: what is new,2024-04-09 08:00:00,mc-2,Three small changes,Jane Doe,120",
+	"Spring letter,The spring letter,2024-02-14 10:30:00,,,,120",
+	"Lost one,Where did this go,2024-01-03 09:00:00,mc-9,,,120",
+	"Next month,Not sent yet,,mc-10,,,0",
+].join("\n");
+const MAILCHIMP_FOOTER = '<table><tr><td id="templateFooter"><p>*|LIST:ADDRESS|*</p><a href="*|UNSUB|*">Unsubscribe</a></td></tr></table>';
+
+function mailchimpZip() {
+	const page = (title, body) =>
+		`<html><head><title>${title}</title><style>.x{color:red}</style></head><body><a href="*|ARCHIVE|*">View this email in your browser</a><table><tr><td><p>${body}</p></td></tr></table>${MAILCHIMP_FOOTER}</body></html>`;
+	return buildZip([
+		["campaigns.csv", MAILCHIMP_CSV],
+		["mc-2.html", page("April", "Hello *|FNAME|*, welcome back.")],
+		["export/spring.html", page("The spring letter", "Spring is here.")],
+		["old-promo.html", page("Old promo", "Not in the report.")],
+	]);
+}
+
 async function runJobs() {
 	const results = [];
 	while (processed < published.length) {
@@ -212,6 +234,27 @@ describe("reading exports", () => {
 		);
 		assert.equal(resolveImportedUrl(posts[1].thumbnailUrl, GHOST_SITE), `${GHOST_SITE}/content/images/2024/06/cover.png`);
 		assert.equal(resolveImportedUrl(posts[1].thumbnailUrl, null), null);
+	});
+
+	test("Mailchimp's ZIP: sent campaigns matched to their HTML by name or page title, drafts and strangers counted, the footer and merge tags gone", async () => {
+		const { source, posts, skipped } = await parseExport(mailchimpZip());
+		assert.equal(source, "mailchimp");
+		assert.deepEqual(skipped, { drafts: 1, other: 1, missingContent: 1 });
+		assert.deepEqual(
+			posts.map(({ sourceId, title, subtitle, slug, oldPath, paid, publishedAt, author }) => ({ sourceId, title, subtitle, slug, oldPath, paid, publishedAt, author })),
+			[
+				{ sourceId: "mc-2", title: "April: what is new", subtitle: "Three small changes", slug: "april-what-is-new", oldPath: null, paid: false, publishedAt: "2024-04-09T08:00:00.000Z", author: "Jane Doe" },
+				{ sourceId: "2024-02-14-the-spring-letter", title: "The spring letter", subtitle: "", slug: "the-spring-letter", oldPath: null, paid: false, publishedAt: "2024-02-14T10:30:00.000Z", author: null },
+			]
+		);
+		const prepared = prepareImportedHtml(posts[0].html, { source: "mailchimp" });
+		assert.match(prepared, /Hello there, welcome back\./);
+		assert.doesNotMatch(prepared, /\*\||View this email|Unsubscribe|templateFooter|<style|<table/i);
+		assert.match(posts[1].html, /Spring is here/);
+
+		await assert.rejects(parseExport(Buffer.from(MAILCHIMP_CSV)), /no campaign content: put it in a ZIP/);
+		assert.equal((await parseExport(mailchimpZip(), { expected: "mailchimp" })).posts.length, 2);
+		await assert.rejects(parseExport(mailchimpZip(), { expected: "ghost" }), /looks like a Mailchimp export, not Ghost/);
 	});
 
 	test("a ZIP around one export is read as that export; anything else is refused with what to upload", async () => {
@@ -431,6 +474,30 @@ describe("importing posts", () => {
 		assert.equal((await visitHost("field-notes", "/2023/05/12/hello-world/")).headers.get("location"), `https://field-notes.${SHARED_DOMAIN}/p/hello-world`);
 		const list = await callApi("GET", "/api/v1/post-imports?newsletter=field-notes", { key: jane.key });
 		assert.equal(list.body.imports[0].id, second.id);
+	});
+
+	test("a Mailchimp archive becomes sent issues on their send dates, with no email, no redirect and none of the template's footer", async () => {
+		const chimp = await customer("chimp-import@example.com", "chimp-notes");
+		const preview = await importFile(chimp, mailchimpZip());
+		assert.equal(preview.source, "mailchimp");
+		assert.deepEqual([preview.preview.posts, preview.preview.skipped], [2, { drafts: 1, other: 1, missingContent: 1 }]);
+		const { report } = await startAndRun(chimp, preview.id);
+		assert.equal(report.status, "done");
+		assert.deepEqual([report.counts.imported, report.counts.redirects, report.counts.failed], [2, 0, 0]);
+
+		const [april, spring] = await issuesOf(chimp);
+		assert.deepEqual([april.subject, april.previewText, april.status, april.audience, april.source], ["April: what is new", "Three small changes", "sent", "all", "import"]);
+		assert.deepEqual(april.sentAt, new Date("2024-04-09T08:00:00.000Z"));
+		assert.equal(april.importedFrom.source, "mailchimp");
+		assert.equal(april.importKey, "mailchimp:mc-2");
+		assert.match(april.html, /Hello there, welcome back\./);
+		assert.doesNotMatch(april.html, /\*\||Unsubscribe|View this email|<style/);
+		assert.equal(spring.importKey, "mailchimp:2024-02-14-the-spring-letter");
+		assert.equal(await m.Message.countDocuments({ accountId: chimp.accountId }), 0);
+
+		const again = await importFile(chimp, mailchimpZip());
+		const second = await startAndRun(chimp, again.id);
+		assert.deepEqual([second.report.counts.imported, second.report.counts.existing], [0, 2], "importing it again adds nothing");
 	});
 
 	test("an account's purge removes the files of its imports", async () => {
