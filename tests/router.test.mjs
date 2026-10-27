@@ -53,19 +53,19 @@ describe("the routing table", () => {
 		}
 	});
 
-	test("/ stays the public website for visitors and signed-in people", () => {
+	test("/ is the website for a visitor and the app (the dashboard) for a signed-in person", () => {
 		const { env } = stack();
 		assert.equal(route(env, "https://flockstack.io/"), "website");
 		assert.equal(route(env, "https://flockstack.io/", { headers: { cookie: "fs_consent=accepted; theme=dark" } }), "website");
-		assert.equal(route(env, "https://flockstack.io/", { headers: SESSION_US }), "website");
-		assert.equal(route(env, "https://flockstack.io/", { headers: { cookie: "__Secure-better-auth.session_token=x" } }), "website");
+		assert.equal(route(env, "https://flockstack.io/", { headers: SESSION_US }), "app");
+		assert.equal(route(env, "https://flockstack.io/", { headers: { cookie: "__Secure-better-auth.session_token=x" } }), "app");
 	});
 
-	test("both regional homepages stay public regardless of session cookies", () => {
+	test("the EU router reads the EU session cookie and not the US one", () => {
 		const { env } = stack(EU);
 		assert.equal(route(env, "https://eu.flockstack.io/"), "website");
-		assert.equal(route(env, "https://eu.flockstack.io/", { headers: SESSION_EU }), "website");
-		assert.equal(route(env, "https://eu.flockstack.io/", { headers: { cookie: "flockstack-eu.session_token=x" } }), "website");
+		assert.equal(route(env, "https://eu.flockstack.io/", { headers: SESSION_EU }), "app");
+		assert.equal(route(env, "https://eu.flockstack.io/", { headers: { cookie: "flockstack-eu.session_token=x" } }), "app");
 		assert.equal(route(env, "https://eu.flockstack.io/", { headers: SESSION_US }), "website", "a US cookie is not an EU session");
 		const us = stack(US).env;
 		assert.equal(route(us, "https://flockstack.io/", { headers: SESSION_EU }), "website", "an EU cookie is not a US session");
@@ -103,7 +103,7 @@ describe("the routing table", () => {
 			assert.equal(route(env, `https://flockstack.io${path}?_rsc=x`, { headers: rsc }), "hard-navigation", `${path} click`);
 		}
 		assert.equal(route(env, "https://flockstack.io/?_rsc=x", { headers: { ...rsc, "next-router-prefetch": "1" } }), "skip-prefetch", "/ is the website for a visitor");
-		assert.equal(route(env, "https://flockstack.io/?_rsc=x", { headers: { ...rsc, "next-router-prefetch": "1", ...SESSION_US } }), "skip-prefetch", "the public homepage even for a signed-in person");
+		assert.equal(route(env, "https://flockstack.io/?_rsc=x", { headers: { ...rsc, "next-router-prefetch": "1", ...SESSION_US } }), "app", "and the dashboard for a signed-in person");
 	});
 
 	test("a docs page's prefetches never reach the app, whatever they are for; a click on the app's own page does", () => {
@@ -136,7 +136,7 @@ describe("the routing table", () => {
 		const host = "flockstack-router.example.workers.dev";
 		assert.equal(route(env, `https://${host}/pricing`), "website");
 		assert.equal(route(env, `https://${host}/`), "website");
-		assert.equal(route(env, `https://${host}/`, { headers: SESSION_US }), "website");
+		assert.equal(route(env, `https://${host}/`, { headers: SESSION_US }), "app");
 		assert.equal(route(env, `https://${host}/docs/api`), "public");
 		assert.equal(route(env, `https://${host}/signin`), "app");
 		assert.equal(route(env, `https://${host}/docs/api?_rsc=x`, { headers: { rsc: "1" } }), "hard-navigation");
