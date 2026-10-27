@@ -1,0 +1,24 @@
+{
+	"$schema": "../../node_modules/wrangler/config-schema.json",
+	"name": "flockstack-collaboration",
+	"main": "dist/index.js",
+	"no_bundle": true,
+	"build": { "command": "npm run build:collaboration" },
+	"compatibility_date": "2026-09-01",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"workers_dev": false,
+	"preview_urls": false,
+	"observability": { "enabled": true },
+	"durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "CampaignRoom" }] },
+	"migrations": [{ "tag": "editor-v1", "new_sqlite_classes": ["CampaignRoom"] }],
+	"services": [{ "binding": "AUTHORITY", "service": "flockstack-api", "entrypoint": "CollaborationAuthority" }],
+	"vars": { "FLOCKSTACK_REGION": "us", "APP_URL": "https://flockstack.io", "COLLABORATION_ENABLED": "false" },
+	"env": {
+		"eu": {
+			"name": "flockstack-collaboration-eu",
+			"durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "CampaignRoom" }] },
+			"services": [{ "binding": "AUTHORITY", "service": "flockstack-api-eu", "entrypoint": "CollaborationAuthority" }],
+			"vars": { "FLOCKSTACK_REGION": "eu", "APP_URL": "https://eu.flockstack.io", "COLLABORATION_ENABLED": "false" }
+		}
+	}
+}
