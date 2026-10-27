@@ -97,6 +97,14 @@ export async function setCampaignFromName(id, fromName) {
 	return { ok: true };
 }
 
+// Share buttons in this issue's email header: on, off, or null to follow the newsletter.
+export async function setCampaignShareButtons(id, value) {
+	const { failure } = await runDashboardAction("update_campaign", { id: String(id), shareButtons: value === true ? true : value === false ? false : null });
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	return { ok: true };
+}
+
 // Who the issue goes to, saved before the send so the list cleanup's count follows it.
 export async function setCampaignAudience(id, audience) {
 	const { failure } = await runDashboardAction("update_campaign", { id: String(id), audience: readAudience(audience) });

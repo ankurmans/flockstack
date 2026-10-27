@@ -93,6 +93,8 @@ const campaignSchema = new mongoose.Schema(
 		listen: {
 			minutes: { type: Number },
 		},
+		// Share buttons in the email's header over the newsletter's setting: on or off. Without one it follows the newsletter.
+		shareButtons: { type: Boolean },
 		// Unlisted issues keep their /p/slug page but stay off the archive index.
 		archiveListed: { type: Boolean, default: true },
 		// Email only issues are also unlisted, and have no page at all; web only ones are published without an email.

@@ -4,7 +4,7 @@ import FormCampaignLists from "@/components/FormCampaignLists";
 import { CalendarClock, Loader2, Send } from "lucide-react";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { setCampaignFromName, setCampaignPublishTo } from "@/app/(app)/campaigns/actions";
+import { setCampaignFromName, setCampaignPublishTo, setCampaignShareButtons } from "@/app/(app)/campaigns/actions";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import CardAbTest from "@/components/CardAbTest";
 import CardSettings from "@/components/CardSettings";
@@ -138,6 +138,11 @@ export default function PanelSend({
 						<span className="shrink-0 text-xs text-muted-foreground">Most engaged first</span>
 					</span>
 				</RowCampaign>
+				{archiveUrlBase && !campaign.resend?.of && campaign.publishTo !== "web" && (
+					<RowCampaign label="Share">
+						<ChoiceShareButtons campaign={campaign} newsletter={newsletter} />
+					</RowCampaign>
+				)}
 				{archiveUrlBase && !campaign.resend?.of && (
 					<RowCampaign label="Web page">
 						<InputCampaignSlug
@@ -275,6 +280,48 @@ function ChoicePublishTo({ campaign, isWebsiteOn }) {
 					aria-checked={current === value}
 					disabled={isPending || (value === "web" && !isWebsiteOn)}
 					title={value === "web" && !isWebsiteOn ? "Turn on the newsletter's website first" : undefined}
+					onClick={() => current !== value && choose(value)}
+					className={cn(
+						"h-7 rounded-full px-3 text-xs font-medium outline-none transition-[background-color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60",
+						current === value ? "bg-foreground text-background" : "text-muted-foreground shadow-border hover:bg-muted/60 hover:text-foreground"
+					)}
+				>
+					{label}
+				</button>
+			))}
+		</div>
+	);
+}
+
+// Share buttons in this issue's email header: the newsletter's setting, or on or off for this issue. Saved as it's picked.
+function ChoiceShareButtons({ campaign, newsletter }) {
+	const router = useRouter();
+	const toastError = useToastError();
+	const [isPending, startTransition] = useTransition();
+	const current = typeof campaign.shareButtons === "boolean" ? String(campaign.shareButtons) : "default";
+	const choices = [
+		{ value: "default", label: newsletter.shareButtons ? "Newsletter setting (on)" : "Newsletter setting (off)" },
+		{ value: "true", label: "Share buttons on" },
+		{ value: "false", label: "Off" },
+	];
+
+	function choose(value) {
+		startTransition(async () => {
+			const result = await setCampaignShareButtons(campaign._id, value === "default" ? null : value === "true");
+			if (result?.error) return toastError(result);
+			router.refresh();
+		});
+	}
+
+	return (
+		<div role="radiogroup" aria-label="Share buttons in the email header" className="flex min-w-0 flex-wrap gap-1.5 py-2">
+			{choices.map(({ value, label }) => (
+				<button
+					key={value}
+					type="button"
+					role="radio"
+					aria-checked={current === value}
+					disabled={isPending}
 					onClick={() => current !== value && choose(value)}
 					className={cn(
 						"h-7 rounded-full px-3 text-xs font-medium outline-none transition-[background-color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60",

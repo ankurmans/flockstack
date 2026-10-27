@@ -83,6 +83,9 @@ const newsletterSchema = new mongoose.Schema(
 		utmLinks: { type: Boolean },
 		// Extra headers on the newsletter's emails (lib/custom-headers.js): an allowlist, never the unsubscribe or signing ones.
 		customHeaders: [{ _id: false, name: { type: String, trim: true }, value: { type: String, trim: true } }],
+		// Share buttons (X, LinkedIn, Facebook, email) beside the read online link in the email's header (lib/share-links.js). An
+		// issue can say otherwise (Campaign.shareButtons).
+		shareButtons: { type: Boolean },
 		// How long the dashboard holds a send so it can be undone: 0, 10, 30 or 60 seconds (lib/send-hold-rules.js). Unset: 30.
 		sendUndoSeconds: { type: Number },
 		// The website's signup pop-up and the gate (lib/popup-rules.js): when it opens, how long closing it snoozes it, where it
