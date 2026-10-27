@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { saveReferralSettings } from "@/app/(app)/referrals/actions";
+import { saveReferralSettings, saveReferralCodes, fulfillReferralRewards } from "@/app/(app)/referrals/actions";
 import BarSave from "@/components/BarSave";
 import ButtonCopy from "@/components/ButtonCopy";
 import CardSettings, { RowSettings } from "@/components/CardSettings";
@@ -24,7 +24,7 @@ function toDraft(settings) {
 }
 
 function toSnapshot({ enabled, rewards }) {
-	return JSON.stringify([enabled, rewards.map(({ id, referrals, title, url, text }) => [id, referrals, title, url, text])]);
+	return JSON.stringify([enabled, rewards.map(({ id, referrals, title, url, text, kind, tierId, months }) => [id, referrals, title, url, text, kind, tierId, months])]);
 }
 
 // problem: why the program can't count referrals yet (turn on confirmation emails, the website), or null. The switch stays
@@ -54,7 +54,9 @@ export default function FormReferrals({ newsletterId, settings }) {
 		startSaving(async () => {
 			const result = await saveReferralSettings({ newsletterId, ...draft });
 			if (result?.error) return void toast.error(result.error);
-			setSaved(toSnapshot(draft));
+			const fresh = toDraft(result.settings);
+			setDraft(fresh);
+			setSaved(toSnapshot(fresh));
 			setSavedAt(result.savedAt);
 		});
 	}
@@ -127,12 +129,24 @@ export default function FormReferrals({ newsletterId, settings }) {
 							</Button>
 						</div>
 						<Input value={reward.title} placeholder="Title, e.g. The field guide" maxLength={100} onChange={(event) => setReward(reward.key, { title: event.target.value })} aria-label={`Title of reward ${index + 1}`} />
+						<label className="text-sm">Benefit
+							<select className="ml-2 rounded border p-2" value={reward.kind ?? "message"} onChange={(event) => setReward(reward.key, { kind: event.target.value })} aria-label={`Benefit of reward ${index + 1}`}>
+								<option value="message">Shared link or message</option><option value="code">Unique code</option><option value="gift">Gifted paid-access months</option>
+							</select>
+						</label>
+						{reward.kind === "gift" && <>
+							<label className="text-sm">Paid tier <select className="ml-2 rounded border p-2" value={reward.tierId ?? ""} onChange={(event) => setReward(reward.key, { tierId: event.target.value })}><option value="">Choose a tier</option>{settings.tiers.map((tier) => <option key={tier.id} value={tier.id}>{tier.name}</option>)}</select></label>
+							<label className="text-sm">Months <Input type="number" min={1} max={12} value={reward.months ?? ""} onChange={(event) => setReward(reward.key, { months: event.target.value })} /></label>
+							<p className="text-sm text-muted-foreground">A private gift link grants access when redeemed. Existing recurring Stripe charges continue unchanged.</p>
+						</>}
+						{reward.kind === "code" && <p className="text-sm text-muted-foreground">Save this reward, then add exact codes below. Each code is assigned once. Vendor coupon validity is your responsibility.</p>}
 						<Input value={reward.url} placeholder="https:// link to a file or page (optional)" onChange={(event) => setReward(reward.key, { url: event.target.value })} aria-label={`Link of reward ${index + 1}`} />
-						<Textarea value={reward.text} placeholder="A message to reveal, e.g. a code (optional)" rows={2} maxLength={1000} onChange={(event) => setReward(reward.key, { text: event.target.value })} aria-label={`Message of reward ${index + 1}`} />
+						<Textarea value={reward.text} placeholder="A message to reveal (optional)" rows={2} maxLength={1000} onChange={(event) => setReward(reward.key, { text: event.target.value })} aria-label={`Message of reward ${index + 1}`} />
 					</div>
 				))}
 			</CardSettings>
 
+			<CardReferralInventory newsletterId={newsletterId} rewards={settings.rewards} stock={settings.stock} />
 			<CardSettings title="Put it in your issues" stagger={3}>
 				<p className="px-4 py-3 text-sm text-pretty text-muted-foreground">
 					Write <code className="font-mono text-foreground">{REFERRAL_LINK_TAG}</code> where each subscriber&apos;s own link goes and{" "}
@@ -159,4 +173,32 @@ function Snippet({ value, label }) {
 			<ButtonCopy value={value} label={label} />
 		</span>
 	);
+}
+
+function CardReferralInventory({ newsletterId, rewards, stock }) {
+	const [rewardId, setRewardId] = useState("");
+	const [codes, setCodes] = useState("");
+	const [cursor, setCursor] = useState(null);
+	const [busy, start] = useTransition();
+	const codeRewards = [...rewards.filter((r) => r.kind === "code"), ...stock.filter((row) => row.pending > 0 && !rewards.some((r) => r.id === row.rewardId)).map((row) => ({ id: row.rewardId, title: `Removed reward ${row.rewardId}` }))];
+	return <CardSettings title="Reward fulfillment" stagger={3}>
+		<div className="flex flex-col gap-3 p-4">
+			{stock.map((row) => <p key={row.rewardId} className="text-sm">{rewards.find((r) => r.id === row.rewardId)?.title ?? "Removed reward"}: {row.available} codes available, {row.assigned} assigned, {row.pending} rewards waiting.</p>)}
+			{codeRewards.length > 0 && <>
+				<label className="text-sm">Code reward <select className="ml-2 rounded border p-2" value={rewardId} onChange={(e) => setRewardId(e.target.value)}><option value="">Choose a reward</option>{codeRewards.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}</select></label>
+				<Textarea value={codes} onChange={(e) => setCodes(e.target.value)} placeholder="One exact code per line, up to 500" rows={4} aria-label="Reward codes" />
+				<Button type="button" variant="outline" disabled={busy || !rewardId || !codes} onClick={() => start(async () => {
+					const result = await saveReferralCodes({ newsletterId, rewardId, codes: codes.split(/\r?\n/).filter((line) => line !== "") });
+					if (result.error) return void toast.error(result.error);
+					setCodes(""); toast.success(`${result.added} codes added, ${result.duplicates} duplicates ignored.`);
+				})}>Add codes</Button>
+			</>}
+			<p className="text-sm text-muted-foreground">Retry already-earned rewards after restocking. Each pass checks up to 25. This sends no email and changes no billing. Readers can return to their private referral page.</p>
+			<Button type="button" variant="outline" disabled={busy} onClick={() => start(async () => {
+				const result = await fulfillReferralRewards({ newsletterId, cursor });
+				if (result.error) return void toast.error(result.error);
+				setCursor(result.nextCursor); toast.success(`${result.ready} rewards ready from ${result.checked} checked.`);
+			})}>{cursor ? "Continue reward fulfillment" : "Retry pending rewards"}</Button>
+		</div>
+	</CardSettings>;
 }

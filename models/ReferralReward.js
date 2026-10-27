@@ -9,6 +9,11 @@ const referralRewardSchema = new mongoose.Schema(
 		contactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact", required: true },
 		rewardId: { type: String, required: true },
 		referrals: { type: Number, required: true },
+		benefit: { type: mongoose.Schema.Types.Mixed },
+		state: { type: String, enum: ["pending", "ready"], default: "pending" },
+		codeId: { type: mongoose.Schema.Types.ObjectId, ref: "ReferralCode" },
+		giftId: { type: mongoose.Schema.Types.ObjectId, ref: "Gift" },
+		fulfilledAt: { type: Date },
 	},
 	{ timestamps: true }
 );

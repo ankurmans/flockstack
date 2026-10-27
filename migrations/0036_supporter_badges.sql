@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS i_contacts__accountId__community_badgeUpdatedAt___id ON c_contacts (accountId ASC, json_extract(data, '$.community.badgeUpdatedAt') ASC, _id ASC) WHERE json_type(data, '$.community.badgeUpdatedAt') IS NOT NULL;

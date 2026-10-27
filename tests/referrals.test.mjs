@@ -193,6 +193,8 @@ describe("the settings", () => {
 				isActive: false,
 				problem: null,
 				rewards: [],
+				stock: [],
+				tiers: [],
 				mergeTags: { link: REFERRAL_LINK_TAG, count: REFERRAL_COUNT_TAG },
 				totals: { credited: 0, pending: 0, rejected: 0, referrers: 0 },
 			}

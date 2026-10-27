@@ -7,7 +7,7 @@ import { connectDb } from "@/lib/db";
 import { formatCount } from "@/lib/format";
 import { findOpenNewsletter } from "@/lib/public-newsletters";
 import { verifyReferralPageToken } from "@/lib/referral-links";
-import { getReferralStatus } from "@/lib/referrals";
+import { getReaderReferralStatus } from "@/lib/referrals";
 import Contact from "@/models/Contact";
 
 // The URL carries the token that opens one subscriber's page: keep it out of search results and referrer headers.
@@ -30,7 +30,7 @@ export default async function ReferralPage({ searchParams }) {
 				<CardNotice icon={Link2Off} title="This link doesn't work">
 					It may be mistyped. Open the link in the newest email you got from the newsletter.
 				</CardNotice>
-			) : !page.status.isActive || page.contact.status !== "active" ? (
+			) : (!page.status.isActive && !page.status.rewards.some((r) => r.isUnlocked)) || page.contact.status !== "active" ? (
 				<CardNotice icon={Gift} title="Referrals are off">
 					{page.newsletter.name} isn&apos;t counting referrals right now.
 				</CardNotice>
@@ -46,7 +46,7 @@ async function findPage({ contactId, newsletterId }) {
 		await connectDb();
 		const newsletter = await findOpenNewsletter({ _id: newsletterId });
 		const contact = newsletter && (await Contact.findOne({ accountId: newsletter.accountId, _id: contactId, newsletterId }).lean());
-		return contact ? { newsletter, contact, status: getReferralStatus({ newsletter, contact }) } : null;
+		return contact ? { newsletter, contact, status: await getReaderReferralStatus({ newsletter, contact }) } : null;
 	} catch (error) {
 		console.error("[referral] Could not load the page:", error.message);
 		return null;
@@ -65,7 +65,7 @@ function Referrals({ newsletter, status }) {
 					<h1 className="text-lg font-semibold tracking-tight text-balance">Share {newsletter.name}</h1>
 				</div>
 				<p className="mt-4 text-sm text-pretty text-muted-foreground">
-					Send your link to someone who&apos;d like it. When they sign up and confirm, it counts for you, and you unlock the rewards below.
+					{!status.isActive && "New referrals are off. Your earned rewards remain here. "}Send your link to someone who&apos;d like it. When they sign up and confirm, it counts for you, and you unlock the rewards below.
 				</p>
 				<div className="mt-4 flex items-center gap-1 rounded-lg bg-muted/60 py-1 pr-1 pl-3">
 					<input
@@ -104,6 +104,9 @@ function Referrals({ newsletter, status }) {
 							</div>
 							{reward.isUnlocked ? (
 								<div className="mt-2 flex flex-col gap-2 text-sm text-pretty">
+									{!reward.isReady && <p role="status">You earned this reward. The newsletter is preparing it.</p>}
+									{reward.code && <div className="flex items-center gap-2"><code className="break-all">{reward.code}</code><ButtonCopy value={reward.code} label="Copy your code" /></div>}
+									{reward.giftUrl && <><a href={reward.giftUrl} className="underline underline-offset-4">Redeem your gifted months</a><p className="text-muted-foreground">This gives paid access. Your existing recurring charges continue unchanged.</p></>}
 									{reward.text && <p className="whitespace-pre-line text-foreground/80">{reward.text}</p>}
 									{reward.url && (
 										<a href={reward.url} rel="noopener noreferrer" className="w-fit font-medium underline underline-offset-4">
