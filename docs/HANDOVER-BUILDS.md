@@ -1,5 +1,15 @@
 # Agent setup and switching
 
+## Release checkpoint: 2026-10-27
+
+The app feature batches are committed and pushed to public origin/main. Runtime commit: `6b846d6`. Both regions were deployed with `node scripts/deploy-all.mjs --only <region> --skip-build`; all five core Workers in each region succeeded. Migrations 0030 through 0043 applied in US and EU; read-only tracker checks show 42 records and latest `0043_editor_collaboration.sql` in both.
+
+Verification: 3,473 app tests (3,469 passed, zero failed, four skipped), 12 native collaboration tests passed, lint passed with two existing warnings, clean OpenNext/public/readers/API builds and all eight size budgets passed. The build-conditional budget test was among the skips; all budgets were checked explicitly after building. Homepage, sign-in and OpenAPI return HTTP 200 in both regions; each OpenAPI exposes 355 operations. OAuth metadata, signing keys and unauthenticated MCP challenge checks passed in both regions. No authenticated customer workflow, newsletter send, model inference, Stripe operation or two-browser collaboration QA was performed.
+
+Optional realtime collaboration and inbound reply Workers remain unprovisioned and disabled. Follow docs/EDITOR-COLLABORATION.md and the replies setup in this document before enabling them. Existing audio activation/notice gates remain in force.
+
+The private website checkout has no uncommitted source. Claude Code's existing commit `eef92fd` is one commit ahead of its origin/main and was not pushed or deployed by this app release. Keep it separate from the app release.
+
 These features share the action registry with the dashboard, REST API and MCP. They work on Cloud and self-hosted servers. Public provisional workspaces are Cloud-only; authenticated bootstrap works in either mode. Deployment and operator setup are separate from these local features.
 
 ## Bootstrap and claim
