@@ -32,7 +32,7 @@ const { join } = require("node:path");
 const { DatabaseSync } = require("node:sqlite");
 const args = process.argv.slice(2);
 const log = (entry) => appendFileSync(process.env.FAKE_LOG, JSON.stringify(entry) + "\\n");
-if (args[0] === "opennextjs-cloudflare") { log({ build: true }); process.exit(0); }
+if (args[0] === "opennextjs-cloudflare") { log({ build: true, cloudBuild: process.env.FLOCKSTACK_CLOUD_BUILD }); process.exit(0); }
 if (args[0] === "wrangler" && args[1] === "deploy") {
 	// A copy of a configuration made for this deploy (scripts/optional-workers.mjs) is read now: it is removed once the deploy is over.
 	const at = args.indexOf("--config");
@@ -357,6 +357,7 @@ describe("a run", () => {
 		}
 		const calls = readLog();
 		assert.equal(calls.filter((call) => call.build).length, 1, "one build");
+		assert.equal(calls.find((call) => call.build).cloudBuild, "true", "built as the Cloud build, without the S3, CloudFront and Vercel Blob clients");
 		assert.equal(calls.filter((call) => call.render).length, 1, "and one rendering of the public pages from it");
 		assert.ok(calls.findIndex((call) => call.build) < calls.findIndex((call) => call.render), "the build first");
 		assert.ok(calls.findIndex((call) => call.render) < calls.findIndex((call) => call.d1), "then the pages, before anything is changed");

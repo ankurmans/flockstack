@@ -47,6 +47,8 @@ export function formatReport(results) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+	// The limits are the FlockStack Cloud build's, which leaves out the S3, CloudFront and Vercel Blob clients (scripts/deploy-all.mjs sets this).
+	process.env.FLOCKSTACK_CLOUD_BUILD ??= "true";
 	const requireApp = process.argv.includes("--require-app");
 	const budgets = readBudgets();
 	if (!existsSync(join(ROOT, budgets["api-worker"].file))) {

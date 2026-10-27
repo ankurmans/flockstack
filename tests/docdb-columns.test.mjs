@@ -101,7 +101,7 @@ describe("reading some fields", () => {
 		const pipeline = (keep) => [
 			{ $match: { accountId: account } },
 			...(keep ? [{ $project: { title: 1, score: 1, status: 1 } }] : []),
-			{ $addFields: { doubled: { $multiply: [{ $ifNull: ["$score", 0] }, 2] } } },
+			{ $addFields: { doubled: { $add: [{ $ifNull: ["$score", 0] }, { $ifNull: ["$score", 0] }] } } },
 			{ $sort: { doubled: -1, _id: 1 } },
 			{ $project: { title: 1, doubled: 1 } },
 		];

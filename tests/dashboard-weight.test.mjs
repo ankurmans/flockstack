@@ -7,7 +7,7 @@ import { closure, whyLoaded } from "../scripts/page-closure.mjs";
 // import closure of the pages everybody opens. The first dashboard request of an isolate that had answered nothing else cost 0.85 to
 // 0.96 s locally before these were made lazy (docs/PERFORMANCE.md); the AWS and Stripe SDKs, the Upstash clients, the action registry
 // with its zod schemas and Better Auth's OAuth provider were 1.5 MB of that page's code and none of it was used to show it.
-const NEVER_ON_A_PAGE = ["@aws-sdk/", "@smithy/", "node_modules/stripe/", "@upstash/", "node_modules/zod/", "@modelcontextprotocol/", "node_modules/jose/", "@better-auth/oauth-provider", "@better-auth/mcp", "@better-auth/cimd", "better-auth/dist/api/", "lib/docs/reference.js", "lib/actions/registry.js", "lib/mcp/"];
+const NEVER_ON_A_PAGE = ["@aws-sdk/", "@smithy/", "node_modules/stripe/", "@upstash/", "node_modules/zod/", "@modelcontextprotocol/", "node_modules/jose/", "@better-auth/oauth-provider", "@better-auth/mcp", "@better-auth/cimd", "node_modules/mingo/", "better-auth/dist/api/", "lib/docs/reference.js", "lib/actions/registry.js", "lib/mcp/"];
 const EDITOR_STACK = ["@tiptap/", "prosemirror-"];
 const PAGES = {
 	"the layout": "app/(app)/layout.js",

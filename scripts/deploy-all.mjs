@@ -7,7 +7,7 @@
 // once API_ENABLED says so (the runbook in the same document).
 //   node scripts/deploy-all.mjs [--only us|eu] [--dry-run] [--skip-build] [--skip-router-check] [--baseline 0006]
 // --only deploys one region (its database and Workers; the build is still the one build). --dry-run prints every command
-// and runs none, and talks to nothing. --skip-build deploys the .open-next folder and workers/public/dist as they are.
+// and runs none, and talks to nothing. --skip-build deploys the .open-next folder and workers/public/dist as they are (build .open-next with FLOCKSTACK_CLOUD_BUILD=true).
 // Placeholders left in lib/legal.js don't stop it: the legal pages stay hidden until they are filled, and it says which are left.
 // The optional Workers (realtime editing, inbound replies) are in no configuration of the repository, so a deploy never names a Worker that
 // may not exist. A region that has one says so in FLOCKSTACK_OPTIONAL_WORKERS or optional-workers.json (scripts/optional-workers.mjs,
@@ -148,6 +148,12 @@ export function parseRows(output) {
 	return JSON.parse(output.slice(start)).flatMap((entry) => entry.results ?? []);
 }
 
+// This script deploys FlockStack Cloud, which keeps images in R2: its builds (the app's, the API Worker's that Wrangler runs at each deploy) leave the
+// S3, CloudFront and Vercel Blob clients out (next.config.mjs, scripts/build-api-worker.mjs). FLOCKSTACK_CLOUD_BUILD=false in the environment keeps them.
+export function getBuildEnv(env = process.env) {
+	return { ...env, FLOCKSTACK_CLOUD_BUILD: env.FLOCKSTACK_CLOUD_BUILD ?? "true" };
+}
+
 function show(command, args) {
 	console.log(`$ ${[command, ...args].map((part) => (/[\s"']/.test(part) ? JSON.stringify(part) : part)).join(" ")}`);
 }
@@ -155,7 +161,7 @@ function show(command, args) {
 function run(command, args, { isDryRun, capture = false }) {
 	show(command, args);
 	if (isDryRun) return "";
-	const result = spawnSync(command, args, { cwd: ROOT, encoding: "utf8", stdio: capture ? ["inherit", "pipe", "inherit"] : "inherit" });
+	const result = spawnSync(command, args, { cwd: ROOT, encoding: "utf8", stdio: capture ? ["inherit", "pipe", "inherit"] : "inherit", env: getBuildEnv() });
 	if (result.status !== 0) throw new Error(`${command} ${args[0] ?? ""} failed${result.status === null ? ` (${result.signal})` : ` with exit code ${result.status}`}.`);
 	return result.stdout ?? "";
 }

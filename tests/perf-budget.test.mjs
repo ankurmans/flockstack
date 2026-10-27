@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -26,12 +27,27 @@ describe("the budgets", () => {
 	});
 
 	test("the router and the public pages Worker, bundled, and the API and readers Workers, built, are inside theirs", async () => {
-		await buildApiWorker();
 		await buildReadersWorker();
 		await buildCollaborationWorker();
-		for (const result of checkBudgets(budgets, { only: ["router", "public-handler", "api-worker", "readers-worker", "replies-worker", "collaboration-worker"] })) {
+		for (const result of checkBudgets(budgets, { only: ["router", "public-handler", "readers-worker", "replies-worker", "collaboration-worker"] })) {
 			assert.equal(result.isMissing, false, result.name);
 			assert.equal(result.isOver, false, `${result.label} is ${result.bytes} bytes, over ${result.maxBytes}`);
+		}
+	});
+
+	// The budget is the FlockStack Cloud build's (FLOCKSTACK_CLOUD_BUILD=true: no S3, CloudFront or Vercel Blob client), built apart so the
+	// API Worker the other tests load stays the plain one.
+	test("the API Worker, built as the Cloud build, is inside its", async () => {
+		const original = process.env.FLOCKSTACK_CLOUD_BUILD;
+		const folder = mkdtempSync(join(tmpdir(), "perf-budget-"));
+		process.env.FLOCKSTACK_CLOUD_BUILD = "true";
+		try {
+			const { bytes } = await buildApiWorker({ outFile: join(folder, "index.js") });
+			assert.ok(bytes <= budgets["api-worker"].maxBytes, `API Worker is ${bytes} bytes, over ${budgets["api-worker"].maxBytes}`);
+		} finally {
+			if (original === undefined) delete process.env.FLOCKSTACK_CLOUD_BUILD;
+			else process.env.FLOCKSTACK_CLOUD_BUILD = original;
+			rmSync(folder, { recursive: true, force: true });
 		}
 	});
 

@@ -29,6 +29,12 @@ export const ALIASES = {
 	"@opennextjs/cloudflare": join(SHIMS, "opennext-cloudflare.js"),
 	"@/lib/runtime-hooks": join(API, "runtime-hooks.js"),
 };
+// The FlockStack Cloud build (FLOCKSTACK_CLOUD_BUILD=true, set by scripts/deploy-all.mjs) keeps images in R2 only: the S3, CloudFront and
+// Vercel Blob clients are replaced by a stub that throws, as in next.config.mjs.
+export const CLOUD_BUILD_ALIASES = Object.fromEntries(
+	["@vercel/blob", "@aws-sdk/client-s3", "@aws-sdk/client-cloudfront"].map((name) => [name, join(ROOT, "lib/cloud-build/unavailable-storage.js")])
+);
+export const isCloudBuild = (env = process.env) => env.FLOCKSTACK_CLOUD_BUILD === "true";
 const EXTENSIONS = ["", ".js", ".jsx", ".mjs", "/index.js"];
 const BUILTINS = new Set(builtinModules);
 
@@ -46,13 +52,13 @@ function loadEsbuild() {
 	return createRequire(join(dirname(require.resolve("wrangler/package.json")), "package.json"))("esbuild");
 }
 
-export function createPlugin() {
+export function createPlugin({ aliases = { ...ALIASES, ...(isCloudBuild() && CLOUD_BUILD_ALIASES) } } = {}) {
 	return {
 		name: "flockstack-api-worker",
 		setup(build) {
 			build.onResolve({ filter: /.*/ }, (args) => {
 				const request = args.path;
-				if (ALIASES[request]) return { path: ALIASES[request] };
+				if (aliases[request]) return { path: aliases[request] };
 				if (request.startsWith("@/")) {
 					const base = join(ROOT, request.slice(2));
 					const found = EXTENSIONS.map((extension) => `${base}${extension}`).find(isFile);
@@ -90,7 +96,7 @@ export async function buildApiWorker({ sourcemap = false, metafile = false, mini
 		sourcemap,
 		metafile,
 		logLevel: "error",
-		define: { "process.env.NODE_ENV": '"production"' },
+		define: { "process.env.NODE_ENV": '"production"', ...(isCloudBuild() && { "process.env.FLOCKSTACK_CLOUD_BUILD": '"true"' }) },
 	});
 	// esbuild escapes the wide characters of strings but leaves those in regular expressions: write them as escapes too, as
 	// scripts/narrow-bundle.mjs does for the app, so no character of the script is above U+00FF.
