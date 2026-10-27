@@ -115,6 +115,10 @@ const campaignSchema = new mongoose.Schema(
 		},
 		// Pinned issues sit in the Featured row at the top of the archive.
 		archivePinned: { type: Boolean, default: false },
+		// Put away from the campaign list by a bulk archive: the web page is unlisted too (archivedUnlisted says the archive
+		// did it, so unarchiving lists it again).
+		archivedAt: { type: Date },
+		archivedUnlisted: { type: Boolean },
 		// An issue brought from another platform by a post import (lib/post-import.js): "<source>:<its ID there>", so the
 		// same post is never imported twice into a newsletter, and where it came from. It went out before, from there: it is
 		// sent with no emails and no stats.
