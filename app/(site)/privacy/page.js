@@ -166,7 +166,7 @@ export default function PrivacyPage() {
 				<p>These are the creator&apos;s data, which we hold and process for them.</p>
 				<ul>
 					<li>
-						<Strong>The list:</Strong> each subscriber&apos;s email address, status (active, pending, unsubscribed, bounced, complained or
+						<Strong>The list:</Strong> each subscriber&apos;s email address, status (active, pending, held for the creator&apos;s approval, unsubscribed, bounced, complained or
 						dormant), where they signed up from, the country they signed up from when the visitor&apos;s network is known (two letters,
 						read from the request by Cloudflare; the IP address isn&apos;t kept for it), the dates they signed up, confirmed and left, and the
 						tags and fields the creator sets. Where they signed up from is also a source (the website, a pop-up, a form, a Magic Link, a
@@ -446,6 +446,10 @@ export default function PrivacyPage() {
 						<Strong><code>fs_reader_&lt;newsletter&gt;</code></Strong> and a marker, <Strong><code>fs_reader_&lt;newsletter&gt;_on</code></Strong>, for 30 days, on a
 						newsletter&apos;s website: they keep a subscriber signed in to that newsletter, to read paid issues, read a gated issue, comment and
 						open their account page, and only exist after the subscriber used a sign-in link or the link that confirms their subscription.
+					</li>
+					<li>
+						<Strong><code>fs_gift_&lt;newsletter&gt;_&lt;link&gt;</code></Strong>, for 90 days, on a newsletter&apos;s website: a signed note that this browser
+						opened a gift link to a paid issue, so reading the issue again does not use up the link. It holds no personal data.
 					</li>
 				</ul>
 				<p>

@@ -70,3 +70,5 @@ Reader opt-in supporter badges for comments: [SUPPORTER-BADGES.md](SUPPORTER-BAD
 ## Reply Rules and reader billing languages
 
 Optional owner-configured AI classification uses public rules and recent consenting manually hidden examples, with a separate reader checkbox and revision check. Existing holds win, uncertain results wait for review, and owners can reverse decisions. Private consent/decision metadata is exported and purged with existing records. See [Reply Rules](REPLY-RULES.md) for exact bounds, provider processing and unverified model scores. All six reader languages now retain complete billing, pledge and referral information and fixed pledge/gift mail wording; authored text stays unchanged. See [reader billing languages](READER-BILLING-LANGUAGES.md). Human native-language and live provider/model QA remain release work.
+
+Held signups, a private website, Mailchimp archive import, gift links, a paid upgrade offer, paused-subscription events, social drafts, per-issue schema and device split: [guide](PARITY-GROW-MONEY-SEO.md).
