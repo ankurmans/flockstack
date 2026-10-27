@@ -23,7 +23,7 @@ function collectTags(campaigns) {
 	return [...bySlug.values()].toSorted((a, b) => a.localeCompare(b));
 }
 
-export default async function CampaignsPage({ searchParams }) {
+export default async function CampaignsPage({ searchParams } = {}) {
 	const [{ account, user, selected, newsletters }, params] = await Promise.all([getSelectedNewsletter(), searchParams]);
 	const archived = params?.view === "archived";
 	const [everything, { templates }] = selected

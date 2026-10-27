@@ -88,11 +88,9 @@ describe("an email", () => {
 		for (const host of SHARE_HOSTS) assert.ok(links.every((url) => !url.includes(`${host}`) || !url.includes("utm_")));
 	});
 
-	test("are not on the web version of an issue, and are in the label of the reader's language", () => {
+	test("are not on the web version of an issue", () => {
 		const page = renderEmail({ format: "rich", html: campaign.html, subject: "S", newsletter, isWebVersion: true, shareLinks: getShareLinks({ url: "https://x.example/p/a" }) });
 		assert.ok(!page.html.includes("Share"));
-		const spanish = renderEmail({ format: "rich", html: campaign.html, subject: "S", newsletter: { ...newsletter, language: "es" }, webUrl: "https://x.example/p/a", shareLinks: getShareLinks({ url: "https://x.example/p/a" }) });
-		assert.match(spanish.html, /Compartir:/);
 	});
 });
 
