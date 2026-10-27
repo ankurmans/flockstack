@@ -209,6 +209,7 @@ export default async function ContactsPage({ searchParams }) {
 												status={contact.status}
 												tags={contact.tags ?? []}
 												fields={contact.fields ?? {}}
+												listIds={contact.listIds ?? []} mailingLists={selected?.mailingLists ?? []}
 												definitions={fieldOptions}
 												tagColors={tagColors}
 											/>

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import FormSubscribePaid from "@/components/FormSubscribePaid";
 import { getArchiveNewsletter, getShopPayments } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
+import { getReaderText } from "@/lib/reader-languages";
 import { getOfferProblem, describeOffer } from "@/lib/offer-rules";
 import { countRedemptions, findOfferByCode } from "@/lib/offers";
 import { formatPrice } from "@/lib/payments/config";
@@ -20,9 +21,10 @@ export default async function OfferPage({ params }) {
 	const offer = await findOfferByCode(newsletter, code);
 	if (!offer) notFound();
 	const [payments, redemptions] = await Promise.all([getShopPayments(newsletter), countRedemptions(newsletter.accountId, offer)]);
-	const problem = getOfferProblem(offer, { redemptions }) ?? (offer.type === "amount" && offer.currency !== (newsletter.paidTier.currency || "usd") ? "This offer has ended" : null);
+	const problem = getOfferProblem(offer, { redemptions, currency: newsletter.paidTier.currency || "usd" });
 	const urls = getArchiveUrls(newsletter);
 	const currency = newsletter.paidTier.currency || "usd";
+	const t = getReaderText(newsletter);
 	const tiers = getOfferedTiers(getNewsletterTiers(newsletter))
 		.filter((tier) => !offer.tierIds?.length || offer.tierIds.includes(tier.id))
 		.map((tier) => ({
@@ -31,17 +33,17 @@ export default async function OfferPage({ params }) {
 			description: tier.description,
 			benefits: tier.benefits,
 			founding: { enabled: false, spotsLeft: null, canName: false },
-			options: getTierOptions(tier).map(({ option, cents }) => ({ option, cents, label: OPTION_LABELS[option], note: option === "pwyw" ? (tier.pwyw.interval === "month" ? "a month or more" : "a year or more") : OPTION_NOTES[option] })),
-		}));
+			options: getTierOptions(tier).filter((way) => problem || !offer.trialAmountCents || (way.mode === "subscription" && way.option !== "pwyw")).map(({ option, cents }) => ({ option, cents, label: OPTION_LABELS[option], note: option === "pwyw" ? (tier.pwyw.interval === "month" ? "a month or more" : "a year or more") : OPTION_NOTES[option] })),
+		})).filter((tier) => tier.options.length > 0);
 
 	return (
 		<div className="mx-auto max-w-xl px-5 pt-16 pb-24 sm:pt-20">
 			<p className="text-sm font-medium text-muted-foreground animate-enter">{offer.name}</p>
 			<h1 style={{ "--stagger": 1 }} className="mt-2 text-4xl font-semibold tracking-tight text-balance animate-enter">
-				{problem ? problem : describeOffer(offer, formatPrice)}
+				{problem ? problem : describeOffer(offer, (amount, unit) => formatPrice(amount, unit, t.language), t)}
 			</h1>
 			<p style={{ "--stagger": 2 }} className="mt-4 text-lg text-muted-foreground text-pretty animate-enter">
-				{problem ? `You can still become a paid subscriber of ${newsletter.name} at its regular price.` : `Become a paid subscriber of ${newsletter.name}. The price below is what you pay, and Stripe shows it again at checkout.`}
+				{problem ? `You can still become a paid subscriber of ${newsletter.name} at its regular price.` : offer.trialAmountCents > 0 ? t("Become a paid subscriber of {name}. The upfront trial charge and renewal price are shown below and again at checkout.", { name: newsletter.name }) : `Become a paid subscriber of ${newsletter.name}. The price below is what you pay, and Stripe shows it again at checkout.`}
 			</p>
 			<div style={{ "--stagger": 3 }} className="mt-10 rounded-2xl bg-card p-5 shadow-border animate-enter sm:p-6">
 				{payments.ready && tiers.length > 0 ? (
@@ -50,7 +52,7 @@ export default async function OfferPage({ params }) {
 						tiers={tiers}
 						currency={currency}
 						trialDays={problem ? 0 : (offer.trialDays ?? newsletter.paidTier.trialDays ?? 0)}
-						offer={problem ? null : { code: offer.code, type: offer.type, percentOff: offer.percentOff, amountOffCents: offer.amountOffCents }}
+						offer={problem ? null : { code: offer.code, type: offer.type, percentOff: offer.percentOff, amountOffCents: offer.amountOffCents, trialAmountCents: offer.trialAmountCents }}
 					/>
 				) : (
 					<p className="text-sm text-muted-foreground">Paid subscriptions aren&apos;t open right now. Check back soon.</p>
@@ -58,7 +60,7 @@ export default async function OfferPage({ params }) {
 			</div>
 			<p className="mt-6 text-sm text-muted-foreground">
 				<a href={urls.subscribe} className="underline underline-offset-4 transition-colors duration-150 hover:text-foreground">
-					See every plan
+					{t("See every plan")}
 				</a>
 			</p>
 		</div>

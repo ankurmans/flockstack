@@ -14,7 +14,9 @@ export default function ReportsPage() {
 				download as CSV.
 			</HeaderDocs>
 
-			<Section title="Growth" stagger={1}>
+			<Section title="Overview" stagger={1}><p>The overview compares a selected range with the same number of days before it. Choose 30, 90, 180, 365 or 730 days on the dashboard; get_overview accepts 1 to 730. Subscriber history is reconstructed from retained join and leave dates, so imported history may be incomplete. Hourly sends remain today and yesterday, and plan usage remains the current billing month.</p></Section>
+
+			<Section title="Growth" stagger={2}>
 				<p>
 					The{" "}
 					<Link href="/reports" className="font-medium text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">

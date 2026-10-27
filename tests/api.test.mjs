@@ -513,7 +513,7 @@ describe("newsletters and images", () => {
 		assertError(await api(user.key, "PATCH", `/newsletters/${user.slug}`, { cleanup: { issues: 1 } }), 400, "validation_failed");
 		for (const name of ["Second", "Third"]) assert.equal((await api(user.key, "POST", "/newsletters", { name })).status, 201, name);
 		const fourth = assertError(await api(user.key, "POST", "/newsletters", { name: "Fourth" }), 409, "conflict");
-		assert.equal(fourth, "An account has up to 3 newsletters");
+		assert.equal(fourth, "Your account allows 3 newsletters");
 	});
 
 	test("a new newsletter starts with list cleanup on and the default numbers, unless it says false", async () => {

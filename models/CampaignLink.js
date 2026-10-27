@@ -9,6 +9,7 @@ const campaignLinkSchema = new mongoose.Schema(
 		campaignId: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign", required: true },
 		index: { type: Number, required: true, min: 0 },
 		url: { type: String, required: true },
+		sponsorshipBookingId: { type: mongoose.Schema.Types.ObjectId },
 		clicks: { type: Number, default: 0 },
 		uniqueClicks: { type: Number, default: 0 },
 	},
@@ -17,5 +18,6 @@ const campaignLinkSchema = new mongoose.Schema(
 
 campaignLinkSchema.plugin(accountScoped);
 campaignLinkSchema.index({ campaignId: 1, index: 1 }, { unique: true });
+campaignLinkSchema.index({ accountId: 1, sponsorshipBookingId: 1, createdAt: -1, _id: -1 }, { partialFilterExpression: { sponsorshipBookingId: { $type: "string" } } });
 
 export default mongoose.models.CampaignLink || mongoose.model("CampaignLink", campaignLinkSchema);

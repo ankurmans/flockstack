@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { createForm, deleteForm, updateForm } from "@/app/(app)/forms/actions";
 import CardSettings, { RowSettings } from "@/components/CardSettings";
+import FieldsSignupFlow from "@/components/FieldsSignupFlow";
 import FormEmbed from "@/components/FormEmbed";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,12 +28,14 @@ function fromForm(form) {
 		colors: { button: "", buttonText: "", background: "", text: "", ...form?.colors },
 		successMessage: form?.successMessage ?? "",
 		redirectUrl: form?.redirectUrl ?? "",
+		flow: form?.flow ?? [],
+		archiveDefault: form?.archiveDefault === true,
 	};
 }
 
 // A signup form for other sites, drawn as it will look. fields: the newsletter's custom fields it can ask for; accent:
 // the newsletter's accent color, the button's unless a color is chosen.
-export default function FormEmbedSettings({ newsletterId, form, fields, accent }) {
+export default function FormEmbedSettings({ newsletterId, form, fields, accent, surveys = [] }) {
 	const router = useRouter();
 	const [draft, setDraft] = useState(() => fromForm(form));
 	const [isPending, startTransition] = useTransition();
@@ -118,11 +121,12 @@ export default function FormEmbedSettings({ newsletterId, form, fields, accent }
 				<RowSettings label="Message" hint="A signup that has to be confirmed always says to check the inbox." isLabel>
 					<Textarea value={draft.successMessage} onChange={(event) => set("successMessage", event.target.value)} maxLength={200} rows={2} placeholder={DEFAULT_SUCCESS_MESSAGE} />
 				</RowSettings>
-				<RowSettings label="Or go to" hint="An https:// page of yours, shown instead of the message. With confirmed opt-in, tell them there to confirm their email." isLabel>
+				<RowSettings label="Or go to" hint="An https:// page of yours after the optional steps. With confirmed opt-in, remind readers there to confirm their email." isLabel>
 					<Input type="url" value={draft.redirectUrl} onChange={(event) => set("redirectUrl", event.target.value.trim())} maxLength={500} placeholder="https://example.com/thanks" />
 				</RowSettings>
 			</CardSettings>
 
+			<CardSettings title="After-signup steps" stagger={3}><FieldsSignupFlow value={draft.flow} onChange={(flow) => set("flow", flow)} surveys={surveys} /><label className="flex items-center gap-2 px-4 pb-4 text-sm"><input type="checkbox" checked={draft.archiveDefault} onChange={(event) => set("archiveDefault", event.target.checked)} />Use these steps after archive and popup signups</label></CardSettings>
 			<section className="rounded-xl bg-card shadow-border animate-enter">
 				<h2 className="flex h-12 items-center px-4 text-sm font-medium">Preview</h2>
 				<div className="border-t border-border/60 bg-white p-4">

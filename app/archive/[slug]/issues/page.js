@@ -47,7 +47,7 @@ export default async function IssuesPage({ params, searchParams }) {
 		<div className="mx-auto max-w-5xl px-5 pt-12 pb-24 sm:pt-16">
 			<h1 className="site-title text-3xl font-semibold tracking-tight animate-enter sm:text-4xl">All issues</h1>
 			<div className="mt-6 flex flex-col gap-4">
-				<FormSearchIssues action={urls.issues} defaultValue={search} />
+				<FormSearchIssues language={newsletter.language ?? "en"} action={urls.issues} defaultValue={search} />
 				<ChipsTag tags={tags.slice(0, 20)} urls={urls} />
 			</div>
 			<p className="mt-8 text-sm text-muted-foreground tabular-nums" aria-live="polite">
@@ -60,7 +60,7 @@ export default async function IssuesPage({ params, searchParams }) {
 					<p className="text-muted-foreground">{search ? "No issue has those words in its title." : "No issues yet."}</p>
 				)}
 			</div>
-			<PaginationIssues page={list.page} pages={list.pages} hrefFor={hrefFor} />
+			<PaginationIssues language={newsletter.language ?? "en"} page={list.page} pages={list.pages} hrefFor={hrefFor} />
 		</div>
 	);
 }

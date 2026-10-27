@@ -17,6 +17,8 @@ const uploadSchema = new mongoose.Schema(
 		// Where a post import downloaded it from: the same picture in another post, or the same import run again, uses
 		// this file instead of storing it twice.
 		sourceUrl: { type: String },
+		generatedBy: { type: String },
+		generatedAt: { type: Date },
 	},
 	{ timestamps: true }
 );

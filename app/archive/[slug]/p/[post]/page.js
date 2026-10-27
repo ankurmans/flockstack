@@ -1,3 +1,4 @@
+import { getReaderText } from "@/lib/reader-languages";
 import { notFound } from "next/navigation";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import BadgeDate from "@/components/BadgeDate";
@@ -65,7 +66,8 @@ export default async function PostPage({ params }) {
 
 async function renderPage({ newsletter, page }) {
 	const [readers, signupFields] = await Promise.all([countReaders(newsletter), listSignupFields(newsletter)]);
-	const pitch = { name: newsletter.name, slug: newsletter.slug, imageUrl: newsletter.imageUrl, description: newsletter.description, signupFields };
+	const pitch = {
+		language: newsletter.language ?? "en", readerTranslations: Boolean(newsletter.readerTranslations), name: newsletter.name, slug: newsletter.slug, imageUrl: newsletter.imageUrl, description: newsletter.description, signupFields };
 	// Its own pages (About, Sponsor) carry the pop-up like issues do.
 	const popup = getPopupSettings(newsletter);
 
@@ -77,7 +79,7 @@ async function renderPage({ newsletter, page }) {
 				<div
 					style={{ "--stagger": 1 }}
 					className="prose-issue mt-10 animate-enter"
-					dangerouslySetInnerHTML={{ __html: renderPageBody(page.html, { accent: getBrand(newsletter).accent }) }}
+					dangerouslySetInnerHTML={{ __html: renderPageBody(page.html, { accent: getBrand(newsletter).accent, contentsLabel: getReaderText(newsletter)("Contents") }) }}
 				/>
 			</article>
 			<section id="subscribe" className="mx-auto max-w-2xl scroll-mt-24 px-5 pt-16 pb-24">
@@ -124,6 +126,7 @@ async function renderIssue({ newsletter, issue }) {
 	const author = getIssueAuthor(newsletter, issue);
 	const issueTags = (issue.tags ?? []).map((name, index) => ({ name, slug: issue.tagSlugs?.[index] ?? getTagSlug(name) }));
 	const pitch = {
+		language: newsletter.language ?? "en", readerTranslations: Boolean(newsletter.readerTranslations),
 		name: newsletter.name,
 		slug: newsletter.slug,
 		imageUrl: newsletter.imageUrl,
@@ -139,10 +142,10 @@ async function renderIssue({ newsletter, issue }) {
 			))}
 			<article className="mx-auto max-w-2xl px-5 pt-12 sm:pt-16">
 				<header className="animate-enter">
-					<h1 className="site-title text-4xl font-semibold tracking-tight text-balance sm:text-[2.75rem] sm:leading-[1.1]">
-						{issue.subject}
+					<h1 className={issue.kind === "note" ? "sr-only" : "site-title text-4xl font-semibold tracking-tight text-balance sm:text-[2.75rem] sm:leading-[1.1]"}>
+						{issue.kind === "note" ? getReaderText(newsletter)("Short post") : issue.subject}
 					</h1>
-					{issue.previewText && (
+					{issue.kind !== "note" && issue.previewText && (
 						<p className="mt-4 text-xl text-muted-foreground text-pretty">{issue.previewText}</p>
 					)}
 					<div className="mt-6 flex items-center justify-between gap-4">
@@ -188,6 +191,8 @@ async function renderIssue({ newsletter, issue }) {
 					/>
 				) : (
 					<BodyIssue
+						readerTranslations={Boolean(newsletter.readerTranslations)}
+						language={newsletter.language ?? "en"}
 						slug={newsletter.slug}
 						post={issue.archiveSlug}
 						initial={body}
@@ -200,6 +205,7 @@ async function renderIssue({ newsletter, issue }) {
 
 			{comments && (
 				<SectionComments
+					language={newsletter.language ?? "en"}
 					slug={newsletter.slug}
 					post={issue.archiveSlug}
 					data={comments}

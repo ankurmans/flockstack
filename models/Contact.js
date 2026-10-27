@@ -18,6 +18,7 @@ const contactSchema = new mongoose.Schema(
 		tags: { type: [String], default: undefined },
 		// The newsletter's custom fields by key (lib/custom-fields.js): text, a number, a date (YYYY-MM-DD), a date and time,
 		// true or false, or a list field's option, or options as an array.
+		listIds: { type: [String], default: undefined },
 		fields: { type: mongoose.Schema.Types.Mixed, scalarMembers: true },
 		// The answer this subscriber gave each poll from an email, by "p" and the poll's ID, so segments filter on it
 		// (lib/polls.js keeps it in step with the vote).
@@ -33,6 +34,16 @@ const contactSchema = new mongoose.Schema(
 		tier: { type: String, enum: CONTACT_TIERS, default: "free" },
 		paidUntil: { type: Date },
 		paidSince: { type: Date },
+		paidAccessRevision: { type: Number, default: 0 },
+		paidPersonalLease: { type: String },
+		paidSource: { type: String, enum: ["personal", "grant", "group"] },
+		paidPersonal: {
+			kind: { type: String, enum: ["stripe", "lifetime", "legacy"] },
+			tierId: { type: String }, until: { type: Date }, interval: { type: String }, status: { type: String },
+			subscriptionId: { type: String }, observedAt: { type: Date },
+		},
+		groupIds: [{ type: mongoose.Schema.Types.ObjectId }],
+		groupAccess: { groupId: { type: mongoose.Schema.Types.ObjectId }, seatId: { type: String }, tierId: { type: String }, until: { type: Date } },
 		paidInterval: { type: String, enum: ["month", "quarter", "year", "lifetime"] },
 		// The paid tier the contact holds (lib/tier-rules.js); a paid contact from before tiers has none and holds the first.
 		paidTierId: { type: String },
@@ -46,6 +57,9 @@ const contactSchema = new mongoose.Schema(
 			note: { type: String },
 			giftId: { type: String },
 		},
+		grantRevision: { type: Number, default: 0 },
+		// Gift receipts survive a later grant, so retrying an earlier redemption never extends it twice.
+		giftReceipts: { type: mongoose.Schema.Types.Mixed, default: {} },
 		// The offer a paid reader signed up with (lib/offers.js).
 		offerId: { type: String },
 		// The name a founding member asked to be listed under on the supporters list.
@@ -108,6 +122,8 @@ const contactSchema = new mongoose.Schema(
 			blockedReason: { type: String },
 			blockedAt: { type: Date },
 			repliesOff: { type: Boolean },
+			supporterBadge: { type: Boolean },
+			badgeUpdatedAt: { type: Date },
 			lastSignInT: { type: Number },
 		},
 		// From a CSV import: engagement on the previous platform, so sends reach the most engaged first.
@@ -135,6 +151,7 @@ contactSchema.index({ newsletterId: 1, status: 1, subscribedAt: -1, _id: -1 });
 contactSchema.index({ newsletterId: 1, status: 1, unsubscribedAt: 1 });
 // Stripe's subscription events find their contact by subscription or customer.
 contactSchema.index({ stripeSubscriptionId: 1 }, { partialFilterExpression: { stripeSubscriptionId: { $type: "string" } } });
+contactSchema.index({ accountId: 1, newsletterId: 1, _id: 1 }, { partialFilterExpression: { stripeSubscriptionId: { $type: "string" } } });
 contactSchema.index({ newsletterId: 1, stripeCustomerId: 1 }, { partialFilterExpression: { stripeCustomerId: { $type: "string" } } });
 // Counting and sending to a newsletter's paid readers.
 contactSchema.index({ newsletterId: 1, tier: 1, status: 1 });
@@ -148,5 +165,7 @@ contactSchema.index({ email: 1 }, { partialFilterExpression: { undeliverableAt: 
 
 // The referral leaderboard.
 contactSchema.index({ newsletterId: 1, "referral.count": -1, _id: 1 }, { partialFilterExpression: { "referral.count": { $exists: true } } });
+
+contactSchema.index({ accountId: 1, "community.badgeUpdatedAt": 1, _id: 1 }, { partialFilterExpression: { "community.badgeUpdatedAt": { $exists: true } } });
 
 export default mongoose.models.Contact || mongoose.model("Contact", contactSchema);

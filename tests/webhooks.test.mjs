@@ -263,7 +263,7 @@ describe("events", () => {
 		assert.ok(confirmed.data.subscriber.confirmedAt);
 		assert.deepEqual([unsubscribed.data.subscriber.status, Boolean(unsubscribed.data.subscriber.unsubscribedAt)], ["unsubscribed", true]);
 		for (const body of bodies) {
-			assert.deepEqual(Object.keys(body), ["type", "timestamp", "data"]);
+			assert.deepEqual(Object.keys(body), ["id", "type", "timestamp", "data"]);
 			assert.ok(!Number.isNaN(Date.parse(body.timestamp)));
 		}
 		assert.equal(new Set(requests.map(({ headers }) => headers["webhook-id"])).size, requests.length, "each event its own id");

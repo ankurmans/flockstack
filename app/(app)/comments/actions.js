@@ -48,3 +48,10 @@ export async function unblockReader({ contactId }) {
 	revalidatePath("/comments");
 	return { ok: true };
 }
+
+export async function saveReplyRules(input) {
+	const { failure } = await runDashboardAction("set_reply_rules", input);
+	if (failure) return toFormError(failure);
+	revalidatePath("/comments");
+	return { ok: true };
+}

@@ -17,7 +17,7 @@ import { DELETION_GRACE_DAYS, getDeletionBlockers } from "@/lib/account-deletion
 import { getAccountStatus } from "@/lib/account-state";
 import { listSocialAccounts } from "@/lib/accounts";
 import { runDashboardAction } from "@/lib/actions/dashboard";
-import { isAppleEnabled, isGoogleEnabled, requireAccount } from "@/lib/auth";
+import { isAppleEnabled, isGoogleEnabled, requirePersonalAccount } from "@/lib/auth";
 import { getBillingProviderName } from "@/lib/billing-provider";
 import { isCloud } from "@/lib/config";
 import { formatDate } from "@/lib/format";
@@ -33,7 +33,7 @@ const PROVIDER_ENABLED = { google: isGoogleEnabled, apple: isAppleEnabled };
 // The whole account, apart from any newsletter: who signs in, billing, and deleting it. Google and Apple send people back
 // here after connecting, with ?connected= or ?connect= and ?error=.
 export default async function AccountPage({ searchParams } = {}) {
-	const { user, account } = await requireAccount();
+	const { user, account } = await requirePersonalAccount();
 	const [blockers, socialAccounts, { output: latestExport }, params] = await Promise.all([
 		getDeletionBlockers(account),
 		listSocialAccounts(user.id),

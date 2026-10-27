@@ -1,8 +1,15 @@
+import { campaignContentHash } from "@/lib/campaign-content-hash";
+import CardIssueLinks from "@/components/CardIssueLinks";
+import FormReaderPreview from "@/components/FormReaderPreview";
+import FormIssueAuthor from "@/components/FormIssueAuthor";
+import { getArchiveAuthor } from "@/lib/archive-author";
 import { isValidObjectId } from "@/lib/docdb";
 import { notFound } from "next/navigation";
 import CampaignReport from "@/components/CampaignReport";
 import CardAudio from "@/components/CardAudio";
 import FormCampaign from "@/components/FormCampaign";
+import FormShortPost from "@/components/FormShortPost";
+import { htmlToMarkdown } from "@/lib/html-to-markdown";
 import { scoped } from "@/lib/account-scope";
 import { getAiBinding } from "@/lib/ai";
 import { getAccountSendProblem, hasActiveSubscription, isBlocked } from "@/lib/account-state";
@@ -46,9 +53,11 @@ export default async function CampaignPage({ params }) {
 	if (!stored) notFound();
 	// The previews and the checks show the address its emails print.
 	const newsletter = { ...stored, postalAddress: getPostalAddress(stored, siteExtensions.defaultPostalAddress) };
+	if (campaign.kind === "note") return <FormShortPost campaign={{ id: String(campaign._id), status: campaign.status, scheduledAt: campaign.status === "scheduled" ? new Date(campaign.scheduledAt).toISOString() : null, webViews: campaign.webViews ?? 0 }} body={campaign.format === "markdown" ? campaign.markdown : htmlToMarkdown(campaign.html ?? "")} archiveUrl={newsletter.archiveEnabled && campaign.archiveSlug ? getArchiveUrls(newsletter).absolutePost(campaign.archiveSlug) : null} />;
 	const [plan, ai] = await Promise.all([getPlanState(account), getAiBinding()]);
 	const isAiEnabled = Boolean(ai) && hasActiveSubscription(account);
 	const audioProps = await getAudioCardProps({ account, user, campaign, newsletter });
+	const authorControl = ["draft", "scheduled", "sent"].includes(campaign.status) ? <div className="flex flex-col gap-4"><FormIssueAuthor campaign={String(campaign._id)} selected={campaign.authorId ?? "default"} authors={[{ ...getArchiveAuthor(newsletter), id: "default" }, ...(newsletter.authors ?? [])]} /><FormReaderPreview campaign={String(campaign._id)} /><CardIssueLinks campaign={String(campaign._id)} newsletter={String(newsletter._id)} /></div> : null;
 	const audioCard = audioProps && <CardAudio {...audioProps} />;
 
 	if (!["draft", "scheduled"].includes(campaign.status)) {
@@ -65,7 +74,7 @@ export default async function CampaignPage({ params }) {
 			remainingCount > 0 ? await Promise.all([getSendVolumes(account), countNewContacts(account, newsletter._id)]) : [];
 		return (
 			<CampaignReport
-				campaign={serialize(campaign)}
+				campaign={{ ...serialize(campaign), contentHash: campaignContentHash(campaign) }}
 				newsletter={serialize(newsletter)}
 				providers={providers}
 				links={links.map(({ index, url, clicks, uniqueClicks }) => ({ index, url, clicks, uniqueClicks }))}
@@ -80,6 +89,7 @@ export default async function CampaignPage({ params }) {
 				sentWith={showsSentWithLink(account)}
 				isAiEnabled={isAiEnabled}
 				audioCard={audioCard}
+			authorControl={authorControl}
 			/>
 		);
 	}
@@ -98,7 +108,8 @@ export default async function CampaignPage({ params }) {
 
 	return (
 		<FormCampaign
-			campaign={serialize(campaign)}
+			canCollaborate={process.env.COLLABORATION_ENABLED === "true"}
+			campaign={{ ...serialize(campaign), contentHash: campaignContentHash(campaign) }}
 			newsletter={serialize(newsletter)}
 			audienceCount={audienceCount}
 			paidCount={paidCount}
@@ -118,6 +129,7 @@ export default async function CampaignPage({ params }) {
 			hasStockPhotos={Boolean(getUnsplashKey())}
 			snippets={snippets.map(({ name, content }) => ({ name, content }))}
 			audioCard={audioCard}
+			authorControl={authorControl}
 		/>
 	);
 }

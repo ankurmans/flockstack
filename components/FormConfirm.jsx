@@ -1,4 +1,5 @@
 "use client";
+import { getReaderText } from "@/lib/reader-languages";
 
 import { useActionState, useEffect, useRef } from "react";
 import { Link2Off, Loader2, MailCheck } from "lucide-react";
@@ -9,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { readGateReturn } from "@/lib/storage";
 
 // Link scanners open the page without submitting forms, so only a person's browser confirms.
-export default function FormConfirm({ token, newsletterName, slug, fromName, fromEmail, archiveUrl }) {
+export default function FormConfirm({ token, newsletterName, slug, fromName, fromEmail, archiveUrl, language = "en" }) {
+	const t = getReaderText(language);
 	const [state, action, isPending] = useActionState(confirmSubscription.bind(null, token), null);
 	const formRef = useRef(null);
 
@@ -27,35 +29,35 @@ export default function FormConfirm({ token, newsletterName, slug, fromName, fro
 		// A gated issue the reader signed up on, in this browser: the full issue opens there now.
 		const gateReturn = readGateReturn(slug);
 		return (
-			<CardNotice icon={MailCheck} tone="success" title="You're in">
-				The next issue of {newsletterName} comes from{" "}
+			<CardNotice icon={MailCheck} tone="success" title={t("You're in")}>
+				{language === "en" ? <>The next issue of {newsletterName} comes from{" "}
 				<span className="font-medium text-foreground">{fromName || fromEmail}</span>
-				{fromName && ` (${fromEmail})`}. If it lands in Promotions, drag it to Primary.
+				{fromName && ` (${fromEmail})`}. If it lands in Promotions, drag it to Primary.</> : t("Confirmed. Future issues come from {sender}.", { sender: fromName || fromEmail })}
 				{gateReturn && (
 					<Button asChild size="lg" className="mt-6 w-full">
-						<a href={gateReturn}>Keep reading</a>
+						<a href={gateReturn}>{t("Keep reading")}</a>
 					</Button>
 				)}
 				{state.redirectUrl ? (
 					<Button asChild size="lg" variant="outline" className="mt-6 w-full">
-						<a href={state.redirectUrl}>Continue</a>
+						<a href={state.redirectUrl}>{t("Continue")}</a>
 					</Button>
 				) : (
 					archiveUrl && (
 						<Button asChild size="lg" variant="outline" className="mt-6 w-full">
-							<a href={archiveUrl}>Read past issues</a>
+							<a href={archiveUrl}>{t("Read past issues")}</a>
 						</Button>
 					)
 				)}
-				{state.step && <FormRecommendedSubscribe step={state.step} className="mt-6 border-t border-border/60 pt-5" />}
+				{state.step && <FormRecommendedSubscribe language={language} step={state.step} className="mt-6 border-t border-border/60 pt-5" />}
 			</CardNotice>
 		);
 	}
 
 	if (state?.error) {
 		return (
-			<CardNotice icon={Link2Off} title="This link doesn't work">
-				It may be older than 30 days. Sign up again and use the newest confirmation email.
+			<CardNotice icon={Link2Off} title={t("This link doesn't work")}>
+				{t("It may be older than 30 days. Sign up again and use the newest confirmation email.")}
 			</CardNotice>
 		);
 	}
@@ -64,12 +66,12 @@ export default function FormConfirm({ token, newsletterName, slug, fromName, fro
 		<CardNotice
 			icon={isPending ? Loader2 : MailCheck}
 			spin={isPending}
-			title={`Confirm your subscription to ${newsletterName}`}
+			title={t("Confirm your subscription to {name}", { name: newsletterName })}
 		>
-			One click and the next issue lands in your inbox.
+			{t("One click and the next issue lands in your inbox.")}
 			<form ref={formRef} action={action} className="mt-6">
 				<Button type="submit" size="lg" disabled={isPending} className="w-full">
-					{isPending ? "Confirming…" : "Confirm my subscription"}
+					{isPending ? t("Confirming…") : t("Confirm my subscription")}
 				</Button>
 			</form>
 		</CardNotice>

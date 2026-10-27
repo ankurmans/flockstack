@@ -18,6 +18,7 @@ export default function RowComment({ comment, reports = [] }) {
 	const [mode, setMode] = useState(null);
 	const [reason, setReason] = useState("");
 	const [isPending, startTransition] = useTransition();
+	const decisionLabel = comment.decidedBy === "rules" && comment.replyRuleDecision ? "Reply Rules decision, reviewable" : DECIDED[comment.decidedBy];
 	const isAuthorDeleted = comment.status === "removed" && comment.decidedBy === "author";
 
 	function run(task, success) {
@@ -68,7 +69,7 @@ export default function RowComment({ comment, reports = [] }) {
 			</div>
 			{comment.reason && (
 				<p className="mt-2 text-sm text-pretty text-muted-foreground">
-					{DECIDED[comment.decidedBy] ? `${DECIDED[comment.decidedBy]}: ` : "Reason: "}
+					{decisionLabel ? `${decisionLabel}: ` : "Reason: "}
 					{comment.reason}
 				</p>
 			)}

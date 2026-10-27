@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { runDashboardAction, toFormError } from "@/lib/actions/dashboard";
-import { requireAccount } from "@/lib/auth";
+import { requirePersonalAccount } from "@/lib/auth";
 import { LIST_SIZES, LIST_SOURCES, OTHER_LIST_SOURCE, findFreeSlug, needsOnboarding } from "@/lib/onboarding";
 import { siteExtensions } from "@/lib/site-extensions";
 import Account from "@/models/Account";
@@ -20,7 +20,7 @@ function readChoice(formData, key, choices) {
 // Creates the account's newsletter, keeps what it said about its list, then opens the dashboard. Sent twice,
 // the second time only finishes: the newsletter is there.
 export async function completeOnboarding(_state, formData) {
-	const { account } = await requireAccount();
+	const { account } = await requirePersonalAccount();
 	const name = readText(formData, "name");
 	if (!name) return { error: "Name your newsletter" };
 	if (await needsOnboarding(account)) {
@@ -51,7 +51,7 @@ export async function completeOnboarding(_state, formData) {
 
 // The dashboard's get-started panel, hidden on the account so it stays hidden on every device.
 export async function dismissGetStarted() {
-	const { account } = await requireAccount();
+	const { account } = await requirePersonalAccount();
 	await Account.updateOne(
 		{ _id: account._id, "onboarding.checklistDismissedAt": null },
 		{ $set: { "onboarding.checklistDismissedAt": new Date() } }

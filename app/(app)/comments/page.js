@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { MessageSquare } from "lucide-react";
+import FormReplyRules from "@/components/FormReplyRules";
 import FormCommentSettings from "@/components/FormCommentSettings";
 import HeaderPage from "@/components/HeaderPage";
 import RowComment from "@/components/RowComment";
@@ -29,13 +30,13 @@ const ISSUES_SHOWN = 8;
 // The open newsletter's comments across its issues: what waits for the owner, what readers reported, and the settings.
 // Hiding and removing ask for a reason, which the comment's writer reads.
 export default async function CommentsPage({ searchParams }) {
-	const { account, selected } = await getSelectedNewsletter();
+	const { account, user, selected } = await getSelectedNewsletter();
 	if (!selected) redirect(ADD_NEWSLETTER_PATH);
 	const { filter: filterKey, cursor } = await searchParams;
 	const filter = FILTERS.find(({ key }) => key === filterKey) ?? FILTERS[0];
 	const newsletter = String(selected._id);
 
-	const [list, reports, issues] = await Promise.all([
+	const [list, reports, issues, replyRules] = await Promise.all([
 		runDashboardAction("list_comments", { newsletter, ...filter.input, ...(typeof cursor === "string" && { cursor }) }),
 		runDashboardAction("list_comment_reports", { newsletter, status: "open", limit: 100 }),
 		Campaign.find(scoped(account, { newsletterId: selected._id, status: { $in: PUBLISHED_STATUSES }, archiveSlug: { $type: "string" }, audience: { $ne: "paid" } }))
@@ -43,6 +44,7 @@ export default async function CommentsPage({ searchParams }) {
 			.limit(ISSUES_SHOWN)
 			.select({ subject: 1, comments: 1, sentAt: 1, startedAt: 1 })
 			.lean(),
+		runDashboardAction("get_reply_rules", { newsletter }),
 	]);
 	const output = list.output;
 	const reportsByComment = Map.groupBy(reports.output?.reports ?? [], ({ commentId }) => commentId);
@@ -52,6 +54,7 @@ export default async function CommentsPage({ searchParams }) {
 			<HeaderPage title="Comments" />
 			<div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
 				{output && <FormCommentSettings key={newsletter} newsletterId={newsletter} settings={output.settings} />}
+				{replyRules.output && <FormReplyRules key={`rules-${newsletter}`} newsletter={newsletter} settings={replyRules.output} canEdit={String(account.ownerId) === String(user.id)} />}
 
 				{output?.settings.enabled && issues.length > 0 && (
 					<section style={{ "--stagger": 2 }} className="animate-enter">

@@ -4,6 +4,7 @@ import { Suspense, use, useEffect, useState, useTransition } from "react";
 import Image from "next/image";
 import { Check, ImageUp, Images, Loader2 } from "lucide-react";
 import PickerStock from "@/components/PickerStock";
+import PickerGeneratedImage from "@/components/PickerGeneratedImage";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,7 +19,7 @@ import { cn } from "@/lib/utils";
 const GRID = "grid grid-cols-3 gap-2 p-4 sm:grid-cols-4";
 
 // hasStock: also offers Unsplash's free photos (the editor, where a photo's credit goes into the issue).
-export default function DialogImagePicker({ open, onOpenChange, onSelect, currentUrl, hasStock = false }) {
+export default function DialogImagePicker({ open, onOpenChange, onSelect, currentUrl, hasStock = false, hasAi = false, newsletterId = null }) {
 	function select(image) {
 		onSelect(image);
 		onOpenChange(false);
@@ -27,18 +28,20 @@ export default function DialogImagePicker({ open, onOpenChange, onSelect, curren
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-xl">
-				{hasStock ? (
+				{hasStock || (hasAi && newsletterId) ? (
 					<Tabs defaultValue="yours" className="gap-0">
 						<TabsList className="mx-4 mt-4">
 							<TabsTrigger value="yours">Your images</TabsTrigger>
-							<TabsTrigger value="stock">Free photos</TabsTrigger>
+							{hasStock && <TabsTrigger value="stock">Free photos</TabsTrigger>}
+							{hasAi && newsletterId && <TabsTrigger value="generate">Generate image</TabsTrigger>}
 						</TabsList>
 						<TabsContent value="yours">
 							<PickerImage currentUrl={currentUrl} onSelect={select} />
 						</TabsContent>
-						<TabsContent value="stock" className="pt-3">
+						{hasStock && <TabsContent value="stock" className="pt-3">
 							<PickerStock onSelect={select} />
-						</TabsContent>
+						</TabsContent>}
+						{hasAi && newsletterId && <TabsContent value="generate"><PickerGeneratedImage newsletterId={newsletterId} onSelect={select} /></TabsContent>}
 					</Tabs>
 				) : (
 					<PickerImage currentUrl={currentUrl} onSelect={select} />
@@ -197,6 +200,7 @@ function GridLibrary({ request, currentUrl, isDisabled, onSelect }) {
 										loading="lazy"
 										className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04]"
 									/>
+									{image.generatedBy && <span className="absolute bottom-1 left-1 rounded bg-background/90 px-1 text-[10px]">AI generated</span>}
 									{isCurrent && (
 										<span className="absolute top-1.5 right-1.5 grid size-5 place-items-center rounded-full bg-foreground text-background shadow-sm">
 											<Check className="size-3" strokeWidth={3} />

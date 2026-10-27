@@ -1,3 +1,4 @@
+import { getNewsletterTiers } from "@/lib/tier-rules";
 import { notFound } from "next/navigation";
 import FormAutomation from "@/components/FormAutomation";
 import HeaderPage from "@/components/HeaderPage";
@@ -36,7 +37,7 @@ export default async function AutomationPage({ params }) {
 				key={`${automation.id}:${automation.updatedAt}:${automation.status}`}
 				automation={automation}
 				report={report}
-				choices={choices}
+				choices={{ ...choices, newsletterId, tiers: getNewsletterTiers(view.selected).map(({ id, name }) => ({ id, name })) }}
 				segments={segments.map(({ _id, name }) => ({ id: String(_id), name }))}
 				automations={automations.map(({ _id, name }) => ({ id: String(_id), name }))}
 				products={products.map(({ _id, title }) => ({ id: String(_id), title }))}

@@ -1,3 +1,4 @@
+import { getReaderText } from "@/lib/reader-languages";
 import { BookOpen, Link2Off, MessageCircle, UserRound } from "lucide-react";
 import CardNotice from "@/components/CardNotice";
 import { Button } from "@/components/ui/button";
@@ -27,15 +28,17 @@ export default async function ReaderSignInPage({ searchParams }) {
 	const preview = await getPreview(validToken);
 	const urls = preview.newsletter && getArchiveUrls(preview.newsletter);
 
+	const t = getReaderText(preview.newsletter);
+
 	return (
-		<main className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
+		<main lang={t.language} className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
 			{preview.state === "ready" ? (
-				<CardNotice icon={destination === "issue" ? BookOpen : isAccount ? UserRound : MessageCircle} title={`Sign in to ${preview.newsletter.name}`}>
+				<CardNotice icon={destination === "issue" ? BookOpen : isAccount ? UserRound : MessageCircle} title={t("Sign in to {name}", { name: preview.newsletter.name })}>
 					{destination === "issue"
-						? "One click and the full issue opens. Your email address stays private."
+						? t("One click and the full issue opens. Your email address stays private.")
 						: isAccount
-							? "One click and you are in: your subscription, your preferences and your referrals are all on your account page."
-							: "One click and you can join the discussion. Your email address stays private."}
+							? t("One click and you are in: your subscription, your preferences and your referrals are all on your account page.")
+							: t("One click and you can join the discussion. Your email address stays private.")}
 					<form action={continueSignIn} className="mt-6">
 						<input type="hidden" name="token" value={validToken} />
 						<input type="hidden" name="p" value={issueSlug} />
@@ -46,18 +49,18 @@ export default async function ReaderSignInPage({ searchParams }) {
 					</form>
 				</CardNotice>
 			) : (
-				<CardNotice icon={Link2Off} title={preview.state === "spent" ? "This link was already used" : "This link doesn't work"}>
+				<CardNotice icon={Link2Off} title={preview.state === "spent" ? t("This link was already used") : "This link doesn't work"}>
 					{preview.state === "spent"
-						? `A sign-in link works once. If you aren't signed in, ask for a new one ${isAccount ? "on the sign-in page" : "on the issue's page"}.`
-						: `It may have expired: sign-in links last 30 minutes. Ask for a new one ${isAccount ? "on the sign-in page" : "on the issue's page"}.`}
+						? `A sign-in link works once. If you aren't signed in, ask for a new one ${isAccount ? t("on the sign-in page") : t("on the issue's page")}.`
+						: `It may have expired: sign-in links last 30 minutes. Ask for a new one ${isAccount ? t("on the sign-in page") : t("on the issue's page")}.`}
 					{urls && (
 						<Button asChild size="lg" variant="outline" className="mt-6 w-full">
 							{isAccount ? (
-								<a href={urls.absoluteSignin}>Get a new link</a>
+								<a href={urls.absoluteSignin}>{t("Get a new link")}</a>
 							) : destination === "issue" ? (
-								<a href={issueSlug ? urls.absolutePost(issueSlug) : urls.siteIndex}>Back to the issue</a>
+								<a href={issueSlug ? urls.absolutePost(issueSlug) : urls.siteIndex}>{t("Back to the issue")}</a>
 							) : (
-								<a href={`${issueSlug ? urls.absolutePost(issueSlug) : urls.siteIndex}#comments`}>Back to the discussion</a>
+								<a href={`${issueSlug ? urls.absolutePost(issueSlug) : urls.siteIndex}#comments`}>{t("Back to the discussion")}</a>
 							)}
 						</Button>
 					)}

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import FormRecommendations from "@/components/FormRecommendations";
 import HeaderPage from "@/components/HeaderPage";
 import { runDashboardAction } from "@/lib/actions/dashboard";
@@ -23,6 +24,7 @@ export default async function RecommendationsPage() {
 		<>
 			<HeaderPage title="Recommendations" />
 			<div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
+				<Link href="/recommending/creators" className="text-sm underline">Find creators and private introductions</Link>
 				{stats.output && <Totals stats={stats.output} />}
 				{list.output && <FormRecommendations key={newsletter} newsletterId={newsletter} data={list.output} />}
 				<p className="text-xs text-pretty text-muted-foreground">

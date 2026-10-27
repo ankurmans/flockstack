@@ -26,7 +26,7 @@ function formatLength(seconds) {
 // The audio version of an issue, in the issue's review step and its report: pick a voice, see what it will use of the
 // month's characters, create it (a background job: this page follows it), listen to it, delete it. canLink: the issue has
 // a web page for an email's Listen link to open. Hidden by the page while audio versions are off.
-export default function CardAudio({ campaignId, initial = { audio: null, estimate: null }, voices = [], defaultVoiceId = null, canLink = false, hasPlan = true, isPaidOnly = false }) {
+export default function CardAudio({ campaignId, initial = { audio: null, estimate: null }, voices = [], defaultVoiceId = null, canLink = false, hasPlan = true, isPaidOnly = false, unsupportedReason = null }) {
 	const [audio, setAudio] = useState(initial.audio);
 	const [estimate, setEstimate] = useState(initial.estimate);
 	const [voiceId, setVoiceId] = useState(initial.audio?.voiceId ?? defaultVoiceId ?? voices[0]?.id ?? "");
@@ -99,6 +99,7 @@ export default function CardAudio({ campaignId, initial = { audio: null, estimat
 		setAudio(result.audio);
 	}
 
+	if (unsupportedReason) return <CardSettings title="Audio version"><p className="text-sm text-muted-foreground">{unsupportedReason}</p></CardSettings>;
 	if (!hasPlan) {
 		return (
 			<CardSettings title="Audio version" stagger={3}>

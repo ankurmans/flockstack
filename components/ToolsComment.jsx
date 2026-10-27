@@ -1,4 +1,6 @@
 "use client";
+import NoticeReplyRules from "@/components/NoticeReplyRules";
+import useReaderText from "@/components/useReaderText";
 
 import { useActionState, useEffect, useEffectEvent, useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -13,6 +15,7 @@ const LINK = "inline-flex h-9 items-center rounded-lg px-2 text-sm text-muted-fo
 // What the signed-in reader can do with one comment: reply to it, report it, or, for their own, change it for a few minutes
 // and delete it. Nothing shows to a visitor who isn't signed in.
 export default function ToolsComment({ id, canReply }) {
+	const t = useReaderText();
 	const { viewer } = useComments();
 	const [mode, setMode] = useState(null);
 	if (!viewer.signedIn) return null;
@@ -27,29 +30,29 @@ export default function ToolsComment({ id, canReply }) {
 			<div className="flex flex-wrap items-center gap-x-1">
 				{canReply && canComment && (
 					<button type="button" className={LINK} aria-expanded={mode === "reply"} onClick={() => setMode(mode === "reply" ? null : "reply")}>
-						Reply
+						{t("Reply")}
 					</button>
 				)}
 				{own && canEdit && (
 					<button type="button" className={LINK} aria-expanded={mode === "edit"} onClick={() => setMode(mode === "edit" ? null : "edit")}>
-						Edit
+						{t("Edit")}
 					</button>
 				)}
 				{own && (
 					<button type="button" className={LINK} aria-expanded={mode === "delete"} onClick={() => setMode(mode === "delete" ? null : "delete")}>
-						Delete
+						{t("Delete")}
 					</button>
 				)}
 				{!own && !isReported && (
 					<button type="button" className={LINK} aria-expanded={mode === "report"} onClick={() => setMode(mode === "report" ? null : "report")}>
-						Report
+						{t("Report")}
 					</button>
 				)}
-				{!own && isReported && <span className="px-2 text-sm text-muted-foreground">Reported</span>}
+				{!own && isReported && <span className="px-2 text-sm text-muted-foreground">{t("Reported")}</span>}
 			</div>
 			{mode === "reply" && (
 				<div className="mt-2 ml-2">
-					<FormComment parent={id} label="Your reply" onDone={() => setMode(null)} />
+					<FormComment parent={id} label={t("Your reply")} onDone={() => setMode(null)} />
 				</div>
 			)}
 			{mode === "edit" && own && (
@@ -73,6 +76,7 @@ export default function ToolsComment({ id, canReply }) {
 
 // The field names the server actions read.
 function Fields({ id }) {
+	const t = useReaderText();
 	const { slug, post } = useComments();
 	return (
 		<>
@@ -84,6 +88,7 @@ function Fields({ id }) {
 }
 
 export function FormEdit({ comment, onDone }) {
+	const t = useReaderText();
 	const { refresh } = useComments();
 	const [state, action, isPending] = useActionState(submitEdit, null);
 	const finish = useEffectEvent(() => {
@@ -98,7 +103,7 @@ export function FormEdit({ comment, onDone }) {
 		<form action={action} className="flex flex-col gap-2">
 			<Fields id={comment.id} />
 			<label htmlFor={`edit-${comment.id}`} className="text-sm font-medium">
-				Change your comment
+				{t("Change your comment")}
 			</label>
 			<textarea
 				id={`edit-${comment.id}`}
@@ -109,17 +114,18 @@ export function FormEdit({ comment, onDone }) {
 				defaultValue={comment.body}
 				className="min-h-24 w-full resize-y rounded-xl bg-background px-3.5 py-3 text-base shadow-border outline-none transition-shadow duration-150 focus-visible:shadow-border-hover focus-visible:ring-3 focus-visible:ring-ring/25"
 			/>
+			<NoticeReplyRules id={`edit-${comment.id}`} />
 			<div className="flex items-center gap-2">
 				<Button type="submit" disabled={isPending} className="h-10 rounded-xl px-4">
-					{isPending ? <Loader2 className="animate-spin" /> : "Save"}
+					{isPending ? <Loader2 className="animate-spin" /> : t("Save")}
 				</Button>
 				<Button type="button" variant="ghost" className="h-10 rounded-xl px-4" onClick={() => onDone?.()}>
-					Cancel
+					{t("Cancel")}
 				</Button>
 			</div>
 			{state?.error && (
 				<p role="alert" className="text-sm text-destructive">
-					{state.error}
+					{t.error(state.error)}
 				</p>
 			)}
 		</form>
@@ -127,6 +133,7 @@ export function FormEdit({ comment, onDone }) {
 }
 
 export function FormDelete({ id, onDone }) {
+	const t = useReaderText();
 	const { refresh } = useComments();
 	const [state, action, isPending] = useActionState(submitDelete, null);
 	const finish = useEffectEvent(() => {
@@ -140,16 +147,16 @@ export function FormDelete({ id, onDone }) {
 	return (
 		<form action={action} className="flex flex-wrap items-center gap-2">
 			<Fields id={id} />
-			<p className="text-sm text-muted-foreground">Delete this comment? Your words are erased.</p>
+			<p className="text-sm text-muted-foreground">{t("Delete this comment? Your words are erased.")}</p>
 			<Button type="submit" variant="destructive" disabled={isPending} className="h-10 rounded-xl px-4">
-				{isPending ? <Loader2 className="animate-spin" /> : "Delete"}
+				{isPending ? <Loader2 className="animate-spin" /> : t("Delete")}
 			</Button>
 			<Button type="button" variant="ghost" className="h-10 rounded-xl px-4" onClick={() => onDone?.()}>
-				Keep it
+				{t("Keep it")}
 			</Button>
 			{state?.error && (
 				<p role="alert" className="w-full text-sm text-destructive">
-					{state.error}
+					{t.error(state.error)}
 				</p>
 			)}
 		</form>
@@ -157,6 +164,7 @@ export function FormDelete({ id, onDone }) {
 }
 
 function FormReport({ id, onDone }) {
+	const t = useReaderText();
 	const { refresh } = useComments();
 	const [state, action, isPending] = useActionState(submitReport, null);
 	const finish = useEffectEvent(() => {
@@ -171,7 +179,7 @@ function FormReport({ id, onDone }) {
 		<form action={action} className="flex flex-col gap-2">
 			<Fields id={id} />
 			<label htmlFor={`report-${id}`} className="text-sm text-muted-foreground">
-				Tell the newsletter&apos;s owner what is wrong with this comment. The reason is optional.
+				{t("Tell the newsletter's owner what is wrong with this comment. The reason is optional.")}
 			</label>
 			<input
 				id={`report-${id}`}
@@ -182,15 +190,15 @@ function FormReport({ id, onDone }) {
 			/>
 			<div className="flex items-center gap-2">
 				<Button type="submit" disabled={isPending} className="h-10 rounded-xl px-4">
-					{isPending ? <Loader2 className="animate-spin" /> : "Send report"}
+					{isPending ? <Loader2 className="animate-spin" /> : t("Send report")}
 				</Button>
 				<Button type="button" variant="ghost" className="h-10 rounded-xl px-4" onClick={() => onDone?.()}>
-					Cancel
+					{t("Cancel")}
 				</Button>
 			</div>
 			{state?.error && (
 				<p role="alert" className="text-sm text-destructive">
-					{state.error}
+					{t.error(state.error)}
 				</p>
 			)}
 		</form>

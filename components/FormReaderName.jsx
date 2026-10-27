@@ -1,4 +1,5 @@
 "use client";
+import useReaderText from "@/components/useReaderText";
 
 import { useActionState } from "react";
 import { Check, Loader2 } from "lucide-react";
@@ -8,6 +9,7 @@ import { Input } from "@/components/ui/input";
 
 // The reader's name, on the Subscriber Center. The email is the subscription itself, so it only shows.
 export default function FormReaderName({ slug, name }) {
+	const t = useReaderText();
 	const [state, action, isPending] = useActionState(saveProfile, null);
 
 	return (
@@ -19,18 +21,18 @@ export default function FormReaderName({ slug, name }) {
 			<div className="flex gap-2">
 				<Input id="reader-name" name="name" defaultValue={name.value} maxLength={100} autoComplete="given-name" className="h-10 min-w-0 flex-1" />
 				<Button type="submit" variant="outline" disabled={isPending} className="h-10">
-					{isPending ? <Loader2 className="animate-spin" /> : "Save"}
+					{isPending ? <Loader2 className="animate-spin" /> : t("Save")}
 				</Button>
 			</div>
 			{state?.error && (
 				<p role="alert" className="text-sm text-destructive">
-					{state.error}
+					{t.error(state.error)}
 				</p>
 			)}
 			{state?.ok && (
 				<p role="status" className="flex items-center gap-2 text-sm font-medium">
 					<Check className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-					Saved
+					{t("Saved")}
 				</p>
 			)}
 		</form>

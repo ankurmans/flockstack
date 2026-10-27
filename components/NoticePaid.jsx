@@ -1,4 +1,5 @@
 "use client";
+import useReaderText from "@/components/useReaderText";
 
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
@@ -7,6 +8,7 @@ import { Check } from "lucide-react";
 // Where Stripe sends a buyer back to after paying (?paid=1). The page itself stays cached; this reads the address in the
 // browser.
 function NoticeFromAddress({ param, children }) {
+	const t = useReaderText();
 	const isShown = useSearchParams().get(param) === "1";
 	if (!isShown) return null;
 	return (
@@ -14,7 +16,7 @@ function NoticeFromAddress({ param, children }) {
 			<span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-emerald-500 text-white">
 				<Check className="size-3" />
 			</span>
-			<span>{children}</span>
+			<span>{typeof children === "string" ? t(children) : children}</span>
 		</p>
 	);
 }

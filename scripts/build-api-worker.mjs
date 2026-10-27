@@ -58,11 +58,14 @@ export function createPlugin() {
 					const found = EXTENSIONS.map((extension) => `${base}${extension}`).find(isFile);
 					if (found) return { path: found };
 				}
-				// Node's built-ins come from the runtime (nodejs_compat); a bare name is written with its node: prefix.
-				if (request.startsWith("node:")) return { path: request, external: true };
-				if (BUILTINS.has(request)) return { path: `node:${request}`, external: true };
+				// CommonJS packages still need a static ESM import for a runtime built-in: an external require would survive bundling.
+				if (request.startsWith("node:") || BUILTINS.has(request)) {
+					const path = request.startsWith("node:") ? request : `node:${request}`;
+					return args.kind === "require-call" ? { path, namespace: "node-require" } : { path, external: true };
+				}
 				if (request.startsWith("cloudflare:")) return { path: request, external: true };
 			});
+			build.onLoad({ filter: /.*/, namespace: "node-require" }, ({ path }) => ({ contents: `import * as builtin from ${JSON.stringify(path)}; module.exports = builtin.default ?? builtin;`, loader: "js" }));
 		},
 	};
 }

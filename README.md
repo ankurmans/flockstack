@@ -68,7 +68,7 @@ FlockStack is a newsletter app: write an issue, send it to your list, publish it
 - **Comments from your subscribers**, on each issue's web page, with no accounts or passwords: a reader proves they subscribe with a signed link in your emails (`{{comment_link}}`, and a "Discuss this issue" link in the footer) or a one-time link sent to their address, and other readers never see their email. Off by default; for everyone subscribed or paid subscribers only; one level of replies; you choose whether comments with links, or all comments, wait for your review. Whatever you hide, remove or hold, its author reads your reason. Reports, blocking a commenter (they stay subscribed), one digest email an hour at most, and comments in your export ([Comments](#comments)).
 - **Audio versions of issues.** Any issue, a draft or a sent one, can be read aloud in a voice you pick from a list the server's owner curates: a player on the issue's page (play, 15 seconds back and forward, 1x to 2x, remembers where you stopped in the browser and tells nobody), a "Listen to this issue (12 min)" link at the top of its email, and a podcast feed at `/podcast.xml` for Apple Podcasts and Spotify. Text to speech is the server owner's own ElevenLabs account, counted by the character, with a monthly allowance per plan and no overage ([Audio versions](#audio-versions)).
 - **Sell to your readers, with no cut for FlockStack.** Digital products (a file readers buy once, kept in a private bucket and delivered by a signed, expiring download link) and paid subscriptions (up to 3 tiers with monthly, quarterly, yearly, lifetime and pay what you want prices, an optional free trial). Readers pay through Stripe Checkout straight to your own Stripe account, and only Stripe's processing fee comes off: FlockStack sets no application fee. Each newsletter gets a shop and product pages on its website. A campaign can go to everyone, free readers, paid readers or one paid tier and the tiers above it; a paid issue is a teaser on the web and whole in the email, and paid readers manage their billing from a link in every email. Refunds and chargebacks stop the download link by themselves ([Selling](#selling-products-and-paid-subscriptions)).
-- **Several newsletters**: up to 3 per account, each with its own contacts, campaigns and website.
+- **Several newsletters**: a plan-based count on FlockStack Cloud, with an admin override for larger fleets, and no limit when self-hosted. Each has its own contacts, campaigns and website.
 - **Where subscribers come from.** Each signup keeps its UTM parameters, the website that linked to the form and a channel (direct, search, social, email, paid, another website, a recommendation, your referral program). A browser holds them in its own local storage for 30 days; there are no cookies and no third-party scripts. A setting adds `utm_source` (the newsletter), `utm_medium=email` and `utm_campaign` (the issue's slug) to the links in issues that lead to other sites.
 - **Signup forms for other sites.** Build a form in the dashboard (the custom fields you choose, your button's words, colors from your accent color, a message or a page to go to) and put it on any site with one line of code that frames it and sizes the frame, or with a plain HTML form that posts to it. It runs the website form's checks (honeypot, 5 signups per visitor in 10 minutes, confirmed opt-in, suppression) and counts its views (on the server, per day, no script or cookie of ours on the site that shows it), signups and conversion. Its page alone may be framed by other sites (`next.config.mjs`).
 - **Reports and website analytics.** The Reports page shows growth by day, week or month for up to two years, split by source, channel, UTM campaign or form with how many are still subscribed; every number is one `GROUP BY` (`Model.groupCount`, `lib/docdb/model.js`), never a read of the list. Your newest issues compare side by side, and every report exports as CSV (`export_report`). The website counts its own visits in one row of counts per newsletter and day (`lib/web-analytics.js`): page views, distinct visitors per day from a sketch fed by a daily-rotating, never-stored hash of the network address and browser, referring hosts, countries from `cf-ipcountry` and the issues read, with no cookie, no storage and no third-party script, and nothing counted for Do Not Track or Global Privacy Control. Newsletter sites keep no third-party tracking pixels.
@@ -291,7 +291,7 @@ The editor's AI tools run on Workers AI, the same way as the support assistant b
 - **What the model sees.** Only the text selected, or the issue's draft (Markdown of its HTML, 12,000 characters at most), between markers the rules call data. Never a contact, an address or anything else of a reader, and nothing is kept: the server stores a counter per account per UTC day (`models/AiUsage.js`, deleted after two weeks), not the text. `AI_WRITING_STORED` in `lib/legal.js` says so on the privacy page.
 - **Limits.** Requests a day per account: Starter 20, Growth 60, Pro 150, Scale 300, Max 600 (`aiRequestsPerDay` in `lib/plans.js`). The count goes up before the model is asked and comes back down when neither model answered, so a failed request is free; past the limit the answer is `ai_daily_limit` (429) with the hours until midnight UTC. A self-hosted server has no limit unless `AI_DAILY_LIMIT` is set.
 - **Hidden without Workers AI.** `"ai": { "binding": "AI" }` in `wrangler.jsonc` (top level and `env.eu`). A server without it shows no AI button, and the actions answer `unavailable`. The buttons also need a plan.
-- **API and MCP.** `rewrite_text`, `suggest_subject_lines`, `suggest_preview_text`, `draft_social_posts` and `get_ai_usage`. Skipped for now: AI images and audio versions of issues.
+- **API and MCP.** `rewrite_text`, `suggest_subject_lines`, `suggest_preview_text`, `draft_social_posts` and `get_ai_usage`. Optional image generation is available through `generate_image`; audio versions use the separate operator-configured audio flow.
 
 **Not checked:** a real Workers AI call. The tests stub the binding, so the quality of each tool's output, the prompts' effect on Qwen3 and gpt-oss and the counts of tokens a request costs are untested against Cloudflare.
 
@@ -368,7 +368,7 @@ Sending stays off until you finish the next steps, so nothing goes out to reader
 
 Only the emails you list: `ADMIN_EMAILS` (who can also open `/admin`) and `ALLOWED_EMAILS`, a comma-separated list of addresses and whole domains, like `jane@example.com, @example.org`. It's checked at every sign-in, with a code, Google or Apple, and anyone you take off the list is signed out and loses their API keys at their next request. With both lists empty, nobody can sign in.
 
-Everyone gets an account of their own, with up to 3 newsletters and their contacts and campaigns, and the account's domains and API keys. There's no billing on a self-hosted server: no plans, no limits.
+Everyone gets an account of their own, with newsletters and their contacts and campaigns, and the account's domains and API keys. There's no billing on a self-hosted server: no plans, no limits.
 
 ### 4. Email provider
 
@@ -665,3 +665,52 @@ Each integration test file gets its own in-memory SQLite, and `node scripts/test
 If you change FlockStack and run it for other people, the AGPL asks you to offer them the source of your version: point the "Source code" link (`SOURCE_URL` in `lib/site.js`) at it. The one-time release before this license, [67d13b0](https://github.com/marclou/mailcheap/tree/67d13b028a6ecae9ec56d49c4b2db58019217eba) in github.com/marclou/mailcheap's history, stays under MIT.
 
 FlockStack is a fork of MailCheap, made by [Marc Lou](https://x.com/marclou).
+
+## Brand fleet
+
+Manage newsletters together on `/fleet`: subscriber counts, last issues, sending rates, newsletter brakes, domain setup and recommendations between your brands. Paid plans include 3 to 50 newsletters; an admin can set a higher account limit. Self-hosted servers have no newsletter limit. [Brand fleet setup and release notes](docs/BRAND-FLEET.md) covers Cloudflare DNS permissions, regional configuration, warm-up and migration 0030.
+
+## Agent setup, replies and switching
+
+See [the implementation guide](docs/HANDOVER-BUILDS.md) for bootstrap and claims, agent tools, calendar events, Markdown archives, send-time suggestions, teams, existing paid subscribers and reader languages. [The CLI and skill pack](integrations/agents/README.md) work with Claude Code and Codex. Inbound replies require the operator’s optional Cloudflare Email Worker setup before newsletters can enable them.
+
+### Authors, reader previews and perks
+
+Manage guest bylines at `/authors` and paid-reader benefits at `/perks`. Campaigns have bulk tag/author tools and a saved-issue preview for a subscriber or tier. The rich editor includes code and a table of contents. The overview compares ranges up to two years. [Implementation and access rules](docs/PRODUCT-BUILDS.md) covers API/MCP actions, private perk downloads, welcome emails, new webhook events and remaining limits. These features need no new service; file perks use the existing private `FILES` bucket.
+
+Optional lists within a newsletter and metered access to paid web issues are described in [Mailing lists and metered reading](docs/MAILING-LISTS-AND-METER.md). Both work through the dashboard and registered actions; readers make their own list choices and explicitly claim a free read.
+
+The rich editor also supports [audience blocks, safe HTML snippets and internal issue links](docs/EDITOR-AUDIENCES-AND-LINKS.md): select free or paid tiers, paste safe markup, or type `[[` to link a published issue. The editor and report show its incoming and outgoing references privately.
+
+[Automation email tests](docs/AUTOMATION-EMAIL-TESTS.md) let an email step test up to four copy variants or send only a manually chosen winner, with observed results by allocation and copy revision.
+
+Referral code inventory and gifted paid-access months: [docs/REFERRAL-REWARDS.md](docs/REFERRAL-REWARDS.md).
+
+Ordered optional signup steps for embedded forms and archive defaults: [docs/SIGNUP-FLOWS.md](docs/SIGNUP-FLOWS.md).
+
+Paid trial access fees and payment verification: [docs/PAID-TRIALS.md](docs/PAID-TRIALS.md).
+
+Reader opt-in supporter badges for comments: [docs/SUPPORTER-BADGES.md](docs/SUPPORTER-BADGES.md).
+
+Creator matching and private introductions: [owner guide](docs/CREATOR-MATCHES.md).
+
+Short web posts and reviewed weekly digest drafts: [owner guide](docs/SHORT-POSTS.md).
+
+Observed subscription invoices, calculated MRR and tracked changes: [report guide](docs/SUBSCRIPTION-REVENUE.md).
+
+[AI images](docs/AI-IMAGES.md) adds explicit generation in the rich editor, a public media-library image, shared AI quotas, preview before insertion and API/MCP parity.
+
+[Account assistant](docs/ACCOUNT-ASSISTANT.md) adds owner-consented chat through real revocable agent grants, bounded draft/segment/calendar tools and human approvals for sends.
+
+[Reply Rules](docs/REPLY-RULES.md) adds optional, owner- and reader-consented AI comment classification using public written rules and recent eligible manual hides. Uncertain checks wait for human review; every decision can be reversed. [Reader billing languages](docs/READER-BILLING-LANGUAGES.md) describes the six-language billing, pledge and gift templates and their release review limits.
+
+
+[Reader lifecycle events](docs/WEBHOOK-LIFECYCLE-EVENTS.md) adds ID-only web publication, comment, deletion and reply notifications, plus stable payload IDs for provider deduplication. [Connector review preparation](integrations/SUBMISSION.md) includes local checks and a source-hash inventory, with provider validation and publication still separate.
+
+[Group subscriptions](docs/GROUP-SUBSCRIPTIONS.md) adds per-seat Stripe checkout, explicit recipient acceptance, buyer seat and invoice management, and independent personal paid-access fallback.
+
+[Direct sponsorships](docs/DIRECT-SPONSORSHIPS.md) adds newsletter-site booking requests, commercial dates and prices, private sponsor images, human creative approval, creator-owned Stripe invoices and actual message delivery and click reports. Requests are off by default. A commercial date never schedules or sends an issue. Migration 0041 is required before enabling it.
+
+### Realtime editing and private editor discussion
+
+An optional Cloudflare Worker adds Yjs editing of rich-text drafts, live carets and private editor threads/mentions. It is off by default. Existing REST edits and send/restore transitions invalidate stale sessions, and ordinary editor autosaves carry a content precondition. Mentions send no email. Private snapshots and threads are included in exports and account deletion; stale snapshots and idle object copies have cleanup limits. [Editor collaboration](docs/EDITOR-COLLABORATION.md) has the regional service bindings, migration, release checks and self-hosting steps. Build with `npm run build:collaboration` and run native tests with `npm run test:collaboration` alongside the ordinary suite.

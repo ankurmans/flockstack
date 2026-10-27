@@ -21,8 +21,8 @@ function loadEsbuild(root) {
 }
 
 // The bundled and minified size of a module: what the router and the public Worker ship, apart from their data.
-export function bundleSize(entry, root = ROOT) {
-	const result = loadEsbuild(root).buildSync({ entryPoints: [join(root, entry)], bundle: true, write: false, format: "esm", minify: true, logLevel: "silent" });
+export function bundleSize(entry, root = ROOT, external = []) {
+	const result = loadEsbuild(root).buildSync({ entryPoints: [join(root, entry)], bundle: true, write: false, external, format: "esm", minify: true, logLevel: "silent" });
 	return result.outputFiles[0].contents.length;
 }
 
@@ -33,7 +33,7 @@ export function checkBudgets(budgets, { root = ROOT, measure = null, only = null
 		.map(([name, budget]) => {
 			let bytes = null;
 			if (measure) bytes = measure(name, budget);
-			else if (budget.bundle) bytes = bundleSize(budget.bundle, root);
+			else if (budget.bundle) bytes = bundleSize(budget.bundle, root, budget.external ?? []);
 			else if (existsSync(join(root, budget.file))) bytes = statSync(join(root, budget.file)).size;
 			return { name, label: budget.label, file: budget.file ?? budget.bundle, maxBytes: budget.maxBytes, bytes, isMissing: bytes === null, isOver: bytes !== null && bytes > budget.maxBytes };
 		});
@@ -57,6 +57,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 		const { buildReadersWorker } = await import("./build-readers-worker.mjs");
 		await buildReadersWorker();
 	}
+	if (budgets["collaboration-worker"] && !existsSync(join(ROOT, budgets["collaboration-worker"].file))) { const { buildCollaborationWorker } = await import("./build-collaboration-worker.mjs"); await buildCollaborationWorker(); }
 	const results = checkBudgets(budgets);
 	if (process.argv.includes("--json")) console.log(JSON.stringify(results, null, 2));
 	else console.log(formatReport(results));

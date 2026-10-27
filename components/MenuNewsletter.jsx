@@ -142,6 +142,12 @@ export default function MenuNewsletter({ newsletters, selectedId, savedId, isCom
 						</div>
 					)}
 					<DropdownMenuItem asChild className={ITEM}>
+						<Link href="/fleet">
+							<Settings />
+							Brand fleet
+						</Link>
+					</DropdownMenuItem>
+					<DropdownMenuItem asChild className={ITEM}>
 						<Link href="/newsletters">
 							<Settings />
 							Newsletter settings

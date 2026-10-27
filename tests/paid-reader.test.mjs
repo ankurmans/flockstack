@@ -119,7 +119,7 @@ describe("the Subscriber Center", () => {
 		assert.doesNotMatch(page, /Manage your subscription/, "a pledger has no billing page");
 
 		await m.Pledge.updateOne({ accountId: user.accountId, email: "pledger@example.org" }, { $set: { status: "scheduled", chargeAt: new Date(Date.now() + 3 * DAY_MS) } });
-		assert.match(await visit(user, await signInReader(m, user, pledger)), /your first charge is on /);
+		assert.match(await visit(user, await signInReader(m, user, pledger)), /Your first charge is on /);
 		await m.Pledge.updateOne({ accountId: user.accountId, email: "pledger@example.org" }, { $set: { status: "canceled" } });
 		assert.doesNotMatch(await visit(user, await signInReader(m, user, pledger)), /You pledged/);
 	});

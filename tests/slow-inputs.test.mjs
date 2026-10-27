@@ -48,6 +48,8 @@ const ORDINARY_ISSUE = repeat(
 );
 
 const SHAPES = {
+	"unclosed HTML snippet tags": repeat('<div data-html="'),
+	"many audience blocks": repeat('<div data-access="free"><p>Public</p></div>'),
 	"nested <scr<script>ipt>": nested(Math.floor(SIZE / 8)),
 	"unclosed <script ": repeat("<script "),
 	"unclosed <style>": repeat("<style>"),

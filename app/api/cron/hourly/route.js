@@ -1,3 +1,4 @@
+import { expireCollaborationSnapshots } from "@/lib/editor-housekeeping";
 import { expireAccountExports } from "@/lib/account-export";
 import { runAgentHousekeeping } from "@/lib/agent-housekeeping";
 import { announceTelegram } from "@/lib/alerts";
@@ -26,7 +27,7 @@ export const maxDuration = 60;
 // Custom plan requests past their two years, the RSS feeds' kept copies nobody has read for a day, comps and gifts that ran out, and
 // pledge charging whose job went quiet, and the agent approvals nobody decided and the agent activity past its 90 days, the held sends whose release job never ran, and the link checks nobody looked at for a week.
 export const GET = withCronSecret(async () => {
-	const [postshiba, telegram, expiredExports, commentDigests, extraEmails, dedicatedIps, ipWarmups, ipInventory, reminders, customRequests, feedCopies, grants, pledges, giftsSent, giftsExpired, agentRecords, heldSends, linkChecks] = await Promise.all([
+	const [postshiba, telegram, expiredExports, commentDigests, extraEmails, dedicatedIps, ipWarmups, ipInventory, reminders, customRequests, feedCopies, grants, pledges, giftsSent, giftsExpired, agentRecords, heldSends, linkChecks, editorSnapshots] = await Promise.all([
 		checkPostshibaStatus(),
 		announceTelegram(),
 		expireAccountExports(),
@@ -45,7 +46,8 @@ export const GET = withCronSecret(async () => {
 		runAgentHousekeeping(),
 		sweepHeldSends(),
 		purgeOldLinkChecks(),
+		expireCollaborationSnapshots(),
 	]);
-	console.info(`[hourly] ${JSON.stringify({ postshiba, telegram, expiredExports, commentDigests, extraEmails, dedicatedIps, ipWarmups, ipInventory, reminders, customRequests, feedCopies, grants, pledges, giftsSent, giftsExpired, agentRecords, heldSends, linkChecks })}`);
+	console.info(`[hourly] ${JSON.stringify({ postshiba, telegram, expiredExports, commentDigests, extraEmails, dedicatedIps, ipWarmups, ipInventory, reminders, customRequests, feedCopies, grants, pledges, giftsSent, giftsExpired, agentRecords, heldSends, linkChecks, editorSnapshots })}`);
 	return { postshiba, telegram };
 });

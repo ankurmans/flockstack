@@ -16,6 +16,10 @@ const NOT_FOUND_PATH = "/_not-on-this-server";
 // and OAuth clients (REST and MCP, OAuth discovery), the docs and uptime checks. The consent page checks
 // the session itself, so a signed-out visitor goes to sign-in with the app's request.
 const PUBLIC_PATHS = [
+	/^\/reader\/billing$/,
+	/^\/reader\/sponsorships\/(verify|manage)$/,
+	/^\/sponsor-assets\/[a-f0-9]{24}\/[A-Za-z0-9_-]{43}$/,
+	/^\/api\/sponsorship-assets$/,
 	/^\/api\/health$/,
 	/^\/favicon\.ico$/,
 	/^\/(robots\.txt|sitemap\.xml|site\.webmanifest)$/,
@@ -32,7 +36,9 @@ const PUBLIC_PATHS = [
 	/^\/confirm$/,
 	/^\/keep$/,
 	/^\/referral$/,
+	/^\/signup-flow$/,
 	/^\/reader\/(in|signin|replies)$/,
+	/^\/reader\/groups\/(buy|complete|invite|manage)$/,
 	/^\/(poll|poll\/results|survey|preferences)$/,
 	/^\/(pledge|gift|gifts)$/,
 	/^\/o\//,
@@ -43,6 +49,8 @@ const PUBLIC_PATHS = [
 	/^\/api\/views$/,
 	/^\/api\/recommendations\/impression$/,
 	/^\/api\/visit$/,
+	/^\/api\/reader-(translation|subscriptions)$/,
+	/^\/api\/reader-perks\/[^/]+\/[^/]+$/,
 	/^\/embed\/[a-f0-9]{24}$/i,
 	/^\/f\/[a-f0-9]{24}$/i,
 	/^\/subscribe\/magic$/,
@@ -51,6 +59,8 @@ const PUBLIC_PATHS = [
 	/^\/api\/v1\//,
 	// The API Worker asks the app to drop a cached page (lib/internal-revalidate.js): the signature is the credential.
 	/^\/api\/internal\/revalidate$/,
+	/^\/api\/inbound-replies$/,
+	/^\/api\/agent-workspaces(\/[^/]+)?$/,
 	/^\/api\/webhooks\//,
 	/^\/api\/jobs\//,
 	/^\/api\/cron\//,
@@ -58,12 +68,15 @@ const PUBLIC_PATHS = [
 
 // A newsletter's host carries its archive and the links in its emails, never the dashboard, not even its login page.
 const ARCHIVE_HOST_PATHS = [
+	/^\/reader\/billing$/,
 	/^\/unsubscribe$/,
 	/^\/api\/unsubscribe$/,
 	/^\/api\/views$/,
 	/^\/api\/recommendations\/impression$/,
 	// A page view of the website (lib/web-analytics.js).
 	/^\/api\/visit$/,
+	/^\/api\/reader-(translation|subscriptions)$/,
+	/^\/api\/reader-perks\/[^/]+\/[^/]+$/,
 	// Signup forms for other sites (lib/forms.js): the frame's page and the address a form posts to, and Magic Links
 	// (lib/magic-links.js).
 	/^\/embed\/[a-f0-9]{24}$/i,
@@ -73,6 +86,7 @@ const ARCHIVE_HOST_PATHS = [
 	/^\/confirm$/,
 	/^\/keep$/,
 	/^\/referral$/,
+	/^\/signup-flow$/,
 	/^\/reader\/(in|signin|replies)$/,
 	// Polls, surveys and the preference center (lib/subscriber-links.js).
 	/^\/(poll|poll\/results|survey|preferences)$/,
@@ -88,7 +102,7 @@ const OFFER_PATH_PATTERN = /^\/offer\/([a-z0-9][a-z0-9-]{1,38}[a-z0-9])\/?$/;
 const AUTHOR_PATH_PATTERN = /^\/authors\/([a-z0-9][a-z0-9-]{0,59})\/?$/;
 const TAG_PATH_PATTERN = /^\/tags\/([a-z0-9][a-z0-9-]{0,59})\/?$/;
 // The list of issues, the reader's sign-in and the Subscriber Center are pages of the newsletter's site, not routes of their own.
-const SITE_PAGE_PATHS = { "/issues": "issues", "/signin": "signin", "/account": "account" };
+const SITE_PAGE_PATHS = { "/issues": "issues", "/signin": "signin", "/account": "account", "/perks": "perks", "/sponsor": "sponsor" };
 // Generated share images stay on the app domain, where social cards point: they're only PNGs.
 const ARCHIVE_IMAGE_PATH_PATTERN = /^\/archive\/[^/]+\/og$/;
 
@@ -117,6 +131,8 @@ export async function proxy(request) {
 		if (pathname === "/podcast.xml") return rewriteTo(request, `/archive/${archiveSlug}/podcast`);
 		const audioSlug = AUDIO_PATH_PATTERN.exec(pathname)?.[1];
 		if (audioSlug) return rewriteTo(request, `/archive/${archiveSlug}/audio/${audioSlug}`);
+		const markdownSlug = /^\/p\/([a-z0-9-]+)\.md$/.exec(pathname)?.[1];
+		if (markdownSlug) return rewriteTo(request, `/archive/${archiveSlug}/markdown/${markdownSlug}`);
 		if (pathname === "/shop" || pathname === "/shop/") return rewriteTo(request, `/archive/${archiveSlug}/shop`);
 		if (pathname === "/subscribe" || pathname === "/subscribe/") return rewriteTo(request, `/archive/${archiveSlug}/subscribe`);
 		if (pathname === "/give" || pathname === "/give/") return rewriteTo(request, `/archive/${archiveSlug}/give`);

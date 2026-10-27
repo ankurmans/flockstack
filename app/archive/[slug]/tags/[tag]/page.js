@@ -62,7 +62,7 @@ export default async function TagPage({ params, searchParams }) {
 			<div className="mt-10">
 				<ListIssues issues={list.issues} newsletter={newsletter} urls={urls} theme={getBrand(newsletter).theme} />
 			</div>
-			<PaginationIssues page={list.page} pages={list.pages} hrefFor={hrefFor} />
+			<PaginationIssues language={newsletter.language ?? "en"} page={list.page} pages={list.pages} hrefFor={hrefFor} />
 		</div>
 	);
 }

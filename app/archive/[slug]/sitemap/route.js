@@ -1,4 +1,4 @@
-import { getArchiveAuthor } from "@/lib/archive-author";
+import { getArchiveAuthors } from "@/lib/archive-author";
 import { getArchiveNewsletter, getShopPayments, listArchiveIssues, listIssueTags, listPublishedPages, listShopProducts } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getIssueModified } from "@/lib/archive-issues";
@@ -40,7 +40,7 @@ export async function GET(_request, { params }) {
 		'<?xml version="1.0" encoding="UTF-8"?>',
 		'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
 		entry(urls.siteIndex, latestDate),
-		entry(urls.absoluteAuthor(getArchiveAuthor(newsletter).slug), latestDate),
+		...getArchiveAuthors(newsletter).map((author) => entry(urls.absoluteAuthor(author.slug), latestDate)),
 		entry(urls.absoluteIssues, latestDate),
 		...issues.map((issue) => entry(urls.absolutePost(issue.archiveSlug), getIssueModified(issue))),
 		...pages.map((page) => entry(urls.absolutePost(page.slug), page.updatedAt)),

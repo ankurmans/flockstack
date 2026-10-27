@@ -200,6 +200,7 @@ describe("what blocks an account", () => {
 		assert.equal((await loadAccount(user)).status, "active", "2 complaints never block");
 		assert.deepEqual(subjectsSince(emailsBefore).sort(), [
 			"admin@example.com [FlockStack] Account close to a block",
+			"complaints@example.com [FlockStack] Newsletter sending paused",
 			"complaints@example.com [FlockStack] Spam complaints are getting close to a block",
 		]);
 

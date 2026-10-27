@@ -73,7 +73,8 @@ describe("the built API Worker", () => {
 	test("has no character above U+00FF, so V8 holds its source at one byte a character, and is a fraction of the app's 37 MB", () => {
 		const wide = source.search(/[^\x00-\xff]/);
 		assert.equal(wide, -1, `a character above U+00FF at ${wide}: ${JSON.stringify(source.slice(Math.max(0, wide - 30), wide + 10))}`);
-		assert.ok(statSync(outFile).size < 9_000_000, `${statSync(outFile).size} bytes`);
+		const limit = JSON.parse(readFileSync(new URL("../perf-budgets.json", import.meta.url), "utf8")).budgets["api-worker"].maxBytes;
+		assert.ok(statSync(outFile).size <= limit, `${statSync(outFile).size} bytes exceeds the measured API budget ${limit}`);
 	});
 
 	test("answers requests: the OpenAPI document, a refusal without a key, discovery and the MCP challenge", async () => {

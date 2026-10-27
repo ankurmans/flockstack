@@ -47,7 +47,7 @@ export default function CommentsPage() {
 				<p>
 					A comment shows a display name, never an email address. It starts as the part of the address before the @ (ana.lopez becomes Ana Lopez),
 					and the reader can change it once, with their first comment. You, the owner, see the address next to each comment on the Comments page.
-					Everything is stored in your account&apos;s own database, in the region you chose, and nowhere else (see{" "}
+					Comments are stored in your account&apos;s database in the region you chose. Optional Reply Rules can process consenting comment text outside that region (see{" "}
 					<Link href="/docs/regions" className="font-medium text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
 						Regions
 					</Link>
@@ -90,6 +90,13 @@ export default function CommentsPage() {
 					The author always sees the reason, on the issue&apos;s page and in an email sent the way your newsletter&apos;s other emails are (suppressed
 					addresses and blocked accounts get none). Replies to a comment you hid stay on the page under a note.
 				</p>
+			</Section>
+
+			<Section title="Reply Rules" stagger={6}>
+				<p>The account owner can enable optional AI classification on the Comments page, write public rules and separately choose to use recent manually hidden examples. The owner must agree to global Cloudflare AI processing. Each reader sees the rules and must agree before posting or editing while this is enabled. Without agreement, no comment is sent to the model.</p>
+				<p className="mt-4">Existing hold-all and hold-links settings take priority. Otherwise one AI check uses the comment, public rules and, if enabled, up to three consenting manually hidden comments from the last 30 days. Example authors must still be active subscribers. Old comments without example-use consent, restored comments and AI-only hides are excluded. Names, emails and reader/session identifiers are not added to the request. Comment text can itself contain personal information.</p>
+				<p className="mt-4">A clear rule violation can be hidden with the public rule as its reason. A close example match gets a generic reason that quotes no private example. Uncertain, invalid, unavailable or over-quota checks wait for your review. You can approve or reverse every decision. Confidence is an unverified model score. Every started attempt counts against the shared daily AI allowance, including failures; there is no automatic retry or model training.</p>
+				<p className="mt-4">The author sees an AI decision on the issue page. Automatic hides send no separate decision email. Your later manual moderation follows the normal email rules. Consent and decision metadata follow the comment in private exports and deletion; anonymizing its author removes that metadata. <Code>get_reply_rules</Code> reads public settings through the API and MCP. Changing them requires the signed-in account owner.</p>
 			</Section>
 
 			<Section title="Emails" stagger={6}>

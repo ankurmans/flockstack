@@ -33,6 +33,7 @@ export default async function ArchiveLayout({ children, params }) {
 	const shopLink = comingSoon ? null : hasProducts || (payments.ready && (newsletter.paidTier?.enabled || newsletter.paidTier?.pledges?.enabled)) ? { href: hasProducts || newsletter.paidTier?.enabled ? shop : subscribe, label: hasProducts ? "Shop" : newsletter.paidTier?.enabled ? "Go paid" : "Pledge" } : null;
 	const pitch = {
 		name: newsletter.name,
+		language: newsletter.language ?? "en",
 		slug: newsletter.slug,
 		imageUrl: newsletter.imageUrl,
 		description: newsletter.description,
@@ -42,7 +43,7 @@ export default async function ArchiveLayout({ children, params }) {
 	return (
 		<ProviderSubscribe newsletter={pitch} readers={readers}>
 			<StyleSite newsletter={newsletter} only={theme} />
-			<div data-site-theme={theme} className="theme-neutral flex min-h-dvh flex-col bg-background text-foreground">
+			<div lang={newsletter.language ?? "en"} data-site-theme={theme} className="theme-neutral flex min-h-dvh flex-col bg-background text-foreground">
 				{!comingSoon && banner && payments.ready && <BannerOffer text={banner.text} href={banner.offerCode ? urls.offer(banner.offerCode) : subscribe} />}
 				<HeaderArchive
 					newsletter={newsletter}

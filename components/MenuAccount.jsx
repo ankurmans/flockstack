@@ -219,6 +219,7 @@ function FormLimits({ accountId, overrides, planLimits, audioPlanLimit, onDone }
 				<DialogDescription>Leave a field empty to use the plan&apos;s number.</DialogDescription>
 			</DialogHeader>
 			<FieldLimit label="Emails a month" name="emailsPerMonth" value={overrides.emailsPerMonth} planValue={planLimits?.emailsPerMonth} />
+			<FieldLimit label="Newsletters" name="newsletters" value={overrides.newsletters} planValue={planLimits?.newsletters} />
 			<FieldLimit label="Subscribers" name="subscribers" value={overrides.subscribers} planValue={planLimits?.subscribers} />
 			{audioPlanLimit !== null && <FieldLimit label="Audio characters a month" name="audioCharactersPerMonth" value={overrides.audioCharactersPerMonth} planValue={audioPlanLimit} />}
 			{state?.error && <p className="text-sm text-destructive">{state.error}</p>}

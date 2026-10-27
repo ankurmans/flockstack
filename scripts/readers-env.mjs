@@ -49,9 +49,12 @@ export const VARIABLES = {
 
 // Names the bundle mentions (through code it shares with the app) that no reader endpoint reads.
 export const NOT_NEEDED = {
+	REPLIES_DOMAIN: "campaign reply capture; signup emails never use a campaign reply address",
+	REPLY_INGEST_SECRET: "campaign reply capture, not reader signup email delivery",
 	AI_DAILY_LIMIT: "the app's writing assistant",
 	ALLOWED_EMAILS: "a self-hosted server's sign-in allowlist",
 	CLOUDFLARE_API_TOKEN: "custom domains and shared DNS, set up from the dashboard",
+	CLOUDFLARE_FLEET_ZONES: "brand domains, set up from the fleet dashboard",
 	CLOUDFLARE_DNS_DAILY_CAP: "shared DNS, set up from the dashboard",
 	CLOUDFLARE_SHARED_ZONE_ID: "shared DNS, set up from the dashboard",
 	CLOUDFLARE_SAAS_ZONE_ID: "custom domains, set up from the dashboard",

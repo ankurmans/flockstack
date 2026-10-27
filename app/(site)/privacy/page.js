@@ -1,3 +1,4 @@
+import { EDITOR_COLLABORATION_STORED, READER_RETENTION_STORED, AGENT_WORKSPACES_STORED, TEAM_ACCESS_STORED, READER_REPLIES_STORED, STRIPE_IMPORT_STORED, SUBSCRIPTION_REVENUE_STORED, BRAND_DOMAINS_STORED } from "@/lib/legal";
 import { notFound } from "next/navigation";
 import LayoutLegal from "@/components/LayoutLegal";
 import LinkInline from "@/components/LinkInline";
@@ -20,6 +21,14 @@ import {
 	PRIVACY_REQUEST_RESPONSE,
 	SUPPORT_AI_PROVIDER_NOTE,
 	AI_WRITING_RETENTION,
+	REPLY_RULES_STORED,
+	AI_IMAGES_STORED,
+	ACCOUNT_ASSISTANT_STORED,
+	SUBSCRIBER_PERKS_STORED,
+	MAILING_LISTS_STORED,
+	METERED_READING_STORED,
+	READER_TRANSLATIONS_STORED,
+	READER_TRANSLATIONS_RETENTION,
 	AI_WRITING_STORED,
 	SUPPORT_CHAT_RETENTION,
 	SUPPORT_CHAT_STORED,
@@ -75,7 +84,15 @@ export default function PrivacyPage() {
 					</li>
 					<li>
 						<Strong>Your newsletters:</Strong> their names, addresses, sender details, postal address, issues, images, products, domains
-						and settings, which are what you put in them.
+						and settings, which are what you put in them. {BRAND_DOMAINS_STORED}
+					</li>
+					<li>{SUBSCRIBER_PERKS_STORED}</li>
+					<li>{MAILING_LISTS_STORED}</li>
+					<li>{METERED_READING_STORED}</li>
+					<li>{AGENT_WORKSPACES_STORED}</li>
+					<li>{TEAM_ACCESS_STORED}</li>
+					<li>{READER_REPLIES_STORED}</li>
+					<li>{STRIPE_IMPORT_STORED}
 					</li>
 					<li>
 						<Strong>API keys and connected apps:</Strong> keys are stored hashed. Apps you connect (such as an AI assistant) get a token and
@@ -84,6 +101,8 @@ export default function PrivacyPage() {
 					<li>
 						<Strong>Webhooks:</Strong> the addresses you add, their signing secrets, and a log of the latest 100 deliveries to each, with what
 						was sent and the answer.
+
+						Web issue, comment, incoming-reply, contact-deletion and Reply Rules notifications contain record IDs only, without text, names, email addresses, moderation reasons or consent details. Queued payloads carry a stable event ID for retries and deduplication.
 					</li>
 					<li>
 						<Strong>Your plan:</Strong> which plan, monthly or yearly, its status and period dates, and the IDs of your customer and
@@ -112,6 +131,17 @@ export default function PrivacyPage() {
 						send may be processed outside your region. Stored: {AI_WRITING_STORED}. How long: {AI_WRITING_RETENTION}
 					</li>
 					<li>
+						<Strong>The account assistant:</Strong> {ACCOUNT_ASSISTANT_STORED}.
+					</li>
+					<li><Strong>Reply Rules:</Strong> {REPLY_RULES_STORED}.</li>
+					<li>
+						<Strong>AI image generation:</Strong> {AI_IMAGES_STORED}.
+					</li>
+					<li>
+						<Strong>Reader-requested translations:</Strong> Stored and sent: {READER_TRANSLATIONS_STORED}. How long: {READER_TRANSLATIONS_RETENTION}.
+						Workers AI runs on Cloudflare&apos;s global network, so this text may be processed outside your region.
+					</li>
+					<li>
 						<Strong>Audio versions:</Strong> Stored and sent: {AUDIO_VERSIONS_STORED}. How long: {AUDIO_VERSIONS_RETENTION}. {getElevenLabsStatus()}
 					</li>
 					<li>
@@ -120,6 +150,14 @@ export default function PrivacyPage() {
 					<li>
 						<Strong>Rate-limit counters:</Strong> to stop abuse, we count requests to sign-in, signup and similar forms by IP address, and
 						questions to the support assistant by IP address and user ID. The counters last minutes to two days and are cleaned up.
+					</li>
+					<li>
+						<Strong>Creator matching and introductions:</Strong> matching is off until you enable it. Your public newsletter profile,
+						topics and subscriber range become visible to other opted-in creators in the same region. Each participant&apos;s account
+						keeps a private copy of a conversation and its messages until that account is deleted. A recipient who opts into email
+						notifications also receives message text through our platform email provider. FlockStack does not share your account email
+						address with the other creator. Anything you write in a message is shared with them. Closing a conversation stops new messages;
+						it does not delete or recall existing copies. Deleting your account does not remove the other account&apos;s copy.
 					</li>
 				</ul>
 			</SectionLegal>
@@ -155,10 +193,34 @@ export default function PrivacyPage() {
 						<Strong>Orders:</Strong> when readers buy from a creator, the creator&apos;s Stripe account takes the payment. We keep the
 						buyer&apos;s email and name, the product, the amount and the download count.
 					</li>
+					<li><Strong>Private editorial collaboration:</Strong> {EDITOR_COLLABORATION_STORED}</li>
+					<li><Strong>Reader billing choices:</Strong> {READER_RETENTION_STORED}</li>
+					<li><Strong>Subscription financial reports:</Strong> {SUBSCRIPTION_REVENUE_STORED}</li>
 					<li>
 						<Strong>Pledges:</Strong> when a reader pledges to a creator&apos;s paid tier, their card is saved on the creator&apos;s Stripe
 						account and nothing is charged. We keep the email, the tier, the price pledged, the pledge&apos;s status and dates, and the IDs of
 						their Stripe customer and saved card, never the card itself. A canceled pledge removes the card at Stripe.
+					</li>
+					<li>
+						<Strong>Group subscriptions:</Strong> one buyer pays for reader seats through the creator&apos;s Stripe account. We keep the buyer
+						and invited recipients&apos; addresses, tier and seat quantity, billing status, funded period, Stripe references, and invitation,
+						acceptance and consent dates. Buyer management and recipient invitations use separate private emailed links that expire in 7 days
+						and can be revoked. Opening a link changes nothing; recipients explicitly agree to subscribe before accepting. Personal billing
+						is kept separately and is never canceled by accepting or losing a seat. Invoices are read from Stripe when requested. Deleting a
+						reader clears their seat identity and revokes its link; deleting the account purges its group records. Group buyer billing records
+						remain with the account while it exists. Stripe keeps its own financial records under its policy.
+					</li>
+					<li>
+						<Strong>Direct sponsorships:</Strong> when a creator opens sponsorship requests, we store the sponsor&apos;s email and brand,
+						placement and quoted date, time zone and price, email verification, creative versions and owner approval, invoice identifiers,
+						amounts, currencies and observation dates, and the issue placement and aggregate message delivery and click observations.
+						Verification links expire in 24 hours and private management links in 7 days. Requests and uploads never subscribe a sponsor.
+						Images stay in a private file bucket until the uploader consents and the human owner approves the selected creative; approval
+						makes that image publicly accessible immediately. Public images remain available for sent issues until account deletion, with
+						up to five minutes of public caching. Unused private images can be removed. The creator&apos;s own Stripe account receives the
+						sponsor&apos;s name, email and invoice details, and handles payment and any refund. Sponsor management shows aggregate observations,
+						never subscriber identities or a paid issue&apos;s body. Records and original ready images are included in account export and purged
+						with the account; Stripe keeps its financial records under its own policy.
 					</li>
 					<li>
 						<Strong>Gifts:</Strong> when someone buys a gift subscription, the creator&apos;s Stripe account takes the payment. We keep the
@@ -333,7 +395,7 @@ export default function PrivacyPage() {
 				<p>
 					Our services are run by companies based in the United States, and some data crosses borders however you choose: the code runs in the
 					Cloudflare data center closest to a visitor, emails travel to wherever the reader&apos;s mailbox is, billing is one account for both
-					regions, and the support assistant and the AI writing tools run on Cloudflare&apos;s global network. When data goes to a country without the same protection as
+					regions, and the support assistant, AI writing tools and reader-requested translations run on Cloudflare&apos;s global network. When data goes to a country without the same protection as
 					yours, we rely on the safeguards in the provider&apos;s own data processing terms. This is what each one says on the page we link, no
 					more:
 				</p>
@@ -406,7 +468,7 @@ export default function PrivacyPage() {
 			<SectionLegal id="security" title="Security">
 				<p>
 					Pages are served over HTTPS. API keys and sign-in codes are stored hashed, unsubscribe and tracking links are signed, every query is
-					scoped to one account, and product files and exports sit in private storage and leave it only through signed links that expire. No
+					scoped to one account, and product files and exports sit in private storage. Orders and exports use signed links that expire; a perk download requires the reader session and current paid-tier access. No
 					system is perfectly safe, so please tell us at {mail} if you find a problem.
 				</p>
 			</SectionLegal>

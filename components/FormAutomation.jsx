@@ -156,6 +156,7 @@ function CardContacts({ report }) {
 							))}
 					</ul>
 				)}
+				{report.variantGroupsTruncated && <p className="mt-4 text-xs text-muted-foreground">Only the 200 most recently sent variant groups are shown; older group results are omitted.</p>}
 				<p className="mt-4 text-xs text-pretty text-muted-foreground">Each step shows how many contacts it ran for, how many wait for it, and for a branch or split how many took each path.</p>
 			</div>
 		</aside>

@@ -1,3 +1,4 @@
+import { getReaderText } from "@/lib/reader-languages";
 import { notFound } from "next/navigation";
 import FormBuyProduct from "@/components/FormBuyProduct";
 import NoticePaid from "@/components/NoticePaid";
@@ -37,11 +38,13 @@ export default async function ProductPage({ params }) {
 	const payments = await getShopPayments(newsletter);
 	const urls = getArchiveUrls(newsletter);
 
+	const t = getReaderText(newsletter);
+
 	return (
 		<div className="mx-auto max-w-4xl px-5 pt-12 pb-24 sm:pt-16">
 			<NoticePaid>Thanks for your order. The download link is on its way to your email: it can take a minute, and the spam folder is worth a look.</NoticePaid>
 			<a href={urls.shop} className="text-sm text-muted-foreground transition-colors duration-150 hover:text-foreground">
-				← Shop
+				← {t("Shop")}
 			</a>
 			<div className="mt-6 grid gap-10 md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] md:items-start">
 				<div className="animate-enter">
@@ -53,8 +56,8 @@ export default async function ProductPage({ params }) {
 					{product.description && <p className="mt-5 text-lg whitespace-pre-line text-muted-foreground text-pretty">{product.description}</p>}
 				</div>
 				<aside style={{ "--stagger": 1 }} className="rounded-2xl bg-card p-5 shadow-border animate-enter md:sticky md:top-24">
-					<p className="text-3xl font-semibold tracking-tight tabular-nums">{formatPrice(product.priceCents, product.currency)}</p>
-					<p className="mt-1 text-sm text-muted-foreground">One payment. Instant download by email{product.file?.name ? `: ${product.file.name}` : ""}.</p>
+					<p className="text-3xl font-semibold tracking-tight tabular-nums">{formatPrice(product.priceCents, product.currency, t.language)}</p>
+					<p className="mt-1 text-sm text-muted-foreground">{t("One payment. Instant download by email")}{product.file?.name ? `: ${product.file.name}` : ""}.</p>
 					{payments.ready ? (
 						<FormBuyProduct
 							newsletterSlug={newsletter.slug}
@@ -65,7 +68,7 @@ export default async function ProductPage({ params }) {
 							className="mt-5"
 						/>
 					) : (
-						<p className="mt-5 rounded-lg bg-muted/60 px-3 py-2.5 text-sm text-muted-foreground">This product can&apos;t be bought right now. Check back soon.</p>
+						<p className="mt-5 rounded-lg bg-muted/60 px-3 py-2.5 text-sm text-muted-foreground">{t("This product can't be bought right now. Check back soon.")}</p>
 					)}
 				</aside>
 			</div>

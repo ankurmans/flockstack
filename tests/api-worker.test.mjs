@@ -52,7 +52,7 @@ async function throughNext(request, segments) {
 }
 
 // A call counts against its key (callsToday, lastUsedAt), so the second of two identical calls sees the first.
-const read = async (response) => ({ status: response.status, body: (await response.clone().text()).replace(/"callsToday":\d+/g, '"callsToday":0').replace(/"lastUsedAt":("[^"]*"|null)/g, '"lastUsedAt":null'), type: response.headers.get("content-type"), challenge: response.headers.get("www-authenticate"), allow: response.headers.get("allow"), cors: response.headers.get("access-control-allow-origin") });
+const read = async (response) => ({ status: response.status, body: (await response.clone().text()).replace(/"asOf":"[^"]*"/g, '"asOf":"request-time"').replace(/"callsToday":\d+/g, '"callsToday":0').replace(/"lastUsedAt":("[^"]*"|null)/g, '"lastUsedAt":null'), type: response.headers.get("content-type"), challenge: response.headers.get("www-authenticate"), allow: response.headers.get("allow"), cors: response.headers.get("access-control-allow-origin") });
 
 function fill(path) {
 	return path.replace(/\{[^}]+\}/g, "abc");
@@ -81,7 +81,9 @@ describe("the same routes in both", () => {
 		}
 	});
 
-	test("the read-only actions answer the same with a key", async () => {
+	test("the read-only actions answer the same with a key", async (t) => {
+		// Reports use the request time for their window; compare both runtimes at the same instant.
+		t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
 		const headers = { authorization: `Bearer ${owner.fullKey}` };
 		let compared = 0;
 		for (const action of m.registry.ACTIONS.filter((candidate) => candidate.http.method === "GET" && !candidate.http.path.includes("{") && !candidate.http.path.includes("export") && !candidate.http.path.includes("activity"))) {

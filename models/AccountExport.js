@@ -23,6 +23,8 @@ const accountExportSchema = new mongoose.Schema(
 			campaigns: { type: Number, default: 0 },
 			images: { type: Number, default: 0 },
 			missingImages: { type: Number, default: 0 },
+			sponsorAssets: { type: Number },
+			missingSponsorAssets: { type: Number },
 			bytes: { type: Number, default: 0 },
 		},
 		// Each ZIP of a large export starts at one of these (ExportFile.order).

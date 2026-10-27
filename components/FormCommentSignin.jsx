@@ -1,4 +1,5 @@
 "use client";
+import useReaderText from "@/components/useReaderText";
 
 import { useActionState } from "react";
 import { Loader2, MailCheck } from "lucide-react";
@@ -8,6 +9,7 @@ import { useComments } from "@/components/ProviderComments";
 
 // "Sign in with your email": a link by email, no password. The answer is the same for every address.
 export default function FormCommentSignin() {
+	const t = useReaderText();
 	const { slug, post } = useComments();
 	const [state, action, isPending] = useActionState(requestSignIn, null);
 
@@ -28,7 +30,7 @@ export default function FormCommentSignin() {
 				<input type="text" name="website" tabIndex={-1} autoComplete="off" />
 			</div>
 			<label htmlFor={`comment-signin-${post}`} className="text-sm font-medium">
-				Your email
+				{t("Your email")}
 			</label>
 			<div className="flex flex-col gap-2 sm:flex-row">
 				<input
@@ -42,12 +44,12 @@ export default function FormCommentSignin() {
 					className="h-11 min-w-0 flex-1 rounded-xl bg-background px-3.5 text-base shadow-border outline-none transition-shadow duration-150 placeholder:text-muted-foreground focus-visible:shadow-border-hover focus-visible:ring-3 focus-visible:ring-ring/25"
 				/>
 				<Button type="submit" disabled={isPending} className="h-11 rounded-xl px-5">
-					{isPending ? <Loader2 className="animate-spin" /> : "Email me a sign-in link"}
+					{isPending ? <Loader2 className="animate-spin" /> : t("Email me a sign-in link")}
 				</Button>
 			</div>
 			{state?.error && (
 				<p id={`comment-signin-error-${post}`} role="alert" className="text-sm text-destructive">
-					{state.error}
+					{t.error(state.error)}
 				</p>
 			)}
 		</form>

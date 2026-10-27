@@ -10,6 +10,7 @@ import NavMobile from "@/components/NavMobile";
 import NavNewsletter from "@/components/NavNewsletter";
 import PaletteCommands from "@/components/PaletteCommands";
 import PanelGetStarted from "@/components/PanelGetStarted";
+import ShortcutAssistant from "@/components/ShortcutAssistant";
 import ProviderPaywall from "@/components/ProviderPaywall";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SiteAnalytics, SupportChat } from "@/components/SiteExtensions";
@@ -30,6 +31,7 @@ export default async function LayoutDashboard({ user, account, isAdmin, children
 
 	return (
 		<ProviderPaywall hasPlan={hasPlan} pricing={getPricing(undefined, PLANS)}>
+			<ShortcutAssistant />
 			{isBlocked(account) && <BannerBlocked account={account} />}
 			<div className="flex min-h-[calc(100dvh-var(--plan-bar-height))] flex-col md:flex-row">
 				<aside className="sticky top-(--plan-bar-height) hidden h-[calc(100dvh-var(--plan-bar-height))] w-60 shrink-0 flex-col border-r border-border/60 px-3 py-4 md:flex">

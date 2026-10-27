@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { getDeletionBlockers, requestDeletion } from "@/lib/account-deletion";
 import { listSocialAccounts } from "@/lib/accounts";
 import { notifyActivity } from "@/lib/alerts";
-import { checkDeletionCode, getAuth, isAppleEnabled, isGoogleEnabled, requireAccount, sendDeletionCodeEmail } from "@/lib/auth";
+import { checkDeletionCode, getAuth, isAppleEnabled, isGoogleEnabled, requirePersonalAccount, sendDeletionCodeEmail } from "@/lib/auth";
 import { canSendSigninCodes } from "@/lib/platform-email";
 import { saveProfile } from "@/lib/profile";
 import { isRateLimited } from "@/lib/rate-limit";
@@ -21,7 +21,7 @@ const BLOCKED_MESSAGE = "Your account can't be deleted yet. This page says what 
 const PROVIDER_ENABLED = { google: isGoogleEnabled, apple: isAppleEnabled };
 
 export async function updateProfile(_state, formData) {
-	const { user, account } = await requireAccount();
+	const { user, account } = await requirePersonalAccount();
 	const result = await saveProfile({ user, account, name: formData.get("name"), image: formData.get("image") });
 	if (result.ok) revalidatePath("/", "layout");
 	return result;
@@ -30,7 +30,7 @@ export async function updateProfile(_state, formData) {
 // Google or Apple joins the ways this user signs in. Better Auth sends them there and back to the account page: with
 // ?connected= once it's linked, or ?connect= and its ?error= when it wasn't (another email, another user's account).
 export async function connectSignin(formData) {
-	await requireAccount();
+	await requirePersonalAccount();
 	const provider = String(formData.get("provider") ?? "");
 	if (!Object.hasOwn(PROVIDER_ENABLED, provider) || !PROVIDER_ENABLED[provider]()) redirect("/account");
 	const { url } = await (await getAuth()).api.linkSocialAccount({
@@ -43,7 +43,7 @@ export async function connectSignin(formData) {
 // A code by email always signs in, so even the last Google or Apple account can go, unless this server can't send one.
 // Better Auth asks for a session from the last day to unlink.
 export async function unlinkSignin(_state, formData) {
-	const { user } = await requireAccount();
+	const { user } = await requirePersonalAccount();
 	const linked = await listSocialAccounts(user.id);
 	const account = linked.find(({ id }) => id === String(formData.get("id") ?? ""));
 	if (!account) return { error: "This sign-in method isn't connected any more. Reload the page." };
@@ -63,7 +63,7 @@ export async function unlinkSignin(_state, formData) {
 }
 
 export async function sendDeletionCode() {
-	const { user, account } = await requireAccount();
+	const { user, account } = await requirePersonalAccount();
 	if (await getDeletionBlockers(account)) return { error: BLOCKED_MESSAGE };
 	if (await isRateLimited({ ...CODES_PER_ACCOUNT, key: String(account._id) })) return { error: "Too many codes. Try again in 15 minutes." };
 	try {
@@ -77,7 +77,7 @@ export async function sendDeletionCode() {
 
 // A session left open somewhere isn't enough: it takes a code sent for this, and the email typed out.
 export async function deleteAccount(_state, formData) {
-	const { user, account } = await requireAccount();
+	const { user, account } = await requirePersonalAccount();
 	const code = String(formData.get("code") ?? "").replace(/\s/g, "");
 	if (normalizeEmail(formData.get("email")) !== normalizeEmail(user.email)) return { error: "Type your email address to confirm" };
 	if (!CODE_PATTERN.test(code)) return { error: "Enter the 6-digit code" };

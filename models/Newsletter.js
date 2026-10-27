@@ -5,6 +5,18 @@ import { NAV_KINDS } from "../lib/site-navigation.js";
 
 const newsletterSchema = new mongoose.Schema(
 	{
+		externalId: { type: String, trim: true },
+		language: { type: String, enum: ["en", "es", "fr", "de", "it", "pt"], default: "en" },
+		replyInbox: { type: Boolean, default: false },
+		agentBrief: String,
+		meteredReadsPerMonth: { type: Number, default: 0 },
+		mailingListsRevision: { type: Number, default: 0 },
+		mailingLists: { type: [{ id: String, name: String, description: String, archived: Boolean }], default: undefined },
+		perksRevision: { type: Number, default: 0 },
+		perks: { type: [{ id: String, title: String, description: String, url: String, code: String, productId: String, tierId: String, archived: Boolean }], default: undefined },
+		authorsRevision: { type: Number, default: 0 },
+		authors: { type: [{ id: String, slug: String, name: String, bio: String, imageUrl: String, archived: Boolean }], default: undefined },
+		readerTranslations: { type: Boolean, default: false },
 		name: { type: String, required: true, trim: true },
 		// Unique across accounts: the archive lives at /archive/<slug>.
 		slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
@@ -16,9 +28,13 @@ const newsletterSchema = new mongoose.Schema(
 		postalAddress: { type: String, trim: true },
 		postalAddressCleared: { type: Boolean },
 		archiveEnabled: { type: Boolean, default: false },
+		signupFlowFormId: { type: mongoose.Schema.Types.ObjectId, ref: "Form" },
 		// "Ask me before an agent sends": what an API key or a connected app does in the SEND and DESTRUCTIVE classes
 		// waits for the owner's approval, whatever the key's level (lib/agent-guard.js). Dashboard only (set_agent_approval).
 		agentApproval: { type: Boolean },
+		sendingBrake: { at: Date, reason: String, metric: String, revision: String },
+		spreadUntil: { type: Date },
+		senderChangedAt: { type: Date },
 		// The account's verified archive subdomain (lib/domains.js syncArchiveHosts). Without one, the
 		// archive and the links in its emails use <slug>.<shared domain>.
 		archiveHost: { type: String, lowercase: true, trim: true },
@@ -139,11 +155,19 @@ const newsletterSchema = new mongoose.Schema(
 					title: { type: String, trim: true },
 					url: { type: String, trim: true },
 					text: { type: String, trim: true },
+					kind: { type: String, enum: ["message", "code", "gift"] },
+					tierId: { type: String },
+					months: { type: Number },
 				},
 			],
 		},
 		// Recommendations between newsletters (lib/recommendations.js). allowIncoming: other newsletters may recommend this one, on
 		// unless its owner turns it off. listed: shown in the app's /recommendations directory, off unless its owner turns it on.
+		creatorMatch: {
+			enabled: { type: Boolean },
+			topics: [{ type: String }],
+			emailNotifications: { type: Boolean },
+		},
 		recommendations: {
 			allowIncoming: { type: Boolean, default: true },
 			listed: { type: Boolean, default: false },
@@ -151,6 +175,17 @@ const newsletterSchema = new mongoose.Schema(
 		// Comments on the web issues (lib/comment-rules.js). who: everyone subscribed or paid subscribers only. moderation:
 		// none, hold comments with links, or hold every comment for the owner's review. digestSentAt: the owner's last digest
 		// of new comments (lib/comment-notify.js), at most one an hour.
+		groupSubscriptions: { enabled: { type: Boolean, default: false } },
+		sponsorships: { enabled: { type: Boolean, default: false } },
+		readerRetention: { pauseEnabled: { type: Boolean, default: false }, surveyEnabled: { type: Boolean, default: false }, saveOfferId: { type: mongoose.Schema.Types.ObjectId } },
+		hasGroupSubscriptions: { type: Boolean, default: false },
+		replyRules: {
+			enabled: { type: Boolean, default: false },
+			rules: [{ id: { type: String }, text: { type: String } }],
+			learnFromHides: { type: Boolean, default: false },
+			revision: { type: String },
+			consentedAt: { type: Date },
+		},
 		comments: {
 			enabled: { type: Boolean, default: false },
 			who: { type: String, enum: ["everyone", "paid"] },
@@ -228,6 +263,9 @@ newsletterSchema.index({ accountId: 1, createdAt: 1 });
 newsletterSchema.index({ "confirmationReminder.enabled": 1 });
 // The directory of newsletters that take recommendations lists only these.
 newsletterSchema.index({ "recommendations.listed": 1 });
+newsletterSchema.index({ "creatorMatch.enabled": 1, "recommendations.listed": 1, archiveEnabled: 1, _id: 1 });
 newsletterSchema.index({ archiveHost: 1 }, { unique: true, partialFilterExpression: { archiveHost: { $type: "string" } } });
+
+newsletterSchema.index({ accountId: 1, externalId: 1 }, { unique: true, partialFilterExpression: { externalId: { $type: "string" } } });
 
 export default mongoose.models.Newsletter || mongoose.model("Newsletter", newsletterSchema);

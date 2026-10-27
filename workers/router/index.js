@@ -125,6 +125,7 @@ function stamp(response, servedBy, startedAt, upstreamMs) {
 const RSC_ANSWER_HEADERS = { "cache-control": "no-store", vary: "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch" };
 
 async function handle(request, env) {
+	if (new URL(request.url).pathname === "/api/collaboration/socket") return env.COLLABORATION_SOCKET ? env.COLLABORATION_SOCKET.fetch(request) : new Response("Collaborative editing is unavailable", { status: 503 });
 	const startedAt = Date.now();
 	const url = new URL(request.url);
 

@@ -5,6 +5,7 @@ import { getAppHost } from "@/lib/config";
 import { FORM_ERRORS, getErrorCode, getFormMessage } from "@/lib/form-rules";
 import { countFormSignup, findPublicForm } from "@/lib/forms";
 import { getClientIp } from "@/lib/rate-limit";
+import { getSignupFlowEntry } from "@/lib/signup-flow-links";
 import { signUp } from "@/lib/signup";
 
 export const dynamic = "force-dynamic";
@@ -66,6 +67,7 @@ export async function POST(request, { params }) {
 	// The page that holds the form: what it says it is (the frame's script), else the browser's Referer.
 	const referrer = toReferrerHost(data.get("page"), ownHosts) ?? toReferrerHost(request.headers.get("referer"), ownHosts) ?? "";
 
+	let signupReference = null;
 	const result = await signUp({
 		formData: data,
 		ip: getClientIp(request.headers),
@@ -75,14 +77,15 @@ export async function POST(request, { params }) {
 		referrer,
 		fieldKeys: form.fields ?? [],
 		requireWebsite: false,
-		onSignup: ({ created }) => (created ? countFormSignup(form) : undefined),
+		onSignup: ({ newsletter, contact, created }) => { signupReference = { newsletter, contact, created }; return created ? countFormSignup(form) : undefined; },
 	});
 	const pageUrl = `/embed/${form._id}`;
 	if (result.error) {
 		const code = getErrorCode(result.error);
 		return wantsJson ? json({ ok: false, error: result.error }, code === "limit" ? 429 : 400) : leave(request, `${pageUrl}?error=${code}`);
 	}
-	const redirectUrl = form.redirectUrl || null;
+	const flowUrl = result.ok && signupReference ? getSignupFlowEntry({ form, ...signupReference }) : null;
+	const redirectUrl = flowUrl || form.redirectUrl || null;
 	if (!wantsJson) return leave(request, redirectUrl ?? `${pageUrl}?done=${result.pending ? "pending" : "1"}`);
 	return json({ ok: true, ...(result.pending && { pending: true }), message: getFormMessage(form), ...(redirectUrl && { redirectUrl }) });
 }

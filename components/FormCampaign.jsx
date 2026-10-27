@@ -1,8 +1,11 @@
 "use client";
+import CardSendTime from "@/components/CardSendTime";
 
+import { getNewsletterTiers } from "@/lib/tier-rules";
 import { useCallback, useDeferredValue, useEffect, useEffectEvent, useId, useMemo, useRef, useState, useTransition } from "react";
 import { flushSync } from "react-dom";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
 	ArrowRight,
 	CalendarClock,
@@ -88,7 +91,10 @@ export default function FormCampaign({
 	hasStockPhotos = false,
 	snippets = [],
 	audioCard = null,
+	authorControl = null,
+	canCollaborate = false,
 }) {
+	const router = useRouter();
 	const isHtml = campaign.format === "html";
 	const [step, setStep] = useState("write");
 	const [isDiscardOpen, setIsDiscardOpen] = useState(false);
@@ -108,7 +114,8 @@ export default function FormCampaign({
 		previewText: campaign.previewText,
 		body: initialBody,
 	});
-	const save = useCallback((snapshot) => saveCampaign(campaign._id, { ...snapshot, format }), [campaign._id, format]);
+	const contentHash = useRef(campaign.contentHash);
+	const save = useCallback(async (snapshot) => { const result = await saveCampaign(campaign._id, { ...snapshot, format, expectedContentHash: contentHash.current }); if (result?.contentHash) contentHash.current = result.contentHash; return result; }, [campaign._id, format]);
 	const { isDirty, isSaving, error, flush } = useAutosave(values, save);
 	const [isTesting, startTesting] = useTransition();
 	const [isWorking, startWorking] = useTransition();
@@ -359,6 +366,7 @@ export default function FormCampaign({
 
 			<div className="mx-auto w-full max-w-2xl">
 				<section aria-label="Write" hidden={step !== "write"}>
+					{canCollaborate && campaign.status === "draft" && !isHtml && <button className="mb-4 text-sm underline" onClick={async () => { if (await persist()) router.push(`/campaigns/${campaign._id}/collaborate`); }}>Edit together and discuss privately</button>}
 					<div className="overflow-hidden rounded-xl bg-card shadow-border animate-enter">
 						<div className="divide-y divide-border/60 border-b border-border/60">
 							<RowCampaign label="Subject">
@@ -407,7 +415,7 @@ export default function FormCampaign({
 								</p>
 							</div>
 						) : (
-							<EditorRich content={initialBody} onChange={updateBody} fields={fields} snippets={snippets} newsletterId={newsletter._id} campaignId={campaign._id} isAiEnabled={isAiEnabled} hasStockPhotos={hasStockPhotos} />
+							<EditorRich content={initialBody} onChange={updateBody} fields={fields} snippets={snippets} newsletterId={newsletter._id} tiers={getNewsletterTiers(newsletter).map(({ id, name }) => ({ id, name }))} campaignId={campaign._id} isAiEnabled={isAiEnabled} hasStockPhotos={hasStockPhotos} />
 						)}
 					</div>
 				</section>
@@ -441,10 +449,12 @@ export default function FormCampaign({
 					{newsletter.archiveEnabled && campaign.publishTo !== "email" && (
 						<CardSeo campaignId={campaign._id} seo={campaign.seo} subject={values.subject} previewText={values.previewText} stagger={2} />
 					)}
-					{audioCard}
+					{authorControl}
+				{audioCard}
 				</section>
 
 				<section aria-label="Send" hidden={step !== "send"}>
+					<CardSendTime newsletterId={String(newsletter._id ?? newsletter.id)} />
 					<PanelSend
 						sending={sending}
 						campaign={campaign}

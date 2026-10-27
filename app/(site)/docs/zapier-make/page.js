@@ -9,10 +9,10 @@ export const metadata = getDocsPageMetadata("/docs/zapier-make");
 
 const ZAPIER_STEPS = `cd integrations/zapier
 npm install
-npx zapier-platform-cli login
-npx zapier-platform-cli register "FlockStack"   # once: makes your private app
-npx zapier-platform-cli push                    # uploads this version
-npx zapier-platform-cli users:add you@example.com 1.0.0`;
+npm exec -- zapier-platform login
+npm exec -- zapier-platform register "FlockStack"   # once: makes your private app
+npm exec -- zapier-platform push                    # uploads this version
+npm exec -- zapier-platform users:add you@example.com 1.0.0`;
 
 export default function ZapierMakePage() {
 	return (
@@ -46,6 +46,8 @@ export default function ZapierMakePage() {
 				</p>
 			</Section>
 
+			<p className="mt-4 text-sm text-muted-foreground">These are source packages for private installation. A local review inventory is in <Code>integrations/SUBMISSION.md</Code>; it does not establish provider directory approval. ID-only lifecycle events include web publication and edits, comments, contact deletion and incoming replies. Fetch their current state through the scoped API; no private bodies or email addresses are added to these event payloads.</p>
+
 			<Section title="Connecting" stagger={2}>
 				<p>
 					Both ask for a full access API key from the{" "}
@@ -64,7 +66,7 @@ export default function ZapierMakePage() {
 					<a href={SOURCE_URL} className="text-link underline decoration-link/30 underline-offset-4 hover:decoration-link">
 						repository
 					</a>
-					, built for the Zapier Platform CLI. With Node.js 18 or later and a Zapier account, push it as a private app and invite yourself:
+					, built for the Zapier Platform CLI. With Node.js 22 or later and a Zapier account, push it as a private app and invite yourself:
 				</p>
 				<BlockCode title="Terminal" className="mt-4" code={ZAPIER_STEPS} />
 				<p className="mt-4">

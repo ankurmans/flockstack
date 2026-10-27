@@ -317,3 +317,17 @@ describe("the editor's side", () => {
 		assert.equal(addAbSubject(one, "  ", 3), null);
 	});
 });
+
+test("provider exceptions cannot copy a private writing prompt into logs", async () => {
+	const user = await newCustomer();
+	stubAi(new Error("PRIVATE_WRITING_SHOULD_NOT_BE_LOGGED"));
+	const original = console.error, logged = [];
+	try {
+		console.error = (...values) => logged.push(values.join(" "));
+		const result = await rewrite(user, { text: "PRIVATE_WRITING_SHOULD_NOT_BE_LOGGED", style: "rewrite" });
+		t.assertError(result, 503, "unavailable");
+	} finally { console.error = original; }
+	assert.equal(logged.length, 2);
+	assert.doesNotMatch(logged.join("\n"), /PRIVATE_WRITING_SHOULD_NOT_BE_LOGGED/);
+	assert.equal((await t.api(user.key, "GET", "/ai/usage")).body.used, 0, "the existing writing failure refund remains");
+});

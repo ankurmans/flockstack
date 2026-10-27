@@ -652,3 +652,51 @@ describe("resuming and repeating", () => {
 		assert.equal(published.slice(-1)[0].url.endsWith("/api/jobs/convert-pledges"), true);
 	});
 });
+
+test("pledge checkout, confirmation and first-charge notices follow all six publication languages", async () => {
+	const { READER_LANGUAGES, getReaderText } = await import("../lib/reader-languages.js");
+	const { formatReaderBillingDate } = await import("../lib/reader-billing-copy.js");
+	const Newsletter = (await import("../models/Newsletter.js")).default;
+	for (const language of READER_LANGUAGES) {
+		consumed = published.length;
+		const user = await pledgeSeller({ noticeDays: 3 });
+		await Newsletter.updateOne({ accountId: user.accountId, _id: user.newsletterId }, { $set: { language } });
+		const newsletter = await Newsletter.findOne({ accountId: user.accountId, _id: user.newsletterId }).lean();
+		const t = getReaderText(newsletter), email = `locale-${language}@example.net`, before = emails.length;
+		const saved = await savedPledge(user, { email, option: "year" });
+		assert.equal(saved.session.custom_text.submit.message, t("You won't be charged today. Your card is saved, and charged only after {name} starts taking payments, with an email to you first.", { name: newsletter.name }));
+		const confirmation = emails.slice(before).find((message) => message.subject === t("You pledged to support {name}", { name: newsletter.name }));
+		assert.ok(confirmation, language); assert.ok(cancelUrlIn(confirmation));
+		assert.ok(confirmation.text.includes(t("Cancel your pledge")), language);
+		await openPaidTier(user);
+		const conversion = await startCharging(user, { noticeDays: 3 });
+		await runConversion({ maxSteps: 1 });
+		const notice = emails.slice(before).find((message) => message.subject === t("Your pledge to {name} will be charged on {date}", { name: newsletter.name, date: formatReaderBillingDate(newsletter, conversion.chargeAt, { long: true }) }));
+		assert.ok(notice, language); assert.ok(cancelUrlIn(notice));
+		assert.ok(notice.text.includes(t("You don't have to do anything. If you've changed your mind, cancel before then and you won't be charged.")), language);
+		if (language !== "en") assert.doesNotMatch(notice.text, /is now taking payments|every year|Cancel your pledge/);
+	}
+	assert.equal(fake.subscriptions.size, 0, "only notices, no charges");
+});
+
+test("failed-charge notices use the publication language while retaining the cancel-before-charge workflow", async () => {
+	const { READER_LANGUAGES, getReaderText } = await import("../lib/reader-languages.js");
+	const Newsletter = (await import("../models/Newsletter.js")).default;
+	for (const language of READER_LANGUAGES) {
+		consumed = published.length;
+		const user = await pledgeSeller();
+		await Newsletter.updateOne({ accountId: user.accountId, _id: user.newsletterId }, { $set: { language } });
+		const newsletter = await Newsletter.findOne({ accountId: user.accountId, _id: user.newsletterId }).lean();
+		const t = getReaderText(newsletter), email = `declined-${language}@example.net`;
+		const saved = await savedPledge(user, { email });
+		await openPaidTier(user); fake.declineCard(saved.method.id, "Synthetic declined card");
+		const conversion = await startCharging(user, { noticeDays: 1 }); await runConversion();
+		await m.PledgeConversion.updateOne({ accountId: user.accountId, _id: conversion.id }, { $set: { chargeAt: new Date(Date.now() - 1000) } });
+		consumed = published.length - 1; const before = emails.length; await runConversion();
+		const failed = emails.slice(before).find((message) => message.subject === t("Your pledge to {name} couldn't be charged", { name: newsletter.name }));
+		assert.ok(failed, language); assert.ok(failed.text.includes(t("the bank refused it")), language);
+		assert.match(failed.text, /\/subscribe/);
+		assert.equal((await m.Pledge.findOne({ accountId: user.accountId, _id: saved.pledge._id }).lean()).status, "failed");
+		if (language !== "en") assert.doesNotMatch(failed.text, /Your card was declined|the bank refused it|subscribe here/);
+	}
+});

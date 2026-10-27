@@ -436,16 +436,16 @@ describe("the Sent with FlockStack link", () => {
 });
 
 describe("limits that depend on the plan", () => {
-	test("one newsletter: the second is refused with the Free plan's message, a paid plan has up to 3", async () => {
+	test("one newsletter: the second is refused with the Free plan's message, Starter has up to 3", async () => {
 		const free = await customer("one-newsletter@example.com");
 		const second = await as(free, () => m.newsletters.saveNewsletter(null, form({ name: "Second", slug: "second-free", postalAddress: "1 Main St, Paris" })));
-		assert.deepEqual(second, { error: "The Free plan has 1 newsletter. Upgrade for up to 3" });
+		assert.deepEqual(second, { error: "Your account allows 1 newsletter" });
 		assert.equal(await m.Newsletter.countDocuments({ accountId: free.accountId }), 1);
 
 		const { key } = await as(free, () => m.apiKeys.createApiKey(null, form({ name: "Agent" })));
 		const viaApi = await callApi("POST", "/api/v1/newsletters", { key, body: { name: "Second" } });
 		assert.equal(viaApi.status, 409);
-		assert.equal(viaApi.body.error.message, "The Free plan has 1 newsletter. Upgrade for up to 3");
+		assert.equal(viaApi.body.error.message, "Your account allows 1 newsletter");
 
 		await activate(free);
 		assert.equal((await callApi("POST", "/api/v1/newsletters", { key, body: { name: "Second" } })).status, 201, "a paid plan lifts it");

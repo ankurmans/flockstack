@@ -25,6 +25,11 @@ const messageSchema = new mongoose.Schema(
 		automationId: { type: mongoose.Schema.Types.ObjectId, ref: "Automation" },
 		enrollmentId: { type: mongoose.Schema.Types.ObjectId, ref: "AutomationEnrollment" },
 		stepId: { type: String },
+		automationVariantId: String,
+		automationVariantName: String,
+		automationExperimentId: String,
+		automationVariantVersion: String,
+		automationVariantPhase: { type: String, enum: ["test", "winner"] },
 		newsletterId: { type: mongoose.Schema.Types.ObjectId, ref: "Newsletter", required: true },
 		contactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact" },
 		// A confirmation email that is the one reminder to confirm (lib/confirmation-reminders.js).
@@ -47,6 +52,7 @@ const messageSchema = new mongoose.Schema(
 		clickedAt: Date,
 		// The places of the tracked links this email's reader clicked (lib/link-clicks.js), each once.
 		clickedLinks: { type: [Number], default: undefined },
+		sponsorshipBookingIds: { type: [mongoose.Schema.Types.ObjectId], default: undefined },
 		bouncedAt: Date,
 		complainedAt: Date,
 	},
@@ -81,5 +87,7 @@ messageSchema.index({ campaignId: 1, clickedAt: 1 }, { partialFilterExpression: 
 messageSchema.index({ campaignId: 1, openedAt: 1 }, { partialFilterExpression: { openedAt: { $exists: true } } });
 // The account-level check on the last days of sends (lib/account-health.js).
 messageSchema.index({ accountId: 1, sentAt: -1 });
+
+messageSchema.index({ accountId: 1, newsletterId: 1, sentAt: 1 });
 
 export default mongoose.models.Message || mongoose.model("Message", messageSchema);

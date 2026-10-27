@@ -239,6 +239,7 @@ describe("sends earn their pace", () => {
 	test("after day 30, a jump far over proven volume is paced behind the same first-slice check; up to 5 times goes at full speed", async () => {
 		const user = await setup("past-warmup@example.com", 2000);
 		await proveVolume(user, 200);
+		await m.accounts.setSendSpread(user.accountId, false);
 		const campaignId = await draft(user);
 		const start = Date.now();
 		const { checks } = await send(user, campaignId);
@@ -250,6 +251,7 @@ describe("sends earn their pace", () => {
 
 		const steady = await setup("steady-sender@example.com", 2000, { isMailed: true });
 		await proveVolume(steady, 500);
+		await m.accounts.setSendSpread(steady.accountId, false);
 		const { batches, checks: none } = await send(steady, await draft(steady));
 		assert.ok(isAtOnce(batches), "4 times its proven volume");
 		assert.equal(none.length, 0);

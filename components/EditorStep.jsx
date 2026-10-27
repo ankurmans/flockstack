@@ -1,6 +1,7 @@
 "use client";
 
 import { useId } from "react";
+import FieldsAutomationVariants from "@/components/FieldsAutomationVariants";
 import EditorRich from "@/components/EditorRich";
 import EditorRules from "@/components/EditorRules";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ const COMMON_ZONES = ["UTC", "America/New_York", "America/Chicago", "America/Los
 // automation is active.
 export default function EditorStep({ step, onChange, isDisabled, choices, segments, automations }) {
 	const listId = useId();
-	if (step.type === "email") return <EmailSettings step={step} onChange={onChange} isDisabled={isDisabled} fields={choices.fields} />;
+	if (step.type === "email") return <EmailSettings step={step} onChange={onChange} isDisabled={isDisabled} fields={choices.fields} newsletterId={choices.newsletterId} tiers={choices.tiers ?? []} />;
 	if (step.type === "wait") return <WaitSettings step={step} onChange={onChange} isDisabled={isDisabled} />;
 
 	if (step.type === "add_tag" || step.type === "remove_tag") {
@@ -93,7 +94,7 @@ export default function EditorStep({ step, onChange, isDisabled, choices, segmen
 	return <p className="p-4 text-sm text-muted-foreground">Contacts who reach this step are done with the automation.</p>;
 }
 
-function EmailSettings({ step, onChange, isDisabled, fields }) {
+function EmailSettings({ step, onChange, isDisabled, fields, newsletterId, tiers = [] }) {
 	return (
 		<div>
 			<div className="divide-y divide-border/60 border-b border-border/60">
@@ -128,9 +129,10 @@ function EmailSettings({ step, onChange, isDisabled, fields }) {
 				/>
 			) : (
 				<div className={cn(isDisabled && "pointer-events-none opacity-60")}>
-					<EditorRich key={step._key} content={step.content ?? ""} onChange={(content) => onChange({ content })} fields={fields} />
+					<EditorRich key={step._key} content={step.content ?? ""} onChange={(content) => onChange({ content })} fields={fields} newsletterId={newsletterId} tiers={tiers} />
 				</div>
 			)}
+			<FieldsAutomationVariants step={step} onChange={onChange} isDisabled={isDisabled} fields={fields} newsletterId={newsletterId} tiers={tiers} />
 		</div>
 	);
 }

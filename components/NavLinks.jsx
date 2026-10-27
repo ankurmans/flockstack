@@ -72,6 +72,7 @@ export function getGroups({ hasAudio = false } = {}) {
 			label: null,
 			items: [
 				{ href: "/", label: "Overview", icon: LayoutGrid },
+				{ href: "/assistant", label: "Account assistant", icon: MessageSquare },
 				{ href: "/reports", label: "Reports", icon: BarChart3 },
 			],
 		},
@@ -104,6 +105,8 @@ export function getGroups({ hasAudio = false } = {}) {
 			items: [
 				{ href: "/website", label: "Website", icon: PanelsTopLeft },
 				{ href: "/comments", label: "Comments", icon: MessageSquare },
+				{ href: "/mailing-lists", label: "Mailing lists", icon: Users },
+				{ href: "/authors", label: "Authors", icon: Users },
 				{ href: "/link-page", label: "Link page", icon: Link2 },
 			],
 		},
@@ -112,6 +115,7 @@ export function getGroups({ hasAudio = false } = {}) {
 			label: "Sell",
 			items: [
 				{ href: "/products", label: "Products", icon: ShoppingBag },
+				{ href: "/perks", label: "Subscriber perks", icon: Gift },
 				{ href: "/orders", label: "Orders", icon: Receipt },
 				{ href: "/payments", label: "Payments", icon: CreditCard },
 			],

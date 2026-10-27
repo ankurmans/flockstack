@@ -24,6 +24,7 @@ const offerSchema = new mongoose.Schema(
 		// Only these tiers, or every tier when empty.
 		tierIds: { type: [String], default: undefined },
 		trialDays: { type: Number },
+		trialAmountCents: { type: Number },
 		trialNoCard: { type: Boolean },
 		active: { type: Boolean, default: true },
 		stripeCouponId: { type: String },

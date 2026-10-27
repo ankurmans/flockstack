@@ -1,5 +1,6 @@
 "use client";
 
+import { getNewsletterTiers } from "@/lib/tier-rules";
 import { useCallback, useState, useTransition } from "react";
 import Link from "next/link";
 import { ChevronLeft, ExternalLink, History, Info } from "lucide-react";
@@ -129,7 +130,7 @@ export default function FormPublishedIssue({ campaign, newsletter, pageUrl, fiel
 							onChange={updateBody}
 							fields={fields}
 							snippets={snippets}
-							newsletterId={newsletter._id}
+							newsletterId={newsletter._id} tiers={getNewsletterTiers(newsletter).map(({ id, name }) => ({ id, name }))}
 							campaignId={campaign._id}
 							isAiEnabled={isAiEnabled}
 							hasStockPhotos={hasStockPhotos}

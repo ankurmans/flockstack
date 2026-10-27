@@ -44,6 +44,7 @@ describe("the corpus", () => {
 			assert.doesNotMatch(chunk.text, /className=|class="/, chunk.title);
 		}
 		assert.equal(new Set(chunks.map(({ id }) => id)).size, chunks.length);
+		assert.ok(chunks.some(({ title, text }) => title === "Regions: Where each kind of data is stored" && text.includes("Cloudflare's Workers logs")), "long table rows retain the words after the first chunk");
 	});
 
 	test("chunks by heading: a section of a docs page is one chunk under its title, a legal section links to its anchor", async () => {

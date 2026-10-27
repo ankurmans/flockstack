@@ -17,7 +17,7 @@ const productSchema = new mongoose.Schema(
 		status: { type: String, enum: PRODUCT_STATUSES, default: "draft" },
 		imageUrl: { type: String, trim: true },
 		// The file buyers download. It lives in a private R2 bucket (lib/private-files.js) and is only ever served through a
-		// signed, expiring link, never from a public URL.
+		// signed order link, or an entitled reader session for a perk, never from a public URL.
 		file: {
 			key: { type: String },
 			name: { type: String },

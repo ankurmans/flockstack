@@ -2,6 +2,7 @@ import BadgeDate from "@/components/BadgeDate";
 import CardIssue from "@/components/CardIssue";
 import { Badge } from "@/components/ui/badge";
 import { getIssueDate } from "@/lib/archive-issues";
+import { getReaderText } from "@/lib/reader-languages";
 
 // A list of issues in the theme's way: cards with pictures, or for the minimal theme a plain list of titles.
 export default function ListIssues({ issues, newsletter, urls, theme }) {
@@ -16,7 +17,7 @@ export default function ListIssues({ issues, newsletter, urls, theme }) {
 							</span>
 							<span className="flex min-w-0 flex-col gap-1">
 								<span className="font-medium text-balance decoration-foreground/30 underline-offset-4 group-hover:underline">
-									{issue.subject}
+									{issue.kind === "note" ? getReaderText(newsletter)("Short post") : issue.subject}
 									{issue.audience === "paid" && (
 										<Badge variant="secondary" className="ml-2 align-middle">
 											Paid

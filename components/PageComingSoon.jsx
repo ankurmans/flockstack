@@ -1,3 +1,4 @@
+import { getReaderText } from "@/lib/reader-languages";
 import Image from "next/image";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import FormSubscribe from "@/components/FormSubscribe";
@@ -8,6 +9,7 @@ import { getBrand } from "@/lib/brand";
 // the signup form, in its theme and brand, with no empty list of issues. Search engines are asked to wait
 // (lib/archive-seo.js getComingSoonSeo).
 export default function PageComingSoon({ newsletter, signupFields }) {
+	const t = getReaderText(newsletter);
 	const brand = getBrand(newsletter);
 
 	return (
@@ -33,13 +35,13 @@ export default function PageComingSoon({ newsletter, signupFields }) {
 					)}
 					<p style={{ "--stagger": 3 }} className="mt-6 inline-flex h-7 items-center gap-2 rounded-full px-3 text-sm font-medium text-muted-foreground shadow-border animate-enter">
 						<span aria-hidden="true" className="size-1.5 rounded-full bg-emerald-500" />
-						First issue coming soon
+						{t("First issue coming soon")}
 					</p>
 					<div id="subscribe" style={{ "--stagger": 4 }} className="mt-8 w-full max-w-md scroll-mt-24 animate-enter">
 						<FormSubscribe newsletterSlug={newsletter.slug} fields={signupFields} />
 					</div>
 					<p style={{ "--stagger": 5 }} className="mt-4 text-sm text-muted-foreground animate-enter">
-						Subscribe and it arrives in your inbox the day it goes out. Free, unsubscribe anytime.
+						{t("Subscribe and it arrives in your inbox the day it goes out. Free, unsubscribe anytime.")}
 					</p>
 					<div style={{ "--stagger": 6 }} className="mt-4 animate-enter">
 						<LinksSocial links={newsletter.socialLinks} />

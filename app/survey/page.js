@@ -1,3 +1,6 @@
+import ProviderReaderLanguage from "@/components/ProviderReaderLanguage";
+import { getReaderText } from "@/lib/reader-languages";
+import { getPublicReaderLanguage } from "@/lib/public-newsletters";
 import { ClipboardList, Link2Off } from "lucide-react";
 import CardNotice from "@/components/CardNotice";
 import FormSurveyResponse from "@/components/FormSurveyResponse";
@@ -17,15 +20,18 @@ export default async function SurveyPage({ searchParams }) {
 	const survey = await findPublicSurvey(typeof s === "string" ? s : "").catch(() => null);
 	const readerToken = typeof token === "string" && verifySubscriberToken("survey", token) ? token : null;
 
+	const language = await getPublicReaderLanguage(survey?.newsletterId);
+	const t = getReaderText(language);
+
 	return (
-		<main className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
+		<ProviderReaderLanguage language={language}><main className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
 			{!survey ? (
-				<CardNotice icon={Link2Off} title="This survey is gone">
-					Its newsletter took it down.
+				<CardNotice icon={Link2Off} title={t("This survey is gone")}>
+					{t("Its newsletter took it down.")}
 				</CardNotice>
 			) : survey.closed ? (
 				<CardNotice icon={ClipboardList} title={survey.title}>
-					This survey is closed. Thanks for stopping by.
+					{t("This survey is closed. Thanks for stopping by.")}
 				</CardNotice>
 			) : (
 				<div className="w-full max-w-md rounded-xl bg-card p-6 shadow-border animate-enter sm:p-8">
@@ -39,6 +45,6 @@ export default async function SurveyPage({ searchParams }) {
 					/>
 				</div>
 			)}
-		</main>
+		</main></ProviderReaderLanguage>
 	);
 }

@@ -244,7 +244,7 @@ describe("llms.txt", () => {
 				"> Notes from the field.",
 				"Written by seo-owner.",
 				"## Issues",
-				"- [Second, found](https://seo-owner.flockstackmail.com/p/second): Found by search\n- [First (one)](https://seo-owner.flockstackmail.com/p/first): The first one.",
+				"- [Second, found](https://seo-owner.flockstackmail.com/p/second): Found by search ([Markdown](https://seo-owner.flockstackmail.com/p/second.md))\n- [First (one)](https://seo-owner.flockstackmail.com/p/first): The first one. ([Markdown](https://seo-owner.flockstackmail.com/p/first.md))",
 				"## More",
 				"- [All issues](https://seo-owner.flockstackmail.com/)\n- [RSS feed with the full text of each issue](https://seo-owner.flockstackmail.com/feed.xml)\n- [Sitemap](https://seo-owner.flockstackmail.com/sitemap.xml)",
 			].join("\n\n") + "\n"
@@ -261,13 +261,14 @@ describe("llms.txt", () => {
 	});
 
 	test("is served at /llms.txt on the newsletter's host, and that path can't be redirected", async () => {
-		for (const [path, target] of [["/llms.txt", "llms"], ["/sitemap.xml", "sitemap"], ["/robots.txt", "robots"]]) {
+		for (const [path, target] of [["/p/second.md", "markdown/second"], ["/llms.txt", "llms"], ["/sitemap.xml", "sitemap"], ["/robots.txt", "robots"]]) {
 			const url = `https://${newsletter.slug}.${SHARED_DOMAIN}${path}`;
 			const response = await m.proxy(new m.NextRequest(url, { headers: { host: new URL(url).host } }));
 			assert.equal(new URL(response.headers.get("x-middleware-rewrite")).pathname, `/archive/${newsletter.slug}/${target}`, path);
 		}
 		assert.equal(m.hosts.getArchiveHostUrl("/archive/weekly/llms", "", SHARED_DOMAIN), "https://weekly.flockstackmail.com/llms.txt");
 		assert.equal(m.redirectPaths.isReservedRedirectPath("/llms.txt"), true);
+		assert.equal(m.redirectPaths.isReservedRedirectPath("/p/second.md"), true);
 	});
 });
 

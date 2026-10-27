@@ -42,6 +42,19 @@ function visit(body, { ip = nextIp(), userAgent = FIREFOX, headers = {} } = {}) 
 const today = () => new Date().toISOString().slice(0, 10);
 const dayOf = (user) => m.WebDay.findOne({ accountId: user.accountId, newsletterId: user.newsletterId, day: today() }).lean();
 
+// Select distinct sketch buckets so exact small-fixture assertions do not depend on random newsletter IDs.
+function visitorIps(user, count) {
+	const ips = [], buckets = new Set();
+	for (let attempt = 0; ips.length < count && attempt < 256; attempt++) {
+		const candidate = nextIp();
+		const { index } = m.lib.getVisitorRegister({ ip: candidate, userAgent: FIREFOX, newsletterId: user.newsletterId, day: today() });
+		if (!buckets.has(index)) { ips.push(candidate); buckets.add(index); }
+	}
+	assert.equal(ips.length, count);
+	return ips;
+}
+
+
 describe("the sketch of a day's visitors", () => {
 	test("estimates how many distinct visitors raised it: exact for a few, within 15% for thousands", () => {
 		const raise = (count) => {
@@ -100,11 +113,11 @@ describe("a visit", () => {
 		const user = await creator("web-count");
 		const issue = await m.Campaign.findOne({ accountId: user.accountId, newsletterId: user.newsletterId }).lean();
 		await m.Campaign.updateOne({ accountId: user.accountId, _id: issue._id }, { $set: { archiveSlug: "web-count-issue" } });
-		const ip = nextIp();
+		const [ip, secondIp, thirdIp] = visitorIps(user, 3);
 		assert.equal((await visit({ n: user.slug, kind: "issue", post: "web-count-issue", ref: "https://www.News.Ycombinator.com/item?id=1" }, { ip })).status, 204);
 		await visit({ n: user.slug, kind: "home" }, { ip });
-		await visit({ n: user.slug, kind: "home" }, { ip: nextIp(), headers: { "cf-ipcountry": "FR" } });
-		await visit({ n: user.slug, kind: "other", ref: `https://${user.slug}.flockstackmail.com/` }, { ip: nextIp(), headers: { "cf-ipcountry": "T1" } });
+		await visit({ n: user.slug, kind: "home" }, { ip: secondIp, headers: { "cf-ipcountry": "FR" } });
+		await visit({ n: user.slug, kind: "other", ref: `https://${user.slug}.flockstackmail.com/` }, { ip: thirdIp, headers: { "cf-ipcountry": "T1" } });
 		const day = await dayOf(user);
 		assert.equal(day.views, 4);
 		assert.deepEqual(day.countries, { NL: 2, FR: 1, XX: 1 }, "T1 (Tor) and unknown are counted as unknown");
@@ -186,8 +199,9 @@ describe("the website report", () => {
 		const user = await creator("web-report");
 		const issue = await m.Campaign.findOne({ accountId: user.accountId, newsletterId: user.newsletterId }).lean();
 		await m.Campaign.updateOne({ accountId: user.accountId, _id: issue._id }, { $set: { archiveSlug: "web-report-issue", subject: "The issue" } });
-		for (let index = 0; index < 3; index += 1) await visit({ n: user.slug, kind: "issue", post: "web-report-issue", ref: "https://news.ycombinator.com/" });
-		await visit({ n: user.slug, kind: "home" }, { headers: { "cf-ipcountry": "FR" } });
+		const ips = visitorIps(user, 4);
+		for (let index = 0; index < 3; index += 1) await visit({ n: user.slug, kind: "issue", post: "web-report-issue", ref: "https://news.ycombinator.com/" }, { ip: ips[index] });
+		await visit({ n: user.slug, kind: "home" }, { ip: ips[3], headers: { "cf-ipcountry": "FR" } });
 		const report = (await api(user.key, "GET", `/reports/site?newsletter=${user.slug}&days=7`)).body;
 		assert.equal(report.daily.length, 7);
 		assert.deepEqual(report.daily.at(-1), { date: today(), views: 4, visitors: 4 });

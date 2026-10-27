@@ -13,7 +13,7 @@ export function useSubscribe() {
 
 export default function ProviderSubscribe({ newsletter, readers, children }) {
 	const [openedBy, setOpenedBy] = useState(null);
-	const value = useMemo(() => ({ open: (source = "reader") => setOpenedBy(source) }), []);
+	const value = useMemo(() => ({ language: newsletter.language ?? "en", open: (source = "reader") => setOpenedBy(source) }), [newsletter.language]);
 
 	function onOpenChange(open) {
 		if (open) return;

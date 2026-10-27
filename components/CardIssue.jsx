@@ -6,12 +6,18 @@ import { getIssueDate } from "@/lib/archive-issues";
 import { getShareCardUrl } from "@/lib/archive-seo";
 import { isOptimizableImage } from "@/lib/thumbnail";
 import { cn } from "@/lib/utils";
+import { getReaderText } from "@/lib/reader-languages";
 
 // Widths of the archive's grid: three columns in max-w-5xl, two from sm, one on phones.
 const CARD_SIZES = "(min-width: 1024px) 307px, (min-width: 640px) calc(50vw - 36px), calc(100vw - 40px)";
 const FEATURED_SIZES = "(min-width: 1024px) 566px, (min-width: 768px) 54vw, calc(100vw - 40px)";
 
 export default function CardIssue({ issue, newsletter, href, isFeatured = false, isEager = false }) {
+	if (issue.kind === "note") return <a href={href} className="flex flex-col gap-3 rounded-xl border p-5 transition-colors hover:bg-muted/30">
+		<MetaIssue issue={issue} /><p className="text-xs text-muted-foreground">{getReaderText(newsletter)("Short post")}</p>
+		<p className="whitespace-pre-wrap break-words text-base leading-relaxed">{issue.previewText || issue.subject}</p>
+		<span className="text-sm underline underline-offset-4">{getReaderText(newsletter)("Read short post")}</span>
+	</a>;
 	return (
 		<a
 			href={href}

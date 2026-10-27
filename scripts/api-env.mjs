@@ -8,7 +8,7 @@ import { OUT_FILE, buildApiWorker } from "./build-api-worker.mjs";
 // What the platform and the libraries probe for and the code never needs set.
 const IGNORED = /^(NODE_ENV|CI|DEBUG|NODE_V8_COVERAGE|JEST_WORKER_ID|NO_PROXY|HTTP_PROXY|HTTPS_PROXY|LOCALAPPDATA|AWS_LOGIN_CACHE_DIRECTORY|UNDICI_NO_FG|FLOCKSTACK_SQLITE|VERCEL_.*|NEXT_PUBLIC_.*|KV_REST_.*)$/;
 // Bindings of the Worker (workers/api/wrangler.jsonc).
-export const BINDINGS = ["DB", "IMAGES", "FILES", "EXPORTS", "AI", "APP"];
+export const BINDINGS = ["DB", "IMAGES", "FILES", "EXPORTS", "AI", "APP", "COLLABORATION_STORAGE"];
 
 export function listEnvironment(source) {
 	// process.env.NAME, and env.NAME where a function takes process.env as its argument (lib/config.js, lib/region.js).

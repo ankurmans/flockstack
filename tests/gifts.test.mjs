@@ -490,3 +490,27 @@ describe("the writer's list", () => {
 		assertError(await api(stranger, "POST", `/gifts/${gift.id}/resend`, {}), 404, "not_found");
 	});
 });
+
+test("gift checkout, receipts and delivery localize fixed billing words without changing the giver's message", async () => {
+	const { READER_LANGUAGES, getReaderText } = await import("../lib/reader-languages.js");
+	const Newsletter = (await import("../models/Newsletter.js")).default;
+	for (const language of READER_LANGUAGES) {
+		const user = await giftSeller();
+		await Newsletter.updateOne({ accountId: user.accountId, _id: user.newsletterId }, { $set: { language } });
+		const newsletter = await Newsletter.findOne({ accountId: user.accountId, _id: user.newsletterId }).lean();
+		const t = getReaderText(newsletter), before = emails.length;
+		const recipientEmail = `gift-${language}@example.net`;
+		const gift = await paidGift(user, { recipientEmail, buyerName: "KEEP_GIVER", message: "Keep my personal words.", months: 3 });
+		const receipt = emails.slice(before).find((message) => message.subject === t("Your gift for {recipient} is paid", { recipient: recipientEmail }));
+		assert.ok(receipt, language); assert.match(receipt.text, /\/gifts\?token=/);
+		const delivered = await m.gifts.deliverGift({ gift, newsletter });
+		assert.equal(delivered.sent, true, language);
+		const message = emails.slice(before).find((item) => item.to === recipientEmail);
+		assert.ok(message, language); assert.ok(message.text.includes("Keep my personal words.")); assert.match(message.subject, /KEEP_GIVER/);
+		assert.ok(message.text.includes(t("Redeem your gift")), language); assert.ok(redeemUrlIn(message));
+		if (language !== "en") assert.doesNotMatch(message.text, /gave you|Your 3 months start|Redeem your gift/);
+		const session = [...fake.sessions.values()].at(-1);
+		assert.equal(Number(session.line_items[0].price_data.unit_amount), gift.amountCents);
+		assert.ok(session.line_items[0].price_data.product_data.name.includes(newsletter.name));
+	}
+});

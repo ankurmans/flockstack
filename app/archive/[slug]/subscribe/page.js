@@ -1,3 +1,4 @@
+import { getReaderText } from "@/lib/reader-languages";
 import { notFound } from "next/navigation";
 import FormSubscribePaid from "@/components/FormSubscribePaid";
 import NoticePaid from "@/components/NoticePaid";
@@ -45,43 +46,45 @@ export default async function SubscribePage({ params }) {
 		options: getTierOptions(tier).filter(({ option }) => !isPledge || option === "month" || option === "year").map(({ option, cents }) => ({ option, cents, label: OPTION_LABELS[option], note: option === "pwyw" ? (tier.pwyw.interval === "month" ? "a month or more" : "a year or more") : OPTION_NOTES[option] })),
 	})).filter((tier) => tier.options.length > 0);
 
+	const t = getReaderText(newsletter);
+
 	return (
 		<div className="mx-auto max-w-xl px-5 pt-16 pb-24 sm:pt-20">
-			<NoticePaid>Thanks for subscribing. Your first paid issue lands in your inbox; if you don&apos;t see a welcome email, check the spam folder.</NoticePaid>
-			<NoticePaid param="gift">Thank you for your gift. We emailed you a receipt with a link to see when it is redeemed.</NoticePaid>
-			<NoticePaid param="pledged">Thank you for your pledge. Nothing was charged. We emailed you a confirmation with a link to cancel.</NoticePaid>
-			<h1 className="text-4xl font-semibold tracking-tight text-balance animate-enter">{isPledge ? "Pledge your support" : "Become a paid subscriber"}</h1>
+			<NoticePaid>{t("Thanks for subscribing. Your first paid issue lands in your inbox; if you don't see a welcome email, check the spam folder.")}</NoticePaid>
+			<NoticePaid param="gift">{t("Thank you for your gift. We emailed you a receipt with a link to see when it is redeemed.")}</NoticePaid>
+			<NoticePaid param="pledged">{t("Thank you for your pledge. Nothing was charged. We emailed you a confirmation with a link to cancel.")}</NoticePaid>
+			<h1 className="text-4xl font-semibold tracking-tight text-balance animate-enter">{t(isPledge ? "Pledge your support" : "Become a paid subscriber")}</h1>
 			<p style={{ "--stagger": 1 }} className="mt-4 text-lg text-muted-foreground text-pretty animate-enter">
 				{isPledge
-					? `${newsletter.name} isn't taking payments yet. Pledge what you would pay, and you're only charged once it does, after an email from us. ${pitch ?? ""}`.trim()
-					: pitch || `Get every issue of ${newsletter.name}, including the ones for paid subscribers only.`}
+					? `${t("{name} isn't taking payments yet. Pledge what you would pay, and you're only charged once it does, after an email from us.", { name: newsletter.name })} ${pitch ?? ""}`.trim()
+					: pitch || t("Get every issue of {name}, including the ones for paid subscribers only.", { name: newsletter.name })}
 			</p>
 			<div style={{ "--stagger": 2 }} className="mt-10 rounded-2xl bg-card p-5 shadow-border animate-enter sm:p-6">
 				{payments.ready && tiers.length > 0 ? (
 					<FormSubscribePaid newsletterSlug={newsletter.slug} tiers={tiers} currency={currency} trialDays={isPledge ? 0 : trialDays} isPledge={isPledge} newsletterName={newsletter.name} />
 				) : (
-					<p className="text-sm text-muted-foreground">{isPledge ? "Pledges" : "Paid subscriptions"} aren&apos;t open right now. Check back soon.</p>
+					<p className="text-sm text-muted-foreground">{t(isPledge ? "Pledges aren't open right now. Check back soon." : "Paid subscriptions aren't open right now. Check back soon.")}</p>
 				)}
 			</div>
 			{supporters.length > 0 && (
-				<section aria-label="Supporters" className="mt-10">
-					<h2 className="text-sm font-medium">Supporters</h2>
+				<section aria-label={t("Supporters")} className="mt-10">
+					<h2 className="text-sm font-medium">{t("Supporters")}</h2>
 					<p className="mt-2 text-sm text-muted-foreground text-pretty">{supporters.join(", ")}</p>
 				</section>
 			)}
 			{areGiftsOpen(newsletter) && !isPledge && (
 				<p className="mt-6 text-sm text-muted-foreground">
-					Want to give it to someone?{" "}
+					{t("Want to give it to someone?")}{" "}
 					<a href={urls.give} className="underline underline-offset-4 transition-colors duration-150 hover:text-foreground">
-						Give a gift subscription
+						{t("Give a gift subscription")}
 					</a>
 					.
 				</p>
 			)}
 			<p className="mt-6 text-sm text-muted-foreground">
-				Just want the free issues?{" "}
+				{t("Just want the free issues?")}{" "}
 				<a href={`${urls.index}#subscribe`} className="underline underline-offset-4 transition-colors duration-150 hover:text-foreground">
-					Subscribe for free
+					{t("Subscribe for free")}
 				</a>
 				.
 			</p>

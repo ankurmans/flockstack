@@ -33,6 +33,9 @@ const nextConfig = {
 	async headers() {
 		return [
 			{ source: "/:path*", headers: SECURITY_HEADERS },
+			{ source: "/reader/sponsorships/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }, { key: "Referrer-Policy", value: "no-referrer" }, { key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+			{ source: "/reader/billing", headers: [{ key: "Cache-Control", value: "private, no-store" }, { key: "Referrer-Policy", value: "no-referrer" }, { key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+			{ source: "/reader/groups/:path*", headers: [{ key: "Cache-Control", value: "private, no-store" }, { key: "Referrer-Policy", value: "no-referrer" }, { key: "X-Robots-Tag", value: "noindex, nofollow" }] },
 			// Later rules win for the same header.
 			{
 				source: "/embed/:id",

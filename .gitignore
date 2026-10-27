@@ -52,3 +52,9 @@ next-env.d.ts
 /workers/public/dist/
 /workers/api/dist/
 /workers/readers/dist/
+
+# Optional realtime editor Worker output
+workers/collaboration/dist/
+
+# Stray generated design artifacts (social banners, etc.)
+/artifacts/

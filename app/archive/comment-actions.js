@@ -61,7 +61,8 @@ async function resolveIssue(slug, post) {
 	const newsletter = await getArchiveNewsletter(String(slug ?? ""));
 	const campaign = newsletter && ARCHIVE_SLUG_PATTERN.test(String(post ?? "")) ? await getArchiveIssue(newsletter, String(post)) : null;
 	if (!campaign || !areCommentsOn(newsletter, campaign)) return null;
-	return { newsletter, campaign, contact: await findSessionReader(newsletter) };
+	const contact = await findSessionReader(newsletter);
+	return { newsletter, campaign, contact, checkReader: async () => String((await findSessionReader(newsletter))?._id ?? "") === String(contact?._id ?? "missing") };
 }
 
 // The page asks once it loads, when the browser has a session: who is reading, whether they can comment and what they
@@ -88,6 +89,7 @@ export async function submitComment(_state, formData) {
 		parentId: formData.get("parent") || undefined,
 		displayName: formData.get("name"),
 		ip: getClientIp(await headers()),
+		replyRulesConsent: formData.get("replyRulesConsent"),
 	});
 	if (!result.ok) return { error: result.message, code: result.code };
 	// After the response: the owner's digest, if one is due, and the email for a reply.
@@ -99,7 +101,7 @@ export async function submitEdit(_state, formData) {
 	const context = await resolveIssue(formData.get("newsletter"), formData.get("p"));
 	if (!context) return NO_COMMENTS;
 	if (!context.contact) return SIGNED_OUT;
-	const result = await editComment({ ...context, commentId: formData.get("comment"), body: formData.get("body") });
+	const result = await editComment({ ...context, commentId: formData.get("comment"), body: formData.get("body"), replyRulesConsent: formData.get("replyRulesConsent") });
 	return result.ok ? { ok: true, status: result.status } : { error: result.message, code: result.code };
 }
 
@@ -117,4 +119,10 @@ export async function submitReport(_state, formData) {
 	if (!context.contact) return SIGNED_OUT;
 	const result = await reportComment({ ...context, commentId: formData.get("comment"), reason: formData.get("reason") });
 	return result.ok ? { ok: true } : { error: result.message, code: result.code };
+}
+
+// Public, bounded and uncached: returns only comment IDs whose authors chose to show current supporter membership.
+export async function getSupporterBadges(slug, post, ids) {
+	if (await isRateLimited({ name: "comment-badges-ip", key: limitKey(getClientIp(await headers())), limit: 120, window: "10 m" })) return [];
+	return (await import("@/lib/supporter-badges")).listSupporterBadges({ slug, post, ids });
 }

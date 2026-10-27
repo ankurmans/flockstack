@@ -12,6 +12,8 @@ import { EMBED_PROVIDERS, parseEmbed } from "@/lib/embeds";
 import { getFeedUrlProblem } from "@/lib/feed-url";
 
 const COPY = {
+	audienceBlock: { title: "Audience block", description: "This block is shown only to free readers, paid readers, or a paid tier and above. Other readers never receive its text. Test emails show every valid variant. Audio versions are unavailable for issues with audience blocks.", save: "Save audience" },
+	htmlSnippet: { title: "HTML snippet", description: "Paste up to 20,000 characters of safe rich HTML: text, tables, links and pictures. Scripts, forms, frames, styles and editor blocks are removed. The editor shows source; previews show the result.", save: "Save snippet" },
 	ctaButton: { title: "Button", description: "A button in the newsletter's accent color, centered.", save: "Save button" },
 	embed: {
 		title: "Embed",
@@ -36,14 +38,14 @@ const MAX_OPTIONS = 6;
 
 // The dialog of a block that is set up with a few fields. block: { kind, attrs, pos } (pos null for a new one).
 // onSave(attrs) puts it in the issue. A poll is saved first (create_poll, update_poll), in newsletterId and campaignId.
-export default function DialogEditorBlock({ block, onOpenChange, onSave, newsletterId, campaignId, fields = [] }) {
+export default function DialogEditorBlock({ block, onOpenChange, onSave, newsletterId, campaignId, fields = [], tiers = [] }) {
 	return (
 		<Dialog open={Boolean(block)} onOpenChange={onOpenChange}>
 			<DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
 				{block?.kind === "poll" ? (
 					<FormPoll key={`poll-${block.pos ?? "new"}`} block={block} onSave={onSave} newsletterId={newsletterId} campaignId={campaignId} fields={fields} />
 				) : (
-					block && <FormBlock key={`${block.kind}-${block.pos ?? "new"}`} block={block} onSave={onSave} />
+					block && <FormBlock key={`${block.kind}-${block.pos ?? "new"}`} block={block} onSave={onSave} tiers={tiers} />
 				)}
 			</DialogContent>
 		</Dialog>
@@ -166,7 +168,7 @@ function FormPoll({ block, onSave, newsletterId, campaignId, fields }) {
 	);
 }
 
-function FormBlock({ block, onSave }) {
+function FormBlock({ block, onSave, tiers = [] }) {
 	const [values, setValues] = useState(() => ({ ...(block.kind === "rssFeed" ? FEED_DEFAULTS : {}), ...block.attrs }));
 	const [error, setError] = useState("");
 	const copy = COPY[block.kind];
@@ -203,6 +205,8 @@ function FormBlock({ block, onSave }) {
 					<Input value={values.url ?? ""} onChange={set("url")} placeholder="https://www.youtube.com/watch?v=…" maxLength={500} inputMode="url" autoFocus />
 				</label>
 			)}
+			{block.kind === "audienceBlock" && <><label className="flex flex-col gap-1.5 text-sm">Visible to<select value={values.access || "paid"} onChange={set("access")} className="rounded-md border bg-background p-2"><option value="paid">Paid readers</option><option value="free">Free readers</option></select></label>{values.access !== "free" && <label className="flex flex-col gap-1.5 text-sm">Minimum paid tier<select value={values.minTier || ""} onChange={set("minTier")} className="rounded-md border bg-background p-2"><option value="">Every paid tier</option>{tiers.map((tier) => <option key={tier.id} value={tier.id}>{tier.name}</option>)}{values.minTier && !tiers.some(({ id }) => id === values.minTier) && <option value={values.minTier}>Unavailable tier (hidden)</option>}</select></label>}</>}
+			{block.kind === "htmlSnippet" && <label className="flex flex-col gap-1.5 text-sm">HTML<Textarea value={values.source ?? ""} onChange={set("source")} maxLength={20000} rows={12} className="font-mono text-xs" autoFocus /></label>}
 			{block.kind === "rssFeed" && <FieldsFeed values={values} setValues={setValues} />}
 			{block.kind === "footnote" && (
 				<label className="flex flex-col gap-1.5 text-sm">
@@ -301,6 +305,7 @@ function FieldsFeed({ values, setValues }) {
 }
 
 function getProblem(kind, values) {
+	if (kind === "htmlSnippet" && (!values.source?.trim() || values.source.length > 20000)) return "Paste HTML, up to 20,000 characters";
 	if (kind === "rssFeed") return getFeedUrlProblem(values.url);
 	if (kind === "ctaButton") {
 		if (!values.label?.trim()) return "Give the button a label";
@@ -312,6 +317,8 @@ function getProblem(kind, values) {
 }
 
 function toAttrs(kind, values) {
+	if (kind === "audienceBlock") return { access: values.access === "free" ? "free" : "paid", minTier: values.access === "free" ? "" : values.minTier || "" };
+	if (kind === "htmlSnippet") return { source: values.source.trim() };
 	if (kind === "rssFeed") {
 		return { url: new URL(values.url.trim()).href, count: Number(values.count) || FEED_BLOCK.defaultCount, order: values.order, image: Boolean(values.image), excerpt: Boolean(values.excerpt), date: Boolean(values.date) };
 	}

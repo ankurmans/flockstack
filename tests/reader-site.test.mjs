@@ -348,6 +348,23 @@ describe("the Subscriber Center", () => {
 		assert.match(await visit(user, await signInReader(m, user, reader)), /Access until /);
 	});
 
+	test("renders the complete paid account in every reader language", async () => {
+		const { READER_LANGUAGES, getReaderText } = await import("../lib/reader-languages.js");
+		const { readerBillingSummary } = await import("../lib/reader-billing-copy.js");
+		for (const language of READER_LANGUAGES) {
+			const user = await paidNewsletter();
+			await m.Newsletter.updateOne({ accountId: user.accountId, _id: user.newsletterId }, { $set: { language } });
+			user.newsletter = await m.Newsletter.findOne({ accountId: user.accountId, _id: user.newsletterId }).lean();
+			const reader = await addReader(m, user, `locale-${language}@example.org`, paidFields(20));
+			const page = await visit(user, await signInReader(m, user, reader));
+			const t = getReaderText(user.newsletter);
+			assert.ok(page.includes(t("Manage your subscription")), language);
+			assert.ok(page.includes(readerBillingSummary(user.newsletter, { access: "stripe", interval: "month", status: "active", paidUntil: reader.paidUntil }).heading), language);
+			assert.match(page, /\/api\/shop\/portal\?token=/);
+			if (language !== "en") assert.doesNotMatch(page, /billed every month|Your current period runs to|You read every issue/);
+		}
+	});
+
 	test("lets a reader change the preferences the creator opened to them, and nothing else", async () => {
 		const user = await paidNewsletter();
 		await m.CustomField.create({ accountId: user.accountId, newsletterId: user.newsletterId, key: "topic", label: "Topic", type: "list", options: ["Tools", "Pricing"], multiple: false, readerEditable: true });
@@ -381,7 +398,7 @@ describe("the Subscriber Center", () => {
 		const on = await visit(user, await signInReader(m, user, reader));
 		assert.match(on, /Refer a friend/);
 		assert.match(on, /2 people have signed up through your link\./);
-		assert.match(on, /3 more referrals unlocks A sticker\./);
+		assert.match(on, /3 more referrals unlock A sticker\./);
 		assert.match(on, new RegExp(`value="https://${user.slug}\\.${SHARED_DOMAIN}/\\?ref=[A-Za-z0-9_-]{27}"`));
 		assert.match(on, /\/referral\?token=/);
 		assert.doesNotMatch(on, /Reply with your address/, "a locked reward stays hidden");
@@ -400,7 +417,7 @@ describe("the Subscriber Center", () => {
 		assert.deepEqual(await inBrowser(visitor, () => m.reader.saveProfile(null, form({ newsletter: user.slug, name: "  Ana  " }))), { ok: true });
 		assert.equal((await m.Contact.findOne({ accountId: user.accountId, _id: reader._id }).lean()).fields.first_name, "Ana");
 		assert.match(await visit(user, visitor), /value="Ana"/);
-		assert.match((await inBrowser(visitor, () => m.reader.saveProfile(null, form({ newsletter: user.slug, name: "x".repeat(101) })))).error, /under 100 characters/);
+		assert.match((await inBrowser(visitor, () => m.reader.saveProfile(null, form({ newsletter: user.slug, name: "x".repeat(101) })))).error, /100 characters or fewer/);
 		assert.deepEqual(await inBrowser(visitor, () => m.reader.saveProfile(null, form({ newsletter: user.slug, name: "" }))), { ok: true });
 		assert.equal((await m.Contact.findOne({ accountId: user.accountId, _id: reader._id }).lean()).fields?.first_name, undefined);
 

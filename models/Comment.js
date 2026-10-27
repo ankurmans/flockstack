@@ -26,6 +26,13 @@ const commentSchema = new mongoose.Schema(
 		ipHash: { type: String },
 		notifyPending: { type: Boolean },
 		replyNotifiedAt: { type: Date },
+		replyRuleConsentAt: { type: Date },
+		replyRuleConsentHash: { type: String },
+		replyRuleExampleConsent: { type: Boolean },
+		replyRuleDecision: {
+			outcome: { type: String }, model: { type: String }, revision: { type: String }, evaluatedAt: { type: Date },
+			confidence: { type: Number }, ruleId: { type: String }, exampleCount: { type: Number },
+		},
 	},
 	{ timestamps: true }
 );

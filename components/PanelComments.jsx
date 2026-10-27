@@ -1,4 +1,5 @@
 "use client";
+import useReaderText from "@/components/useReaderText";
 
 import { useState } from "react";
 import { signOutReader } from "@/app/archive/comment-actions";
@@ -12,6 +13,7 @@ import { parseCommentBody } from "@/lib/comment-body";
 // What the reader sees above the discussion: the sign-in, or the box for a new comment, and any of their own comments
 // that aren't on the page, each with the reason.
 export default function PanelComments() {
+	const t = useReaderText();
 	const { slug, viewer, isLoaded, hasSession, linkProblem, restriction, refresh } = useComments();
 	const aside = (viewer.own ?? []).filter(({ status }) => status !== "published");
 
@@ -22,10 +24,10 @@ export default function PanelComments() {
 				<div className="flex flex-col gap-3 rounded-2xl bg-card p-5 shadow-border">
 					{linkProblem && (
 						<p role="alert" className="text-sm text-pretty text-destructive">
-							That link has expired or was already used. Ask for a new one below.
+							{t("That link has expired or was already used. Ask for a new one below.")}
 						</p>
 					)}
-					<h3 className="text-base font-semibold tracking-tight">Join the discussion</h3>
+					<h3 className="text-base font-semibold tracking-tight">{t("Join the discussion")}</h3>
 					<p className="text-sm text-pretty text-muted-foreground">
 						Subscribers can comment. Sign in with the email you subscribed with: we send you a link, so there is no password.
 						{restriction && ` ${restriction}`}
@@ -40,13 +42,13 @@ export default function PanelComments() {
 			) : (
 				<div className="rounded-2xl bg-card p-5 shadow-border">
 					<p role="status" className="text-sm text-pretty">
-						{viewer.access?.message ?? "You can't comment here."}
+						{t.error(viewer.access?.message ?? "You can't comment here.")}
 					</p>
 					<SignedInNote slug={slug} onSignedOut={refresh} />
 				</div>
 			)}
 			{isLoaded && aside.length > 0 && (
-				<ul className="flex flex-col gap-3" aria-label="Your comments that aren't showing">
+				<ul className="flex flex-col gap-3" aria-label={t("Your comments that aren't showing")}>
 					{aside.map((comment) => (
 						<AsideComment key={comment.id} comment={comment} />
 					))}
@@ -57,9 +59,10 @@ export default function PanelComments() {
 }
 
 function SignedInNote({ slug, onSignedOut }) {
+	const t = useReaderText();
 	return (
 		<p className="mt-4 text-xs text-muted-foreground">
-			Signed in on this device.{" "}
+			{t("Signed in on this device.")}{" "}
 			<button
 				type="button"
 				className="underline underline-offset-4 hover:text-foreground"
@@ -68,7 +71,7 @@ function SignedInNote({ slug, onSignedOut }) {
 					onSignedOut();
 				}}
 			>
-				Sign out
+				{t("Sign out")}
 			</button>
 		</p>
 	);
@@ -82,21 +85,21 @@ const TITLES = {
 
 // A comment of the reader's own that the page doesn't show: held for review, hidden or removed. The reason is always here.
 function AsideComment({ comment }) {
+	const t = useReaderText();
 	const [mode, setMode] = useState(null);
 	const canEdit = comment.status === "held" && comment.editableUntil && new Date(comment.editableUntil) > new Date();
 	const wasDeletedByAuthor = comment.status === "removed" && comment.decidedBy === "author";
 	if (wasDeletedByAuthor) return null;
-	const by = comment.decidedBy === "creator" ? "the newsletter's owner" : "the newsletter's rules";
 
 	return (
 		<li className="rounded-xl bg-amber-50 p-4 ring-1 ring-amber-500/30 dark:bg-amber-500/10">
-			<p className="text-sm font-medium text-amber-950 dark:text-amber-50">{TITLES[comment.status]}</p>
+			<p className="text-sm font-medium text-amber-950 dark:text-amber-50">{t(TITLES[comment.status])}</p>
 			{comment.reason && (
 				<p className="mt-1 text-sm text-pretty text-amber-950/80 dark:text-amber-50/80">
-					Reason{comment.decidedBy === "creator" ? " from the owner" : ""}: {comment.reason}
+					{t(comment.decidedBy === "creator" ? "Reason from the owner" : "Reason")}: {comment.decidedBy === "creator" ? comment.reason : t.error(comment.reason)}
 				</p>
 			)}
-			{!comment.reason && <p className="mt-1 text-sm text-amber-950/80 dark:text-amber-50/80">Decided by {by}.</p>}
+			{!comment.reason && <p className="mt-1 text-sm text-amber-950/80 dark:text-amber-50/80">{t(comment.decidedBy === "creator" ? "Decided by the newsletter's owner." : "Decided by the newsletter's rules.")}</p>}
 			{comment.body && (
 				<div className="mt-3 border-l-2 border-amber-500/40 pl-3 text-sm text-pretty text-foreground/80">
 					<CommentBody paragraphs={parseCommentBody(comment.body)} />

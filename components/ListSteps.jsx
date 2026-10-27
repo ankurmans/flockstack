@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowDown, ArrowUp, Clock, GitBranch, Mail, PenLine, Plus, Shuffle, Square, Tag, Trash2, Webhook, ArrowRightLeft } from "lucide-react";
+import TableAutomationVariants from "@/components/TableAutomationVariants";
 import EditorStep from "@/components/EditorStep";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -126,6 +127,7 @@ export default function ListSteps({ steps, list = null, level = 1, ctx }) {
 										segments={segments}
 										automations={automations}
 									/>
+									{stats?.variants?.length > 0 && <TableAutomationVariants variants={stats.variants} />}
 								</div>
 							)}
 						</div>

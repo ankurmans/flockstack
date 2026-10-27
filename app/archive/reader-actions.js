@@ -68,3 +68,20 @@ export async function saveProfile(_state, formData) {
 	const result = await saveProfileName({ newsletter, contact, name: formData.get("name") });
 	return result.problem ? { error: result.problem } : { ok: true };
 }
+
+// Next.js validates the Origin for this server action; only a reader session can spend a free read.
+export async function claimMeteredRead(slug, post, confirmed) {
+	const result = await (await import("@/lib/metered-reading")).claimMeteredIssue({ slug, post, confirmed });
+	return result.error ? result : unlockIssueForReader({ slug, post });
+}
+
+// A private reader choice; no owner API or key can opt someone in to a public membership badge.
+export async function saveCommentBadge(_state, formData) {
+	if (await isRateLimited({ ...PROFILE_PER_IP, key: getClientIp(await headers()) })) return { error: "Too many changes from your network. Try again in a few minutes." };
+	await connectDb();
+	const newsletter = await findOpenNewsletter({ slug: String(formData.get("newsletter") ?? ""), archiveEnabled: true });
+	const contact = newsletter && await findSessionReader(newsletter);
+	if (!contact) return { error: "Your session ended. Sign in again." };
+	const result = await (await import("@/lib/supporter-badges")).saveSupporterBadge({ newsletter, contact, enabled: formData.get("supporterBadge") === "on" });
+	return result.problem ? { error: result.problem } : { ok: true };
+}

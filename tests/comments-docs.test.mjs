@@ -51,10 +51,10 @@ describe("the comments docs", () => {
 		assert.doesNotMatch(text, /cheap/i);
 	});
 
-	test("the API reference has a Comments group with all seven actions", () => {
+	test("the API reference has a Comments group with all eight public actions", () => {
 		assert.ok(m.reference.GROUP_DESCRIPTIONS.Comments);
 		const names = m.reference.getEndpointGroups("https://flockstack.io").find(({ group }) => group === "Comments");
-		assert.equal(names.endpoints.length, 7);
+		assert.equal(names.endpoints.length, 8);
 	});
 
 	test("robots.txt keeps crawlers off the dashboard page and the reader's links", () => {

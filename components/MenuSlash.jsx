@@ -241,6 +241,10 @@ const SLASH_ITEMS = [
 	{ title: "Table: delete the row", keywords: "table row remove", icon: Trash2, run: (chain) => chain.deleteRow() },
 	{ title: "Table: delete the column", keywords: "table column remove", icon: Trash2, run: (chain) => chain.deleteColumn() },
 	{ title: "Table: delete the table", keywords: "table remove", icon: Trash2, run: (chain) => chain.deleteTable() },
+	{ title: "Audience block", keywords: "visibility free paid subscriber tier access", icon: Lock, run: (chain) => chain, dialog: "audienceBlock" },
+	{ title: "HTML snippet", keywords: "custom html code snippet", icon: Braces, run: (chain) => chain, dialog: "htmlSnippet" },
+	{ title: "Code block", keywords: "code pre snippet", icon: Braces, run: (chain) => chain.toggleCodeBlock() },
+	{ title: "Table of contents", keywords: "toc headings contents", icon: List, run: (chain) => chain.insertContent({ type: "tableOfContents" }) },
 	{ title: "Footnote", keywords: "note reference citation", icon: Superscript, run: (chain) => chain, dialog: "footnote" },
 	{
 		title: "Paywall break",

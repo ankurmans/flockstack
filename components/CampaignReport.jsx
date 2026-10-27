@@ -63,6 +63,7 @@ export default function CampaignReport({
 	newContacts = 0,
 	polls = [],
 	audioCard = null,
+	authorControl = null,
 	isAiEnabled = false,
 }) {
 	const { stats } = campaign;
@@ -202,6 +203,7 @@ export default function CampaignReport({
 					)}
 				</LiveResults>
 
+				{authorControl}
 				{audioCard}
 
 				{campaign.publishTo === "web" && (

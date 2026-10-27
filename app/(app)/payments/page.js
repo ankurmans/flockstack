@@ -1,3 +1,5 @@
+import FormStripeSubscriberImport from "@/components/FormStripeSubscriberImport";
+import Link from "next/link";
 import CardComps from "@/components/CardComps";
 import CardGifts from "@/components/CardGifts";
 import CardOffers from "@/components/CardOffers";
@@ -44,6 +46,10 @@ export default async function PaymentsPage({ searchParams }) {
 					</p>
 				)}
 				<CardStripe status={status} />
+				{selected && <section className="rounded-xl border p-5"><h2 className="font-semibold">Sponsorships</h2><p className="mt-2 text-sm text-muted-foreground">Sell direct placements, review creative and invoice sponsors through your own Stripe account.</p><Link className="mt-3 inline-block text-sm underline" href="/sponsorships">Manage sponsorships</Link></section>}
+				{selected && <section className="rounded-xl border p-5"><h2 className="font-semibold">Reader billing</h2><p className="mt-2 text-sm text-muted-foreground">Enable pauses, select an existing save offer and read optional cancellation feedback.</p><Link className="mt-3 inline-block text-sm underline" href="/reader-billing">Manage reader billing</Link></section>}
+				{selected && <section className="rounded-xl border p-5"><h2 className="font-semibold">Group subscriptions</h2><p className="mt-2 text-sm text-muted-foreground">One buyer pays per reader seat. Invitations require each reader’s acceptance.</p><Link className="mt-3 inline-block text-sm underline" href="/group-subscriptions">Manage groups</Link></section>}
+				{selected && tiersResult?.output && <FormStripeSubscriberImport newsletterId={String(selected._id)} tiers={tiersResult.output.tiers} />}
 				{selected && tierResult?.output && <FormPaidTier newsletter={{ id: String(selected._id), name: selected.name }} tier={tierResult.output} isReady={status.ready} />}
 				{selected && tiersResult?.output && <CardPaidTiers newsletterId={String(selected._id)} tiers={tiersResult.output.tiers} />}
 				{selected && pledgeReport?.output && (

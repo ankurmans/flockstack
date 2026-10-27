@@ -21,9 +21,10 @@ export default async function ConfirmPage({ searchParams }) {
 	const newsletter = reference ? await getNewsletter(reference.newsletterId) : null;
 
 	return (
-		<main className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
+		<main lang={newsletter?.language ?? "en"} className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
 			{newsletter ? (
 				<FormConfirm
+					language={newsletter.language ?? "en"}
 					token={validToken}
 					newsletterName={newsletter.name}
 					slug={newsletter.slug}

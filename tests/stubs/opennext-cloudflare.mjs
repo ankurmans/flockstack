@@ -53,6 +53,9 @@ export function setFilesBound(value) {
 	hasFiles = value;
 }
 
+let collaborationStorage = null;
+export function setCollaborationStorage(value) { collaborationStorage = value; }
+
 export async function getCloudflareContext() {
-	return { env: { ...(hasFiles && { FILES: bucket }), ...(ai && { AI: ai }) }, cf };
+	return { env: { ...(hasFiles && { FILES: bucket }), ...(ai && { AI: ai }), ...(collaborationStorage && { COLLABORATION_STORAGE: collaborationStorage }) }, cf };
 }

@@ -1,4 +1,5 @@
 "use client";
+import useReaderText from "@/components/useReaderText";
 
 import { useActionState, useEffect, useRef } from "react";
 import { Check, Loader2, MailOpen } from "lucide-react";
@@ -10,6 +11,7 @@ import { captureAttribution, captureRecommender, captureReferralCode, storeValue
 import { cn } from "@/lib/utils";
 
 export default function FormSubscribe({ newsletterSlug, fields = [], via = "website", onResult, className }) {
+	const t = useReaderText();
 	const [state, action, isPending] = useActionState(subscribe, null);
 	const referralRef = useRef(null);
 	const recommenderRef = useRef(null);
@@ -27,6 +29,7 @@ export default function FormSubscribe({ newsletterSlug, fields = [], via = "webs
 	useEffect(() => {
 		if (!state?.ok) return;
 		storeValue(subscribedKey(newsletterSlug), 1);
+		if (state.flowUrl) window.location.assign(state.flowUrl);
 		onResult?.(state);
 	}, [state, newsletterSlug, onResult]);
 
@@ -48,7 +51,7 @@ export default function FormSubscribe({ newsletterSlug, fields = [], via = "webs
 				<span className="grid size-6 place-items-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
 					<Check className="size-3.5 animate-icon-in" />
 				</span>
-				You&apos;re in. The next issue lands in your inbox.
+				{t("You're in. The next issue lands in your inbox.")}
 			</p>
 		);
 		if (!state.step && !state.survey) return joined;
@@ -76,7 +79,7 @@ export default function FormSubscribe({ newsletterSlug, fields = [], via = "webs
 					{fields.map(({ key, label, type, ...field }) =>
 						type === "list" || type === "boolean" || type === "datetime" ? (
 							<label key={key} className="flex flex-col gap-1.5 text-left text-sm">
-								<span className="text-muted-foreground">{label} (optional)</span>
+								<span className="text-muted-foreground">{label} {t("(optional)")}</span>
 								<InputCustomField
 									field={{ key, label, type, ...field }}
 									name={`field_${key}`}
@@ -88,7 +91,7 @@ export default function FormSubscribe({ newsletterSlug, fields = [], via = "webs
 							key={key}
 							type={type === "number" ? "number" : type === "date" ? "date" : "text"}
 							name={`field_${key}`}
-							placeholder={`${label} (optional)`}
+							placeholder={`${label} {t("(optional)")}`}
 							aria-label={label}
 							step={type === "number" ? "any" : undefined}
 							maxLength={type === "text" ? 500 : undefined}
@@ -105,16 +108,16 @@ export default function FormSubscribe({ newsletterSlug, fields = [], via = "webs
 					required
 					autoComplete="email"
 					placeholder="you@example.com"
-					aria-label="Email"
+					aria-label={t("Email")}
 					className="h-9 min-w-0 flex-1 bg-transparent px-2.5 text-base outline-none placeholder:text-muted-foreground"
 				/>
 				<Button type="submit" disabled={isPending} className="h-9 min-w-24 rounded-[8px] px-4">
-					{isPending ? <Loader2 className="animate-spin" /> : "Subscribe"}
+					{isPending ? <Loader2 className="animate-spin" /> : t("Subscribe")}
 				</Button>
 			</div>
 			{state?.error && (
 				<p role="alert" className="mt-2 text-sm text-destructive">
-					{state.error}
+					{t.error(state.error)}
 				</p>
 			)}
 		</form>
@@ -123,6 +126,7 @@ export default function FormSubscribe({ newsletterSlug, fields = [], via = "webs
 
 // Until they click the link, they get nothing: say so plainly and put their inbox one tap away.
 function CardConfirmEmail({ email, inbox, className }) {
+	const t = useReaderText();
 	return (
 		<div
 			role="status"
@@ -137,23 +141,21 @@ function CardConfirmEmail({ email, inbox, className }) {
 					<span className="absolute -top-0.5 -right-0.5 size-3 animate-pulse rounded-full bg-red-500 ring-2 ring-amber-50 dark:ring-transparent" />
 				</span>
 				<div className="min-w-0">
-					<p className="font-semibold text-amber-950 dark:text-amber-50">You&apos;re not subscribed yet</p>
+					<p className="font-semibold text-amber-950 dark:text-amber-50">{t("You're not subscribed yet")}</p>
 					<p className="mt-1 text-sm leading-relaxed text-pretty text-amber-950/75 dark:text-amber-50/75">
-						Click the link we just sent to{" "}
-						<strong className="font-semibold break-words text-amber-950 dark:text-amber-50">{email}</strong>.
-						Until you do, you won&apos;t get a single issue.
+						{t("Click the link sent to {email} to confirm. Until then, you won't receive issues.", { email })}
 					</p>
 				</div>
 			</div>
 			{inbox && (
 				<Button asChild size="lg" className="mt-4 w-full">
 					<a href={inbox.url} target="_blank" rel="noopener noreferrer">
-						Open {inbox.name}
+						{t("Open {name}", { name: inbox.name })}
 					</a>
 				</Button>
 			)}
 			<p className="mt-3 text-xs text-amber-950/60 dark:text-amber-50/60">
-				Not in your inbox? Check Promotions or Spam.
+				{t("Not in your inbox? Check Promotions or Spam.")}
 			</p>
 		</div>
 	);
@@ -161,11 +163,12 @@ function CardConfirmEmail({ email, inbox, className }) {
 
 // The newsletter's after-signup survey, a step the reader can skip.
 function LinkSurvey({ href }) {
+	const t = useReaderText();
 	return (
 		<p className="mt-3 text-center text-sm text-muted-foreground">
-			Got a minute?{" "}
+			{t("Got a minute?")}{" "}
 			<a href={href} className="font-medium text-foreground underline underline-offset-4">
-				Answer a few questions
+				{t("Answer a few questions")}
 			</a>
 		</p>
 	);

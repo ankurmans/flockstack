@@ -73,3 +73,27 @@ D1 can serve reads from replicas close to the visitor (the Sessions API, `env.DB
 ## Results
 
 See `SPEED2-REPORT.md` of the branch that introduced this document (measured 2026-10-21 against throwaway Workers) for the before and after of each class of request.
+
+## Remaining handover builds (2026-10-25)
+
+After brand fleet the handler was 29.454 MB and upload 31.729 MB. Bootstrap/claim, team workspaces, replies, reader settings, paid import, Markdown and language catalogs measured 30.585 MB / 32.876 MB: about 1.13 / 1.15 MB more. Their dashboard route/client manifests, action schemas and lazy service chunks live in the same app. Limits are now 31.0 / 33.4 MB, with the measured baseline recorded in perf-budgets.json. The API remains under its 8.5 MB limit. The MIME parser is in a separate optional replies Worker; the app never imports postal-mime. That Worker has its own minified budget with node:crypto left for the runtime and was also checked with Wrangler's deploy dry run. No production isolate performance or cold-start timing was measured by these local size checks.
+
+
+## Group subscriptions size checkpoint (2026-10-25)
+
+The group feature adds three page modules, owner/manager forms, 11 action schemas, invoice-funded seat/access controllers and six-language interface/email copy. Fresh OpenNext handler:34,192,236bytes; uploaded app script:36,523,328bytes; API:8,932,704bytes; readers:2,512,667bytes. Two consecutive group builds have identical node_modules chunk bytes (7,327,681 under a basename-prefix count); no dependency was added. Common dashboard closure/query checks pass. Only app budgets rise to34.5/36.85MB with this measured new feature; other budgets stay unchanged. Local bundle bytes do not establish live latency.
+
+
+### Direct sponsorship build (2026-10-25)
+
+The final sponsorship build adds scoped inventory and verified booking, private file and signed public image routes, Stripe invoice recovery and explicit emails, the owner and sponsor pages, approved rich editor snapshots, actual containing-message reports, export/purge/privacy integration, 24 actions and 79 six-language phrases. No package dependency was added.
+
+Measured fresh artifacts: app handler 35,515,685 bytes; Wrangler upload 37,859,574 bytes; API 9,060,241 bytes; readers 2,562,165 bytes. The group checkpoint was 34,192,236 / 36,523,328 / 8,932,704 / 2,512,667 bytes. Next server JS grew 1,133,659 bytes; node_modules basename-prefix chunks grew 15,705 bytes under the same comparison (7,327,681 to 7,343,386). That prefix measure includes changes in how the compiler splits existing dependencies and is not a package installation count. Source, action schemas, catalog text, pages and manifests make up the rest of the growth.
+
+An accidental import of the whole reader catalog through newsletter defaults was removed. The common dashboard layout closure is 1.19 MB, under its unchanged 1.35 MB guard. The API source budget is 9.15 MB and its standalone build test now reads that central budget. App handler/upload budgets are 35.8/38.15 MB, with modest headroom over this measured feature batch. Readers stays at 2.8 MB. These measurements do not establish production latency or provider behavior.
+
+Reader billing choices (2026-10-25) measured app handler **35,878,134 bytes**, upload **38,225,032**, API **9,147,785** and readers **2,572,927**. Relative to sponsorships the app grows 362,449/365,458 bytes for nine actions, native billing services, owner/private reader routes and six-language controls. Dedicated feature source is 89,991 bytes, compiled through both Next layers; both package manifests are byte-identical to the pre-retention source backup. App budgets become 36.15/38.50 MB; API/readers and other budgets stay unchanged. This does not establish production latency or live Stripe behavior.
+
+Realtime editing/private discussion (2026-10-25) verified compile: handler **36,249,233 bytes**, upload **38,599,471**, API **9,183,458**, readers **2,572,948**, separate collaboration Worker **1,194,911**. Relative to reader billing, app growth is **371,099/374,439 bytes** and API **35,673 bytes**. Added source is one shared-editor route/client with Yjs/Tiptap collaboration and carets, private comment schemas/services, session/team/draft RPC authority, content CAS/reset identifiers and cleanup/export/privacy integration. The DOM parser is isolated in the optional Worker; the API has no Yjs/DOM editor runtime, and common dashboard closure guards pass. App/API budgets are **36.50/38.85/9.30 MB**; the new optional Worker has a **1.50 MB** budget. Readers/other budgets stay unchanged. Native tests run the separately compiled Worker plus the actual compiled API authority against D1. Local source sizes do not establish deployed latency or two-browser UX.
+
+Final handover compile after compatibility, reader labels/invoice controls and billing race followups: handler **36,260,231**, upload **38,610,476**, API **9,186,272**, readers **2,575,539**, optional collaboration **1,194,911** bytes. All eight budgets pass. Public US/EU build **f7f09ad45a9e**; full app suite3470pass/0fail/3existing skips, plus12native passes. These are local source/runtime checks, not deployed latency or provider QA.

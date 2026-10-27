@@ -5,7 +5,7 @@ import { activate, addVerifiedDomain, as, callApi, catchNotFound, catchRedirect,
 
 // Jane has two newsletters, Alpha (her first) and Beta, and a stranger has one. The dashboard shows the newsletter
 // its cookie names, checked against Jane's account every time; each newsletter's campaigns and contacts only show
-// under it; an account has up to 3, sharing the plan; the REST API and MCP use the first when none is named.
+// under it; Starter has up to 3, sharing the plan; the REST API and MCP use the first when none is named.
 let app;
 let m;
 let jane;
@@ -218,15 +218,14 @@ describe("the plan is the account's", () => {
 	});
 });
 
-describe("up to 3 newsletters", () => {
+describe("Starter has up to 3 newsletters", () => {
 	test("the dashboard, Add a newsletter's dialog and the REST API all stop at 3, and say so", async () => {
 		const user = await signIn("three@example.com");
 		await activate(user);
 		const first = await createNewsletter(user, "three-one");
 		await createNewsletter(user, "three-two");
 		await createNewsletter(user, "three-three");
-		const limit = m.rules.NEWSLETTER_LIMIT_MESSAGE;
-		assert.equal(limit, "An account has up to 3 newsletters");
+		const limit = "Your account allows 3 newsletters";
 
 		const fourth = await as(user, () => m.newsletters.saveNewsletter(null, form({ name: "Four", slug: "three-four" })));
 		assert.deepEqual(fourth, { error: limit });

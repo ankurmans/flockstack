@@ -139,3 +139,8 @@ export async function setTagColor(newsletterId, tag, color) {
 	revalidatePath("/contacts");
 	return { ok: true };
 }
+
+export async function saveContactLists(id, _state, form) {
+	const { failure } = await runDashboardAction("set_contact_lists", { id: String(id), listIds: form.getAll("lists").map(String), consent: form.get("consent") === "on" });
+	if (failure) return { error: failure.message }; revalidatePath("/contacts"); return { ok: true };
+}

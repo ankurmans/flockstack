@@ -1,4 +1,5 @@
 "use client";
+import FormContactLists from "@/components/FormContactLists";
 
 import { useState, useTransition } from "react";
 import { Loader2, Plus, X } from "lucide-react";
@@ -11,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/lib/toast";
 
 // One contact's tags and custom field values. Each change is saved as it's made.
-export default function DialogContactDetails({ contact, definitions, isOpen, onOpenChange, tagColors = {} }) {
+export default function DialogContactDetails({ contact, definitions, isOpen, onOpenChange, tagColors = {}, mailingLists = [] }) {
 	const [tags, setTags] = useState(contact.tags);
 	const [fields, setFields] = useState(contact.fields);
 	const [newTag, setNewTag] = useState("");
@@ -54,6 +55,7 @@ export default function DialogContactDetails({ contact, definitions, isOpen, onO
 					<DialogDescription className="wrap-anywhere">{contact.email}</DialogDescription>
 				</DialogHeader>
 
+				<FormContactLists contact={contact} lists={mailingLists} />
 				<section className="flex flex-col gap-2.5">
 					<h3 className="text-sm font-medium">Tags</h3>
 					{tags.length > 0 && (

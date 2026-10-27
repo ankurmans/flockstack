@@ -1,3 +1,4 @@
+import ProviderReaderLanguage from "@/components/ProviderReaderLanguage";
 import { Link2Off } from "lucide-react";
 import CardNotice from "@/components/CardNotice";
 import FormPledgeCancel from "@/components/FormPledgeCancel";
@@ -19,7 +20,7 @@ export default async function PledgePage({ searchParams }) {
 	const newsletter = reference ? await getNewsletter(reference.n) : null;
 
 	return (
-		<main className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
+		<ProviderReaderLanguage language={newsletter?.language ?? "en"}><main className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
 			{newsletter ? (
 				<FormPledgeCancel token={validToken} newsletterName={newsletter.name} />
 			) : (
@@ -27,7 +28,7 @@ export default async function PledgePage({ searchParams }) {
 					It may be too old. Reply to the email it came in if you want your pledge canceled.
 				</CardNotice>
 			)}
-		</main>
+		</main></ProviderReaderLanguage>
 	);
 }
 

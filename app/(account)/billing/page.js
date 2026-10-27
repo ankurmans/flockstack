@@ -13,7 +13,7 @@ import NoticeWelcomePaused from "@/components/NoticeWelcomePaused";
 import StateEmpty from "@/components/StateEmpty";
 import { Button } from "@/components/ui/button";
 import { getWelcomePauseNotice, isPaidStatus } from "@/lib/account-state";
-import { requireAccount } from "@/lib/auth";
+import { requirePersonalAccount } from "@/lib/auth";
 import { getBillingProviderName, hasBillingCustomer, isBillingConfigured } from "@/lib/billing-provider";
 import { isCloud } from "@/lib/config";
 import { getLapsedPlan } from "@/lib/free-plan";
@@ -28,7 +28,7 @@ export const metadata = { title: "Billing" };
 // account on Free, on a plan an admin gave or whose plan lapsed subscribes through Checkout, the same flow as a first
 // purchase; a paid plan's changes, and the way back to Free, are confirmed with the billing provider.
 export default async function BillingPage({ searchParams }) {
-	const { account } = await requireAccount();
+	const { account } = await requirePersonalAccount();
 	if (!isCloud()) return <PageBillingOff />;
 	const params = await searchParams;
 	const isPaid = isPaidStatus(account.subscriptionStatus);

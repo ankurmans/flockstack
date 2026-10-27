@@ -58,6 +58,8 @@ describe("Zapier", () => {
 		assert.equal(getBaseUrl({ region: "us" }), "https://flockstack.io");
 		assert.equal(getBaseUrl({ region: "eu" }), "https://eu.flockstack.io");
 		assert.equal(getBaseUrl({ region: "eu", serverUrl: "https://news.example.com/" }), "https://news.example.com");
+		for (const serverUrl of ["http://news.example.com", "javascript:alert(1)", "https://user:pass@news.example.com", "https://news.example.com/path", "https://news.example.com?token=private", "https://news.example.com#private"]) assert.throws(() => getBaseUrl({ serverUrl }));
+		assert.throws(() => getBaseUrl({ region: "unknown" }), /region/);
 		const auth = zapier("authentication.js");
 		assert.deepEqual(auth.fields.map(({ key }) => key), ["apiKey", "region", "serverUrl"]);
 	});
@@ -85,7 +87,8 @@ describe("Zapier", () => {
 		await m.webhooks.deliverWebhook(job.body, { fetchImpl: async (url, init) => ((delivered = JSON.parse(init.body)), new Response("ok")) });
 		const [item] = trigger.operation.perform(z, { ...bundle, cleanedRequest: delivered });
 		assert.deepEqual([item.email, item.event, item.status], ["zap@example.com", "subscriber.created", "active"]);
-		assert.match(item.id, /^subscriber\.created:[0-9a-f]{24}:/);
+		assert.equal(item.id, delivered.id);
+		assert.match(item.id, /^msg_[0-9a-f]{24}$/);
 
 		await trigger.operation.performUnsubscribe(z, { ...bundle, subscribeData });
 		assert.equal(await m.WebhookEndpoint.countDocuments({ accountId: user.accountId }), 0);

@@ -1,3 +1,4 @@
+import { getReaderText } from "@/lib/reader-languages";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import ButtonSubscribe from "@/components/ButtonSubscribe";
 import LinkReader from "@/components/LinkReader";
@@ -7,6 +8,7 @@ import { readerMarkerName } from "@/lib/reader-cookies";
 // shopLink: { href, label } while the newsletter sells something. navLinks: the writer's navigation bar, which wraps to a
 // row of its own on a phone. signinHref and accountHref: the reader's sign-in and Subscriber Center.
 export default function HeaderArchive({ newsletter, indexHref, shopLink = null, navLinks = [], signinHref, accountHref }) {
+	const t = getReaderText(newsletter);
 	return (
 		<header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur-md">
 			<div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-5 px-5">
@@ -18,7 +20,7 @@ export default function HeaderArchive({ newsletter, indexHref, shopLink = null, 
 				<div className="flex h-14 items-center gap-4">
 					{shopLink && (
 						<a href={shopLink.href} className="text-sm font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground">
-							{shopLink.label}
+							{t(shopLink.label)}
 						</a>
 					)}
 					<LinkReader

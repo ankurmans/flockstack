@@ -56,6 +56,7 @@ export default {
 		const startedAt = Date.now();
 		if (isCertificateValidationRequest(request, env)) return fetch(request);
 		const url = new URL(request.url);
+		if (url.pathname === "/api/collaboration/socket") return env.COLLABORATION_SOCKET ? env.COLLABORATION_SOCKET.fetch(request) : new Response("Collaborative editing is unavailable", { status: 503 });
 		// The marketing website is its own Worker (a private repository), reached through the WEBSITE service binding. It is
 		// FlockStack Cloud's: no binding, no APP_URL, no forwarding (a self-hosted server, or a Worker without the binding).
 		if (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { rewriteSelection } from "@/app/(app)/campaigns/actions";
 import { EditorContent, useEditor } from "@tiptap/react";
 import FileHandler from "@tiptap/extension-file-handler";
@@ -12,7 +12,9 @@ import DialogAiRewrite from "@/components/DialogAiRewrite";
 import DialogEditorBlock from "@/components/DialogEditorBlock";
 import DialogImagePicker from "@/components/DialogImagePicker";
 import FooterEditor from "@/components/FooterEditor";
+import PanelSponsorInsert from "@/components/PanelSponsorInsert";
 import MenuFormat from "@/components/MenuFormat";
+import { IssueLinkCommand } from "@/components/MenuIssueLinks";
 import { SlashCommand } from "@/components/MenuSlash";
 import { canReplace, readSelection, textToContent } from "@/lib/ai-client";
 import { LIMITS } from "@/lib/ai-writing";
@@ -30,7 +32,7 @@ const MIN_HEIGHT = "min-h-[560px]";
 // newsletterId and campaignId: where a poll made in this editor belongs. Without a newsletter, there's no poll block.
 // isAiEnabled: the selection's AI menu (rewrite, shorten, tone, translate), only where the server has Workers AI.
 // hasStockPhotos: the image picker also searches Unsplash, only where the server has an Unsplash key.
-export default function EditorRich({ content, onChange, fields = [], snippets = [], newsletterId = null, campaignId = null, isAiEnabled = false, hasStockPhotos = false }) {
+export default function EditorRich({ collaboration = null, content, onChange, fields = [], snippets = [], newsletterId = null, campaignId = null, tiers = [], isAiEnabled = false, hasStockPhotos = false }) {
 	const [isEditingLink, setIsEditingLink] = useState(false);
 	const [isPickingImage, setIsPickingImage] = useState(false);
 	// Find and replace: the bar's open, starting from this text (the selection when it was opened).
@@ -43,14 +45,16 @@ export default function EditorRich({ content, onChange, fields = [], snippets = 
 	const rewriting = useAiRun();
 	const editor = useEditor({
 		immediatelyRender: false,
-		content,
+		content: collaboration ? undefined : content,
 		extensions: [
 			StarterKit.configure({
 				heading: { levels: [1, 2, 3] },
-				codeBlock: false,
+				...(collaboration && { undoRedo: false }),
+				codeBlock: {},
 				link: { openOnClick: false, defaultProtocol: "https" },
 				dropcursor: { color: "var(--ring)", width: 2 },
 			}),
+			...(collaboration?.extensions ?? []),
 			Image.configure({
 				resize: {
 					enabled: true,
@@ -62,6 +66,7 @@ export default function EditorRich({ content, onChange, fields = [], snippets = 
 			}),
 			Callout,
 			FindReplace,
+			IssueLinkCommand.configure({ newsletterId, campaignId }),
 			...createBlockExtensions({ onEdit: (kind, attrs, pos) => setBlock({ kind, attrs, pos }) }),
 			Placeholder.configure({
 				placeholder: ({ node }) => (node.type.name === "heading" ? "Heading" : "Write, or press / for commands"),
@@ -96,8 +101,13 @@ export default function EditorRich({ content, onChange, fields = [], snippets = 
 				return true;
 			},
 		},
+		onCreate: ({ editor: current }) => { if (collaboration) { onChange(current.getHTML()); collaboration.onEditor?.(current); } },
+		onSelectionUpdate: ({ editor: current }) => collaboration?.onSelection?.(current),
 		onUpdate: ({ editor: current }) => onChange(current.getHTML()),
 	});
+
+	const editable = collaboration?.editable ?? true;
+	useEffect(() => { if (editor) editor.setEditable(editable); }, [editor, editable]);
 
 	if (!editor) return <div className={MIN_HEIGHT} />;
 
@@ -142,6 +152,7 @@ export default function EditorRich({ content, onChange, fields = [], snippets = 
 	return (
 		<>
 			{find && <BarFind key={find.query} editor={editor} initialQuery={find.query} onClose={closeFind} />}
+			<PanelSponsorInsert editor={editor} campaignId={campaignId} />
 			<EditorContent editor={editor} />
 			<FooterEditor editor={editor} onFind={() => setFind({ query: "" })} />
 			<MenuFormat editor={editor} isEditingLink={isEditingLink} onEditLink={setIsEditingLink} onAi={isAiEnabled ? startRewrite : null} />
@@ -161,12 +172,15 @@ export default function EditorRich({ content, onChange, fields = [], snippets = 
 				onOpenChange={setIsPickingImage}
 				onSelect={(image) => insertImage(editor, image)}
 				hasStock={hasStockPhotos}
+				hasAi={isAiEnabled}
+				newsletterId={newsletterId}
 			/>
 			<DialogEditorBlock
 				block={block}
 				newsletterId={newsletterId}
 				campaignId={campaignId}
 				fields={fields}
+				tiers={tiers}
 				onOpenChange={(isOpen) => !isOpen && setBlock(null)}
 				onSave={(attrs) => {
 					saveBlock(editor, block, attrs);
@@ -192,7 +206,7 @@ export default function EditorRich({ content, onChange, fields = [], snippets = 
 function saveBlock(editor, block, attrs) {
 	if (editor.isDestroyed || !block) return;
 	if (block.pos === null) {
-		editor.chain().focus().insertContent({ type: block.kind, attrs }).run();
+		editor.chain().focus().insertContent({ type: block.kind, attrs, ...(block.kind === "audienceBlock" && { content: [{ type: "paragraph" }] }) }).run();
 		return;
 	}
 	const node = editor.state.doc.nodeAt(block.pos);

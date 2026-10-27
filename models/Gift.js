@@ -32,6 +32,7 @@ const giftSchema = new mongoose.Schema(
 		redeemedAt: { type: Date },
 		contactId: { type: mongoose.Schema.Types.ObjectId, ref: "Contact" },
 		accessUntil: { type: Date },
+		referralRewardId: { type: mongoose.Schema.Types.ObjectId, ref: "ReferralReward" },
 	},
 	{ timestamps: true }
 );
@@ -42,5 +43,7 @@ giftSchema.index({ newsletterId: 1, buyerEmail: 1 });
 giftSchema.index({ status: 1, deliverOn: 1 });
 giftSchema.index({ status: 1, expiresAt: 1 });
 giftSchema.index({ paymentIntentId: 1 }, { partialFilterExpression: { paymentIntentId: { $type: "string" } } });
+
+giftSchema.index({ accountId: 1, referralRewardId: 1 }, { unique: true, partialFilterExpression: { referralRewardId: { $exists: true } } });
 
 export default mongoose.models.Gift || mongoose.model("Gift", giftSchema);

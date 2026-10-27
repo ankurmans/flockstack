@@ -10,11 +10,20 @@ async function getHeaders() {
 }
 
 test("a newsletter's signup form page alone may be framed by other sites", async () => {
-	const [, rule] = await nextConfig.headers();
+	const rules = await nextConfig.headers();
+	const rule = rules.find(rule => rule.source === "/embed/:id");
 	assert.equal(rule.source, "/embed/:id");
 	const headers = new Headers(rule.headers.map(({ key, value }) => [key, value]));
 	assert.match(headers.get("content-security-policy"), /^frame-ancestors \*; object-src 'none'; base-uri 'self'/);
-	assert.equal((await nextConfig.headers()).length, 2, "no other path is framed");
+	assert.deepEqual(rules.filter(rule => rule.headers.some(header => header.key === "X-Frame-Options" && header.value !== "DENY")).map(rule => rule.source), ["/embed/:id"], "no other path is framed");
+});
+
+test("private group capabilities stay out of caches, referrers and search results", async () => {
+	const rule = (await nextConfig.headers()).find(rule => rule.source === "/reader/groups/:path*");
+	const headers = new Headers(rule.headers.map(({ key, value }) => [key, value]));
+	assert.match(headers.get("cache-control"), /private, no-store/);
+	assert.equal(headers.get("referrer-policy"), "no-referrer");
+	assert.equal(headers.get("x-robots-tag"), "noindex, nofollow");
 });
 
 test("every response carries the CSP, HSTS and framing headers", async () => {

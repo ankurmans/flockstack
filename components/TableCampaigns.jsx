@@ -64,12 +64,12 @@ export default function TableCampaigns({ campaigns, newsletter, hasActions = fal
 											href={`/campaigns/${id}`}
 											className="min-w-0 truncate font-medium after:absolute after:inset-0"
 										>
-											{campaign.subject || "Untitled"}
+											{campaign.kind === "note" && <span className="mr-2 text-xs text-muted-foreground">Short post</span>}{campaign.subject || "Untitled"}
 										</Link>
 									</div>
 								</TableCell>
 								<TableCell>
-									<BadgeStatus status={campaign.status} />
+									<BadgeStatus status={campaign.status} label={campaign.kind === "note" && campaign.status === "sent" ? "Published" : undefined} />
 								</TableCell>
 								<TableCell className="hidden text-right tabular-nums md:table-cell">
 									{stats.recipients ? formatNumber(stats.recipients) : <TextEmpty />}

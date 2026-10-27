@@ -1,3 +1,4 @@
+import { WorkerEntrypoint } from "cloudflare:workers";
 // FlockStack Cloud's lean API Worker: the REST API (/api/v1), the MCP server (/mcp), the OAuth endpoints an MCP client calls and
 // their discovery documents, with no Next.js, React or server components. It is built from the same source modules as the app's
 // routes (scripts/build-api-worker.mjs), is bound to the same database and buckets as its region's app, and is reached through
@@ -75,3 +76,30 @@ const apiWorker = {
 };
 
 export default apiWorker;
+
+// Service binding RPC only: no HTTP route accepts a user or session reference.
+export class CollaborationAuthority extends WorkerEntrypoint {
+	async inspectTicket(ticket) {
+		setBindings(this.env);
+		return runInRequest(this.ctx, async () => (await import("../../lib/collaboration-authority.js")).inspectCollaborationTicket(ticket));
+	}
+	async authorize(reference) {
+		setBindings(this.env);
+		return runInRequest(this.ctx, async () => {
+			try { const authorityModule = await import("../../lib/collaboration-authority.js"), current = await authorityModule.currentCollaboration(reference); return { allowed: true, reference: current.reference, role: current.role, fingerprint: current.fingerprint, name: authorityModule.editorDisplayName(current.user) }; }
+			catch (error) { if (error.isActionError) return { allowed: false }; throw error; }
+		});
+	}
+	async inspect(reference) {
+		setBindings(this.env);
+		return runInRequest(this.ctx, async () => (await import("../../lib/collaboration-authority.js")).inspectCollaboration(reference));
+	}
+	async checkpoint(reference, input) {
+		setBindings(this.env);
+		return runInRequest(this.ctx, async () => {
+			const context = await (await import("../../lib/collaboration-authority.js")).currentCollaboration(reference);
+			const { runAction } = await import("../../lib/actions/run-action.js");
+			return runAction("checkpoint_campaign_collaboration", { account: context.account, user: context.user, input: { ...input, id: String(context.campaign._id) }, via: "dashboard" });
+		});
+	}
+}

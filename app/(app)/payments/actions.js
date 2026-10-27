@@ -116,6 +116,8 @@ export async function stopPledgeCharging(newsletterId) {
 export async function saveOffer(_state, formData) {
 	const type = String(formData.get("type") ?? "percent");
 	const value = Number(String(formData.get("value") ?? "").replace(",", "."));
+	const trialAmountCents = readPriceCents(formData.get("trialAmount"), { allowEmpty: true });
+	if (type === "trial" && (!Number.isFinite(trialAmountCents) || trialAmountCents < 0)) return { error: "Enter a valid trial charge, or leave it empty for a free trial" };
 	const trialDays = Number.parseInt(String(formData.get("trialDays") ?? ""), 10);
 	const months = Number.parseInt(String(formData.get("durationMonths") ?? ""), 10);
 	const limit = Number.parseInt(String(formData.get("maxRedemptions") ?? ""), 10);
@@ -132,6 +134,7 @@ export async function saveOffer(_state, formData) {
 		...(Number.isInteger(limit) && limit > 0 && { maxRedemptions: limit }),
 		...(expires && { expiresAt: new Date(`${expires}T23:59:59Z`).toISOString() }),
 		...(Number.isInteger(trialDays) && trialDays > 0 && { trialDays }),
+		...(type === "trial" && trialAmountCents > 0 && { trialAmountCents }),
 	});
 	if (failure) return toFormError(failure);
 	revalidatePath("/payments");

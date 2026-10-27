@@ -23,7 +23,7 @@ test("everything an account holds is deleted with it", async () => {
 		await import(pathToFileURL(new URL(`models/${file}`, ROOT).pathname).href);
 	}
 	// Removed by the purge itself, after what they have at the email provider, in DNS and in storage.
-	const removedLater = new Set(["Newsletter", "Domain", "Upload", "Product"]);
+	const removedLater = new Set(["Newsletter", "Domain", "Upload", "Product", "SponsorshipAsset"]);
 	const kept = new Set(CONTENT_MODELS.map((model) => model.modelName));
 	const missing = Object.values(models)
 		.filter((model) => model.schema.accountScoped && !kept.has(model.modelName) && !removedLater.has(model.modelName))

@@ -153,7 +153,7 @@ export async function saveLimits(_state, formData) {
 	const admin = await requireAdmin();
 	const accountId = String(formData.get("accountId") ?? "");
 	if (!isValidObjectId(accountId)) return { error: "Account not found" };
-	const limits = { emailsPerMonth: readLimit(formData.get("emailsPerMonth")), subscribers: readLimit(formData.get("subscribers")) };
+	const limits = { newsletters: readLimit(formData.get("newsletters")), emailsPerMonth: readLimit(formData.get("emailsPerMonth")), subscribers: readLimit(formData.get("subscribers")) };
 	const audio = formData.has("audioCharactersPerMonth") ? readLimit(formData.get("audioCharactersPerMonth")) : null;
 	if (Object.values(limits).some(Number.isNaN) || Number.isNaN(audio)) return { error: "Use whole numbers, or leave empty for the plan's" };
 

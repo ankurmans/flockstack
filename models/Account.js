@@ -160,6 +160,7 @@ const accountSchema = new mongoose.Schema(
 		sentWithLink: { type: Boolean },
 		// Set by an admin; they replace the plan's numbers.
 		limitOverrides: {
+			newsletters: { type: Number, min: 0 },
 			emailsPerMonth: { type: Number, min: 0 },
 			subscribers: { type: Number, min: 0 },
 			audioCharactersPerMonth: { type: Number, min: 0 },

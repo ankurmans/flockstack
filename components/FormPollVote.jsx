@@ -1,4 +1,5 @@
 "use client";
+import useReaderText from "@/components/useReaderText";
 
 import { useActionState, useEffect, useRef } from "react";
 import { Link2Off, Loader2, Vote } from "lucide-react";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 
 // Link scanners open the page without submitting forms, so only a person's browser casts the vote.
 export default function FormPollVote({ pollId, option, token, question, answer }) {
+	const t = useReaderText();
 	const [state, action, isPending] = useActionState(vote.bind(null, pollId, option, token), null);
 	const formRef = useRef(null);
 
@@ -17,7 +19,7 @@ export default function FormPollVote({ pollId, option, token, question, answer }
 
 	if (state?.error === "invalid") {
 		return (
-			<CardNotice icon={Link2Off} title="This link doesn't work">
+			<CardNotice icon={Link2Off} title={t("This link doesn't work")}>
 				The poll may be gone, or the link is from another newsletter&apos;s email.
 			</CardNotice>
 		);
@@ -25,10 +27,10 @@ export default function FormPollVote({ pollId, option, token, question, answer }
 
 	return (
 		<CardNotice icon={isPending ? Loader2 : Vote} spin={isPending} title={question}>
-			{state?.error === "busy" ? "Too many votes from your network. Try again in a few minutes." : `Your answer: ${answer}`}
+			{state?.error === "busy" ? t("Too many votes from your network. Try again in a few minutes.") : t("Your answer: {answer}", { answer })}
 			<form ref={formRef} action={action} className="mt-6">
 				<Button type="submit" size="lg" disabled={isPending} className="w-full">
-					{isPending ? "Voting…" : "Vote"}
+					{isPending ? t("Voting…") : t("Vote")}
 				</Button>
 			</form>
 		</CardNotice>

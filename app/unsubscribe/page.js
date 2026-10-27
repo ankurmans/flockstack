@@ -1,3 +1,5 @@
+import ProviderReaderLanguage from "@/components/ProviderReaderLanguage";
+import { getReaderText } from "@/lib/reader-languages";
 import { CircleAlert, Link2Off, MailCheck, MailX } from "lucide-react";
 import FormSurveyResponse from "@/components/FormSurveyResponse";
 import { Button } from "@/components/ui/button";
@@ -23,13 +25,14 @@ export default async function UnsubscribePage({ searchParams }) {
 	const reference = verifyUnsubscribeToken(validToken);
 	const subscription = reference ? await getSubscription(reference) : null;
 	const view = getView({ reference, status, subscription });
-	const { icon: Icon, title, description } = getCopy(view, subscription?.newsletterName);
+	const { icon: Icon, title, description } = getCopy(view, subscription?.newsletterName, subscription?.newsletter);
+	const t = getReaderText(subscription?.newsletter);
 	const hasForm = view === "confirm" || view === "error";
 	// Once they've left, the newsletter's unsubscribe survey asks why, as that subscriber.
 	const survey = view === "done" && subscription?.newsletter ? await getLeavingSurvey(subscription.newsletter) : null;
 
 	return (
-		<main className="theme-neutral flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-16">
+		<main lang={subscription?.newsletter?.language ?? "en"} className="theme-neutral flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-16">
 			<div className="w-full max-w-sm rounded-xl bg-card p-6 text-center shadow-border sm:p-8">
 				<div className="mx-auto flex size-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
 					<Icon className="size-5" aria-hidden="true" />
@@ -43,7 +46,7 @@ export default async function UnsubscribePage({ searchParams }) {
 					<form method="post" action={`/api/unsubscribe?token=${validToken}`} className="mt-6">
 						<input type="hidden" name="source" value="page" />
 						<Button type="submit" size="lg" className="w-full">
-							Unsubscribe
+							{t("Unsubscribe")}
 						</Button>
 					</form>
 				)}
@@ -52,12 +55,12 @@ export default async function UnsubscribePage({ searchParams }) {
 				<div className="mt-4 w-full max-w-sm rounded-xl bg-card p-6 shadow-border sm:p-8">
 					<h2 className="text-base font-semibold tracking-tight text-balance">{survey.title}</h2>
 					{survey.intro && <p className="mt-1.5 text-sm text-pretty text-muted-foreground">{survey.intro}</p>}
-					<FormSurveyResponse
+					<ProviderReaderLanguage language={subscription?.newsletter?.language ?? "en"}><FormSurveyResponse
 						survey={{ id: String(survey._id), questions: survey.questions }}
 						token={createSubscriberToken("survey", reference)}
 						source="unsubscribe"
 						className="mt-5"
-					/>
+					/></ProviderReaderLanguage>
 				</div>
 			)}
 		</main>
@@ -99,29 +102,30 @@ function getView({ reference, status, subscription }) {
 	return subscription?.isSubscribed === false ? "done" : "confirm";
 }
 
-function getCopy(view, newsletterName) {
+function getCopy(view, newsletterName, newsletter) {
+	const t = getReaderText(newsletter);
 	const name = newsletterName || "this newsletter";
 	return {
 		invalid: {
 			icon: Link2Off,
-			title: "This link doesn't work",
+			title: t("This link doesn't work"),
 			description:
-				"Open the unsubscribe link from the email again, or reply to the email to ask to be removed.",
+				t("Open the unsubscribe link from the email again, or reply to the email to ask to be removed."),
 		},
 		confirm: {
 			icon: MailX,
-			title: `Unsubscribe from ${name}?`,
-			description: "You'll stop receiving its emails.",
+			title: t("Unsubscribe from {name}?", { name }),
+			description: t("You'll stop receiving its emails."),
 		},
 		error: {
 			icon: CircleAlert,
-			title: "Something went wrong",
-			description: `You're still subscribed to ${name}. Try again in a minute.`,
+			title: t("Something went wrong"),
+			description: t("You're still subscribed to {name}. Try again in a minute.", { name }),
 		},
 		done: {
 			icon: MailCheck,
-			title: "You're unsubscribed",
-			description: `You won't receive emails from ${name} anymore.`,
+			title: t("You're unsubscribed"),
+			description: t("You won't receive emails from {name} anymore.", { name }),
 		},
 	}[view];
 }

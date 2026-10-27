@@ -18,6 +18,7 @@ export default async function FormPage({ params }) {
 	const current = await getSelectedNewsletter();
 	openNewsletter(current, form.newsletterId, `/forms/${id}`);
 	const fields = await listCustomFields(current.account, form.newsletterId);
+	const surveyResult = await runDashboardAction("list_surveys", { newsletter: form.newsletterId });
 	const most = Math.max(1, ...form.days.map(({ views }) => views));
 
 	return (
@@ -27,6 +28,7 @@ export default async function FormPage({ params }) {
 				<FormEmbedSettings
 					newsletterId={form.newsletterId}
 					form={form}
+					surveys={(surveyResult.output?.surveys ?? []).filter((s) => !s.closed).map(({ id, title }) => ({ id, title }))}
 					fields={fields.map(({ key, label, type, options, multiple }) => ({ key, label, type, options: options ?? [], multiple: Boolean(multiple) }))}
 					accent={getAccent(current.selected)}
 				/>

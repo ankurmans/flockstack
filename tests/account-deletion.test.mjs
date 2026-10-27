@@ -567,3 +567,27 @@ describe("the purge", () => {
 		}
 	});
 });
+
+test("account purge removes original sponsor objects before their records and preserves other accounts' files", async () => {
+	const user = await customer("purge-sponsor@example.com", "purge-sponsor-news");
+	const Asset = (await import("../models/SponsorshipAsset.js")).default;
+	const { files } = await import("./stubs/opennext-cloudflare.mjs");
+	const key = `accounts/${user.accountId}/sponsorships/${user.campaignId}/original.png`, foreign = "accounts/ffffffffffffffffffffffff/sponsorships/private/original.png";
+	files.set(key, { bytes: PNG, contentType: "image/png" }); files.set(foreign, { bytes: PNG, contentType: "image/png" });
+	await Asset.create({ accountId: user.accountId, newsletterId: user.newsletterId, bookingId: user.campaignId, key, externalId: crypto.randomUUID(), sha256: "0".repeat(64), fileName: "original.png", contentType: "image/png", bytes: PNG.length, status: "ready" });
+	await cancelPlan(user); await deleteAccount(user);
+	assert.deepEqual(await purgeNow(user), { purged: true });
+	assert.equal(files.has(key), false); assert.equal(files.has(foreign), true);
+	assert.equal(await Asset.countDocuments({ accountId: user.accountId }), 0);
+});
+test("account purge removes private object copies before editor snapshot and thread rows", async () => {
+	const user = await customer("editor-purge@example.com", "editor-purge-news"), other = await customer("editor-purge-other@example.com", "editor-purge-other-news");
+	const Snapshot = (await import("../models/CampaignCollaboration.js")).default, Thread = (await import("../models/EditorThread.js")).default, { setCollaborationStorage } = await import("./stubs/opennext-cloudflare.mjs");
+	const seed = owner => Snapshot.create({ accountId: owner.accountId, newsletterId: owner.newsletterId, campaignId: owner.campaignId, epoch: crypto.randomUUID(), fingerprint: "0".repeat(64), state: "private-state", checkpointAt: new Date() });
+	await seed(user); await seed(other);
+	await Thread.create({ accountId: user.accountId, newsletterId: user.newsletterId, campaignId: user.campaignId, epoch: crypto.randomUUID(), externalId: crypto.randomUUID(), authorName: "Synthetic editor", body: "Private thread" });
+	const purged = [];
+	setCollaborationStorage({ async purgeRooms(accountId, campaigns) { assert.equal(accountId, String(user.accountId)); assert.deepEqual(campaigns, [String(user.campaignId)]); assert.equal(await Snapshot.countDocuments({ accountId: user.accountId }), 1); assert.equal(await Thread.countDocuments({ accountId: user.accountId }), 1); purged.push(...campaigns); } });
+	try { await cancelPlan(user); await deleteAccount(user); assert.deepEqual(await purgeNow(user), { purged: true }); assert.equal(purged.length, 1); assert.equal(await Snapshot.countDocuments({ accountId: user.accountId }), 0); assert.equal(await Thread.countDocuments({ accountId: user.accountId }), 0); assert.equal(await Snapshot.countDocuments({ accountId: other.accountId }), 1); }
+	finally { setCollaborationStorage(null); }
+});

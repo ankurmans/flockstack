@@ -1,4 +1,5 @@
 "use client";
+import useReaderText from "@/components/useReaderText";
 
 import { useActionState, useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { Loader2, Lock, MailCheck } from "lucide-react";
@@ -18,6 +19,7 @@ function noop() {
 // the newsletter (an emailed link, or a confirmation) asks for the rest like a paid reader's does (lib/reader-access.js), and the
 // server gives it only to a subscriber who is still active. Anyone else subscribes, or asks for a sign-in link if they already do.
 export default function GateIssue({ preview, newsletter, post, subscribeHref, audio = null }) {
+	const t = useReaderText();
 	// The marker cookie says this browser has a session for the newsletter; the page is cached, so only the browser can tell.
 	const hasSession = useSyncExternalStore(
 		noop,
@@ -50,7 +52,7 @@ export default function GateIssue({ preview, newsletter, post, subscribeHref, au
 	);
 
 	if (status === "open") {
-		return <BodyIssue slug={newsletter.slug} post={post} initial={full} newsletterName={newsletter.name} subscribeHref={subscribeHref} audio={audio} isOpened />;
+		return <BodyIssue readerTranslations={Boolean(newsletter.readerTranslations)} language={newsletter.language ?? "en"} slug={newsletter.slug} post={post} initial={full} newsletterName={newsletter.name} subscribeHref={subscribeHref} audio={audio} isOpened />;
 	}
 
 	return (
@@ -64,22 +66,22 @@ export default function GateIssue({ preview, newsletter, post, subscribeHref, au
 					</span>
 					{status === "checking" ? (
 						<p role="status" className="text-sm text-muted-foreground">
-							Opening the full issue.
+							{t("Opening the full issue.")}
 						</p>
 					) : (
 						<>
 							<h2 id="gate-title" className="text-xl font-semibold tracking-tight text-balance">
-								Subscribe to read the rest
+								{t("Subscribe to read the rest")}
 							</h2>
 							<p className="max-w-sm text-muted-foreground text-pretty">
-								{newsletter.name} is free. Enter your email to keep reading, and get every issue in your inbox.
+								{t("{name} is free. Enter your email to keep reading, and get every issue in your inbox.", { name: newsletter.name })}
 							</p>
 							<FormSubscribe newsletterSlug={newsletter.slug} fields={newsletter.signupFields} via="gate" onResult={onJoined} className="mt-3 max-w-sm" />
 							{joined && (
 								<p role="status" className="max-w-sm text-sm text-pretty text-muted-foreground">
 									{joined === "pending"
-										? "Click the link in the email we sent, in this browser: it signs you in here and opens the full issue."
-										: "You're subscribed. To read the rest here, ask for a sign-in link below."}
+										? t("Click the confirmation link in this browser to open the full issue.")
+										: t("You're subscribed. Ask for a sign-in link below to read the rest.")}
 								</p>
 							)}
 							<FormSignIn slug={newsletter.slug} post={post} />
@@ -93,6 +95,7 @@ export default function GateIssue({ preview, newsletter, post, subscribeHref, au
 
 // "Already subscribed?": a link by email, no password. The answer is the same for every address.
 function FormSignIn({ slug, post }) {
+	const t = useReaderText();
 	const [isAsking, setIsAsking] = useState(false);
 	const [state, action, isPending] = useActionState(requestGateSignIn, null);
 
@@ -138,7 +141,7 @@ function FormSignIn({ slug, post }) {
 			</div>
 			{state?.error && (
 				<p role="alert" className="text-sm text-destructive">
-					{state.error}
+					{t.error(state.error)}
 				</p>
 			)}
 		</form>

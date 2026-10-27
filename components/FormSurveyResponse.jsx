@@ -1,4 +1,5 @@
 "use client";
+import useReaderText from "@/components/useReaderText";
 
 import { useActionState } from "react";
 import { Check, Loader2 } from "lucide-react";
@@ -9,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 // A survey's questions as a reader answers them. token: a subscriber's link, or null. source: page, signup or unsubscribe.
 export default function FormSurveyResponse({ survey, token, source = "page", className }) {
+	const t = useReaderText();
 	const [state, action, isPending] = useActionState(answerSurvey.bind(null, survey.id, token, source), null);
 
 	if (state?.ok) {
@@ -27,11 +29,11 @@ export default function FormSurveyResponse({ survey, token, source = "page", cla
 			))}
 			{state?.error && (
 				<p role="alert" className="text-sm text-destructive">
-					{state.error}
+					{t.error(state.error)}
 				</p>
 			)}
 			<Button type="submit" size="lg" disabled={isPending}>
-				{isPending ? <Loader2 className="animate-spin" /> : "Send"}
+				{isPending ? <Loader2 className="animate-spin" /> : t("Send")}
 			</Button>
 		</form>
 	);
@@ -40,11 +42,12 @@ export default function FormSurveyResponse({ survey, token, source = "page", cla
 const INPUT = "h-10 w-full rounded-lg border border-input bg-transparent px-3 text-base outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring md:text-sm";
 
 function Question({ question }) {
+	const t = useReaderText();
 	const { id, type, label, options, required } = question;
 	const title = (
 		<legend className="mb-2 text-sm font-medium text-foreground">
 			{label}
-			{!required && <span className="font-normal text-muted-foreground"> (optional)</span>}
+			{!required && <span className="font-normal text-muted-foreground"> {t("(optional)")}</span>}
 		</legend>
 	);
 	if (type === "short_text" || type === "long_text") {
@@ -52,7 +55,7 @@ function Question({ question }) {
 			<label className="flex flex-col gap-2 text-sm font-medium text-foreground">
 				<span>
 					{label}
-					{!required && <span className="font-normal text-muted-foreground"> (optional)</span>}
+					{!required && <span className="font-normal text-muted-foreground"> {t("(optional)")}</span>}
 				</span>
 				{type === "short_text" ? <input name={id} required={required} maxLength={200} className={INPUT} /> : <Textarea name={id} required={required} maxLength={2000} rows={4} />}
 			</label>
@@ -73,7 +76,7 @@ function Question({ question }) {
 						</label>
 					))}
 				</div>
-				{type === "nps" && <p className="mt-1.5 flex justify-between text-xs text-muted-foreground"><span>Not likely</span><span>Very likely</span></p>}
+				{type === "nps" && <p className="mt-1.5 flex justify-between text-xs text-muted-foreground"><span>{t("Not likely")}</span><span>{t("Very likely")}</span></p>}
 			</fieldset>
 		);
 	}

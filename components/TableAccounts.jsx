@@ -98,7 +98,7 @@ export default function TableAccounts({ accounts, pinnedId }) {
 										canGiveFreePlan={hasPlans}
 										freePlan={freePlan}
 										overrides={account.limitOverrides ?? {}}
-										planLimits={{ emailsPerMonth: plan.emailsPerMonth, subscribers: plan.subscribers }}
+										planLimits={{ emailsPerMonth: plan.emailsPerMonth, subscribers: plan.subscribers, newsletters: plan.newsletters }}
 										audioPlanLimit={isAudioEnabled() ? (AUDIO_CHARACTERS_PER_MONTH[plan.id] ?? 0) : null}
 									/>
 								</TableCell>

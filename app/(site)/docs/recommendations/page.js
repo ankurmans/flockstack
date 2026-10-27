@@ -30,7 +30,7 @@ export default function RecommendationsPage() {
 				</p>
 				<p className="mt-4">It is refused, with the reason, when the other newsletter:</p>
 				<ul className="mt-3 list-disc space-y-1.5 pl-5 marker:text-muted-foreground">
-					<li>is in your own account. Recommendations are between different accounts, so they can&apos;t be used to grow a list in a loop;</li>
+					<li>is the same newsletter: a newsletter cannot recommend itself. Another brand in your own account can be recommended, with the same reader opt-in;</li>
 					<li>turned off incoming recommendations;</li>
 					<li>doesn&apos;t ask new subscribers to confirm their email;</li>
 					<li>has its website off, or hasn&apos;t sent its first issue, so readers would have no page to sign up on;</li>

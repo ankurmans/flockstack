@@ -95,7 +95,7 @@ export default function WebhooksPage() {
 					))}
 				</ul>
 				<p className="mt-4">
-					Subscriber events carry the subscriber with the same fields, by the same names, as the API&apos;s contacts. Contacts added by an
+					Subscriber lifecycle events carry the subscriber with the same fields, by the same names, as the API&apos;s contacts, except <Code>subscriber.deleted</Code>, which carries IDs only. New issue, comment, incoming-reply and Reply Rules events carry IDs only; read their current state through the scoped API. Publication is separate from email delivery. Contacts added by an
 					import send no events, so a large import doesn&apos;t flood your endpoint. <Code>webhook.test</Code> is only sent when you ask for a
 					test event.
 				</p>
@@ -131,7 +131,7 @@ export default function WebhooksPage() {
 				<p>
 					An answer other than 2xx, a redirect, or no answer in 15 seconds is a failure. FlockStack tries again after 1 minute, 5 minutes, 30
 					minutes, 2 hours, 6 hours, 12 hours, then once a day: {MAX_ATTEMPTS} attempts over about 5 days. Every attempt has the same{" "}
-					<Code>webhook-id</Code>, so you can tell a repeat from a new event. Events can arrive out of order.
+					<Code>webhook-id</Code>, so you can tell a repeat from a new event. The payload&apos;s top-level <Code>id</Code> is the same identity, including on retries or manual redelivery. Events can arrive out of order.
 				</p>
 				<p className="mt-4">
 					An endpoint that hasn&apos;t accepted an event through those 5 days is turned off, and the account&apos;s owner gets an email. So is

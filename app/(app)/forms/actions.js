@@ -13,6 +13,8 @@ function readForm(values) {
 		colors: Object.fromEntries(["button", "buttonText", "background", "text"].map((key) => [key, String(colors[key] ?? "")])),
 		successMessage: String(values?.successMessage ?? ""),
 		redirectUrl: String(values?.redirectUrl ?? ""),
+		...(typeof values?.archiveDefault === "boolean" && { archiveDefault: values.archiveDefault }),
+		...(Array.isArray(values?.flow) && { flow: values.flow.map(({ type, surveyId }) => ({ type: String(type), ...(surveyId && { surveyId: String(surveyId) }) })) }),
 	};
 }
 

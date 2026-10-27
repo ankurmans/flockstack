@@ -1,8 +1,11 @@
-import { formatPrice } from "@/lib/payments/config";
+import { getReaderText } from "@/lib/reader-languages";
+import { formatPrice as priceInCurrency } from "@/lib/payments/config";
 import { cn } from "@/lib/utils";
 
 // A product in the newsletter's shop. A cover image is an https link the seller chose; it loads as a plain image.
-export default function CardProduct({ product, href, className }) {
+export default function CardProduct({ language = "en", product, href, className }) {
+	const t = getReaderText(language);
+	const formatPrice = (cents, currency) => priceInCurrency(cents, currency, t.language);
 	return (
 		<a href={href} className={cn("group flex flex-col gap-4", className)}>
 			<div className="relative aspect-[1200/630] overflow-hidden rounded-xl bg-muted outline -outline-offset-1 outline-black/10 dark:outline-white/10">

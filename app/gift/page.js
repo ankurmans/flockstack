@@ -1,3 +1,4 @@
+import ProviderReaderLanguage from "@/components/ProviderReaderLanguage";
 import { Link2Off } from "lucide-react";
 import CardNotice from "@/components/CardNotice";
 import FormGiftRedeem from "@/components/FormGiftRedeem";
@@ -16,7 +17,7 @@ export default async function GiftPage({ searchParams }) {
 	const gift = validToken ? await readGiftForPage(validToken).catch(() => null) : null;
 
 	return (
-		<main className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
+		<ProviderReaderLanguage language={gift?.language ?? "en"}><main className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
 			{gift ? (
 				<FormGiftRedeem token={validToken} gift={gift} />
 			) : (
@@ -24,6 +25,6 @@ export default async function GiftPage({ searchParams }) {
 					Check that you opened the whole link from the email.
 				</CardNotice>
 			)}
-		</main>
+		</main></ProviderReaderLanguage>
 	);
 }

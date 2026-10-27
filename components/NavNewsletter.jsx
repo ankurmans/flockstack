@@ -11,7 +11,7 @@ export default async function NavNewsletter({ isCompact }) {
 	const sharedDomain = getSharedDomain();
 	const limit = getNewsletterLimit(account);
 	const limitMessage = getNewsletterLimitMessage(account);
-	const isAtLimit = newsletters.length >= limit;
+	const isAtLimit = limit !== null && newsletters.length >= limit;
 	const domains = isAtLimit || sharedDomain ? [] : await findAccountDomains(account._id);
 
 	return (

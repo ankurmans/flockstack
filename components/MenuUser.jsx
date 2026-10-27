@@ -23,6 +23,10 @@ import { cn } from "@/lib/utils";
 
 // The account's own pages, shared by every newsletter: they are set up once and used less than the sidebar's.
 const ACCOUNT_PAGES = [
+	{ href: "/replies", label: "Replies", icon: Activity },
+	{ href: "/reader-settings", label: "Reader settings", icon: Globe },
+	{ href: "/team", label: "Team and workspaces", icon: UserRound },
+	{ href: "/fleet", label: "Brand fleet", icon: Globe },
 	{ href: "/media", label: "Media", icon: Images },
 	{ href: "/domains", label: "Domains", icon: Globe },
 	{ href: "/api-keys", label: "API keys", icon: KeyRound },

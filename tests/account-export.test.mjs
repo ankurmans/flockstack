@@ -131,6 +131,21 @@ after(() => {
 	return app?.stop();
 });
 
+test("account export includes group seats and source records without authentication leases or link versions", async () => {
+	const user = await customer("export-groups@example.com"), other = await customer("export-groups-other@example.com");
+	const Group = (await import("../models/GroupSubscription.js")).default;
+	const [reader] = await addContacts(user, [{ email: "seat-export@example.com", status: "active", paidPersonal: { kind: "stripe", status: "active", tierId: "paid", until: new Date("2027-01-01") }, paidPersonalLease: "PRIVATE_PERSONAL_LEASE" }]);
+	const make = (owner, email) => Group.create({ accountId: owner.accountId, newsletterId: owner.newsletter._id, buyerEmail: email, tierId: "paid", option: "month", requestedSeats: 2, chargeAccount: "direct", billingLease: "PRIVATE_GROUP_LEASE", managerVersion: 927451, stripeSubscriptionId: `sub_export_${owner === user ? "owned" : "foreign"}`, seats: [{ id: "synthetic-seat-id", email: reader.email, contactId: reader._id, status: "active", consentedAt: new Date(), invitationVersion: 816342 }] });
+	await make(user, "buyer-export@example.com"); await make(other, "FOREIGN_GROUP_ADDRESS@example.com");
+	const { latest } = await exportAndWait(user); assert.equal(latest.body.status, "ready");
+	const files = readZip(await readResponseBytes(await download(latest.body.downloadUrls[0])));
+	const groups = files.get("group-subscriptions.csv").toString();
+	assert.match(groups, /buyer-export@example.com/); assert.match(groups, /seat-export@example.com/); assert.match(groups, /consentedAt/);
+	assert.doesNotMatch(groups, /PRIVATE_GROUP_LEASE|927451|816342|FOREIGN_GROUP_ADDRESS|managerVersion|invitationVersion/);
+	const sources = files.get("reader-paid-sources.csv").toString(); assert.match(sources, /stripe/); assert.doesNotMatch(sources, /PRIVATE_PERSONAL_LEASE/);
+	assert.ok((await import("../lib/account-purge.js")).CONTENT_MODELS.includes(Group));
+});
+
 describe("the ZIP writer", () => {
 	test("streams stored files with correct sizes and checksums, and says its size beforehand", async () => {
 		const parts = new Map([
@@ -186,7 +201,7 @@ describe("an export", () => {
 		const user = await customer("export-owner@example.com", { slug: "field-notes" });
 		const second = await m.Newsletter.create({ accountId: user.accountId, name: "Second", slug: "second", fromEmail: "hello@second.flockstackmail.com" });
 		await addContacts(user, [
-			{ email: "ann@example.org", status: "active", source: "website", subscribedAt: new Date("2026-01-02T10:00:00Z"), confirmedAt: new Date("2026-01-02T10:05:00Z"), stats: { sent: 4, opens: 3, clicks: 1 }, lastOpenAt: new Date("2026-09-01T00:00:00Z") },
+			{ email: "ann@example.org", listIds: ["weekly-list"], status: "active", source: "website", subscribedAt: new Date("2026-01-02T10:00:00Z"), confirmedAt: new Date("2026-01-02T10:05:00Z"), stats: { sent: 4, opens: 3, clicks: 1 }, lastOpenAt: new Date("2026-09-01T00:00:00Z") },
 			{ email: "bob@example.org", status: "unsubscribed", source: "api", unsubscribedAt: new Date("2026-03-03T00:00:00Z") },
 			{ email: "=SUM(1;1)@example.org", status: "pending" },
 		]);
@@ -194,9 +209,12 @@ describe("an export", () => {
 		await m.Suppression.create({ accountId: user.accountId, email: "gone@example.org", reason: "bounce", detail: "550 no such user" });
 
 		const mine = await m.Upload.create({ accountId: user.accountId, url: `${IMAGE_HOST}/accounts/a/cover-1111.png`, pathname: "accounts/a/cover-1111.png", contentType: "image/png", bytes: PNG.length });
+		const ApiKey = (await import("../models/ApiKey.js")).default;
+		await ApiKey.create({ accountId: user.accountId, newsletterId: user.newsletter._id, purpose: "assistant", name: "EXPORTED_ASSISTANT_GRANT", prefix: "Internal assistant", hash: "synthetic-own-assistant-hash", level: "drafts", dailyCap: 100, expiresAt: new Date("2027-01-01T00:00:00Z") });
+		await m.Upload.updateOne({ accountId: user.accountId, _id: mine._id }, { $set: { generatedBy: "synthetic-own-model", generatedAt: new Date("2026-10-25T00:00:00Z") } });
 		await m.Upload.create({ accountId: user.accountId, url: `${IMAGE_HOST}/accounts/a/gone-2222.png`, pathname: "accounts/a/gone-2222.png", contentType: "image/png", bytes: 10 });
 		const other = await customer("export-other@example.com", { slug: "other-notes" });
-		await m.Upload.create({ accountId: other.accountId, url: `${IMAGE_HOST}/accounts/b/theirs-3333.png`, pathname: "accounts/b/theirs-3333.png", contentType: "image/png", bytes: 10 });
+		await m.Upload.create({ accountId: other.accountId, url: `${IMAGE_HOST}/accounts/b/theirs-3333.png`, pathname: "accounts/b/theirs-3333.png", contentType: "image/png", bytes: 10, generatedBy: "synthetic-foreign-model", generatedAt: new Date() });
 
 		const rich = await addIssue(user, {
 			subject: 'Pricing: "charge" more & <better>',
@@ -208,6 +226,49 @@ describe("an export", () => {
 		await addIssue(user, { subject: "Designed", archiveSlug: "designed", format: "html", html: "<!doctype html><html><head><title>x</title></head><body><h1>Designed issue</h1><p>Body</p></body></html>" });
 		await addIssue(user, { subject: "Unfinished draft", status: "draft", html: "<p>Still writing</p>", sentAt: undefined, startedAt: undefined });
 
+		const MeteredRead = (await import("../models/MeteredRead.js")).default;
+		const annContact = await m.Contact.findOne({ accountId: user.accountId, email: "ann@example.org" }).lean();
+		await MeteredRead.create({ accountId: user.accountId, newsletterId: user.newsletter._id, contactId: annContact._id, period: "2026-10", count: 1, issueIds: [String(rich._id)], expiresAt: new Date("2026-11-08") });
+		await MeteredRead.create({ accountId: other.accountId, newsletterId: other.newsletter._id, contactId: annContact._id, period: "PRIVATE_OTHER_ACCOUNT", count: 0, expiresAt: new Date("2026-11-08") });
+		await m.Newsletter.updateOne({ accountId: user.accountId, _id: user.newsletter._id }, { $set: { mailingLists: [{ id: "weekly-list", name: "Weekly", description: "Fridays", archived: false }], meteredReadsPerMonth: 2 } });
+		await m.Contact.updateOne({ accountId: user.accountId, _id: annContact._id }, { $set: { "community.supporterBadge": true, "community.badgeUpdatedAt": new Date("2026-10-25T00:00:00Z") } });
+		const foreignBadge = await m.Contact.create({ accountId: other.accountId, newsletterId: other.newsletter._id, email: "foreign-badge@example.com", status: "active", community: { supporterBadge: true, badgeUpdatedAt: new Date("2026-10-25T00:00:00Z") } });
+		const CreatorConversation = (await import("../models/CreatorConversation.js")).default;
+		const CreatorMessage = (await import("../models/CreatorMessage.js")).default;
+		const ownConversation = await CreatorConversation.create({ accountId: user.accountId, newsletterId: user.newsletter._id, otherNewsletterId: other.newsletter._id, otherName: "Other creator" });
+		await CreatorMessage.create({ accountId: user.accountId, newsletterId: user.newsletter._id, conversationId: ownConversation._id, messageKey: "export-own", fromNewsletterId: user.newsletter._id, toNewsletterId: other.newsletter._id, fromName: "Creator", body: "Private own introduction", direction: "outgoing" });
+		const foreignConversation = await CreatorConversation.create({ accountId: other.accountId, newsletterId: other.newsletter._id, otherNewsletterId: user.newsletter._id, otherName: "Creator" });
+		const SubscriptionFinancial = (await import("../models/SubscriptionFinancial.js")).default;
+		const SubscriptionChange = (await import("../models/SubscriptionChange.js")).default;
+		const SubscriptionInvoice = (await import("../models/SubscriptionInvoice.js")).default;
+		await SubscriptionFinancial.create({ accountId: user.accountId, newsletterId: user.newsletter._id, subscriptionId: "sub_export_own", state: { currency: "eur", status: "active", monthlyRecurringMinor: 1000 }, firstObservedAt: new Date(), observedAt: new Date(), source: "refresh" });
+		await SubscriptionFinancial.create({ accountId: other.accountId, newsletterId: other.newsletter._id, subscriptionId: "sub_export_foreign", state: { currency: "usd", status: "active", monthlyRecurringMinor: 9999 }, firstObservedAt: new Date(), observedAt: new Date(), source: "refresh" });
+		await SubscriptionChange.create({ accountId: user.accountId, newsletterId: user.newsletter._id, subscriptionId: "sub_export_own", eventKey: "financial-export-own", after: { currency: "eur", monthlyRecurringMinor: 1000 }, at: new Date(), source: "refresh", providerEventId: "evt_finance_export_own" });
+		await SubscriptionInvoice.create({ accountId: user.accountId, newsletterId: user.newsletter._id, subscriptionId: "sub_export_own", invoiceId: "in_export_own", currency: "eur", amountPaidMinor: 1000, paidAt: new Date(), observedAt: new Date(), sourceAt: new Date(), source: "refresh" });
+		await SubscriptionInvoice.create({ accountId: other.accountId, newsletterId: other.newsletter._id, subscriptionId: "sub_export_foreign", invoiceId: "in_export_foreign", currency: "usd", amountPaidMinor: 9999, paidAt: new Date(), observedAt: new Date(), sourceAt: new Date(), source: "refresh" });
+
+		await CreatorMessage.create({ accountId: other.accountId, newsletterId: other.newsletter._id, conversationId: foreignConversation._id, messageKey: "export-foreign", fromNewsletterId: other.newsletter._id, toNewsletterId: user.newsletter._id, fromName: "Other", body: "Foreign only message fixture", direction: "outgoing" });
+
+		const Offer = (await import("../models/Offer.js")).default;
+		await Offer.create({ accountId: user.accountId, newsletterId: user.newsletter._id, name: "EXPORTED_TRIAL_FEE", code: "export-trial", type: "trial", trialDays: 14, trialAmountCents: 150, currency: "eur", trialNoCard: false });
+		await Offer.create({ accountId: other.accountId, newsletterId: other.newsletter._id, name: "FOREIGN_TRIAL_FEE", code: "private-trial", type: "trial", trialDays: 14, trialAmountCents: 100, currency: "usd" });
+		const Form = (await import("../models/Form.js")).default;
+		const flowForm = await Form.create({ accountId: user.accountId, newsletterId: user.newsletter._id, name: "EXPORTED_SIGNUP_FLOW", flow: [{ type: "upsell" }], redirectUrl: "https://example.com/finished" });
+		await Form.create({ accountId: other.accountId, newsletterId: other.newsletter._id, name: "FOREIGN_SIGNUP_FLOW", flow: [] });
+		await m.Newsletter.updateOne({ accountId: user.accountId, _id: user.newsletter._id }, { $set: { signupFlowFormId: flowForm._id } });
+		const ReferralCode = (await import("../models/ReferralCode.js")).default;
+		const ReferralReward = (await import("../models/ReferralReward.js")).default;
+		const Gift = (await import("../models/Gift.js")).default;
+		const receipt = await ReferralReward.create({ accountId: user.accountId, newsletterId: user.newsletter._id, contactId: annContact._id, rewardId: "aabbccddeeff", referrals: 1, benefit: { kind: "code", title: "Private inventory" }, state: "ready" });
+		await ReferralCode.create({ accountId: user.accountId, newsletterId: user.newsletter._id, rewardId: "aabbccddeeff", code: "EXPORT_EXACT_CODE", codeHash: "synthetic-code-hash", receiptId: receipt._id, assignedAt: new Date() });
+		await ReferralCode.create({ accountId: other.accountId, newsletterId: other.newsletter._id, rewardId: "aabbccddeeff", code: "FOREIGN_PRIVATE_CODE", codeHash: "foreign-synthetic-code-hash" });
+		const gift = await Gift.create({ accountId: user.accountId, newsletterId: user.newsletter._id, tierId: "paid", months: 1, amountCents: 0, currency: "usd", buyerEmail: "writer@example.com", recipientEmail: annContact.email, deliverOn: new Date(), status: "redeemed", referralRewardId: receipt._id });
+		await m.Contact.updateOne({ accountId: user.accountId, _id: annContact._id }, { $set: { [`giftReceipts.${gift._id}`]: "2027-01-31T00:00:00.000Z" } });
+		const Automation = (await import("../models/Automation.js")).default;
+		const Message = (await import("../models/Message.js")).default;
+		const flow = await Automation.create({ accountId: user.accountId, newsletterId: user.newsletter._id, name: "Exportable A/B", trigger: { type: "api" }, steps: [{ id: "welcome", type: "email", subject: "Base", format: "markdown", markdown: "Base body", variants: [{ id: "a", percent: 50 }, { id: "b", percent: 50, subject: "EXPORTED_VARIANT_COPY" }] }] });
+		await Message.create({ accountId: user.accountId, newsletterId: user.newsletter._id, kind: "automation", automationId: flow._id, enrollmentId: annContact._id, stepId: "welcome", contactId: annContact._id, email: annContact.email, automationVariantId: "b", automationVariantName: "Alternative", automationExperimentId: "synthetic-allocation", automationVariantVersion: "synthetic-copy", automationVariantPhase: "test", sentAt: new Date(), status: "sent" });
+		await Message.create({ accountId: other.accountId, newsletterId: other.newsletter._id, kind: "automation", automationId: flow._id, enrollmentId: other.accountId, stepId: "private", email: "other@example.com", automationVariantId: "OTHER_ACCOUNT_AB_RECORD" });
 		const { started, results, latest } = await exportAndWait(user);
 		assert.equal(started.body.status, "queued");
 		assert.equal(started.body.started, true);
@@ -234,12 +295,46 @@ describe("an export", () => {
 		const paths = [...zip.keys()];
 		assert.deepEqual(paths.slice(0, 2), ["README.txt", "manifest.json"], "the manifest and README come first");
 
+		assert.match(text("comment-badges.csv"), new RegExp(`${annContact._id},${user.newsletter._id},true,2026-10-25`));
+		assert.doesNotMatch(text("comment-badges.csv"), new RegExp(String(foreignBadge._id)));
+		assert.match(text("creator-conversations.csv"), new RegExp(String(ownConversation._id)));
+		assert.doesNotMatch(text("creator-conversations.csv"), new RegExp(String(foreignConversation._id)));
+		assert.match(text("creator-messages.csv"), /Private own introduction/);
+		assert.match(text("subscription-financials.csv"), /sub_export_own/);
+		assert.match(text("assistant-grants.csv"), /EXPORTED_ASSISTANT_GRANT/);
+		assert.doesNotMatch(text("assistant-grants.csv"), /synthetic-own-assistant-hash|hash/);
+		assert.match(text("generated-images.csv"), /synthetic-own-model/);
+		assert.doesNotMatch(text("generated-images.csv"), /synthetic-foreign-model/);
+		assert.doesNotMatch(text("subscription-financials.csv"), /sub_export_foreign/);
+		assert.match(text("subscription-changes.csv"), /evt_finance_export_own/);
+		assert.match(text("subscription-invoices.csv"), /in_export_own/);
+		assert.doesNotMatch(text("subscription-invoices.csv"), /in_export_foreign/);
+
+		assert.doesNotMatch(text("creator-messages.csv"), /Foreign only message fixture/);
+
+		assert.match(text("offers.csv"), /EXPORTED_TRIAL_FEE/);
+		assert.match(text("offers.csv"), /eur,,,14,false,150/);
+		assert.doesNotMatch(text("offers.csv"), /FOREIGN_TRIAL_FEE/);
+		assert.match(text("forms.csv"), /EXPORTED_SIGNUP_FLOW/);
+		assert.match(text("forms.csv"), /upsell/);
+		assert.doesNotMatch(text("forms.csv"), /FOREIGN_SIGNUP_FLOW/);
+		assert.match(text("referral-codes.csv"), /EXPORT_EXACT_CODE/);
+		assert.doesNotMatch(text("referral-codes.csv"), /FOREIGN_PRIVATE_CODE/);
+		assert.match(text("referral-rewards.csv"), /Private inventory/);
+		assert.match(text("gifts.csv"), new RegExp(String(gift._id)));
+		assert.match(text("gift-receipts.csv"), /2027-01-31/);
+		assert.match(text("automations.csv"), /EXPORTED_VARIANT_COPY/);
+		assert.match(text("automation-tests.csv"), /synthetic-allocation,synthetic-copy,test,sent/);
+		assert.doesNotMatch(text("automation-tests.csv"), /OTHER_ACCOUNT_AB_RECORD/);
+		assert.match(text("metered-reads.csv"), new RegExp(String(rich._id)));
+		assert.match(text("metered-reads.csv"), /2026-10,1/);
+		assert.doesNotMatch(text("metered-reads.csv"), /PRIVATE_OTHER_ACCOUNT/);
 		const csv = text("contacts/field-notes.csv");
 		const [header, ...rows] = csv.trim().split("\r\n");
-		assert.equal(header, "email,status,newsletter,source,subscribed_at,confirmed_at,unsubscribed_at,last_sent_at,last_open_at,last_click_at,emails_received,opens,clicks,tags,referrals,referred_by,created_at");
+		assert.equal(header, "email,status,newsletter,source,subscribed_at,confirmed_at,unsubscribed_at,last_sent_at,last_open_at,last_click_at,emails_received,opens,clicks,tags,mailing_list_ids,referrals,referred_by,created_at");
 		assert.equal(rows.length, 3);
 		const ann = rows.find((row) => row.startsWith("ann@example.org"));
-		assert.match(ann, /^ann@example\.org,active,field-notes,website,2026-01-02T10:00:00\.000Z,2026-01-02T10:05:00\.000Z,,,2026-09-01T00:00:00\.000Z,,4,3,1,,0,,/);
+		assert.match(ann, /^ann@example\.org,active,field-notes,website,2026-01-02T10:00:00\.000Z,2026-01-02T10:05:00\.000Z,,,2026-09-01T00:00:00\.000Z,,4,3,1,,weekly-list,0,,/);
 		assert.ok(rows.some((row) => row.startsWith("'=sum(1;1)@example.org,pending")), "an address that starts like a formula is quoted");
 		assert.equal(text("contacts/second.csv").trim().split("\r\n").length, 2);
 		assert.match(text("suppressions.csv"), /gone@example\.org,bounce,550 no such user,/);
@@ -269,6 +364,8 @@ describe("an export", () => {
 		assert.equal(manifest.version, 1);
 		assert.deepEqual(manifest.counts, { newsletters: 2, contacts: 4, comments: 0, campaigns: 4, images: 1, missingImages: 1 });
 		assert.deepEqual(manifest.newsletters.map(({ slug, contactCount, contactsFile }) => [slug, contactCount, contactsFile]), [["field-notes", 3, "contacts/field-notes.csv"], ["second", 1, "contacts/second.csv"]]);
+		assert.equal(manifest.newsletters[0].mailingLists[0].id, "weekly-list");
+		assert.equal(manifest.newsletters[0].meteredReadsPerMonth, 2);
 		assert.equal(manifest.newsletters[0].welcome.enabled, false);
 		assert.equal(manifest.newsletters[0].archiveUrl, "https://field-notes.flockstackmail.com/");
 		assert.equal(manifest.campaigns.length, 4);
@@ -449,7 +546,7 @@ describe("comments in an export", () => {
 		const issue = await addIssue(user, { subject: "Talked about", archiveSlug: "talked-about", html: "<p>Hi</p>" });
 		const second = await m.Newsletter.create({ accountId: user.accountId, name: "Quiet notes", slug: "quiet-notes", fromEmail: "hello@quiet-notes.flockstackmail.com" });
 		const base = { accountId: user.accountId, newsletterId: user.newsletter._id, campaignId: issue._id };
-		const root = await m.Comment.create({ ...base, authorId: ann._id, authorName: "Ann", body: "=SUM(A1) and a comma, and a \"quote\"", status: "published" });
+		const root = await m.Comment.create({ ...base, authorId: ann._id, authorName: "Ann", body: "=SUM(A1) and a comma, and a \"quote\"", status: "published", replyRuleConsentAt: new Date("2026-10-25T12:00:00Z"), replyRuleConsentHash: "consented-body-hash", replyRuleDecision: { outcome: "allow", model: "test-model", confidence: 0.99 } });
 		await m.Comment.create({ ...base, parentId: root._id, authorId: ann._id, authorName: "Ann", body: "A held reply", status: "held", reason: "It has a link, and this newsletter reviews comments with links before they show.", decidedBy: "rules" });
 		await m.Comment.create({ ...base, authorName: "Deleted reader", body: "From someone who left", status: "published" });
 
@@ -460,7 +557,9 @@ describe("comments in an export", () => {
 		assert.ok(zip.has(`comments/${user.newsletter.slug}.csv`));
 		assert.ok(!zip.has(`comments/${second.slug}.csv`), "no file for a newsletter without comments");
 		const csv = zip.get(`comments/${user.newsletter.slug}.csv`).toString();
-		assert.equal(csv.split("\r\n")[0], "id,issue_id,parent_id,status,reason,decided_by,author_name,author_email,body,open_reports,edited,created_at");
+		assert.match(csv, /consented-body-hash/);
+		assert.match(csv, /test-model/);
+		assert.equal(csv.split("\r\n")[0], "id,issue_id,parent_id,status,reason,decided_by,author_name,author_email,body,open_reports,edited,created_at,reply_rule_consent_at,reply_rule_consent_hash,reply_rule_example_consent,reply_rule_decision");
 		assert.ok(csv.includes(String(issue._id)));
 		assert.ok(csv.includes("ann@example.org"), "the owner has the author's address");
 		assert.ok(csv.includes("It has a link, and this newsletter reviews comments with links before they show."), "and the reason a comment was held");
@@ -603,4 +702,44 @@ describe("custom fields and recommendations", () => {
 		assert.deepEqual(settings.customFields, [{ key: "first_name", label: "First name", type: "text" }]);
 		assert.deepEqual(settings.recommendations, [{ newsletter: "their-notes", pitch: "Short notes on pricing", status: "active" }]);
 	});
+});
+
+test("sponsorship export includes private originals and commercial facts without management capabilities", async () => {
+	const user = await customer("export-sponsor@example.com"), other = await customer("export-sponsor-other@example.com");
+	const Asset = (await import("../models/SponsorshipAsset.js")).default;
+	const Booking = (await import("../models/SponsorshipBooking.js")).default;
+	const { files } = await import("./stubs/opennext-cloudflare.mjs");
+	const { createHash, randomUUID } = await import("node:crypto");
+	const booking = await Booking.create({ accountId: user.accountId, newsletterId: user.newsletter._id, slotId: user.newsletter._id, placementId: user.newsletter._id, placementName: "Sponsor placement", day: "2026-11-20", timeZone: "Europe/Paris", amountMinor: 25000, currency: "eur", email: "sponsor@example.com", brandName: "Example sponsor", externalId: randomUUID(), verifiedAt: new Date(), status: "requested" });
+	const key = `accounts/${user.accountId}/sponsorships/${booking._id}/original.png`;
+	files.set(key, { bytes: PNG, contentType: "image/png" });
+	await Asset.create({ accountId: user.accountId, newsletterId: user.newsletter._id, bookingId: booking._id, key, externalId: randomUUID(), sha256: createHash("sha256").update(PNG).digest("hex"), fileName: "original.png", contentType: "image/png", bytes: PNG.length, status: "ready", publicationConsentAt: new Date() });
+	await Asset.create({ accountId: other.accountId, newsletterId: other.newsletter._id, bookingId: other.newsletter._id, key: `accounts/${other.accountId}/sponsorships/private/secret.png`, externalId: randomUUID(), sha256: "0".repeat(64), fileName: "FOREIGN_SPONSOR.png", contentType: "image/png", bytes: PNG.length, status: "ready" });
+	const { latest } = await exportAndWait(user); assert.equal(latest.body.status, "ready"); assert.equal(latest.body.counts.sponsorAssets, 1);
+	const zip = readZip(await readResponseBytes(await download(latest.body.downloadUrls[0])));
+	const paths = [...zip.keys()], original = paths.find(path => path.startsWith("sponsorship-assets/"));
+	assert.ok(original); assert.deepEqual(zip.get(original), PNG);
+	const csv = zip.get("sponsorships/booking.csv").toString(); assert.match(csv, /sponsor@example.com/); assert.match(csv, /25000/); assert.doesNotMatch(csv, /managerVersion|verificationVersion|invoiceLease|token=/);
+	assert.equal(paths.some(path => path.includes("FOREIGN_SPONSOR")), false);
+	assert.equal(JSON.parse(zip.get("manifest.json").toString()).counts.sponsorAssets, 1);
+});
+test("reader billing exports private observations and optional feedback without retry payloads", async () => {
+	const user = await customer("reader-billing-export@example.com");
+	const Retention = (await import("../models/ReaderRetention.js")).default, Response = (await import("../models/CancellationResponse.js")).default;
+	const record = await Retention.create({ accountId: user.accountId, newsletterId: user.newsletter._id, subscriptionId: "sub_export_reader", chargeAccount: "direct", pauseMonths: 3, pauseState: "scheduled", saveUsedAt: new Date(), pending: { kind: "pause", externalId: "a9ae279f-c77d-44fc-9e78-698b2a8989a9", startedAt: new Date(), params: { internal: "PRIVATE_RETRY_PAYLOAD" } } });
+	await Response.create({ accountId: user.accountId, newsletterId: user.newsletter._id, retentionId: record._id, externalId: "a9ae279f-c77d-44fc-9e78-698b2a8989a9", reason: "cost", comment: "PRIVATE_SHARED_FEEDBACK", sharedAt: new Date() });
+	const { latest } = await exportAndWait(user); assert.equal(latest.body.status, "ready");
+	const files = readZip(await readResponseBytes(await download(latest.body.downloadUrls[0])));
+	const billing = files.get("reader-retention.csv").toString(), feedback = files.get("cancellation-responses.csv").toString();
+	assert.match(billing, /sub_export_reader/); assert.doesNotMatch(billing, /PRIVATE_RETRY_PAYLOAD|pending|lease/); assert.match(feedback, /PRIVATE_SHARED_FEEDBACK/);
+	const { CONTENT_MODELS } = await import("../lib/account-purge.js"); assert.ok(CONTENT_MODELS.includes(Retention)); assert.ok(CONTENT_MODELS.includes(Response));
+});
+test("private editor exports contain owned CRDT history and threads but no session capability", async () => {
+	const user = await customer("private-editor-export@example.com"), other = await customer("private-editor-foreign@example.com");
+	const Snapshot = (await import("../models/CampaignCollaboration.js")).default, Thread = (await import("../models/EditorThread.js")).default;
+	const create = owner => Snapshot.create({ accountId: owner.accountId, newsletterId: owner.newsletter._id, campaignId: owner.newsletter._id, epoch: crypto.randomUUID(), fingerprint: "0".repeat(64), state: owner === user ? "PRIVATE_OWNED_CRDT_STATE" : "FOREIGN_CRDT_STATE", checkpointAt: new Date() });
+	const snapshot = await create(user); await create(other);
+	await Thread.create({ accountId: user.accountId, newsletterId: user.newsletter._id, campaignId: user.newsletter._id, epoch: snapshot.epoch, externalId: crypto.randomUUID(), authorId: String(user.userId), authorName: "Synthetic editor", body: "PRIVATE_EDITOR_DISCUSSION", mentions: [String(user.userId)], anchor: { start: "relative-start", end: "relative-end", quote: "Private draft excerpt" } });
+	const { latest } = await exportAndWait(user); assert.equal(latest.body.status, "ready"); const files = readZip(await readResponseBytes(await download(latest.body.downloadUrls[0])));
+	const state = files.get("editor-collaboration.csv").toString(), comments = files.get("editor-threads.csv").toString(); assert.match(state, /PRIVATE_OWNED_CRDT_STATE/); assert.doesNotMatch(state, /FOREIGN_CRDT_STATE|sessionId|ticket|cookie/); assert.match(comments, /PRIVATE_EDITOR_DISCUSSION/); assert.match(comments, /Private draft excerpt/);
 });

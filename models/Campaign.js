@@ -12,6 +12,16 @@ const counter = { type: Number, default: 0 };
 const campaignSchema = new mongoose.Schema(
 	{
 		newsletterId: { type: mongoose.Schema.Types.ObjectId, ref: "Newsletter", required: true },
+		listIds: { type: [String], default: undefined },
+		excludeListIds: { type: [String], default: undefined },
+		internalLinks: { type: [{ id: String, href: String }], default: undefined },
+		internalLinkIds: { type: [String], default: undefined },
+		authorId: String,
+		// An outside edit or restore revokes an old shared room even when its text is identical.
+		editorResetId: String,
+		externalId: { type: String, trim: true },
+		kind: { type: String, enum: ["issue", "note"], default: "issue" },
+		shortPostDigest: { type: mongoose.Schema.Types.Mixed },
 		subject: { type: String, trim: true, default: "" },
 		previewText: { type: String, trim: true, default: "" },
 		// The name in this issue's From field, over the newsletter's; the address stays the newsletter's.
@@ -190,5 +200,10 @@ campaignSchema.index(
 	{ archiveSlug: 1 },
 	{ unique: true, partialFilterExpression: { archiveSlug: { $type: "string" } } }
 );
+
+campaignSchema.index({ accountId: 1, newsletterId: 1, status: 1, sentAt: 1 });
+
+campaignSchema.index({ accountId: 1, externalId: 1 }, { unique: true, partialFilterExpression: { externalId: { $type: "string" } } });
+campaignSchema.index({ accountId: 1, newsletterId: 1, kind: 1, status: 1, sentAt: -1, _id: -1 });
 
 export default mongoose.models.Campaign || mongoose.model("Campaign", campaignSchema);

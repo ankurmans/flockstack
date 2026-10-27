@@ -1,3 +1,5 @@
+import { getReaderText } from "@/lib/reader-languages";
+import ProviderReaderLanguage from "@/components/ProviderReaderLanguage";
 import { headers } from "next/headers";
 import { Link2Off, Lock, Vote } from "lucide-react";
 import CardNotice from "@/components/CardNotice";
@@ -39,14 +41,15 @@ export default async function PollResultsPage({ searchParams }) {
 		findVote(poll, { token: readerToken, ip: getClientIp(await headers()) }),
 		poll.showResults === false ? null : countVotes(poll),
 	]);
+	const t = getReaderText(newsletter);
 	const total = counts?.reduce((sum, row) => sum + row.total, 0) ?? 0;
 	const voteUrl = (option) => `/poll?${new URLSearchParams({ p: String(poll._id), o: String(option), ...(readerToken && { token: readerToken }) })}`;
 	const note = STATUS_COPY[status] ?? (vote ? "Thanks for voting. Pick another answer to change yours." : "Pick an answer to vote.");
 
 	return (
-		<main className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
+		<ProviderReaderLanguage language={t.language}><main className="theme-neutral flex min-h-dvh items-center justify-center bg-background px-4 py-16">
 			<CardNotice icon={poll.closed ? Lock : Vote} tone={vote && !status ? "success" : undefined} title={poll.question}>
-				<p>{note}</p>
+				<p>{t(note)}</p>
 				<ol className="mt-6 flex flex-col gap-2 text-left">
 					{poll.options.map(({ label }, index) => {
 						const isMine = vote?.option === index;
@@ -57,7 +60,7 @@ export default async function PollResultsPage({ searchParams }) {
 								<span className="relative flex items-center justify-between gap-3">
 									<span className={cn("min-w-0 truncate", isMine && "font-semibold text-foreground")}>
 										{label}
-										{isMine && <span className="sr-only"> (your answer)</span>}
+										{isMine && <span className="sr-only"> ({t("Your answer")})</span>}
 									</span>
 									{share !== null && <span className="shrink-0 tabular-nums">{share}%</span>}
 								</span>
@@ -77,7 +80,7 @@ export default async function PollResultsPage({ searchParams }) {
 						);
 					})}
 				</ol>
-				{counts && <p className="mt-3 text-xs tabular-nums">{total === 1 ? "1 vote" : `${total} votes`} so far</p>}
+				{counts && <p className="mt-3 text-xs tabular-nums">{t("{count} votes so far", { count: new Intl.NumberFormat(t.language).format(total) })}</p>}
 				{poll.followUp && vote && !poll.closed && (
 					<FormPollFollowUp pollId={String(poll._id)} token={readerToken} question={poll.followUp} defaultValue={vote.comment ?? ""} />
 				)}
@@ -87,6 +90,6 @@ export default async function PollResultsPage({ searchParams }) {
 					</a>
 				)}
 			</CardNotice>
-		</main>
+		</main></ProviderReaderLanguage>
 	);
 }

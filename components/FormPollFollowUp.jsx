@@ -1,4 +1,5 @@
 "use client";
+import useReaderText from "@/components/useReaderText";
 
 import { useActionState } from "react";
 import { Check, Loader2 } from "lucide-react";
@@ -8,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 // The poll's follow-up question, answered in a few words on the reader's own vote.
 export default function FormPollFollowUp({ pollId, token, question, defaultValue = "" }) {
+	const t = useReaderText();
 	const [state, action, isPending] = useActionState(answerFollowUp.bind(null, pollId, token), null);
 
 	if (state?.ok) {
@@ -27,11 +29,11 @@ export default function FormPollFollowUp({ pollId, token, question, defaultValue
 			<Textarea id="follow-up" name="comment" defaultValue={defaultValue} maxLength={1000} rows={3} required />
 			{state?.error && (
 				<p role="alert" className="text-sm text-destructive">
-					{state.error}
+					{t.error(state.error)}
 				</p>
 			)}
 			<Button type="submit" disabled={isPending} className="mt-1">
-				{isPending ? <Loader2 className="animate-spin" /> : "Send"}
+				{isPending ? <Loader2 className="animate-spin" /> : t("Send")}
 			</Button>
 		</form>
 	);

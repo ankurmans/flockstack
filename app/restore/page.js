@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Restore your account" };
 
-// Where signing in leads while the account waits to be deleted (requireAccount in lib/auth.js), until its purge starts.
+// Where signing in leads while the account waits to be deleted (requirePersonalAccount in lib/auth.js), until its purge starts.
 export default async function RestorePage() {
 	const current = await getCurrentAccount();
 	if (!current) redirect("/signin");

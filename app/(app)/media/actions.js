@@ -3,6 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { runDashboardAction, toFormError } from "@/lib/actions/dashboard";
 
+export async function generateMediaImage(newsletterId, prompt, consent) {
+	const { output, failure } = await runDashboardAction("generate_image", { newsletter: String(newsletterId), prompt: String(prompt ?? ""), consent: consent === true });
+	if (failure) return toFormError(failure);
+	revalidatePath("/media");
+	return { image: output };
+}
+
 // Puts uploads in a folder (a new name makes the folder); an empty folder takes them out of theirs.
 export async function moveMedia(ids, folder) {
 	const { output, failure } = await runDashboardAction("move_media", { ids: Array.isArray(ids) ? ids.map(String) : [], folder: String(folder ?? "") });

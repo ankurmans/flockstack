@@ -6,6 +6,7 @@ export const API_KEY_LEVELS = ["read_only", "drafts", "send_with_approval", "ful
 const apiKeySchema = new mongoose.Schema(
 	{
 		name: { type: String, required: true, trim: true },
+		purpose: { type: String, enum: ["assistant"] },
 		prefix: { type: String, required: true },
 		// The key itself is the lookup: unique across accounts, and it decides the account.
 		hash: { type: String, required: true, unique: true },

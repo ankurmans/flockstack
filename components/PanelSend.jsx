@@ -1,4 +1,5 @@
 "use client";
+import FormCampaignLists from "@/components/FormCampaignLists";
 
 import { CalendarClock, Loader2, Send } from "lucide-react";
 import { useState, useTransition } from "react";
@@ -66,6 +67,7 @@ export default function PanelSend({
 
 	return (
 		<div className="flex flex-col gap-6">
+			{!campaign.resend?.of && <FormCampaignLists key={JSON.stringify([campaign.listIds, campaign.excludeListIds])} campaign={campaign} lists={newsletter.mailingLists ?? []} />}
 			<CardSettings title="Who gets it">
 				{!campaign.resend?.of && (
 					<RowCampaign label="Publish">

@@ -17,6 +17,7 @@ const eslintConfig = defineConfig([
     "workers/api/dist/**",
     // The readers Worker's (scripts/build-readers-worker.mjs).
     "workers/readers/dist/**",
+    "workers/collaboration/dist/**",
   ]),
 ]);
 

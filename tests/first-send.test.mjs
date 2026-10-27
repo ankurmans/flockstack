@@ -51,6 +51,7 @@ describe("first sends in steps", () => {
 		user.newsletterId = url.split("/").at(-1);
 		// Sends this size are proven, so only the first-send steps hold contacts back (tests/send-spread.test.mjs paces them).
 		await proveVolume(user, 1000);
+		await (await import("../lib/accounts.js")).setSendSpread(user.accountId, false);
 		const contact = (index, lastSentAt) => ({
 			accountId: user.accountId,
 			newsletterId: user.newsletterId,

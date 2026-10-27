@@ -18,20 +18,37 @@ function refresh(id) {
 }
 
 // templateId: start from a saved template; without one, the newsletter's default style.
-export async function createCampaign(newsletterId, templateId) {
+export async function createCampaign(newsletterId, templateId, kind) {
 	const { output, failure } = await runDashboardAction("create_campaign", {
 		newsletter: String(newsletterId ?? ""),
 		...(templateId && { template: String(templateId) }),
+		...(kind === "note" && { kind: "note" }),
 	});
 	if (failure) return toFormError(failure);
 	revalidatePath("/campaigns");
 	redirect(`/campaigns/${output.id}`);
 }
 
+export async function createShortPostDigest(newsletterId, externalId) {
+	const { output, failure } = await runDashboardAction("create_short_post_digest", { newsletter: String(newsletterId), externalId: String(externalId) });
+	if (failure) return toFormError(failure);
+	refresh(output.id);
+	redirect(`/campaigns/${output.id}`);
+}
+
+export async function saveShortPost(id, body, published) {
+	const input = { id: String(id), content: String(body ?? ""), format: "markdown" };
+	const result = published ? await runDashboardAction("update_published_issue", input) : await runDashboardAction("update_campaign", input);
+	if (result.failure) return toFormError(result.failure);
+	refresh(id);
+	return { ok: true };
+}
+
 // The editor saves rich text, or the HTML of an imported issue; Markdown drafts open as rich text.
 export async function saveCampaign(id, values) {
-	const { failure } = await runDashboardAction("update_campaign", {
+	const { output, failure } = await runDashboardAction("update_campaign", {
 		id: String(id),
+		...(values?.expectedContentHash && { expectedContentHash: values.expectedContentHash }),
 		subject: String(values?.subject ?? "").slice(0, MAX_SUBJECT_LENGTH),
 		previewText: String(values?.previewText ?? "").slice(0, MAX_PREVIEW_TEXT_LENGTH),
 		content: String(values?.body ?? ""),
@@ -39,7 +56,7 @@ export async function saveCampaign(id, values) {
 	});
 	if (failure) return toFormError(failure);
 	revalidatePath("/campaigns");
-	return { ok: true };
+	return { ok: true, ...(values?.expectedContentHash && { contentHash: output.contentHash }) };
 }
 
 // Email and web, email only or web only.
@@ -401,11 +418,13 @@ export async function pickStockPhoto(id) {
 }
 
 // Delete, list, unlist or move several campaigns; the answer says what happened to each.
-export async function bulkUpdateCampaigns(ids, operation, newsletter) {
+export async function bulkUpdateCampaigns(ids, operation, newsletter, options = {}) {
 	const { output, failure } = await runDashboardAction("bulk_update_campaigns", {
 		ids: Array.isArray(ids) ? ids.map(String) : [],
 		operation: String(operation ?? ""),
 		...(newsletter && { newsletter: String(newsletter) }),
+		...(operation === "tag" && { tags: options.tags ?? [], tagMode: options.tagMode ?? "replace" }),
+		...(operation === "author" && { authorId: options.authorId ?? null }),
 	});
 	if (failure) return toFormError(failure);
 	revalidatePath("/campaigns");
@@ -440,4 +459,23 @@ export async function previewFeed(url, { count, order } = {}) {
 	const { output, failure } = await runDashboardAction("preview_feed", { url: String(url ?? ""), count: readCount(count), order: order === "oldest" ? "oldest" : "newest" });
 	if (failure) return toFormError(failure);
 	return { items: output.items };
+}
+
+export async function setCampaignLists(id, _state, form) {
+	const { failure } = await runDashboardAction("update_campaign", { id: String(id), listIds: form.getAll("include").map(String), excludeListIds: form.getAll("exclude").map(String) });
+	if (failure) return { error: failure.message }; revalidatePath(`/campaigns/${id}`); return { ok: true };
+}
+
+export async function searchIssueLinks(newsletter, search) {
+	const { output, failure } = await runDashboardAction("list_campaigns", { newsletter: String(newsletter), search: String(search ?? "").slice(0, 100), status: "sent", limit: 20 });
+	if (failure) return { error: failure.message, issues: [] };
+	return { issues: output.campaigns.filter((issue) => issue.archiveUrl && issue.publishTo !== "email" && !issue.resend).map(({ id, subject, archiveUrl }) => ({ id, title: subject, url: archiveUrl })) };
+}
+export async function getIssueLinks(id) {
+	const { output, failure } = await runDashboardAction("get_issue_links", { id: String(id) });
+	return failure ? { error: failure.message } : output;
+}
+export async function indexIssueLinks(newsletter, after) {
+	const { output, failure } = await runDashboardAction("index_issue_links", { newsletter: String(newsletter), ...(after && { after: String(after) }) });
+	return failure ? { error: failure.message } : output;
 }

@@ -22,7 +22,7 @@ import { getSendVolumes, listNewsletterCampaigns } from "@/lib/campaign-queries"
 import { formatNumber, formatSigned } from "@/lib/format";
 import { ADD_NEWSLETTER_PATH } from "@/lib/newsletters";
 import { getEmailStats, getHourlySends, getSubscriberHistory } from "@/lib/overview-data";
-import { PERIOD_DAYS } from "@/lib/overview-series";
+import { PERIOD_DAYS, overviewDays } from "@/lib/overview-series";
 import { getLapsedPlan } from "@/lib/free-plan";
 import { getAccountPlan } from "@/lib/plans";
 import { getSelectedNewsletter, openNewsletter } from "@/lib/selected-newsletter";
@@ -39,15 +39,16 @@ export default async function OverviewPage({ searchParams }) {
 	// open newsletter only, so all of it is asked as soon as the newsletters are known, not after the usage has come back: the sections
 	// used to start their reads when React reached them, one round trip behind (tests/query-budget.test.mjs counts the depth).
 	const usagePromise = getUsage(account);
-	const [view, { newsletter: newsletterParam }, cookieStore] = await Promise.all([getSelectedNewsletter(), searchParams, cookies()]);
+	const [view, { newsletter: newsletterParam, days: daysParam }, cookieStore] = await Promise.all([getSelectedNewsletter(), searchParams, cookies()]);
 	openNewsletter(view, newsletterParam, "/");
 	const { newsletters, selected } = view;
+	const days = overviewDays(daysParam);
 	const timeZone = resolveTimeZone(cookieStore.get(TIME_ZONE_COOKIE)?.value);
 	const selectedId = selected?._id.toString();
 	const accountId = account._id;
 	const data = selected && {
-		stats: started(getEmailStats({ accountId, newsletterId: selected._id })),
-		history: started(getSubscriberHistory({ accountId, newsletterId: selected._id, timeZone })),
+		stats: started(getEmailStats({ accountId, newsletterId: selected._id, days })),
+		history: started(getSubscriberHistory({ accountId, newsletterId: selected._id, timeZone, days })),
 		hours: started(getHourlySends({ accountId, newsletterId: selected._id, timeZone })),
 		campaigns: started(listNewsletterCampaigns(account, selected._id, 5)),
 	};
@@ -63,6 +64,7 @@ export default async function OverviewPage({ searchParams }) {
 			</Suspense>
 			{hasPlan && <BannerUsage usage={usage} isWelcomePaused={isWelcomePaused} lapsedPlan={getLapsedPlan(account)} />}
 			<HeaderPage title="Overview" />
+			<form action="/" className="mb-6 flex flex-wrap items-center gap-2"><label htmlFor="overview-days" className="text-sm text-muted-foreground">Report range</label><select id="overview-days" name="days" defaultValue={days} className="rounded-md border bg-background p-2 text-sm">{[30, 90, 180, 365, 730].map((value) => <option key={value} value={value}>{value} days</option>)}</select><button className="rounded-md border px-3 py-2 text-sm">Apply range</button><p className="w-full text-xs text-muted-foreground">Compared with the same period before. Usage is this billing month. Imported subscriber history may be incomplete.</p></form>
 
 			<div className="flex flex-col gap-8">
 				{pace && (
@@ -72,14 +74,14 @@ export default async function OverviewPage({ searchParams }) {
 				)}
 				{selected ? (
 					<>
-						<Section title={`Last ${PERIOD_DAYS} days`} stagger={1}>
+						<Section title={`Last ${days} days`} stagger={1}>
 							<div className="overflow-hidden rounded-2xl bg-card shadow-border">
 								<Suspense key={`stats-${selectedId}`} fallback={<SkeletonStats />}>
 									<StatsEmail promise={data.stats} />
 								</Suspense>
 								<div className="border-t border-border/60">
 									<Suspense key={`subscribers-${selectedId}`} fallback={<SkeletonSubscribers />}>
-										<CardSubscribers promise={data.history} />
+										<CardSubscribers promise={data.history} days={days} />
 									</Suspense>
 								</div>
 							</div>
@@ -133,7 +135,7 @@ async function StatsEmail({ promise }) {
 	);
 }
 
-async function CardSubscribers({ promise }) {
+async function CardSubscribers({ promise, days = PERIOD_DAYS }) {
 	const history = await promise;
 
 	return (
@@ -146,14 +148,14 @@ async function CardSubscribers({ promise }) {
 							{formatNumber(history.total)}
 						</span>
 						<span className={cn("text-sm font-medium tabular-nums", growthTone(history.growth))}>
-							{formatSigned(history.growth)} in {PERIOD_DAYS} days
+							{formatSigned(history.growth)} in {days} days
 						</span>
 					</p>
 				</div>
 				<ListLegend
 					items={[
-						{ swatch: "line", label: `Last ${PERIOD_DAYS} days`, value: formatSigned(history.growth) },
-						{ swatch: "dashed", label: `Previous ${PERIOD_DAYS} days`, value: formatSigned(history.previousGrowth) },
+						{ swatch: "line", label: `Last ${days} days`, value: formatSigned(history.growth) },
+						{ swatch: "dashed", label: `Previous ${days} days`, value: formatSigned(history.previousGrowth) },
 					]}
 				/>
 			</div>

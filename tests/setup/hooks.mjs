@@ -8,6 +8,7 @@ const ROOT_URL = pathToFileURL(ROOT).href;
 const stub = (name) => new URL(`../stubs/${name}`, import.meta.url).href;
 
 const STUBS = {
+	"cloudflare:workers": stub("cloudflare-workers.mjs"),
 	"server-only": stub("empty.mjs"),
 	"next/headers": stub("next-headers.mjs"),
 	"next/headers.js": stub("next-headers.mjs"),

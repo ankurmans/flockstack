@@ -55,7 +55,7 @@ export default async function CampaignsPage() {
 					<div className="animate-enter">
 						<TableCampaigns campaigns={campaigns} newsletter={selected} hasActions pageUrls={pageUrls} />
 					</div>
-					<BarBulkCampaigns newsletters={newsletters.map(({ _id, name }) => ({ id: String(_id), name }))} currentNewsletterId={String(selected._id)} />
+					<BarBulkCampaigns authors={selected.authors ?? []} newsletters={newsletters.map(({ _id, name }) => ({ id: String(_id), name }))} currentNewsletterId={String(selected._id)} />
 				</ProviderCampaignSelection>
 			)}
 		</>

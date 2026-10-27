@@ -161,7 +161,7 @@ const archive = (overrides) => kind({ hostname: "news.example.com", pathname: "/
 
 describe("lib/edge-cache.js: a newsletter's public pages on its own host", () => {
 	test("the pages everyone sees the same, and none that has a form, a price, a reader's own or a mailed link", () => {
-		for (const pathname of ["/", "/issues", "/links", "/sitemap.xml", "/robots.txt", "/llms.txt", "/feed.xml", "/podcast.xml", "/p/an-issue", "/p/issue-2024-1", "/tags/news", "/authors/ana"]) {
+		for (const pathname of ["/", "/issues", "/links", "/sitemap.xml", "/robots.txt", "/llms.txt", "/feed.xml", "/podcast.xml", "/p/an-issue.md", "/p/an-issue", "/p/issue-2024-1", "/tags/news", "/authors/ana"]) {
 			assert.equal(archive({ pathname }), "archive", pathname);
 			assert.equal(isArchiveCachedPath(pathname), true, pathname);
 		}

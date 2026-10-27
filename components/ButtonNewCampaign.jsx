@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import Link from "next/link";
 import { ChevronDown, FileText, LayoutTemplate, Loader2, Plus } from "lucide-react";
-import { createCampaign } from "@/app/(app)/campaigns/actions";
+import { createCampaign, createShortPostDigest } from "@/app/(app)/campaigns/actions";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -31,23 +31,14 @@ export default function ButtonNewCampaign({ newsletterId, label = "New", size, t
 		);
 	}
 
-	function create(templateId) {
+	function create(templateId, kind) {
 		startTransition(async () => {
-			const result = await createCampaign(newsletterId, templateId);
+			const result = await createCampaign(newsletterId, templateId, kind);
 			if (result?.error) toast.error(result.error);
 		});
 	}
 
 	const icon = isPending ? <Loader2 data-icon="inline-start" className="animate-spin" /> : <Plus data-icon="inline-start" />;
-
-	if (templates.length === 0) {
-		return (
-			<Button size={size} disabled={isPending} onClick={() => create()}>
-				{icon}
-				{label}
-			</Button>
-		);
-	}
 
 	return (
 		<DropdownMenu>
@@ -63,8 +54,10 @@ export default function ButtonNewCampaign({ newsletterId, label = "New", size, t
 					<FileText />
 					Blank issue
 				</DropdownMenuItem>
+				<DropdownMenuItem onSelect={() => create(null, "note")}><FileText />Short web post</DropdownMenuItem>
+				<DropdownMenuItem onSelect={() => startTransition(async () => { const result = await createShortPostDigest(newsletterId, crypto.randomUUID()); if (result?.error) toast.error(result.error); })}><FileText />Draft this week&apos;s short-post digest</DropdownMenuItem>
 				<DropdownMenuSeparator />
-				<DropdownMenuLabel>From a template</DropdownMenuLabel>
+				{templates.length > 0 && <DropdownMenuLabel>From a template</DropdownMenuLabel>}
 				{templates.map((template) => (
 					<DropdownMenuItem key={template.id} onSelect={() => create(template.id)}>
 						<LayoutTemplate />

@@ -50,7 +50,7 @@ export default function CardOffers({ newsletterId, data }) {
 	return (
 		<div className="flex flex-col gap-6">
 			<CardSettings title="Offers" stagger={1}>
-				{data.offers.length === 0 && <p className="px-4 py-3 text-sm text-muted-foreground">No offers yet. An offer is a discount or a free trial with a link you can share.</p>}
+				{data.offers.length === 0 && <p className="px-4 py-3 text-sm text-muted-foreground">No offers yet. An offer is a discount or a trial with a link you can share.</p>}
 				{data.offers.map((offer) => (
 					<div key={offer.id} className="flex flex-col gap-1.5 px-4 py-3 text-sm">
 						<div className="flex items-center justify-between gap-3">
@@ -101,7 +101,7 @@ export default function CardOffers({ newsletterId, data }) {
 						<select name="type" value={type} onChange={(event) => setType(event.target.value)} className="h-9 w-48 rounded-lg border border-input bg-transparent px-2 text-sm">
 							<option value="percent">Percent off</option>
 							<option value="amount">Amount off</option>
-							<option value="trial">Free trial</option>
+							<option value="trial">Trial</option>
 						</select>
 					</RowSettings>
 					{type !== "trial" && (
@@ -121,10 +121,11 @@ export default function CardOffers({ newsletterId, data }) {
 							</span>
 						</RowSettings>
 					)}
-					<RowSettings label="Free trial" isLabel hint={type === "trial" ? "Days. Needed for a trial." : "Days of free trial for readers who take it. Empty for none."}>
+					<RowSettings label="Trial days" isLabel hint={type === "trial" ? "Days. Needed for a trial." : "Days of free trial for readers who take it. Empty for none."}>
 						<Input name="trialDays" inputMode="numeric" placeholder="e.g. 14" className="w-28" />
 					</RowSettings>
-					<RowSettings label="Limit" isLabel hint="Stop after this many readers. Empty for no limit.">
+					{type === "trial" && <RowSettings label="Trial charge" isLabel hint="One-time amount due now, in the newsletter’s currency. Empty or zero is free. A paid trial always requires a card, then renews at the regular plan price."><Input name="trialAmount" inputMode="decimal" placeholder="e.g. 1.00" className="w-28" /></RowSettings>}
+					<RowSettings label="Limit" isLabel hint={type === "trial" ? "Checks confirmed readers before opening checkout. Concurrent checkouts can exceed this limit. Empty for no limit." : "Stop after this many readers. Empty for no limit."}>
 						<Input name="maxRedemptions" inputMode="numeric" className="w-28" />
 					</RowSettings>
 					<RowSettings label="Ends on" isLabel hint="Empty for no end.">

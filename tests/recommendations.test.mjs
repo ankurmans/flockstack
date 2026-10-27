@@ -168,7 +168,8 @@ describe("adding a recommendation", () => {
 		assert.match(unknown.body.error.message, /same region/);
 
 		const sibling = await m.Newsletter.create({ accountId: a.accountId, name: "Sibling", slug: "rec-refuse-sibling", fromEmail: "hello@rec-refuse-sibling.flockstackmail.com" });
-		await refuse({ slug: sibling.slug, newsletterId: sibling._id }, /your own account/, "same account");
+		await refuse(a, /cannot recommend itself/, "same newsletter");
+		await refuse({ slug: sibling.slug, newsletterId: sibling._id }, /website|issue|verified|subscribers/, "sibling still needs to be ready");
 
 		const optedOut = await creator("rec-refuse-optout");
 		assert.equal((await setSettings(optedOut, { allowIncoming: false })).status, 200);
@@ -863,7 +864,7 @@ describe("the dashboard", () => {
 		assert.equal((await act(b, "saveRecommendationSettings", { allowIncoming: true, listed: true })).ok, true);
 		const found = await act(a, "searchNewsletters", { query: "rec-dash" });
 		assert.deepEqual(found.output.newsletters.map(({ slug }) => slug), ["rec-dash-b"]);
-		assert.match((await act(a, "addRecommendation", { slug: "rec-dash-a", pitch: "Me." })).error, /your own account/);
+		assert.match((await act(a, "addRecommendation", { slug: "rec-dash-a", pitch: "Me." })).error, /cannot recommend itself/);
 		const added = await act(a, "addRecommendation", { slug: "rec-dash-b", pitch: "From the dashboard." });
 		assert.equal(added.ok, true, JSON.stringify(added));
 		const id = added.output.id;

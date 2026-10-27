@@ -31,7 +31,7 @@ const AFTER_DELETE = {
 	complained: "They marked an email as spam, so adding them again won't email them.",
 };
 
-export default function MenuContact({ id, email, status, tags = [], fields = {}, definitions = [], tagColors = {} }) {
+export default function MenuContact({ id, email, status, tags = [], fields = {}, definitions = [], tagColors = {}, listIds = [], mailingLists = [] }) {
 	const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 	const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 	const [isPending, startTransition] = useTransition();
@@ -85,7 +85,7 @@ export default function MenuContact({ id, email, status, tags = [], fields = {},
 				</DropdownMenuContent>
 			</DropdownMenu>
 			{isDetailsOpen && (
-				<DialogContactDetails contact={{ id, email, tags, fields }} definitions={definitions} tagColors={tagColors} isOpen onOpenChange={setIsDetailsOpen} />
+				<DialogContactDetails contact={{ id, email, tags, fields, listIds }} mailingLists={mailingLists} definitions={definitions} tagColors={tagColors} isOpen onOpenChange={setIsDetailsOpen} />
 			)}
 			<DialogDeleteContact id={id} email={email} status={status} isOpen={isDeleteOpen} onOpenChange={setIsDeleteOpen} />
 		</>
