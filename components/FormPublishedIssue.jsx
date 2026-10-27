@@ -22,7 +22,7 @@ import { toast } from "@/lib/toast";
 // A sent issue's page on the website: its title, subtitle, body, tags and search settings, edited on their own. What readers
 // got in their inbox is not touched (lib/actions/published-issues.js). Saved by hand, since the page is live, and the page
 // as it was is kept in the history before each save.
-export default function FormPublishedIssue({ campaign, newsletter, pageUrl, fields = [], snippets = [], isAiEnabled = false, hasStockPhotos = false }) {
+export default function FormPublishedIssue({ campaign, newsletter, pageUrl, fields = [], snippets = [], isAiEnabled = false, hasStockPhotos = false, hasGifs = false }) {
 	const isHtml = campaign.format === "html";
 	const [initialBody] = useState(() => (campaign.format === "markdown" ? markdownToHtml(campaign.markdown) : campaign.html));
 	const [initial] = useState(() => ({
@@ -134,6 +134,7 @@ export default function FormPublishedIssue({ campaign, newsletter, pageUrl, fiel
 							campaignId={campaign._id}
 							isAiEnabled={isAiEnabled}
 							hasStockPhotos={hasStockPhotos}
+							hasGifs={hasGifs}
 						/>
 					)}
 				</div>

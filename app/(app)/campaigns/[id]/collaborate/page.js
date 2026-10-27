@@ -1,6 +1,7 @@
 import { listCustomFields } from "@/lib/custom-fields";
 import { getNewsletterTiers } from "@/lib/tier-rules";
 import { getAiBinding } from "@/lib/ai";
+import { getGiphyKey } from "@/lib/giphy";
 import { getUnsplashKey } from "@/lib/unsplash";
 import Link from "next/link";
 import HeaderPage from "@/components/HeaderPage";
@@ -18,5 +19,5 @@ export default async function CollaborativeCampaignPage({ params }) {
 	openNewsletter(context, campaign.output.newsletterId, `/campaigns/${id}/collaborate`);
 	if (process.env.COLLABORATION_ENABLED !== "true" || campaign.output.status !== "draft" || campaign.output.format !== "rich") return <LayoutNarrow><HeaderPage title="Edit together" /><p>Realtime editing needs a rich-text draft and the optional collaboration Worker enabled on this server.</p><Link href={`/campaigns/${id}`}>Return to issue</Link></LayoutNarrow>;
 	const [collaborators, snippets, fields, ai] = await Promise.all([runDashboardAction("list_editor_collaborators", { id }), runDashboardAction("list_snippets", { newsletter: campaign.output.newsletterId }), listCustomFields(context.account, campaign.output.newsletterId), getAiBinding()]);
-	return <div className="mx-auto w-full max-w-7xl"><HeaderPage title="Edit together" /><CollaborativeCampaign viewerId={String(context.user.id)} id={id} newsletterId={campaign.output.newsletterId} collaborators={collaborators.output?.collaborators ?? []} editorOptions={{ fields: fields.map(({ key, label, type }) => ({ key, label, type })), snippets: (snippets.output?.snippets ?? []).map(({ name, content }) => ({ name, content })), tiers: getNewsletterTiers(context.selected), isAiEnabled: Boolean(ai), hasStockPhotos: Boolean(getUnsplashKey()) }} /></div>;
+	return <div className="mx-auto w-full max-w-7xl"><HeaderPage title="Edit together" /><CollaborativeCampaign viewerId={String(context.user.id)} id={id} newsletterId={campaign.output.newsletterId} collaborators={collaborators.output?.collaborators ?? []} editorOptions={{ fields: fields.map(({ key, label, type }) => ({ key, label, type })), snippets: (snippets.output?.snippets ?? []).map(({ name, content }) => ({ name, content })), tiers: getNewsletterTiers(context.selected), isAiEnabled: Boolean(ai), hasStockPhotos: Boolean(getUnsplashKey()), hasGifs: Boolean(getGiphyKey()) }} /></div>;
 }

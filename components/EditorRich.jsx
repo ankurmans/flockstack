@@ -10,7 +10,9 @@ import StarterKit from "@tiptap/starter-kit";
 import BarFind from "@/components/BarFind";
 import DialogAiRewrite from "@/components/DialogAiRewrite";
 import DialogEditorBlock from "@/components/DialogEditorBlock";
+import DialogImageCrop from "@/components/DialogImageCrop";
 import DialogImagePicker from "@/components/DialogImagePicker";
+import MenuImage from "@/components/MenuImage";
 import FooterEditor from "@/components/FooterEditor";
 import PanelSponsorInsert from "@/components/PanelSponsorInsert";
 import MenuFormat from "@/components/MenuFormat";
@@ -31,10 +33,12 @@ const MIN_HEIGHT = "min-h-[560px]";
 
 // newsletterId and campaignId: where a poll made in this editor belongs. Without a newsletter, there's no poll block.
 // isAiEnabled: the selection's AI menu (rewrite, shorten, tone, translate), only where the server has Workers AI.
-// hasStockPhotos: the image picker also searches Unsplash, only where the server has an Unsplash key.
-export default function EditorRich({ collaboration = null, content, onChange, fields = [], snippets = [], newsletterId = null, campaignId = null, tiers = [], isAiEnabled = false, hasStockPhotos = false }) {
+// hasStockPhotos: the image picker also searches Unsplash, only where the server has an Unsplash key; hasGifs: and GIPHY, with a GIPHY key.
+export default function EditorRich({ collaboration = null, content, onChange, fields = [], snippets = [], newsletterId = null, campaignId = null, tiers = [], isAiEnabled = false, hasStockPhotos = false, hasGifs = false }) {
 	const [isEditingLink, setIsEditingLink] = useState(false);
 	const [isPickingImage, setIsPickingImage] = useState(false);
+	// The picture being cropped: { src, pos } where it was in the document.
+	const [crop, setCrop] = useState(null);
 	// Find and replace: the bar's open, starting from this text (the selection when it was opened).
 	const [find, setFind] = useState(null);
 	// The block whose dialog is open: { kind, attrs, pos }, pos null for a new one.
@@ -156,6 +160,13 @@ export default function EditorRich({ collaboration = null, content, onChange, fi
 			<EditorContent editor={editor} />
 			<FooterEditor editor={editor} onFind={() => setFind({ query: "" })} />
 			<MenuFormat editor={editor} isEditingLink={isEditingLink} onEditLink={setIsEditingLink} onAi={isAiEnabled ? startRewrite : null} />
+			<MenuImage editor={editor} onCrop={(src) => setCrop({ src, pos: editor.state.selection.from })} />
+			<DialogImageCrop
+				src={crop?.src ?? null}
+				open={Boolean(crop)}
+				onOpenChange={(isOpen) => !isOpen && setCrop(null)}
+				onCropped={(image) => replaceImage(editor, crop, image)}
+			/>
 			{isAiEnabled && (
 				<DialogAiRewrite
 					request={rewrite}
@@ -172,6 +183,7 @@ export default function EditorRich({ collaboration = null, content, onChange, fi
 				onOpenChange={setIsPickingImage}
 				onSelect={(image) => insertImage(editor, image)}
 				hasStock={hasStockPhotos}
+				hasGifs={hasGifs}
 				hasAi={isAiEnabled}
 				newsletterId={newsletterId}
 			/>
@@ -235,6 +247,23 @@ function insertImage(editor, { url, width, height, alt = "", credit = null }) {
 	const size = width && height ? getDisplaySize({ width, height }) : {};
 	const image = { type: "image", attrs: { src: url, alt, ...size } };
 	editor.chain().focus().insertContent(credit ? [image, creditContent(credit)] : image).run();
+}
+
+// A cropped picture takes the place of the one it came from, as one step of the undo history: the node it was cropped at, or
+// the first with the same address if the document moved meanwhile.
+function replaceImage(editor, from, { url, width, height }) {
+	if (editor.isDestroyed || !from) return;
+	const size = getDisplaySize({ width, height });
+	let pos = editor.state.doc.nodeAt(from.pos)?.type.name === "image" && editor.state.doc.nodeAt(from.pos).attrs.src === from.src ? from.pos : null;
+	if (pos === null) {
+		editor.state.doc.descendants((node, at) => {
+			if (pos === null && node.type.name === "image" && node.attrs.src === from.src) pos = at;
+		});
+	}
+	if (pos === null) return toast.error("The picture was removed, so the crop wasn't used");
+	const node = editor.state.doc.nodeAt(pos);
+	editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, src: url, ...size }));
+	editor.commands.focus();
 }
 
 // Each picture shows right away from the local file and switches to its CDN URL once uploaded. The

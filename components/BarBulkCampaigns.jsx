@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { EyeOff, FolderInput, Loader2, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, EyeOff, FolderInput, Loader2, Trash2 } from "lucide-react";
 import { bulkUpdateCampaigns } from "@/app/(app)/campaigns/actions";
 import { useCampaignSelection } from "@/components/ProviderCampaignSelection";
 import { Button } from "@/components/ui/button";
@@ -13,9 +13,9 @@ import { toast } from "@/lib/toast";
 
 const EDITABLE = ["draft", "scheduled"];
 
-// What several ticked campaigns can do together: delete drafts, take issues off the website's list, or move drafts to another
-// newsletter. What can't be done to one of them is skipped, with the reason in the message.
-export default function BarBulkCampaigns({ newsletters = [], currentNewsletterId, authors = [] }) {
+// What several ticked campaigns can do together: delete drafts, take issues off the website's list, archive them, or move drafts to another
+// newsletter. In the archived view the one thing to do is bring them back. What can't be done to one of them is skipped, with the reason in the message.
+export default function BarBulkCampaigns({ newsletters = [], currentNewsletterId, authors = [], isArchivedView = false }) {
 	const router = useRouter();
 	const selection = useCampaignSelection();
 	const [isConfirming, setIsConfirming] = useState(false);
@@ -37,7 +37,7 @@ export default function BarBulkCampaigns({ newsletters = [], currentNewsletterId
 			setIsConfirming(false);
 			setTagging(false);
 			if (result?.error) return toast.error(result.error);
-			const message = `${formatCount(result.done, "campaign")} ${{ delete: "deleted", unlist: "taken off the list", list: "put on the list", move: "moved", tag: "tagged", author: "given a byline" }[operation]}`;
+			const message = `${formatCount(result.done, "campaign")} ${{ delete: "deleted", unlist: "taken off the list", list: "put on the list", move: "moved", tag: "tagged", author: "given a byline", archive: "archived", unarchive: "restored" }[operation]}`;
 			if (result.skipped > 0) toast.message(`${message}. ${result.skipped} skipped: ${result.reasons.join("; ")}.`);
 			else toast.success(message);
 			selection.clear();
@@ -48,6 +48,17 @@ export default function BarBulkCampaigns({ newsletters = [], currentNewsletterId
 	return (
 		<div role="region" aria-label="Selected campaigns" className="fixed right-(--dock-right) bottom-(--dock-bottom) left-4 z-30 flex flex-wrap items-center gap-2 rounded-xl bg-card p-2 pl-4 shadow-float md:left-64">
 			<span className="mr-auto text-sm tabular-nums">{ids.length} selected</span>
+			{isArchivedView ? (
+				<Button variant="outline" size="sm" disabled={isPending} onClick={() => run("unarchive")}>
+					<ArchiveRestore data-icon="inline-start" />
+					Unarchive
+				</Button>
+			) : (
+				<Button variant="outline" size="sm" disabled={isPending} onClick={() => run("archive")}>
+					<Archive data-icon="inline-start" />
+					Archive
+				</Button>
+			)}
 			<Button variant="outline" size="sm" disabled={isPending || editable === 0} onClick={() => setIsConfirming(true)}>
 				<Trash2 data-icon="inline-start" />
 				Delete drafts

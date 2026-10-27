@@ -89,6 +89,7 @@ export default function FormCampaign({
 	segments = [],
 	isAiEnabled = false,
 	hasStockPhotos = false,
+	hasGifs = false,
 	snippets = [],
 	audioCard = null,
 	authorControl = null,
@@ -182,6 +183,7 @@ export default function FormCampaign({
 		paidCount,
 		audience: campaign.audience ?? "all",
 		audienceLimit: campaign.audienceLimit,
+		audienceOrder: campaign.audienceOrder,
 		emailsLeft,
 		scheduledAt,
 		isCleanupEnabled: Boolean(newsletter.cleanup?.enabled),
@@ -415,7 +417,7 @@ export default function FormCampaign({
 								</p>
 							</div>
 						) : (
-							<EditorRich content={initialBody} onChange={updateBody} fields={fields} snippets={snippets} newsletterId={newsletter._id} tiers={getNewsletterTiers(newsletter).map(({ id, name }) => ({ id, name }))} campaignId={campaign._id} isAiEnabled={isAiEnabled} hasStockPhotos={hasStockPhotos} />
+							<EditorRich content={initialBody} onChange={updateBody} fields={fields} snippets={snippets} newsletterId={newsletter._id} tiers={getNewsletterTiers(newsletter).map(({ id, name }) => ({ id, name }))} campaignId={campaign._id} isAiEnabled={isAiEnabled} hasStockPhotos={hasStockPhotos} hasGifs={hasGifs} />
 						)}
 					</div>
 				</section>

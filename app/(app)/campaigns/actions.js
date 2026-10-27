@@ -97,6 +97,14 @@ export async function setCampaignFromName(id, fromName) {
 	return { ok: true };
 }
 
+// Share buttons in this issue's email header: on, off, or null to follow the newsletter.
+export async function setCampaignShareButtons(id, value) {
+	const { failure } = await runDashboardAction("update_campaign", { id: String(id), shareButtons: value === true ? true : value === false ? false : null });
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	return { ok: true };
+}
+
 // Who the issue goes to, saved before the send so the list cleanup's count follows it.
 export async function setCampaignAudience(id, audience) {
 	const { failure } = await runDashboardAction("update_campaign", { id: String(id), audience: readAudience(audience) });
@@ -117,19 +125,25 @@ function readAudience(value) {
 	return ["free", "paid"].includes(value) ? value : "all";
 }
 
-export async function sendCampaign(id, { audienceLimit, audience } = {}) {
-	const { failure } = await runDashboardAction("send_campaign", { id: String(id), audienceLimit: readCount(audienceLimit), audience: readAudience(audience) });
+// Only a random cohort is asked for by name: anything else is the most engaged first.
+function readAudienceOrder(value) {
+	return value === "random" ? "random" : "engaged";
+}
+
+export async function sendCampaign(id, { audienceLimit, audience, audienceOrder } = {}) {
+	const { failure } = await runDashboardAction("send_campaign", { id: String(id), audienceLimit: readCount(audienceLimit), audience: readAudience(audience), audienceOrder: readAudienceOrder(audienceOrder) });
 	refresh(id);
 	return failure ? toFormError(failure) : { ok: true };
 }
 
 // The Send button: like sendCampaign, but the send waits the newsletter's undo window first (lib/send-hold.js). What it answers
 // tells the bar at the bottom of the dashboard what to count down to, or what to celebrate when nothing waited.
-export async function startSend(id, { audienceLimit, audience } = {}) {
+export async function startSend(id, { audienceLimit, audience, audienceOrder } = {}) {
 	const { output, failure } = await runDashboardAction("send_campaign", {
 		id: String(id),
 		audienceLimit: readCount(audienceLimit),
 		audience: readAudience(audience),
+		audienceOrder: readAudienceOrder(audienceOrder),
 		holdForUndo: true,
 	});
 	refresh(id);
@@ -197,12 +211,13 @@ export async function checkCampaign(id) {
 	return failure ? toFormError(failure) : output;
 }
 
-export async function scheduleCampaign(id, { scheduledAt, audienceLimit, audience } = {}) {
+export async function scheduleCampaign(id, { scheduledAt, audienceLimit, audience, audienceOrder } = {}) {
 	const { failure } = await runDashboardAction("schedule_campaign", {
 		id: String(id),
 		scheduledAt: String(scheduledAt ?? ""),
 		audienceLimit: readCount(audienceLimit),
 		audience: readAudience(audience),
+		audienceOrder: readAudienceOrder(audienceOrder),
 	});
 	if (failure) return toFormError(failure);
 	refresh(id);
@@ -217,8 +232,8 @@ export async function unscheduleCampaign(id) {
 }
 
 // The send dialogs ask when they open: it walks the whole list.
-export async function previewCleanup(id) {
-	const { output, failure } = await runDashboardAction("preview_campaign_cleanup", { id: String(id), includeRanks: true });
+export async function previewCleanup(id, audienceOrder) {
+	const { output, failure } = await runDashboardAction("preview_campaign_cleanup", { id: String(id), includeRanks: true, ...(audienceOrder && { audienceOrder: readAudienceOrder(audienceOrder) }) });
 	if (failure) return toFormError(failure);
 	return output.enabled ? { enabled: true, ...output.ranks } : { enabled: false };
 }
@@ -409,6 +424,12 @@ export async function restoreCampaignVersion(id, version) {
 // credit the photo is shown with.
 export async function searchStock(query, page) {
 	const { output, failure } = await runDashboardAction("search_stock_photos", { query: String(query ?? "").slice(0, 100), page: readCount(page) ?? 1, perPage: 18 });
+	return failure ? toFormError(failure) : output;
+}
+
+// The editor's GIF picker (GIPHY): a page of results from an offset.
+export async function searchGifs(query, offset) {
+	const { output, failure } = await runDashboardAction("search_gifs", { query: String(query ?? "").slice(0, 100), offset: Math.max(0, Math.min(4999, Math.trunc(Number(offset)) || 0)), perPage: 18 });
 	return failure ? toFormError(failure) : output;
 }
 

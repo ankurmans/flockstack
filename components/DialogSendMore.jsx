@@ -27,7 +27,7 @@ import { toast } from "@/lib/toast";
 import { useToastError } from "@/lib/use-toast-error";
 import { useCleanupPreview } from "@/lib/use-cleanup-preview";
 
-export default function DialogSendMore({ campaignId, sentCount, remainingCount, emailsLeft, isCleanupEnabled, pace, newContacts = 0 }) {
+export default function DialogSendMore({ campaignId, sentCount, remainingCount, emailsLeft, isCleanupEnabled, pace, newContacts = 0, isRandom = false }) {
 	const router = useRouter();
 	const toastError = useToastError();
 	const [isOpen, setIsOpen] = useState(false);
@@ -43,7 +43,7 @@ export default function DialogSendMore({ campaignId, sentCount, remainingCount, 
 	const isOverPlan = emailsLeft !== null && emails > emailsLeft;
 
 	function changeOpen(nextIsOpen) {
-		if (nextIsOpen && isCleanupEnabled) loadPreview();
+		if (nextIsOpen && isCleanupEnabled) loadPreview(isRandom ? "random" : "engaged");
 		setIsOpen(nextIsOpen);
 	}
 
@@ -70,7 +70,7 @@ export default function DialogSendMore({ campaignId, sentCount, remainingCount, 
 				<DialogHeader>
 					<DialogTitle className="tabular-nums">Send to {formatCount(recipients, "more contact")}?</DialogTitle>
 					<DialogDescription className="tabular-nums">
-						{formatNumber(sentCount)} got it so far. The next most engaged contacts get it, and nobody receives it twice.
+						{formatNumber(sentCount)} got it so far. {isRandom ? "The next contacts of its random cohort get it" : "The next most engaged contacts get it"}, and nobody receives it twice.
 					</DialogDescription>
 				</DialogHeader>
 				<NoticeWarmup pace={pace} emails={emails} newContacts={newContacts} />

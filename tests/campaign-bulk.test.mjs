@@ -91,6 +91,92 @@ describe("unlist and list", () => {
 	});
 });
 
+describe("archive and unarchive", () => {
+	test("put drafts and sent issues away from the list, take a sent issue off the website's list and bring both back", async () => {
+		const user = await customer();
+		const draft = await t.draft(user, { subject: "Old draft" });
+		const issue = await sentIssue(user, { archivePinned: true });
+		const unlisted = await sentIssue(user, { archiveListed: false });
+		const scheduled = await t.m.Campaign.create({ accountId: user.accountId, newsletterId: user.newsletterId, subject: "S", status: "scheduled", scheduledAt: new Date(Date.now() + 86_400_000) });
+
+		const archived = await bulk(user, { ids: [draft, String(issue._id), String(unlisted._id), String(scheduled._id)], operation: "archive" });
+		assert.equal(archived.status, 200, JSON.stringify(archived.body));
+		assert.deepEqual(archived.body.results.map(({ status }) => status), ["done", "done", "done", "skipped"]);
+		assert.equal(archived.body.results[3].reason, "Unschedule it first");
+		assert.equal((await bulk(user, { ids: [draft], operation: "archive" })).body.results[0].reason, "Already archived");
+
+		const away = await get(user, String(issue._id));
+		assert.equal(away.archived, true);
+		assert.equal(away.archiveListed, false, "a sent issue leaves the website's list");
+		assert.equal(away.archivePinned, false);
+		const listed = (await t.api(user.key, "GET", "/campaigns")).body.campaigns.map(({ id }) => id);
+		assert.deepEqual(listed, [String(scheduled._id)], "archived campaigns are left out of the default list");
+		const only = (await t.api(user.key, "GET", "/campaigns?archived=true")).body.campaigns.map(({ id }) => id).toSorted();
+		assert.deepEqual(only, [draft, String(issue._id), String(unlisted._id)].toSorted());
+
+		const restored = await bulk(user, { ids: [draft, String(issue._id), String(unlisted._id), String(scheduled._id)], operation: "unarchive" });
+		assert.deepEqual(restored.body.results.map(({ status }) => status), ["done", "done", "done", "skipped"]);
+		assert.equal(restored.body.results[3].reason, "Not archived");
+		assert.equal((await get(user, String(issue._id))).archiveListed, true, "the archive unlisted it, so unarchiving lists it again");
+		assert.equal((await get(user, String(issue._id))).archived, false);
+		assert.equal((await get(user, String(unlisted._id))).archiveListed, false, "an issue that was unlisted before stays unlisted");
+		assert.equal((await t.api(user.key, "GET", "/campaigns?archived=true")).body.campaigns.length, 0);
+	});
+
+	test("skip a send in progress and another account's campaign", async () => {
+		const user = await customer();
+		const other = await customer();
+		const sending = await t.m.Campaign.create({ accountId: user.accountId, newsletterId: user.newsletterId, subject: "Going out", status: "sending" });
+		const theirs = await t.draft(other);
+		const result = await bulk(user, { ids: [String(sending._id), theirs], operation: "archive" });
+		assert.deepEqual(result.body.results.map(({ reason }) => reason), ["Wait until the send is over", "Campaign not found"]);
+		assert.equal((await get(other, theirs)).archived, false);
+	});
+
+	test("the dashboard list shows archived campaigns in their own view, with the bar offering Unarchive", async () => {
+		const user = await customer();
+		const draft = await t.draft(user, { subject: "Put away" });
+		await t.draft(user, { subject: "Kept" });
+		await bulk(user, { ids: [draft], operation: "archive" });
+		const page = (await import("../app/(app)/campaigns/(list)/page.js")).default;
+		const active = renderToStaticMarkup(await as(user, async () => page({ searchParams: Promise.resolve({}) })));
+		assert.match(active, /aria-label="Select Kept"/);
+		assert.doesNotMatch(active, /aria-label="Select Put away"/);
+		assert.match(active, /href="\/campaigns\?view=archived"/);
+		const away = renderToStaticMarkup(await as(user, async () => page({ searchParams: Promise.resolve({ view: "archived" }) })));
+		assert.match(away, /aria-label="Select Put away"/);
+		assert.doesNotMatch(away, /aria-label="Select Kept"/);
+	});
+});
+
+describe("the tag filter", () => {
+	test("list_campaigns takes a tag by name or web address form, and the dashboard list filters on ?tag=", async () => {
+		const user = await customer();
+		const tagged = await t.draft(user, { subject: "About cats" });
+		const other = await t.draft(user, { subject: "About dogs" });
+		await t.draft(user, { subject: "Untagged" });
+		assert.equal((await t.api(user.key, "PATCH", `/campaigns/${tagged}`, { tags: ["Pet News"] })).status, 200);
+		assert.equal((await t.api(user.key, "PATCH", `/campaigns/${other}`, { tags: ["Dogs", "pet-news"] })).status, 200);
+
+		const byName = (await t.api(user.key, "GET", "/campaigns?tag=Pet%20News")).body.campaigns.map(({ id }) => id).toSorted();
+		assert.deepEqual(byName, [tagged, other].toSorted());
+		assert.deepEqual((await t.api(user.key, "GET", "/campaigns?tag=pet-news")).body.campaigns.map(({ id }) => id).toSorted(), byName);
+		assert.deepEqual((await t.api(user.key, "GET", "/campaigns?tag=dogs")).body.campaigns.map(({ id }) => id), [other]);
+		assert.deepEqual((await t.api(user.key, "GET", "/campaigns?tag=nothing")).body.campaigns, []);
+
+		const page = (await import("../app/(app)/campaigns/(list)/page.js")).default;
+		const filtered = renderToStaticMarkup(await as(user, async () => page({ searchParams: Promise.resolve({ tag: "dogs" }) })));
+		assert.match(filtered, /aria-label="Select About dogs"/);
+		assert.doesNotMatch(filtered, /aria-label="Select About cats"/);
+		assert.doesNotMatch(filtered, /aria-label="Select Untagged"/);
+		const unfiltered = renderToStaticMarkup(await as(user, async () => page({ searchParams: Promise.resolve({}) })));
+		assert.match(unfiltered, /aria-label="Select Untagged"/);
+		assert.match(unfiltered, /aria-label="Tag"/, "the tag filter shows once a campaign has tags");
+		const unknown = renderToStaticMarkup(await as(user, async () => page({ searchParams: Promise.resolve({ tag: "Not a tag" }) })));
+		assert.match(unknown, /aria-label="Select Untagged"/, "an unknown tag in the address shows everything");
+	});
+});
+
 describe("move", () => {
 	test("puts drafts in another newsletter, leaving its segment behind", async () => {
 		const user = await customer();
@@ -148,7 +234,7 @@ describe("the request", () => {
 		const user = await customer();
 		t.assertError(await bulk(user, { ids: [], operation: "delete" }), 400, "validation_failed");
 		t.assertError(await bulk(user, { ids: Array.from({ length: 101 }, (_, index) => `id${index}`), operation: "delete" }), 400, "validation_failed");
-		t.assertError(await bulk(user, { ids: ["a"], operation: "archive" }), 400, "validation_failed");
+		t.assertError(await bulk(user, { ids: ["a"], operation: "explode" }), 400, "validation_failed");
 	});
 });
 
@@ -158,7 +244,7 @@ describe("the list", () => {
 		const draft = await t.draft(user, { subject: "A draft" });
 		await sentIssue(user, { subject: "A sent one" });
 		const page = (await import("../app/(app)/campaigns/(list)/page.js")).default;
-		const html = renderToStaticMarkup(await as(user, async () => page()));
+		const html = renderToStaticMarkup(await as(user, async () => page({ searchParams: Promise.resolve({}) })));
 		assert.match(html, /aria-label="Select all campaigns"/);
 		assert.match(html, /aria-label="Select A draft"/);
 		assert.match(html, /aria-label="Select A sent one"/);

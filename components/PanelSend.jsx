@@ -4,7 +4,7 @@ import FormCampaignLists from "@/components/FormCampaignLists";
 import { CalendarClock, Loader2, Send } from "lucide-react";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { setCampaignFromName, setCampaignPublishTo } from "@/app/(app)/campaigns/actions";
+import { setCampaignFromName, setCampaignPublishTo, setCampaignShareButtons } from "@/app/(app)/campaigns/actions";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import CardAbTest from "@/components/CardAbTest";
 import CardSettings from "@/components/CardSettings";
@@ -135,9 +135,31 @@ export default function PanelSend({
 							aria-label="Limit"
 							className="h-11 w-full min-w-0 bg-transparent text-sm tabular-nums outline-none placeholder:text-muted-foreground"
 						/>
-						<span className="shrink-0 text-xs text-muted-foreground">Most engaged first</span>
+						<span role="radiogroup" aria-label="Which contacts the limit takes" className="flex shrink-0 gap-1">
+							{ORDER_CHOICES.map(({ value, label }) => (
+								<button
+									key={value}
+									type="button"
+									role="radio"
+									aria-checked={sending.order === value}
+									disabled={sending.isPending}
+									onClick={() => sending.order !== value && sending.setOrder(value)}
+									className={cn(
+										"h-7 rounded-full px-3 text-xs font-medium outline-none transition-[background-color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60",
+										sending.order === value ? "bg-foreground text-background" : "text-muted-foreground shadow-border hover:bg-muted/60 hover:text-foreground"
+									)}
+								>
+									{label}
+								</button>
+							))}
+						</span>
 					</span>
 				</RowCampaign>
+				{archiveUrlBase && !campaign.resend?.of && campaign.publishTo !== "web" && (
+					<RowCampaign label="Share">
+						<ChoiceShareButtons campaign={campaign} newsletter={newsletter} />
+					</RowCampaign>
+				)}
 				{archiveUrlBase && !campaign.resend?.of && (
 					<RowCampaign label="Web page">
 						<InputCampaignSlug
@@ -223,7 +245,7 @@ export default function PanelSend({
 						</DialogTitle>
 						<DialogDescription>
 							{isWebOnly && "It goes on your website now, with no email. "}
-							{scheduledTime ? `It goes out now instead of ${scheduledTime}.` : "Most engaged contacts receive it first."}
+							{scheduledTime ? `It goes out now instead of ${scheduledTime}.` : sending.order === "random" ? "A random cohort of your contacts receives it first." : "Most engaged contacts receive it first."}
 							{isTesting
 								? " The subject line test goes to a slice of them first, and the winner to the rest after the wait."
 								: sending.sendRecipients < sending.issueAudience && " Send it to more later from its page."}
@@ -288,6 +310,48 @@ function ChoicePublishTo({ campaign, isWebsiteOn }) {
 	);
 }
 
+// Share buttons in this issue's email header: the newsletter's setting, or on or off for this issue. Saved as it's picked.
+function ChoiceShareButtons({ campaign, newsletter }) {
+	const router = useRouter();
+	const toastError = useToastError();
+	const [isPending, startTransition] = useTransition();
+	const current = typeof campaign.shareButtons === "boolean" ? String(campaign.shareButtons) : "default";
+	const choices = [
+		{ value: "default", label: newsletter.shareButtons ? "Newsletter setting (on)" : "Newsletter setting (off)" },
+		{ value: "true", label: "Share buttons on" },
+		{ value: "false", label: "Off" },
+	];
+
+	function choose(value) {
+		startTransition(async () => {
+			const result = await setCampaignShareButtons(campaign._id, value === "default" ? null : value === "true");
+			if (result?.error) return toastError(result);
+			router.refresh();
+		});
+	}
+
+	return (
+		<div role="radiogroup" aria-label="Share buttons in the email header" className="flex min-w-0 flex-wrap gap-1.5 py-2">
+			{choices.map(({ value, label }) => (
+				<button
+					key={value}
+					type="button"
+					role="radio"
+					aria-checked={current === value}
+					disabled={isPending}
+					onClick={() => current !== value && choose(value)}
+					className={cn(
+						"h-7 rounded-full px-3 text-xs font-medium outline-none transition-[background-color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60",
+						current === value ? "bg-foreground text-background" : "text-muted-foreground shadow-border hover:bg-muted/60 hover:text-foreground"
+					)}
+				>
+					{label}
+				</button>
+			))}
+		</div>
+	);
+}
+
 // The issue's sender name, saved when the field loses focus; the address is always the newsletter's.
 function InputFromName({ campaign, newsletter }) {
 	const [name, setName] = useState(campaign.fromName ?? "");
@@ -318,6 +382,12 @@ function InputFromName({ campaign, newsletter }) {
 		</span>
 	);
 }
+
+// Which contacts a limit takes: the likeliest openers, or a random cohort (lib/cohort-order.js), which is also a fair sample.
+const ORDER_CHOICES = [
+	{ value: "engaged", label: "Most engaged first" },
+	{ value: "random", label: "Random cohort" },
+];
 
 const AUDIENCE_CHOICES = [
 	{ value: "all", label: "Everyone" },

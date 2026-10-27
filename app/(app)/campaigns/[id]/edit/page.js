@@ -9,6 +9,7 @@ import { getArchiveUrls } from "@/lib/archive-hosts";
 import { listCustomFields } from "@/lib/custom-fields";
 import { getSelectedNewsletter, openNewsletter } from "@/lib/selected-newsletter";
 import { serialize } from "@/lib/serialize";
+import { getGiphyKey } from "@/lib/giphy";
 import { getUnsplashKey } from "@/lib/unsplash";
 import Campaign from "@/models/Campaign";
 import Newsletter from "@/models/Newsletter";
@@ -44,6 +45,7 @@ export default async function EditPublishedPage({ params }) {
 			snippets={snippets.map(({ name, content }) => ({ name, content }))}
 			isAiEnabled={Boolean(ai) && hasActiveSubscription(account)}
 			hasStockPhotos={Boolean(getUnsplashKey())}
+			hasGifs={Boolean(getGiphyKey())}
 		/>
 	);
 }
