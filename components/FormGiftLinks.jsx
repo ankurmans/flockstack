@@ -8,6 +8,7 @@ import CardSettings, { RowSettings } from "@/components/CardSettings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { submitKeepingFields } from "@/lib/submit-keeping-fields";
 import { formatDate } from "@/lib/format";
 import { GIFT_LINK_LIMITS } from "@/lib/gift-link-rules";
 import { toast } from "@/lib/toast";
@@ -32,7 +33,7 @@ function FormSettings({ newsletter, settings }) {
 	const [state, action, isPending] = useActionState(saveGiftLinkSettings, null);
 	const { opens, days, perReaderPerMonth } = GIFT_LINK_LIMITS;
 	return (
-		<form action={action}>
+		<form action={action} onSubmit={submitKeepingFields(action)}>
 			<input type="hidden" name="newsletter" value={newsletter} />
 			<CardSettings
 				title="Paid subscribers"
@@ -77,7 +78,7 @@ function FormMake({ newsletter, settings, issues }) {
 	const [state, action, isPending] = useActionState(makeGiftLink, null);
 	const { opens, days } = GIFT_LINK_LIMITS;
 	return (
-		<form action={action}>
+		<form action={action} onSubmit={submitKeepingFields(action)}>
 			<input type="hidden" name="newsletter" value={newsletter} />
 			<CardSettings
 				title="Make a link"
