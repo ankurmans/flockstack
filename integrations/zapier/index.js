@@ -18,6 +18,7 @@ const eventTriggers = events.map(makeEventTrigger);
 module.exports = {
 	version: packageJson.version,
 	platformVersion: zapier.version,
+	flags: { cleanInputData: false },
 	authentication,
 	beforeRequest: [addApiKey],
 	afterResponse: [handleErrors],

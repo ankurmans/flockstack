@@ -9,7 +9,7 @@ module.exports = {
 			label: "API key",
 			type: "password",
 			required: true,
-			helpText: "A full access key from the API keys page of your FlockStack dashboard.",
+			helpText: "A full access key from the API keys page of your FlockStack dashboard. [API help](https://flockstack.io/docs/api).",
 		},
 		{
 			key: "region",
@@ -17,7 +17,7 @@ module.exports = {
 			required: true,
 			default: "us",
 			choices: { us: "United States (flockstack.io)", eu: "European Union (eu.flockstack.io)" },
-			helpText: "Where your account lives: keys starting with mc_eu_ are European Union keys.",
+			helpText: "Where your account lives: keys starting with mc_eu_ are European Union keys. [Regions](https://flockstack.io/docs/regions).",
 		},
 		{
 			key: "serverUrl",

@@ -7,8 +7,15 @@ const REGIONS = {
 
 function getBaseUrl(authData = {}) {
 	const own = String(authData.serverUrl || "").trim().replace(/\/+$/, "");
-	if (own) return own;
-	return REGIONS[authData.region] || REGIONS.us;
+	if (own) {
+		let url;
+		try { url = new URL(own); } catch { throw new Error("Enter your server's HTTPS origin"); }
+		if (url.protocol !== "https:" || !url.hostname || url.username || url.password || url.pathname !== "/" || url.search || url.hash) throw new Error("Enter an HTTPS origin without credentials, a path, query or fragment");
+		return url.origin;
+	}
+	const base = REGIONS[authData.region || "us"];
+	if (!base) throw new Error("Choose the account's US or EU region");
+	return base;
 }
 
 function apiUrl(bundle, path) {

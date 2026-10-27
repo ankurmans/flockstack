@@ -48,6 +48,166 @@
       {
         "label": "Automation step",
         "value": "automation.step"
+      },
+      {
+        "label": "Content item created",
+        "value": "content_item.created"
+      },
+      {
+        "label": "Content item updated",
+        "value": "content_item.updated"
+      },
+      {
+        "label": "Content item deleted",
+        "value": "content_item.deleted"
+      },
+      {
+        "label": "Editorial batch created",
+        "value": "editorial_batch.created"
+      },
+      {
+        "label": "Editorial batch updated",
+        "value": "editorial_batch.updated"
+      },
+      {
+        "label": "Editorial batch deleted",
+        "value": "editorial_batch.deleted"
+      },
+      {
+        "label": "Content plan changed",
+        "value": "content_plan.changed"
+      },
+      {
+        "label": "author created",
+        "value": "author.created"
+      },
+      {
+        "label": "author updated",
+        "value": "author.updated"
+      },
+      {
+        "label": "author archived",
+        "value": "author.archived"
+      },
+      {
+        "label": "subscriber perk created",
+        "value": "subscriber_perk.created"
+      },
+      {
+        "label": "subscriber perk updated",
+        "value": "subscriber_perk.updated"
+      },
+      {
+        "label": "subscriber perk archived",
+        "value": "subscriber_perk.archived"
+      },
+      {
+        "label": "poll created",
+        "value": "poll.created"
+      },
+      {
+        "label": "poll updated",
+        "value": "poll.updated"
+      },
+      {
+        "label": "poll deleted",
+        "value": "poll.deleted"
+      },
+      {
+        "label": "survey created",
+        "value": "survey.created"
+      },
+      {
+        "label": "survey updated",
+        "value": "survey.updated"
+      },
+      {
+        "label": "survey deleted",
+        "value": "survey.deleted"
+      },
+      {
+        "label": "paid tier created",
+        "value": "paid_tier.created"
+      },
+      {
+        "label": "paid tier updated",
+        "value": "paid_tier.updated"
+      },
+      {
+        "label": "paid tier deleted",
+        "value": "paid_tier.deleted"
+      },
+      {
+        "label": "Survey response recorded",
+        "value": "survey.responded"
+      },
+      {
+        "label": "Poll vote recorded",
+        "value": "poll.voted"
+      },
+      {
+        "label": "Mailing list created",
+        "value": "mailing_list.created"
+      },
+      {
+        "label": "Mailing list updated",
+        "value": "mailing_list.updated"
+      },
+      {
+        "label": "Mailing list archived",
+        "value": "mailing_list.archived"
+      },
+      {
+        "label": "Subscriber list choices changed",
+        "value": "subscriber.lists_changed"
+      },
+      {
+        "label": "Referral reward earned",
+        "value": "referral_reward.earned"
+      },
+      {
+        "label": "Referral reward fulfilled",
+        "value": "referral_reward.fulfilled"
+      },
+      {
+        "label": "Creator message created",
+        "value": "creator_message.created"
+      },
+      {
+        "label": "Subscriber deleted",
+        "value": "subscriber.deleted"
+      },
+      {
+        "label": "Issue published",
+        "value": "issue.published"
+      },
+      {
+        "label": "Published issue updated",
+        "value": "issue.updated"
+      },
+      {
+        "label": "Comment created",
+        "value": "comment.created"
+      },
+      {
+        "label": "Comment updated",
+        "value": "comment.updated"
+      },
+      {
+        "label": "Comment deleted by its author",
+        "value": "comment.deleted"
+      },
+      {
+        "label": "Comment moderated",
+        "value": "comment.moderated"
+      },
+      {
+        "label": "Reader reply received",
+        "value": "reply.received"
+      },
+      {
+        "label": "Reply Rules changed",
+        "value": "reply_rules.updated"
       }
     ]
   },

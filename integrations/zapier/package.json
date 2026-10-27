@@ -6,12 +6,18 @@
   "license": "AGPL-3.0-only",
   "main": "index.js",
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "scripts": {
-    "validate": "zapier validate"
+    "validate": "zapier-platform validate"
+  },
+  "devDependencies": {
+    "zapier-platform-cli": "19.2.1"
   },
   "dependencies": {
-    "zapier-platform-core": "17.0.0"
+    "zapier-platform-core": "19.2.1"
+  },
+  "overrides": {
+    "form-data": "4.0.6"
   }
 }

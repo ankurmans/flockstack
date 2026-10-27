@@ -1,0 +1,427 @@
+{
+	"format": 1,
+	"providerState": "not_checked",
+	"submissionAttemptedByThisBuild": false,
+	"readyToSubmit": false,
+	"zapier": {
+		"version": "1.0.0",
+		"node": ">=22",
+		"core": "19.2.1",
+		"cli": "19.2.1",
+		"triggerCount": 52,
+		"actions": [
+			"add_subscriber",
+			"update_subscriber",
+			"add_tag"
+		],
+		"search": "find_subscriber"
+	},
+	"make": {
+		"manifest": "integrations/make/makecomapp.json",
+		"componentFiles": 22
+	},
+	"events": [
+		{
+			"type": "subscriber.created",
+			"title": "New subscriber"
+		},
+		{
+			"type": "subscriber.confirmed",
+			"title": "Subscriber confirmed"
+		},
+		{
+			"type": "subscriber.unsubscribed",
+			"title": "Subscriber unsubscribed"
+		},
+		{
+			"type": "subscriber.updated",
+			"title": "Subscriber updated"
+		},
+		{
+			"type": "subscriber.upgraded",
+			"title": "Subscriber upgraded to paid"
+		},
+		{
+			"type": "subscriber.downgraded",
+			"title": "Subscriber downgraded to free"
+		},
+		{
+			"type": "campaign.sent",
+			"title": "Campaign sent"
+		},
+		{
+			"type": "audio.ready",
+			"title": "Audio version ready"
+		},
+		{
+			"type": "order.paid",
+			"title": "Order paid"
+		},
+		{
+			"type": "approval.decided",
+			"title": "Approval decided"
+		},
+		{
+			"type": "automation.step",
+			"title": "Automation step"
+		},
+		{
+			"type": "content_item.created",
+			"title": "Content item created"
+		},
+		{
+			"type": "content_item.updated",
+			"title": "Content item updated"
+		},
+		{
+			"type": "content_item.deleted",
+			"title": "Content item deleted"
+		},
+		{
+			"type": "editorial_batch.created",
+			"title": "Editorial batch created"
+		},
+		{
+			"type": "editorial_batch.updated",
+			"title": "Editorial batch updated"
+		},
+		{
+			"type": "editorial_batch.deleted",
+			"title": "Editorial batch deleted"
+		},
+		{
+			"type": "content_plan.changed",
+			"title": "Content plan changed"
+		},
+		{
+			"type": "author.created",
+			"title": "author created"
+		},
+		{
+			"type": "author.updated",
+			"title": "author updated"
+		},
+		{
+			"type": "author.archived",
+			"title": "author archived"
+		},
+		{
+			"type": "subscriber_perk.created",
+			"title": "subscriber perk created"
+		},
+		{
+			"type": "subscriber_perk.updated",
+			"title": "subscriber perk updated"
+		},
+		{
+			"type": "subscriber_perk.archived",
+			"title": "subscriber perk archived"
+		},
+		{
+			"type": "poll.created",
+			"title": "poll created"
+		},
+		{
+			"type": "poll.updated",
+			"title": "poll updated"
+		},
+		{
+			"type": "poll.deleted",
+			"title": "poll deleted"
+		},
+		{
+			"type": "survey.created",
+			"title": "survey created"
+		},
+		{
+			"type": "survey.updated",
+			"title": "survey updated"
+		},
+		{
+			"type": "survey.deleted",
+			"title": "survey deleted"
+		},
+		{
+			"type": "paid_tier.created",
+			"title": "paid tier created"
+		},
+		{
+			"type": "paid_tier.updated",
+			"title": "paid tier updated"
+		},
+		{
+			"type": "paid_tier.deleted",
+			"title": "paid tier deleted"
+		},
+		{
+			"type": "survey.responded",
+			"title": "Survey response recorded"
+		},
+		{
+			"type": "poll.voted",
+			"title": "Poll vote recorded"
+		},
+		{
+			"type": "mailing_list.created",
+			"title": "Mailing list created"
+		},
+		{
+			"type": "mailing_list.updated",
+			"title": "Mailing list updated"
+		},
+		{
+			"type": "mailing_list.archived",
+			"title": "Mailing list archived"
+		},
+		{
+			"type": "subscriber.lists_changed",
+			"title": "Subscriber list choices changed"
+		},
+		{
+			"type": "referral_reward.earned",
+			"title": "Referral reward earned"
+		},
+		{
+			"type": "referral_reward.fulfilled",
+			"title": "Referral reward fulfilled"
+		},
+		{
+			"type": "creator_message.created",
+			"title": "Creator message created"
+		},
+		{
+			"type": "subscriber.deleted",
+			"title": "Subscriber deleted"
+		},
+		{
+			"type": "issue.published",
+			"title": "Issue published"
+		},
+		{
+			"type": "issue.updated",
+			"title": "Published issue updated"
+		},
+		{
+			"type": "comment.created",
+			"title": "Comment created"
+		},
+		{
+			"type": "comment.updated",
+			"title": "Comment updated"
+		},
+		{
+			"type": "comment.deleted",
+			"title": "Comment deleted by its author"
+		},
+		{
+			"type": "comment.moderated",
+			"title": "Comment moderated"
+		},
+		{
+			"type": "reply.received",
+			"title": "Reader reply received"
+		},
+		{
+			"type": "reply_rules.updated",
+			"title": "Reply Rules changed"
+		}
+	],
+	"documentation": {
+		"api": "https://flockstack.io/docs/api",
+		"events": "https://flockstack.io/docs/webhooks",
+		"installation": "https://flockstack.io/docs/zapier-make"
+	},
+	"pending": [
+		"Verify and deploy this source in both Cloud regions before testing directory workflows",
+		"Verify provider ownership and existing app/version state before creating any registration",
+		"Run real US/EU subscribe, receive, retry and unsubscribe workflows with an isolated reviewer account",
+		"Resolve the 55 Zapier D018 title-case publishing tasks against the repository sentence-case copy policy; D026 requires manual custom-domain review",
+		"Review dedicated webhook URL handling and raw signature verification support in both providers; local connector receivers currently filter event type and rely on provider URLs",
+		"Run Make test scenarios and record provider validation results",
+		"Provide owner-approved support contact, reviewer credentials and brand assets through private provider channels",
+		"Review full CLI development dependency audit before provider upload",
+		"Obtain explicit approval before registration, upload, publication, promotion or review submission"
+	],
+	"files": [
+		{
+			"path": "integrations/SUBMISSION.md",
+			"bytes": 5840,
+			"sha256": "a17746fad4bace645bb8e7f5f3d9aedfa337cec17f6592b86273ff83f3929b60"
+		},
+		{
+			"path": "integrations/make/connections/flockstack/api.iml.json",
+			"bytes": 427,
+			"sha256": "b34020c8bbb832827d442a0b9cbd14abaf825a43174da56cf9ace3bed3fffc87"
+		},
+		{
+			"path": "integrations/make/connections/flockstack/parameters.iml.json",
+			"bytes": 841,
+			"sha256": "71379492d1b4a96bc2a5e9fdf98b7114331d019daca2fb528f5e117510728ff3"
+		},
+		{
+			"path": "integrations/make/general/base.iml.json",
+			"bytes": 525,
+			"sha256": "18a2e872866e13e7a8187335a11a6339712bb67a19210739d88f427629d580cc"
+		},
+		{
+			"path": "integrations/make/makecomapp.json",
+			"bytes": 3852,
+			"sha256": "596e992bfaec58a92af570758df054de70aea67fbfabf994b10d9ff2b9fcbba9"
+		},
+		{
+			"path": "integrations/make/modules/addSubscriber/api.iml.json",
+			"bytes": 447,
+			"sha256": "8aa06b8939ec42336ed3639672ca1ffa7d96c1f78cf9c9931ae02055eaa8c3a5"
+		},
+		{
+			"path": "integrations/make/modules/addSubscriber/expect.iml.json",
+			"bytes": 1096,
+			"sha256": "dae579a842820744044fe5f9d4b863ee1283413d6e1ca9da702dedf2a67f81b5"
+		},
+		{
+			"path": "integrations/make/modules/addSubscriber/interface.iml.json",
+			"bytes": 496,
+			"sha256": "f15a1e8d45de6a6e1e0d4498ff0de758547fe89abbf532c2062f931d7e8b2e41"
+		},
+		{
+			"path": "integrations/make/modules/addTag/api.iml.json",
+			"bytes": 249,
+			"sha256": "649cf91f6396064286a1a3fd549d0195c755b182303c74bc3e5e836d5887b61e"
+		},
+		{
+			"path": "integrations/make/modules/addTag/expect.iml.json",
+			"bytes": 476,
+			"sha256": "77a0ca4cdd8cb2fc01659a1d890a5bd97ffe121074b622a8ca59e949e64c6084"
+		},
+		{
+			"path": "integrations/make/modules/addTag/interface.iml.json",
+			"bytes": 330,
+			"sha256": "85237fb82085a5709dc444a862be2bf567affb9109a9341bb3c4963c64c076ce"
+		},
+		{
+			"path": "integrations/make/modules/findSubscriber/api.iml.json",
+			"bytes": 338,
+			"sha256": "ce14e1f0a4796cd86f03cc67fe9b2b04dd06f36cfd2caf1569c6f7ccb87b245b"
+		},
+		{
+			"path": "integrations/make/modules/findSubscriber/expect.iml.json",
+			"bytes": 325,
+			"sha256": "084bf3af96416ee2a7b339c8ff4609e64499e0d6fd3a7d8f8a61e67c725dc671"
+		},
+		{
+			"path": "integrations/make/modules/findSubscriber/interface.iml.json",
+			"bytes": 972,
+			"sha256": "77e5c7ec542f7bb112fcf346168dba08760b86a38eae379d8c79c728e079c8fc"
+		},
+		{
+			"path": "integrations/make/modules/updateSubscriber/api.iml.json",
+			"bytes": 377,
+			"sha256": "f591f30ccac921ddc489d1ff65fa92a9d695081b41d6dc8341c8ff892ca26db3"
+		},
+		{
+			"path": "integrations/make/modules/updateSubscriber/expect.iml.json",
+			"bytes": 899,
+			"sha256": "520da299cd686cd0559e107dea638f040edba4e97bfeb525d6d5c425357f86cc"
+		},
+		{
+			"path": "integrations/make/modules/watchEvents/interface.iml.json",
+			"bytes": 5652,
+			"sha256": "7d03486317b20c09870befd81b4cd37254630621966367098f1c049718ce5abc"
+		},
+		{
+			"path": "integrations/make/modules/watchEvents/samples.iml.json",
+			"bytes": 618,
+			"sha256": "2057bb7407e6c6ab5f3a929d4a9c16b1ed1ab5e60369a394fc1ebbad4912d63b"
+		},
+		{
+			"path": "integrations/make/rpcs/listNewsletters/api.iml.json",
+			"bytes": 190,
+			"sha256": "11ffd4def23faf8ac8752992fe0402b8682b1478f847babbfde624fee61c4a16"
+		},
+		{
+			"path": "integrations/make/webhooks/flockstack/api.iml.json",
+			"bytes": 65,
+			"sha256": "17d2e1067336329121be7420e407e7b6c4e68be767bc17999db15ffe2dda40e9"
+		},
+		{
+			"path": "integrations/make/webhooks/flockstack/attach.iml.json",
+			"bytes": 651,
+			"sha256": "2f6bef4ce837d965509bfaada6f7373f2cbb1911cdd87d3c58df992913a9263f"
+		},
+		{
+			"path": "integrations/make/webhooks/flockstack/detach.iml.json",
+			"bytes": 352,
+			"sha256": "67914cdc7d389957b04a7185293e77c80544a4a16829f5e13f353265ed5e34cc"
+		},
+		{
+			"path": "integrations/make/webhooks/flockstack/parameters.iml.json",
+			"bytes": 5157,
+			"sha256": "cb2100a8acdc9ccee81a26c4c868e96e26a1e19b0031b504492a48c2b8df535a"
+		},
+		{
+			"path": "integrations/zapier/authentication.js",
+			"bytes": 1221,
+			"sha256": "8cf38ca3caa28bd97e946abd8ad9312f0398d30e88a0e6fd1c0c988e49a1d39b"
+		},
+		{
+			"path": "integrations/zapier/creates/add-subscriber.js",
+			"bytes": 1359,
+			"sha256": "cdef8cfd231c3c6f62e7c5ce91dc364f22f6a00df507f1e785040f4ef425fdff"
+		},
+		{
+			"path": "integrations/zapier/creates/add-tag.js",
+			"bytes": 1107,
+			"sha256": "1c62c64e5d7a7a3781bce0661d34d7d2882536e03d36ea31728addbee561a58a"
+		},
+		{
+			"path": "integrations/zapier/creates/subscriber-fields.js",
+			"bytes": 1147,
+			"sha256": "20e9f5c1ea5c4d765a4d88dc339c66803a1555daab45515fc9b1773674c38bae"
+		},
+		{
+			"path": "integrations/zapier/creates/update-subscriber.js",
+			"bytes": 1080,
+			"sha256": "f69d90987f9d50a4118ec025c0c321531fc63faee4ac91bdb1f3de203083a961"
+		},
+		{
+			"path": "integrations/zapier/index.js",
+			"bytes": 1629,
+			"sha256": "e07bab042c01ed028c9cd87a182426bac0eeed46ecba49e8ffb2f14416597c97"
+		},
+		{
+			"path": "integrations/zapier/lib/api.js",
+			"bytes": 2098,
+			"sha256": "1808fee1808f2ea3d4ab27b6800a9e08af08ac9789a05cdb623c8aa4bc392292"
+		},
+		{
+			"path": "integrations/zapier/lib/events.js",
+			"bytes": 10938,
+			"sha256": "8226a5d6dc298ecf41dda2b002d997c58d32b46fb7c05ee01f4b62b0519bdb53"
+		},
+		{
+			"path": "integrations/zapier/package-lock.json",
+			"bytes": 421751,
+			"sha256": "b16a5b2b6405d6454d31896adc684e80fb641c0e080b1c1f57fe60a5acc9fae6"
+		},
+		{
+			"path": "integrations/zapier/package.json",
+			"bytes": 507,
+			"sha256": "71daaf4f861dbe277ff34afd93cc4627c1ea5b4fed99684888d9b4678b1271de"
+		},
+		{
+			"path": "integrations/zapier/searches/find-subscriber.js",
+			"bytes": 1418,
+			"sha256": "bf34a9c7774b536b5e9aa6615bf21420151a79aff3e21c62b236d0fae9aa0a6d"
+		},
+		{
+			"path": "integrations/zapier/triggers/event.js",
+			"bytes": 5296,
+			"sha256": "ed662d9ea3801681b1b113f91ce5add0fd9f394941099d708b72abef6a8d215b"
+		},
+		{
+			"path": "integrations/zapier/triggers/newsletter-list.js",
+			"bytes": 653,
+			"sha256": "3932ace178a7130d6633d4715fe6b7a337997611982b5b837e71925ca8eeb1d2"
+		}
+	]
+}

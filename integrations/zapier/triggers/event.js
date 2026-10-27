@@ -59,7 +59,7 @@ function flatten(event) {
 	const { type, timestamp, data = {} } = event;
 	const { subscriber, campaign, order, approval, ...extras } = data;
 	const item = subscriber || campaign || order || approval || data;
-	return { ...item, ...extras, id: `${type}:${item.id || ""}:${timestamp}`, objectId: item.id, event: type, eventAt: timestamp };
+	return { ...item, ...extras, id: event.id || `${type}:${item.id || ""}:${timestamp}`, objectId: item.id, event: type, eventAt: timestamp };
 }
 
 // Zapier's editor asks for samples: the latest real items of the account, shaped like the event.
@@ -71,7 +71,7 @@ async function listRecent(z, bundle, { type, noun }) {
 		const response = await z.request({ url: apiUrl(bundle, `/campaigns?${query({ status: "sent", limit: 3, newsletter })}`) });
 		return response.data.campaigns.map((campaign) => flatten({ type, timestamp, data: { campaign } }));
 	}
-	if (noun === "Approval") return [];
+	if (!["Subscriber", "Campaign", "Order"].includes(noun)) return [];
 	if (noun === "Order") {
 		const response = await z.request({ url: apiUrl(bundle, `/orders?${query({ status: "paid", limit: 3 })}`) });
 		return response.data.orders.map((order) => flatten({ type, timestamp, data: { order } }));
@@ -125,7 +125,7 @@ function makeEventTrigger({ type, key, noun, label, description }) {
 				return event.type === type ? [flatten(event)] : [];
 			},
 			performList: (z, bundle) => listRecent(z, bundle, { type, noun }),
-			sample: flatten({ type, timestamp: "2026-10-20T09:30:00.000Z", data: { [noun.toLowerCase()]: SAMPLES[noun] } }),
+			sample: flatten({ type, timestamp: "2026-10-20T09:30:00.000Z", data: SAMPLES[noun] ? { [noun.toLowerCase()]: SAMPLES[noun] } : { id: "6650f1c2e9b1d4a012345678", newsletterId: "6650f1c2e9b1d4a0123456aa" } }),
 		},
 	};
 }

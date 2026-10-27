@@ -1,5 +1,10 @@
 [
   {
+    "name": "id",
+    "type": "text",
+    "label": "Event ID"
+  },
+  {
     "name": "type",
     "type": "text",
     "label": "Event"
