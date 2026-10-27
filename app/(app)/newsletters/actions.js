@@ -16,6 +16,18 @@ function readNumber(formData, key) {
 	return text ? Number(text) : null;
 }
 
+// The custom headers box: one "Name: value" a line. The action checks them.
+function readHeaderLines(text) {
+	return text
+		.split("\n")
+		.map((line) => line.trim())
+		.filter(Boolean)
+		.map((line) => {
+			const colon = line.indexOf(":");
+			return colon === -1 ? { name: line, value: "" } : { name: line.slice(0, colon).trim(), value: line.slice(colon + 1).trim() };
+		});
+}
+
 // A collapsed email section sends no fields, and what it had saved stays as it is.
 function readSettings(formData) {
 	return {
@@ -37,6 +49,7 @@ function readSettings(formData) {
 		},
 		preferencesLink: formData.get("preferencesLink") === "on",
 		utmLinks: formData.get("utmLinks") === "on",
+		...(formData.has("customHeaders") && { customHeaders: readHeaderLines(String(formData.get("customHeaders") ?? "")) }),
 		...(formData.has("sendUndoSeconds") && { sendUndoSeconds: Number(readText(formData, "sendUndoSeconds")) }),
 		author: { bio: readText(formData, "authorBio"), imageUrl: readText(formData, "authorImageUrl") },
 		socialLinks: readText(formData, "socialLinks").split(/[\s,]+/).filter(Boolean),

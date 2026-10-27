@@ -412,6 +412,9 @@ export default function FormNewsletter({
 						On links in issues
 					</span>
 				</Field>
+				<Field label="Custom headers" hint="Extra headers on every email, one Name: value a line, 10 at most. Names starting with X-, List-Id, List-Archive, List-Help, List-Owner, List-Subscribe, Organization and Keywords are allowed. The sender, signature and unsubscribe headers can't be changed." as="div">
+					<Textarea name="customHeaders" value={draft.customHeaders} rows={3} placeholder="X-Newsletter-Group: weekly" aria-label="Custom headers" className="font-mono text-xs" onChange={update("customHeaders")} />
+				</Field>
 				<Field label="Undo send" hint="After you press Send, the send waits this long so you can still take it back. Sends from the API and from AI agents don't wait." as="div">
 					<input type="hidden" name="sendUndoSeconds" value={draft.sendUndoSeconds} />
 					<Select value={draft.sendUndoSeconds} onValueChange={(value) => set("sendUndoSeconds", value)}>
