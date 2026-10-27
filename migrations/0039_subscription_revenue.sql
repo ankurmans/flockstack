@@ -1,0 +1,13 @@
+CREATE INDEX IF NOT EXISTS i_contacts__accountId__newsletterId___id ON c_contacts (accountId ASC, json_extract(data, '$.newsletterId') ASC, _id ASC) WHERE json_type(data, '$.stripeSubscriptionId') = 'text';
+CREATE TABLE IF NOT EXISTS c_subscriptionchanges (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_subscriptionchanges__accountId ON c_subscriptionchanges (accountId);
+CREATE UNIQUE INDEX IF NOT EXISTS u_subscriptionchanges__accountId__eventKey ON c_subscriptionchanges (accountId ASC, json_extract(data, '$.eventKey') ASC);
+CREATE INDEX IF NOT EXISTS i_subscriptionchanges__accountId__newsletterId__at___id ON c_subscriptionchanges (accountId ASC, json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.at') ASC, _id ASC);
+CREATE TABLE IF NOT EXISTS c_subscriptionfinancials (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_subscriptionfinancials__accountId ON c_subscriptionfinancials (accountId);
+CREATE UNIQUE INDEX IF NOT EXISTS u_subscriptionfinancials__accountId__subscriptionId ON c_subscriptionfinancials (accountId ASC, json_extract(data, '$.subscriptionId') ASC);
+CREATE INDEX IF NOT EXISTS i_subscriptionfinancials__accountId__newsletterId___id ON c_subscriptionfinancials (accountId ASC, json_extract(data, '$.newsletterId') ASC, _id ASC);
+CREATE TABLE IF NOT EXISTS c_subscriptioninvoices (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_subscriptioninvoices__accountId ON c_subscriptioninvoices (accountId);
+CREATE UNIQUE INDEX IF NOT EXISTS u_subscriptioninvoices__accountId__invoiceId ON c_subscriptioninvoices (accountId ASC, json_extract(data, '$.invoiceId') ASC);
+CREATE INDEX IF NOT EXISTS i_subscriptioninvoices__accountId__newsletterId__paidAt___id ON c_subscriptioninvoices (accountId ASC, json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.paidAt') ASC, _id ASC);
