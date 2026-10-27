@@ -16,7 +16,16 @@ let worker;
 before(async () => {
 	folder = mkdtempSync(join(tmpdir(), "flockstack-api-build-"));
 	outFile = join(folder, "index.js");
-	const built = await buildApiWorker({ outFile, metafile: true });
+	// As the Worker that is deployed is built: the FlockStack Cloud build, which perf-budgets.json measures.
+	const original = process.env.FLOCKSTACK_CLOUD_BUILD;
+	process.env.FLOCKSTACK_CLOUD_BUILD = "true";
+	let built;
+	try {
+		built = await buildApiWorker({ outFile, metafile: true });
+	} finally {
+		if (original === undefined) delete process.env.FLOCKSTACK_CLOUD_BUILD;
+		else process.env.FLOCKSTACK_CLOUD_BUILD = original;
+	}
 	assert.equal(built.outFile, outFile);
 	source = readFileSync(outFile, "utf8");
 	process.env.FLOCKSTACK_SQLITE = ":memory:";
