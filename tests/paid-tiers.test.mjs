@@ -467,6 +467,36 @@ describe("the webhook events carry the tier", () => {
 	});
 });
 
+describe("pausing a subscription", () => {
+	test("subscriber.paused and subscriber.resumed follow the status Stripe reports, once each", async () => {
+		const user = await seller();
+		await setTier(user);
+		const supporter = await addTier(user, { name: "Supporter", yearlyCents: 12000 });
+		const endpoint = await api(user, "POST", "/webhooks", { url: "https://hooks.example.com/in", events: ["subscriber.paused", "subscriber.resumed"] });
+		assert.equal(endpoint.status, 201, JSON.stringify(endpoint.body));
+		const { subscription } = await subscribeAndPay(fake, user, { tier: supporter.id, option: "year", email: "pause@example.net" }, { interval: "year" });
+		const before = published.length;
+		const send = async (status) => {
+			fake.subscriptions.set(subscription.id, { ...subscription, status });
+			await postPaymentEvent(fake.event(status === "paused" ? "customer.subscription.paused" : "customer.subscription.resumed", { id: subscription.id, object: "subscription" }, { account: user.stripeAccountId }));
+			await flushAfter();
+		};
+		await send("paused");
+		await send("paused");
+		await send("active");
+		await send("active");
+
+		const requests = [];
+		const fetchImpl = async (url, init) => (requests.push(JSON.parse(init.body)), new Response("ok", { status: 200 }));
+		for (const { body } of published.slice(before).filter(({ url }) => url.endsWith("/api/jobs/deliver-webhook"))) await m.webhooks.deliverWebhook(body, { fetchImpl });
+		assert.deepEqual(requests.map(({ type }) => type), ["subscriber.paused", "subscriber.resumed"]);
+		const [paused, resumed] = requests;
+		assert.deepEqual(paused.data.tier, { id: supporter.id, name: "Supporter" });
+		assert.deepEqual([paused.data.subscriber.tier, paused.data.subscriber.email, paused.data.source], ["free", "pause@example.net", "stripe"]);
+		assert.deepEqual([resumed.data.subscriber.tier, resumed.data.subscriber.paidTierId, resumed.data.interval], ["paid", supporter.id, "year"]);
+	});
+});
+
 describe("segments", () => {
 	async function segmentSetup() {
 		const user = await seller();

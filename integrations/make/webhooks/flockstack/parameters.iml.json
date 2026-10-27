@@ -30,6 +30,14 @@
         "value": "subscriber.downgraded"
       },
       {
+        "label": "Subscription paused",
+        "value": "subscriber.paused"
+      },
+      {
+        "label": "Subscription resumed",
+        "value": "subscriber.resumed"
+      },
+      {
         "label": "Campaign sent",
         "value": "campaign.sent"
       },

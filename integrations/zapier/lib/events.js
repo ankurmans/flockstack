@@ -10,6 +10,8 @@ module.exports = [
 	{ type: "subscriber.updated", key: "subscriber_updated", noun: "Subscriber", label: "Subscriber updated", description: "Triggers when a subscriber's tags or custom fields change." },
 	{ type: "subscriber.upgraded", key: "subscriber_upgraded", noun: "Subscriber", label: "Subscriber upgraded to paid", description: "Triggers when a reader starts a paid subscription." },
 	{ type: "subscriber.downgraded", key: "subscriber_downgraded", noun: "Subscriber", label: "Subscriber downgraded to free", description: "Triggers when a paid reader's subscription ends." },
+	{ type: "subscriber.paused", key: "subscriber_paused", noun: "Subscriber", label: "Subscription paused", description: "Triggers when a reader's paid subscription is paused." },
+	{ type: "subscriber.resumed", key: "subscriber_resumed", noun: "Subscriber", label: "Subscription resumed", description: "Triggers when a paused subscription is active again." },
 	{ type: "campaign.sent", key: "campaign_sent", noun: "Campaign", label: "Campaign sent", description: "Triggers when a campaign finishes going out." },
 	{ type: "audio.ready", key: "audio_ready", noun: "Audio version", label: "Audio version ready", description: "Triggers when the audio version of an issue is made." },
 	{ type: "order.paid", key: "order_paid", noun: "Order", label: "Order paid", description: "Triggers when a reader pays for a digital product." },
