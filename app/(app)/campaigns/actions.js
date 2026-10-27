@@ -379,9 +379,10 @@ export async function suggestPreviewText(id, subject) {
 	return failure ? { error: failure.message, code: failure.code } : output;
 }
 
-export async function draftSocialPosts(id, subject) {
+export async function draftSocialPosts(id, subject, platforms) {
 	const { output, failure } = await runDashboardAction("draft_social_posts", {
 		campaign: String(id),
+		...(Array.isArray(platforms) && platforms.length > 0 && { platforms: platforms.map(String) }),
 		...(subject && { subject: String(subject).slice(0, MAX_SUBJECT_LENGTH) }),
 	});
 	return failure ? { error: failure.message, code: failure.code } : output;

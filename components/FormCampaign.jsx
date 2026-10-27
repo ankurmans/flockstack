@@ -208,13 +208,13 @@ export default function FormCampaign({
 	}
 
 	// The draft is saved first, since the server reads it from the campaign.
-	function askAi(dialog) {
+	function askAi(dialog, platforms) {
 		setAiDialog(dialog);
 		aiRun.run(async () => {
 			if (!(await flush())) return { error: "Couldn't save the draft, so the AI couldn't read it" };
 			if (dialog === "subjects") return suggestSubjectLines(campaign._id);
 			if (dialog === "previews") return suggestPreviewText(campaign._id, values.subject);
-			return draftSocialPosts(campaign._id, values.subject);
+			return draftSocialPosts(campaign._id, values.subject, platforms);
 		});
 	}
 
@@ -519,7 +519,7 @@ export default function FormCampaign({
 						onUse={(previewText) => setValues((current) => ({ ...current, previewText }))}
 						onRetry={() => askAi("previews")}
 					/>
-					<DialogSocialPosts isOpen={aiDialog === "posts"} onOpenChange={closeAi} run={aiRun} onRetry={() => askAi("posts")} />
+					<DialogSocialPosts isOpen={aiDialog === "posts"} onOpenChange={closeAi} run={aiRun} onRetry={(platforms) => askAi("posts", platforms)} />
 				</>
 			)}
 			<DialogVersionHistory campaignId={campaign._id} isOpen={isHistoryOpen} onOpenChange={setIsHistoryOpen} onSave={flush} />
