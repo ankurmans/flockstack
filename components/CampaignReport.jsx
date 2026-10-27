@@ -103,6 +103,7 @@ export default function CampaignReport({
 							isCleanupEnabled={Boolean(newsletter.cleanup?.enabled)}
 							pace={pace}
 							newContacts={newContacts}
+							isRandom={campaign.audienceOrder === "random"}
 						/>
 					</GatePlan>
 				)}

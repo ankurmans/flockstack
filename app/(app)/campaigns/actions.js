@@ -125,19 +125,25 @@ function readAudience(value) {
 	return ["free", "paid"].includes(value) ? value : "all";
 }
 
-export async function sendCampaign(id, { audienceLimit, audience } = {}) {
-	const { failure } = await runDashboardAction("send_campaign", { id: String(id), audienceLimit: readCount(audienceLimit), audience: readAudience(audience) });
+// Only a random cohort is asked for by name: anything else is the most engaged first.
+function readAudienceOrder(value) {
+	return value === "random" ? "random" : "engaged";
+}
+
+export async function sendCampaign(id, { audienceLimit, audience, audienceOrder } = {}) {
+	const { failure } = await runDashboardAction("send_campaign", { id: String(id), audienceLimit: readCount(audienceLimit), audience: readAudience(audience), audienceOrder: readAudienceOrder(audienceOrder) });
 	refresh(id);
 	return failure ? toFormError(failure) : { ok: true };
 }
 
 // The Send button: like sendCampaign, but the send waits the newsletter's undo window first (lib/send-hold.js). What it answers
 // tells the bar at the bottom of the dashboard what to count down to, or what to celebrate when nothing waited.
-export async function startSend(id, { audienceLimit, audience } = {}) {
+export async function startSend(id, { audienceLimit, audience, audienceOrder } = {}) {
 	const { output, failure } = await runDashboardAction("send_campaign", {
 		id: String(id),
 		audienceLimit: readCount(audienceLimit),
 		audience: readAudience(audience),
+		audienceOrder: readAudienceOrder(audienceOrder),
 		holdForUndo: true,
 	});
 	refresh(id);
@@ -205,12 +211,13 @@ export async function checkCampaign(id) {
 	return failure ? toFormError(failure) : output;
 }
 
-export async function scheduleCampaign(id, { scheduledAt, audienceLimit, audience } = {}) {
+export async function scheduleCampaign(id, { scheduledAt, audienceLimit, audience, audienceOrder } = {}) {
 	const { failure } = await runDashboardAction("schedule_campaign", {
 		id: String(id),
 		scheduledAt: String(scheduledAt ?? ""),
 		audienceLimit: readCount(audienceLimit),
 		audience: readAudience(audience),
+		audienceOrder: readAudienceOrder(audienceOrder),
 	});
 	if (failure) return toFormError(failure);
 	refresh(id);
@@ -225,8 +232,8 @@ export async function unscheduleCampaign(id) {
 }
 
 // The send dialogs ask when they open: it walks the whole list.
-export async function previewCleanup(id) {
-	const { output, failure } = await runDashboardAction("preview_campaign_cleanup", { id: String(id), includeRanks: true });
+export async function previewCleanup(id, audienceOrder) {
+	const { output, failure } = await runDashboardAction("preview_campaign_cleanup", { id: String(id), includeRanks: true, ...(audienceOrder && { audienceOrder: readAudienceOrder(audienceOrder) }) });
 	if (failure) return toFormError(failure);
 	return output.enabled ? { enabled: true, ...output.ranks } : { enabled: false };
 }

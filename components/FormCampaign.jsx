@@ -182,6 +182,7 @@ export default function FormCampaign({
 		paidCount,
 		audience: campaign.audience ?? "all",
 		audienceLimit: campaign.audienceLimit,
+		audienceOrder: campaign.audienceOrder,
 		emailsLeft,
 		scheduledAt,
 		isCleanupEnabled: Boolean(newsletter.cleanup?.enabled),

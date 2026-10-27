@@ -135,7 +135,24 @@ export default function PanelSend({
 							aria-label="Limit"
 							className="h-11 w-full min-w-0 bg-transparent text-sm tabular-nums outline-none placeholder:text-muted-foreground"
 						/>
-						<span className="shrink-0 text-xs text-muted-foreground">Most engaged first</span>
+						<span role="radiogroup" aria-label="Which contacts the limit takes" className="flex shrink-0 gap-1">
+							{ORDER_CHOICES.map(({ value, label }) => (
+								<button
+									key={value}
+									type="button"
+									role="radio"
+									aria-checked={sending.order === value}
+									disabled={sending.isPending}
+									onClick={() => sending.order !== value && sending.setOrder(value)}
+									className={cn(
+										"h-7 rounded-full px-3 text-xs font-medium outline-none transition-[background-color,box-shadow] duration-150 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60",
+										sending.order === value ? "bg-foreground text-background" : "text-muted-foreground shadow-border hover:bg-muted/60 hover:text-foreground"
+									)}
+								>
+									{label}
+								</button>
+							))}
+						</span>
 					</span>
 				</RowCampaign>
 				{archiveUrlBase && !campaign.resend?.of && campaign.publishTo !== "web" && (
@@ -228,7 +245,7 @@ export default function PanelSend({
 						</DialogTitle>
 						<DialogDescription>
 							{isWebOnly && "It goes on your website now, with no email. "}
-							{scheduledTime ? `It goes out now instead of ${scheduledTime}.` : "Most engaged contacts receive it first."}
+							{scheduledTime ? `It goes out now instead of ${scheduledTime}.` : sending.order === "random" ? "A random cohort of your contacts receives it first." : "Most engaged contacts receive it first."}
 							{isTesting
 								? " The subject line test goes to a slice of them first, and the winner to the rest after the wait."
 								: sending.sendRecipients < sending.issueAudience && " Send it to more later from its page."}
@@ -365,6 +382,12 @@ function InputFromName({ campaign, newsletter }) {
 		</span>
 	);
 }
+
+// Which contacts a limit takes: the likeliest openers, or a random cohort (lib/cohort-order.js), which is also a fair sample.
+const ORDER_CHOICES = [
+	{ value: "engaged", label: "Most engaged first" },
+	{ value: "random", label: "Random cohort" },
+];
 
 const AUDIENCE_CHOICES = [
 	{ value: "all", label: "Everyone" },

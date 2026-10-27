@@ -47,6 +47,9 @@ const campaignSchema = new mongoose.Schema(
 		audienceTiers: { type: [String], default: undefined },
 		// Warm-up: send to the most engaged contacts first, capped at audienceLimit.
 		audienceLimit: { type: Number, min: 1 },
+		// Which contacts audienceLimit takes: the most engaged first (unset), or a random cohort, the same one in every step of
+		// the send (lib/cohort-order.js).
+		audienceOrder: { type: String, enum: ["random"] },
 		// Contacts never mailed before go out in steps: a first slice, a check, then the rest (lib/first-send.js), over
 		// restHours in a spread send.
 		firstSend: {
