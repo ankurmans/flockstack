@@ -2,8 +2,10 @@ import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
 import { CONTACT_TIERS } from "../lib/tiers.js";
 
-// pending: signed up to a newsletter that asks new subscribers to confirm, and hasn't yet.
-export const CONTACT_STATUSES = ["active", "pending", "unsubscribed", "bounced", "complained", "dormant"];
+// pending: signed up to a newsletter that asks new subscribers to confirm, and hasn't yet. held: signed up (and confirmed, where
+// that is asked) to a newsletter that approves new subscribers, and waits for the owner (lib/signup-approval.js): it gets
+// nothing and reads nothing until approved.
+export const CONTACT_STATUSES = ["active", "pending", "held", "unsubscribed", "bounced", "complained", "dormant"];
 
 const contactSchema = new mongoose.Schema(
 	{
@@ -29,6 +31,8 @@ const contactSchema = new mongoose.Schema(
 			userId: { type: mongoose.Schema.Types.ObjectId },
 			at: { type: Date },
 		},
+		// When the owner let a held signup in.
+		approvedAt: { type: Date },
 		// A reader of a newsletter with a paid tier is paid while Stripe says their subscription is active or in its trial
 		// (lib/payments/subscriptions.js); paidUntil is the end of the period they paid for. A contact with no tier is free.
 		tier: { type: String, enum: CONTACT_TIERS, default: "free" },

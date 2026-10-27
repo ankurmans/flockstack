@@ -42,6 +42,17 @@ export default function FormSubscribe({ newsletterSlug, fields = [], via = "webs
 		);
 	}
 
+	if (state?.held) {
+		return (
+			<p role="status" className={cn("flex items-center justify-center gap-2 py-3 text-center font-medium text-pretty animate-enter", className)}>
+				<span className="grid size-6 shrink-0 place-items-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+					<Check className="size-3.5 animate-icon-in" />
+				</span>
+				{t("Request received. You'll get the next issue once the owner approves you.")}
+			</p>
+		);
+	}
+
 	if (state?.ok) {
 		const joined = (
 			<p

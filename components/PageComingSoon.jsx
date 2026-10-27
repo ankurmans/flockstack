@@ -5,10 +5,10 @@ import FormSubscribe from "@/components/FormSubscribe";
 import LinksSocial from "@/components/LinksSocial";
 import { getBrand } from "@/lib/brand";
 
-// A newsletter's home page before its first issue has gone out: its name, logo and description, "First issue coming soon" and
+// A private website's home page is the same page with "This newsletter is private" in its place (isPrivate). A newsletter's home page before its first issue has gone out: its name, logo and description, "First issue coming soon" and
 // the signup form, in its theme and brand, with no empty list of issues. Search engines are asked to wait
 // (lib/archive-seo.js getComingSoonSeo).
-export default function PageComingSoon({ newsletter, signupFields }) {
+export default function PageComingSoon({ newsletter, signupFields, isPrivate = false }) {
 	const t = getReaderText(newsletter);
 	const brand = getBrand(newsletter);
 
@@ -35,13 +35,13 @@ export default function PageComingSoon({ newsletter, signupFields }) {
 					)}
 					<p style={{ "--stagger": 3 }} className="mt-6 inline-flex h-7 items-center gap-2 rounded-full px-3 text-sm font-medium text-muted-foreground shadow-border animate-enter">
 						<span aria-hidden="true" className="size-1.5 rounded-full bg-emerald-500" />
-						{t("First issue coming soon")}
+						{isPrivate ? t("This newsletter is private") : t("First issue coming soon")}
 					</p>
 					<div id="subscribe" style={{ "--stagger": 4 }} className="mt-8 w-full max-w-md scroll-mt-24 animate-enter">
 						<FormSubscribe newsletterSlug={newsletter.slug} fields={signupFields} />
 					</div>
 					<p style={{ "--stagger": 5 }} className="mt-4 text-sm text-muted-foreground animate-enter">
-						{t("Subscribe and it arrives in your inbox the day it goes out. Free, unsubscribe anytime.")}
+						{isPrivate ? t("Only approved subscribers can read it. Ask to join below, or get a sign-in link if you already have access.") : t("Subscribe and it arrives in your inbox the day it goes out. Free, unsubscribe anytime.")}
 					</p>
 					<div style={{ "--stagger": 6 }} className="mt-4 animate-enter">
 						<LinksSocial links={newsletter.socialLinks} />

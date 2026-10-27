@@ -175,8 +175,8 @@ describe("the commands", () => {
 		const file = join(dir, "fr.csv");
 		const one = run("export-locale-catalog.mjs", ["--locale", "fr", "--out", file, "--catalog", catalog]);
 		assert.equal(one.status, 0, one.stderr);
-		assert.match(one.stdout, /698 phrases \(fr\)/);
-		assert.equal(parseCsv(readFileSync(file, "utf8")).length, 699);
+		assert.match(one.stdout, new RegExp(`${Object.keys(READER_COPY.en).length} phrases \\(fr\\)`));
+		assert.equal(parseCsv(readFileSync(file, "utf8")).length, Object.keys(READER_COPY.en).length + 1);
 		const all = run("export-locale-catalog.mjs", ["--all", "--out-dir", join(dir, "all"), "--catalog", catalog]);
 		assert.equal(all.status, 0, all.stderr);
 		assert.equal(all.stdout.trim().split("\n").length, 5, "every language but English");
@@ -191,7 +191,7 @@ describe("the commands", () => {
 		writeFileSync(file, await reviewed("pt", { "Unpaid": "Em falta" }));
 		const check = run("import-locale-catalog.mjs", [file, "--catalog", catalog]);
 		assert.equal(check.status, 0);
-		assert.match(check.stdout, /pt: 1 revised phrases of 698\. Run again with --write/);
+		assert.match(check.stdout, new RegExp(`pt: 1 revised phrases of ${Object.keys(READER_COPY.en).length}\\. Run again with --write`));
 		assert.match(readFileSync(catalog, "utf8"), /"Por pagar"/);
 		const written = run("import-locale-catalog.mjs", [file, "--catalog", catalog, "--write"]);
 		assert.equal(written.status, 0, written.stdout);

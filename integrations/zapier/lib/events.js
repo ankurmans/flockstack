@@ -8,6 +8,7 @@ module.exports = [
 	{ type: "subscriber.confirmed", key: "subscriber_confirmed", noun: "Subscriber", label: "Subscriber confirmed", description: "Triggers when a subscriber clicks the link in the confirmation email." },
 	{ type: "subscriber.unsubscribed", key: "subscriber_unsubscribed", noun: "Subscriber", label: "Subscriber unsubscribed", description: "Triggers when a subscriber unsubscribes." },
 	{ type: "subscriber.updated", key: "subscriber_updated", noun: "Subscriber", label: "Subscriber updated", description: "Triggers when a subscriber's tags or custom fields change." },
+	{ type: "subscriber.approved", key: "subscriber_approved", noun: "Subscriber", label: "Subscriber approved", description: "Triggers when you approve a held signup." },
 	{ type: "subscriber.upgraded", key: "subscriber_upgraded", noun: "Subscriber", label: "Subscriber upgraded to paid", description: "Triggers when a reader starts a paid subscription." },
 	{ type: "subscriber.downgraded", key: "subscriber_downgraded", noun: "Subscriber", label: "Subscriber downgraded to free", description: "Triggers when a paid reader's subscription ends." },
 	{ type: "subscriber.paused", key: "subscriber_paused", noun: "Subscriber", label: "Subscription paused", description: "Triggers when a reader's paid subscription is paused." },

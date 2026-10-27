@@ -1,5 +1,5 @@
 import { getArchiveAuthors } from "@/lib/archive-author";
-import { getArchiveNewsletter, getShopPayments, listArchiveIssues, listIssueTags, listPublishedPages, listShopProducts } from "@/lib/archive-data";
+import { getOpenArchiveNewsletter, getShopPayments, listArchiveIssues, listIssueTags, listPublishedPages, listShopProducts } from "@/lib/archive-data";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getIssueModified } from "@/lib/archive-issues";
 
@@ -22,7 +22,7 @@ function latest(dates) {
 // the home and author pages change with the newest issue and the shop with its newest product. An issue marked noindex
 // is left out, as search engines are asked to.
 export async function GET(_request, { params }) {
-	const newsletter = await getArchiveNewsletter((await params).slug);
+	const newsletter = await getOpenArchiveNewsletter((await params).slug);
 	if (!newsletter) return new Response("Not found", { status: 404 });
 
 	const urls = getArchiveUrls(newsletter);

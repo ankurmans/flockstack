@@ -41,6 +41,8 @@ function readSettings(formData) {
 		author: { bio: readText(formData, "authorBio"), imageUrl: readText(formData, "authorImageUrl") },
 		socialLinks: readText(formData, "socialLinks").split(/[\s,]+/).filter(Boolean),
 		requireConfirmation: formData.get("requireConfirmation") === "on",
+		signupApproval: formData.get("signupApproval") === "on",
+		privateArchive: formData.get("privateArchive") === "on",
 		cleanup: {
 			enabled: formData.get("cleanupEnabled") === "on",
 			issues: readNumber(formData, "cleanupIssues"),

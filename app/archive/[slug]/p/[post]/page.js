@@ -24,7 +24,7 @@ import { getArchiveUrls } from "@/lib/archive-hosts";
 import { getBrand } from "@/lib/brand";
 import { getPopupSettings, getTriggerProps, isGatedIssue, isPopupOn } from "@/lib/popup-rules";
 import { getIssueDate } from "@/lib/archive-issues";
-import { getCustomJsonLd, getIssueJsonLd, getIssueSeo, getPageSeo } from "@/lib/archive-seo";
+import { getCustomJsonLd, getIssueJsonLd, getIssueSeo, getPageSeo, getPrivateSeo } from "@/lib/archive-seo";
 import { getTagSlug } from "@/lib/issue-tags";
 import { renderWebIssue } from "@/lib/web-issue";
 import { hasRecommendationsTag } from "@/lib/recommendation-tags";
@@ -54,7 +54,8 @@ async function getPost(params) {
 export async function generateMetadata({ params }) {
 	const post = await getPost(params);
 	if (!post) return {};
-	return post.issue ? getIssueSeo(post.newsletter, post.issue).metadata : getPageSeo(post.newsletter, post.page).metadata;
+	if (post.issue) return post.newsletter.privateArchive ? getPrivateSeo(post.newsletter) : getIssueSeo(post.newsletter, post.issue).metadata;
+	return getPageSeo(post.newsletter, post.page).metadata;
 }
 
 export default async function PostPage({ params }) {
@@ -92,7 +93,20 @@ async function renderPage({ newsletter, page }) {
 	);
 }
 
+// A private website's issue page is the same for everyone: no title, no text, only the gate. The reader's browser asks for the
+// issue (lib/reader-access.js), and gets it if a signed-in subscriber is behind it.
+async function renderPrivateIssue({ newsletter, issue }) {
+	const [signupFields] = await Promise.all([listSignupFields(newsletter)]);
+	const pitch = { language: newsletter.language ?? "en", readerTranslations: Boolean(newsletter.readerTranslations), name: newsletter.name, slug: newsletter.slug, imageUrl: newsletter.imageUrl, description: newsletter.description, signupFields };
+	return (
+		<article className="mx-auto max-w-2xl px-5 pt-12 sm:pt-16">
+			<GateIssue preview="" newsletter={pitch} post={issue.archiveSlug} subscribeHref={null} isPrivate />
+		</article>
+	);
+}
+
 async function renderIssue({ newsletter, issue }) {
+	if (newsletter.privateArchive) return renderPrivateIssue({ newsletter, issue });
 
 	const hasComments = areCommentsOn(newsletter, issue);
 	const [more, readers, payments, signupFields, recommendations, comments, audio] = await Promise.all([

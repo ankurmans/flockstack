@@ -72,7 +72,7 @@ export default function FormNewsletter({
 	const [discardCount, setDiscardCount] = useState(0);
 	const [isSaving, startSaving] = useTransition();
 	const [isTesting, startTesting] = useTransition();
-	const { name, description, accentColor, isPreferencesLinked, isUtmTagged, slug, fromName, fromLocal, fromDomain, imageUrl, postalAddress, isConfirmationRequired, confirmationEdits, isWelcomeEnabled, welcome, isArchiveEnabled, isCleanupEnabled, cleanup } = draft;
+	const { name, description, accentColor, isPreferencesLinked, isUtmTagged, slug, fromName, fromLocal, fromDomain, imageUrl, postalAddress, isConfirmationRequired, confirmationEdits, isWelcomeEnabled, welcome, isArchiveEnabled, isCleanupEnabled, cleanup, isSignupApproval, isPrivateArchive } = draft;
 	const savedCleanup = getCleanupSettings(newsletter);
 	const deferredWelcome = useDeferredValue(welcome);
 	const deferredPostalAddress = useDeferredValue(postalAddress);
@@ -519,10 +519,47 @@ export default function FormNewsletter({
 			</Section>
 
 			<Section
+				title="Approve new signups"
+				stagger={3}
+				action={
+					<Switch
+						name="signupApproval"
+						checked={isSignupApproval}
+						onCheckedChange={(isChecked) => set("isSignupApproval", isChecked)}
+						aria-label="Approve new signups"
+					/>
+				}
+			>
+				<p className="px-4 py-3 text-sm text-pretty text-muted-foreground">
+					New signups wait on the Contacts page until you approve them, after they confirm if you ask for that. Until then they get no issues and can&apos;t read a private website.
+					People you add yourself and readers who pay are let in at once.
+				</p>
+			</Section>
+
+			<Section
+				title="Private website"
+				stagger={3}
+				action={
+					<Switch
+						name="privateArchive"
+						checked={isPrivateArchive}
+						onCheckedChange={(isChecked) => set("isPrivateArchive", isChecked)}
+						aria-label="Private website"
+					/>
+				}
+			>
+				<p className="px-4 py-3 text-sm text-pretty text-muted-foreground">
+					Visitors see only the name, the description and a form to join or sign in. Issues, lists, the feed, the sitemap and search are closed to everyone but a signed-in subscriber, and search engines are asked to stay away.
+					{!isSignupApproval && " Turn on approval to choose who gets in; without it anyone who signs up can read."}
+				</p>
+			</Section>
+
+			<Section
 				title="Welcome email"
 				stagger={4}
 				collapsedNote={
 					isConfirmationRequired &&
+					!isSignupApproval &&
 					"Not sent while new signups confirm, since the confirmation email replaces it. Its content is kept."
 				}
 				action={

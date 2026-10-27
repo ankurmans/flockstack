@@ -23,13 +23,13 @@ export async function GET(request, { params }) {
 	const newsletter = await getArchiveNewsletter(slug);
 	if (!newsletter) return new Response("Not found", { status: 404 });
 
-	const postSlug = new URL(request.url).searchParams.get("p");
+	const postSlug = newsletter.privateArchive ? null : new URL(request.url).searchParams.get("p");
 	const issue = postSlug ? await getArchiveIssue(newsletter, postSlug) : null;
 	if (postSlug && !issue) return new Response("Not found", { status: 404 });
 
 	const [logo, readers] = await Promise.all([readLogo(newsletter.imageUrl), countReaders(newsletter)]);
 	const domain = new URL(getArchiveUrls(newsletter).siteIndex).host;
-	const footer = issue ? formatDate(getIssueDate(issue)) : readers >= 100 ? `Join ${formatNumber(readers)} readers` : "";
+	const footer = issue ? formatDate(getIssueDate(issue)) : readers >= 100 && !newsletter.privateArchive ? `Join ${formatNumber(readers)} readers` : "";
 
 	return new ImageResponse(
 		<div

@@ -22,6 +22,10 @@
         "value": "subscriber.updated"
       },
       {
+        "label": "Subscriber approved",
+        "value": "subscriber.approved"
+      },
+      {
         "label": "Subscriber upgraded to paid",
         "value": "subscriber.upgraded"
       },

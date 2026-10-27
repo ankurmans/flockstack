@@ -8,7 +8,7 @@ const PARENT_PATTERN = /^https?:\/\/[^/\s?#]+$/i;
 // the form's address, and telling the page around it how tall it is. Without formId it is the dashboard's preview and
 // sends nothing. state: "pending" or "done" when a plain form post came back to this page; errorText: why that post was refused.
 export default function FormEmbed({ formId, fields = [], buttonText, colors, message, parent = "", utm = {}, state = "", errorText = "", className }) {
-	const [result, setResult] = useState(state ? { ok: true, pending: state === "pending", message } : null);
+	const [result, setResult] = useState(state ? { ok: true, pending: state === "pending", held: state === "held", message } : null);
 	const [problem, setProblem] = useState(errorText);
 	const [isSending, setIsSending] = useState(false);
 	const [email, setEmail] = useState("");
@@ -73,7 +73,9 @@ export default function FormEmbed({ formId, fields = [], buttonText, colors, mes
 					<p className="m-0">
 						{result.pending
 							? `Almost there. Click the link we just emailed to ${email || "you"} to confirm.`
-							: result.message || message}
+							: result.held
+								? "Request received. You'll get the next issue once the owner approves you."
+								: result.message || message}
 					</p>
 				</div>
 			) : (
