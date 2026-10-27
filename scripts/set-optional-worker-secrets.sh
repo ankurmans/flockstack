@@ -6,8 +6,9 @@
 #       REPLY_INGEST_SECRET on the app, the API Worker and the replies Worker (one value; Enter at its prompt makes a random one nobody sees),
 #       then REPLIES_DOMAIN on the app and the API Worker. The domain goes last: it is what makes the app write reply addresses.
 #   bash scripts/set-optional-worker-secrets.sh replies us --off      # deletes REPLIES_DOMAIN and REPLY_INGEST_SECRET again (wrangler asks to confirm)
-#   bash scripts/set-optional-worker-secrets.sh collaboration us      # COLLABORATION_ENABLED=true on the app and the API Worker, after you type the region
-#   bash scripts/set-optional-worker-secrets.sh collaboration us --off
+#   bash scripts/set-optional-worker-secrets.sh collaboration us      # COLLABORATION_ENABLED=true on the API Worker, then the app (the app's is what shows
+#                                                                     # the button), after you type the region
+#   bash scripts/set-optional-worker-secrets.sh collaboration us --off   # the app first, then the API Worker
 #   --dry-run     says what it would do, asks for nothing and changes nothing
 # The collaboration Worker's own flag is a variable of its wrangler.jsonc, not a secret: the runbook sets it with `wrangler deploy --var`.
 # bash 3.2 (macOS) is enough.
@@ -72,8 +73,9 @@ if [ "$service" = collaboration ]; then
     [ "$confirm" = "$region" ] || { echo "Nothing is changed."; exit 1; }
   fi
   VALUE=true
-  put_secret COLLABORATION_ENABLED app || exit 1
-  put_secret COLLABORATION_ENABLED api || { echo "The API Worker does not have it: editing stays refused (it checks the session). Run this again, or: bash scripts/set-optional-worker-secrets.sh collaboration $region --off" >&2; exit 1; }
+  # The API Worker answers for every editing session, so it is ready first; the app's flag is what shows the button.
+  put_secret COLLABORATION_ENABLED api || { echo "The API Worker does not have it, so the app was not changed: nothing is on. Run this again." >&2; exit 1; }
+  put_secret COLLABORATION_ENABLED app || { echo "The app does not have it: nobody sees the button. Run this again, or: bash scripts/set-optional-worker-secrets.sh collaboration $region --off" >&2; exit 1; }
   echo; echo "Done. Switch it off again with: bash scripts/set-optional-worker-secrets.sh collaboration $region --off"
   exit 0
 fi

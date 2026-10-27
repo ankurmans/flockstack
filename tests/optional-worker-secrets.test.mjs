@@ -125,16 +125,17 @@ describe("collaboration", () => {
 		assert.deepEqual(refused.calls, []);
 		const result = run(["collaboration", "us"], { input: answers("us") });
 		assert.equal(result.status, 0, result.output);
-		assert.deepEqual(result.calls.map(({ command }) => command), ["wrangler secret put COLLABORATION_ENABLED", "wrangler secret put COLLABORATION_ENABLED --config workers/api/wrangler.jsonc"]);
+		assert.deepEqual(result.calls.map(({ command }) => command), ["wrangler secret put COLLABORATION_ENABLED --config workers/api/wrangler.jsonc", "wrangler secret put COLLABORATION_ENABLED"], "the API Worker first: the app's flag is what shows the button");
 		assert.ok(result.calls.every(({ print }) => print === fingerprint("true")));
 	});
 
-	test("EU uses --env eu, a failure on the API Worker says what is left, and --off deletes", () => {
+	test("EU uses --env eu, a failure says what is left, and --off deletes the app's flag first", () => {
 		const eu = run(["collaboration", "eu"], { input: answers("eu") });
 		assert.ok(eu.calls.every(({ command }) => command.endsWith("--env eu")));
 		const failed = run(["collaboration", "us"], { input: answers("us"), env: { FAIL_ON: "workers/api" } });
 		assert.equal(failed.status, 1);
-		assert.match(failed.output, /The API Worker does not have it/);
+		assert.match(failed.output, /The API Worker does not have it, so the app was not changed/);
+		assert.ok(!failed.calls.some(({ command }) => !command.includes("workers/api")), "the app is not touched when the API Worker failed");
 		const off = run(["collaboration", "us", "--off"]);
 		assert.deepEqual(off.calls.map(({ command }) => command), ["wrangler secret delete COLLABORATION_ENABLED", "wrangler secret delete COLLABORATION_ENABLED --config workers/api/wrangler.jsonc"]);
 	});
