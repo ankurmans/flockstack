@@ -5,23 +5,12 @@ import { API_BASE_PATH } from "@/lib/api/rest";
 import { getAppUrl } from "@/lib/config";
 import { getDocsPageMetadata } from "@/lib/docs/pages";
 import { DOWNLOAD_LINK_DAYS, MAX_DOWNLOADS_PER_ORDER } from "@/lib/download-link";
+import { PAYMENT_EVENT_TYPES } from "@/lib/payments/event-types";
 import { MAX_PRODUCT_FILE_BYTES } from "@/lib/products";
 
 export const metadata = getDocsPageMetadata("/docs/selling");
 
-const EVENTS = [
-	"checkout.session.completed",
-	"checkout.session.async_payment_succeeded",
-	"charge.refunded",
-	"charge.dispute.created",
-	"customer.subscription.created",
-	"customer.subscription.updated",
-	"customer.subscription.deleted",
-	"invoice.paid",
-	"invoice.payment_failed",
-	"account.updated",
-	"account.application.deauthorized",
-];
+const EVENTS = PAYMENT_EVENT_TYPES;
 
 export default function SellingPage() {
 	const appUrl = getAppUrl();
