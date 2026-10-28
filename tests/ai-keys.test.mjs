@@ -315,6 +315,20 @@ describe("deleting a key", () => {
 		assert.equal(await m.aiKeys.getAiKeyForRun({ accountId: user.accountId, keyId: added.id }), null);
 		t.assertError(await t.api(user.key, "DELETE", `/ai-keys/${added.id}`), 404, "not_found");
 	});
+
+	test("one a briefing uses is refused with the briefing, its steps and what to do, the same on the dashboard", async () => {
+		const user = await t.customer("ai-keys-delete-used@example.com");
+		const added = (await t.api(user.key, "POST", "/ai-keys", { name: "Writer", provider: "groq", key: SECRET })).body;
+		const briefing = (await t.api(user.key, "POST", "/briefings", { name: "Underwritten" })).body;
+		const set = await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { steps: { write: { keyId: added.id, model: "openai/gpt-oss-120b" }, translate: { keyId: added.id, model: "openai/gpt-oss-120b" } } });
+		assert.equal(set.status, 200, JSON.stringify(set.body));
+		const message = 'A briefing still uses this key: "Underwritten" (Write step and Translate step). Switch those to another key in the briefing first, then delete this key.';
+		assert.equal(t.assertError(await t.api(user.key, "DELETE", `/ai-keys/${added.id}`), 409, "conflict"), message);
+		assert.deepEqual(await as(user, () => m.actions.deleteAiKey(added.id)), { error: message });
+		assert.equal(await m.AiProviderKey.countDocuments({ accountId: user.accountId }), 1, "the key stays");
+		await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { steps: { write: null, translate: null } });
+		assert.deepEqual((await t.api(user.key, "DELETE", `/ai-keys/${added.id}`)).body, { id: added.id, deleted: true }, "once the steps use another key, it goes");
+	});
 });
 
 describe("the safety review", () => {
