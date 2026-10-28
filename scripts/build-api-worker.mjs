@@ -70,6 +70,13 @@ export function createPlugin({ aliases = { ...ALIASES, ...(isCloudBuild() && CLO
 					return args.kind === "require-call" ? { path, namespace: "node-require" } : { path, external: true };
 				}
 				if (request.startsWith("cloudflare:")) return { path: request, external: true };
+				// The `browser` condition brings the AWS SDK's browser builds, whose Node-only exports are placeholders, so a client's
+				// runtime config has to be its browser one too (fetch, Web Crypto), as its package.json "browser" field says. The
+				// Node one calls those placeholders and every SES call fails (tests/api-worker-ses-sdk.test.mjs).
+				if (request === "./runtimeConfig" && args.importer.includes("/node_modules/@aws-sdk/")) {
+					const browser = join(dirname(args.importer), "runtimeConfig.browser.js");
+					if (isFile(browser)) return { path: browser };
+				}
 			});
 			build.onLoad({ filter: /.*/, namespace: "node-require" }, ({ path }) => ({ contents: `import * as builtin from ${JSON.stringify(path)}; module.exports = builtin.default ?? builtin;`, loader: "js" }));
 		},
