@@ -82,8 +82,8 @@ describe("the archive's URLs", () => {
 		for (const options of [shared, noShared]) {
 			const urls = getArchiveUrls({ slug: "underwritten", mount: VERIFIED }, options);
 			assert.equal(urls.mount, MOUNT);
-			assert.equal(urls.index, `${MOUNT}/`);
-			assert.equal(urls.siteIndex, `${MOUNT}/`);
+			assert.equal(urls.index, MOUNT, "no trailing slash: the owner's site redirects it away");
+			assert.equal(urls.siteIndex, MOUNT);
 			assert.equal(urls.post("first"), `${MOUNT}/p/first`);
 			assert.equal(urls.absolutePost("first"), `${MOUNT}/p/first`);
 			assert.equal(urls.absoluteMarkdown("first"), `${MOUNT}/p/first.md`);
@@ -136,7 +136,7 @@ describe("the redirect from the upstream", () => {
 	});
 
 	test("lands on the same page under the mount, query kept", () => {
-		assert.equal(getMountPageUrl(MOUNT, "/"), `${MOUNT}/`);
+		assert.equal(getMountPageUrl(MOUNT, "/"), MOUNT, "the home has no trailing slash for the owner's site to redirect");
 		assert.equal(getMountPageUrl(MOUNT, "/p/first/", "?ref=x"), `${MOUNT}/p/first?ref=x`);
 	});
 });
@@ -148,7 +148,7 @@ describe("URLs in a mounted page", () => {
 		assert.equal(toMountedUrl("/_next/static/chunks/a.js", context), "/newsletter/underwritten/_next/static/chunks/a.js");
 		assert.equal(toMountedUrl("/api/visit", context), "/newsletter/underwritten/api/visit");
 		assert.equal(toMountedUrl("/unsubscribe?token=a#x", context), "/newsletter/underwritten/unsubscribe?token=a#x");
-		assert.equal(toMountedUrl("/", context), "/newsletter/underwritten/");
+		assert.equal(toMountedUrl("/", context), "/newsletter/underwritten");
 		assert.equal(toMountedUrl("https://cdn.example.com/a.png", context), "https://cdn.example.com/a.png");
 		assert.equal(toMountedUrl("//cdn.example.com/a.png", context), "//cdn.example.com/a.png");
 		assert.equal(toMountedUrl("/\\evil.example.com", context), "/\\evil.example.com");
@@ -158,7 +158,7 @@ describe("URLs in a mounted page", () => {
 
 	test("a path under /archive/<slug> takes its place on the newsletter's host first", () => {
 		assert.equal(toMountedUrl("/archive/underwritten/p/first", context), "/newsletter/underwritten/p/first");
-		assert.equal(toMountedUrl("/archive/underwritten", context), "/newsletter/underwritten/");
+		assert.equal(toMountedUrl("/archive/underwritten", context), "/newsletter/underwritten");
 		assert.equal(toMountedUrl("/archive/underwritten/feed?x=1", context), "/newsletter/underwritten/feed.xml?x=1");
 		assert.equal(toMountedUrl("/archive/other/p/first", context), "/newsletter/underwritten/archive/other/p/first");
 	});

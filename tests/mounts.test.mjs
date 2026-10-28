@@ -186,11 +186,11 @@ describe("check_newsletter_mount", () => {
 
 		const newsletter = await m.Newsletter.findOne({ accountId: user.accountId, _id: user.newsletterId }).lean();
 		const urls = m.archiveHosts.getArchiveUrls(newsletter);
-		assert.equal(urls.siteIndex, `https://example.com${prefix}/`);
+		assert.equal(urls.siteIndex, `https://example.com${prefix}`);
 		assert.equal(urls.absolutePost("first"), `https://example.com${prefix}/p/first`);
 		assert.equal(urls.feed, `https://example.com${prefix}/feed.xml`);
 		const got = await callApi("GET", `/api/v1/newsletters/${user.slug}`, { key: user.key });
-		assert.equal(got.body.archiveUrl, `https://example.com${prefix}/`);
+		assert.equal(got.body.archiveUrl, `https://example.com${prefix}`);
 		assert.equal(got.body.seoUrls.sitemap, `https://example.com${prefix}/sitemap.xml`);
 		const { metadata } = m.archiveSeo.getIssueSeo(newsletter, { ...user.issue, archiveSlug: "first" });
 		assert.equal(metadata.alternates.canonical, `https://example.com${prefix}/p/first`);
@@ -235,7 +235,7 @@ describe("once the subfolder is verified", () => {
 
 	test("a page asked for at the upstream without the token is sent to the same page in the subfolder", async () => {
 		for (const [path, location] of [
-			["/", `https://example.com${prefix}/`],
+			["/", `https://example.com${prefix}`],
 			[`/p/${user.issue.archiveSlug}?ref=x`, `https://example.com${prefix}/p/${user.issue.archiveSlug}?ref=x`],
 			["/issues", `https://example.com${prefix}/issues`],
 			["/signin", `https://example.com${prefix}/signin`],
@@ -348,7 +348,7 @@ describe("APP_URL/archive/<slug> as the upstream, on a server without a shared d
 			const page = await visit(`${base}/p/${user.issue.archiveSlug}`);
 			assert.equal(page.status, 301);
 			assert.equal(page.headers.get("location"), `https://example.com${prefix}/p/${user.issue.archiveSlug}`);
-			assert.equal((await visit(base)).headers.get("location"), `https://example.com${prefix}/`);
+			assert.equal((await visit(base)).headers.get("location"), `https://example.com${prefix}`);
 			for (const path of ["/feed", "/sitemap", "/og"]) assert.notEqual((await visit(`${base}${path}`)).status, 301, path);
 			assert.notEqual((await visit("http://localhost:3000/unsubscribe?token=x")).status, 301);
 
