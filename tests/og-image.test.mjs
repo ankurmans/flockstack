@@ -38,3 +38,25 @@ test("a logo at a private, loopback or link-local address yields no logo, throug
 		globalThis.fetch = realFetch;
 	}
 });
+
+// A Worker fetching its own bucket's public address got nothing back, so cards showed an initial instead of an uploaded logo.
+test("a logo uploaded to FlockStack's R2 bucket is read through the binding, not downloaded", async () => {
+	const { images } = await import("./stubs/opennext-cloudflare.mjs");
+	const { withEnv } = await import("./helpers/app.mjs");
+	images.set("accounts/abc/images/icon-0123456789abcdef.png", { bytes: PNG, contentType: "image/png" });
+	try {
+		await withEnv({ IMAGES_STORAGE: "r2", IMAGES_CDN_URL: "https://img.example.com/" }, async () => {
+			assert.match(await readLogo("https://img.example.com/accounts/abc/images/icon-0123456789abcdef.png"), /^data:image\/png;base64,/);
+			assert.deepEqual(requested, [], "the bucket's own file never goes through the network");
+
+			const elsewhere = "https://cdn.example.com/logo.png";
+			remoteImages.set(elsewhere, PNG);
+			assert.match(await readLogo(elsewhere), /^data:image\/png;base64,/);
+			assert.ok(requested.includes(elsewhere), "a logo on another host still goes through the guarded fetcher");
+
+			assert.equal(await readLogo("https://img.example.com/accounts/abc/images/missing.png"), null);
+		});
+	} finally {
+		images.clear();
+	}
+});
