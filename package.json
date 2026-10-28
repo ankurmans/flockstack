@@ -17,6 +17,7 @@
     "render:public": "node scripts/build-public.mjs",
     "build:api": "node scripts/build-api-worker.mjs",
     "build:readers": "node scripts/build-readers-worker.mjs",
+    "build:briefings": "node scripts/build-briefings-worker.mjs",
     "bundle:app": "node scripts/bundle-worker.mjs",
     "perf:budget": "node scripts/perf-budget.mjs",
     "deploy:api": "wrangler deploy --config workers/api/wrangler.jsonc",

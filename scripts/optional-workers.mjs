@@ -1,4 +1,4 @@
-// Which optional Workers (realtime editing, inbound replies) a region has, and what that changes in a deploy. The configurations in the
+// Which optional Workers (realtime editing, inbound replies, briefings) a region has, and what that changes in a deploy. The configurations in the
 // repository name neither: a service binding to a Worker that does not exist fails the deploy of the Worker that holds it, so the bindings
 // are added by scripts/deploy-all.mjs only for a region that says the Worker is there. docs/OPTIONAL-WORKERS-RUNBOOK.md has the steps.
 //
@@ -9,6 +9,8 @@
 // or "enabled" (the same, and every deploy of the collaboration Worker keeps COLLABORATION_ENABLED true). The object form
 // { "state": "provisioned", "testOrigins": ["https://…workers.dev"] } also lets those exact origins open a socket, to try it before a domain moves.
 // replies: true when the replies Worker exists; deploy-all then deploys it with the rest. It needs no binding anywhere else.
+// briefings: true when the briefings Worker exists (it binds the API Worker, never the other way round); deploy-all then deploys it right
+// after the API Worker, and deploys the app and the API Worker with BRIEFINGS_ENABLED=true, which lets run_briefing queue a run.
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,8 +23,11 @@ const REGION_NAMES = ["us", "eu"];
 
 export const collaborationWorkerName = (region) => (region === "eu" ? "flockstack-collaboration-eu" : "flockstack-collaboration");
 export const repliesWorkerName = (region) => (region === "eu" ? "flockstack-replies-eu" : "flockstack-replies");
+export const briefingsWorkerName = (region) => (region === "eu" ? "flockstack-briefings-eu" : "flockstack-briefings");
+const KEYS = ["collaboration", "replies", "briefings"];
+const BOOLEAN_KEYS = ["replies", "briefings"];
 
-const NONE = () => ({ collaboration: { state: "off", testOrigins: [] }, replies: false });
+const NONE = () => ({ collaboration: { state: "off", testOrigins: [] }, replies: false, briefings: false });
 
 export function parseOptionalWorkers(text) {
 	const settings = { us: NONE(), eu: NONE() };
@@ -37,10 +42,11 @@ export function parseOptionalWorkers(text) {
 	for (const [region, entry] of Object.entries(parsed)) {
 		if (!REGION_NAMES.includes(region)) throw new Error(`The optional Workers setting has the region "${region}"; it takes us and eu.`);
 		if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`The optional Workers setting for ${region} is an object.`);
-		for (const key of Object.keys(entry)) if (!["collaboration", "replies"].includes(key)) throw new Error(`The optional Workers setting for ${region} has "${key}"; it takes collaboration and replies.`);
-		if ("replies" in entry) {
-			if (typeof entry.replies !== "boolean") throw new Error(`replies for ${region} is true or false.`);
-			settings[region].replies = entry.replies;
+		for (const key of Object.keys(entry)) if (!KEYS.includes(key)) throw new Error(`The optional Workers setting for ${region} has "${key}"; it takes collaboration, replies and briefings.`);
+		for (const key of BOOLEAN_KEYS) {
+			if (!(key in entry)) continue;
+			if (typeof entry[key] !== "boolean") throw new Error(`${key} for ${region} is true or false.`);
+			settings[region][key] = entry[key];
 		}
 		if ("collaboration" in entry) settings[region].collaboration = parseCollaboration(region, entry.collaboration);
 	}
@@ -70,6 +76,12 @@ export const hasCollaboration = (settings, region) => settings[region].collabora
 export function collaborationVars(settings, region) {
 	const { state, testOrigins } = settings[region].collaboration;
 	return [...(state === "enabled" ? ["--var", "COLLABORATION_ENABLED:true"] : []), ...(testOrigins.length > 0 ? ["--var", `COLLABORATION_ALLOWED_ORIGINS:${testOrigins.join(",")}`] : [])];
+}
+
+// What the app and the API Worker of a region with the briefings Worker are deployed with. A variable, not a secret: nothing else sets
+// the name, and a deploy without it (briefings set back to false) takes it off again.
+export function briefingsVars(settings, region) {
+	return settings[region].briefings ? ["--var", "BRIEFINGS_ENABLED:true"] : [];
 }
 
 // The environments of each configuration that belong to a region: a Worker's top level is the US; the router's top level and env.eu-staged are the staged ones.
@@ -113,5 +125,6 @@ export function describeOptionalWorkers(settings, region) {
 	const { state, testOrigins } = settings[region].collaboration;
 	if (state !== "off") parts.push(`collaboration ${state}${testOrigins.length > 0 ? ` (also accepts sockets from ${testOrigins.join(", ")})` : ""}`);
 	if (settings[region].replies) parts.push("replies");
+	if (settings[region].briefings) parts.push("briefings");
 	return parts.length > 0 ? parts.join(", ") : "none: no configuration names an optional Worker";
 }

@@ -1,8 +1,8 @@
 // Fails when a Worker's script is bigger than its budget (perf-budgets.json): the app's handler and upload, the API Worker, the readers Worker, the
-// router and the public pages Worker. A script's size is what a new isolate has to load before it answers anything (the app's was most of
+// router, the public pages Worker and the optional Workers. A script's size is what a new isolate has to load before it answers anything (the app's was most of
 // a cold start), so a size that creeps up is a cold start that does.
 //   node scripts/perf-budget.mjs [--require-app] [--json]
-// The API and readers Workers are built when they are missing. The app's files exist after `npx opennextjs-cloudflare build` (and its bundle step);
+// The API, readers, collaboration and briefings Workers are built when they are missing. The app's files exist after `npx opennextjs-cloudflare build` (and its bundle step);
 // without them the app's budgets are skipped, unless --require-app (deploy-all passes it, after building).
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -60,6 +60,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 		await buildReadersWorker();
 	}
 	if (budgets["collaboration-worker"] && !existsSync(join(ROOT, budgets["collaboration-worker"].file))) { const { buildCollaborationWorker } = await import("./build-collaboration-worker.mjs"); await buildCollaborationWorker(); }
+	if (budgets["briefings-worker"] && !existsSync(join(ROOT, budgets["briefings-worker"].file))) {
+		const { buildBriefingsWorker } = await import("./build-briefings-worker.mjs");
+		await buildBriefingsWorker();
+	}
 	const results = checkBudgets(budgets);
 	if (process.argv.includes("--json")) console.log(JSON.stringify(results, null, 2));
 	else console.log(formatReport(results));

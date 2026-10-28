@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { after, before, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-// scripts/set-optional-worker-secrets.sh: which Worker gets which value for the replies and collaboration services, in what order, that no value
+// scripts/set-optional-worker-secrets.sh: which Worker gets which value for the replies, collaboration and briefings services, in what order, that no value
 // is printed, and that a failure stops before the step that switches the feature on. `npx` is replaced by a program that records the arguments of
 // each call and a fingerprint of what came in on its standard input.
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
@@ -25,6 +25,11 @@ before(() => {
 input=$(cat)
 printf '%s|%s|%s\\n' "$*" "$(printf %s "$input" | openssl dgst -sha256 | awk '{print $NF}' | cut -c1-16)" "\${#input}" >> "$OPTIONAL_LOG"
 if [ -n "\${FAIL_ON:-}" ]; then case "$*" in *"$FAIL_ON"*) echo "ERROR could not do it"; exit 1 ;; esac; fi
+if [ "$2 $3" = "secret list" ]; then
+	kind=app; case "$*" in *workers/api/*) kind=api ;; *workers/briefings/*) kind=briefings ;; esac
+	case " \${LIST_HAS:-} " in *" $kind "*) echo '[{"name":"OTHER","type":"secret_text"},{"name": "CREDENTIALS_ENCRYPTION_KEY","type":"secret_text"}]' ;; *) echo '[{"name":"OTHER","type":"secret_text"}]' ;; esac
+	exit 0
+fi
 echo "Success! Uploaded secret"
 `
 	);
@@ -141,6 +146,96 @@ describe("collaboration", () => {
 	});
 });
 
+describe("briefings", () => {
+	const KEY = "CREDENTIALS_ENCRYPTION_KEY";
+	const puts = (calls) => calls.filter(({ command }) => command.startsWith("wrangler secret put"));
+	const TYPED_KEY = "q8l3m0Z4dGVzdC1rZXktZm9yLWJyaWVmaW5ncy0xMjM=";
+
+	test("checks the three Workers, then puts one random 32-byte key on the briefings Worker, the API Worker and the app, never printed", () => {
+		const result = run(["briefings", "us"]);
+		assert.equal(result.status, 0, result.output);
+		assert.deepEqual(result.calls.map(({ command }) => command), [
+			"wrangler secret list --format json",
+			"wrangler secret list --config workers/api/wrangler.jsonc --format json",
+			"wrangler secret list --config workers/briefings/wrangler.jsonc --format json",
+			`wrangler secret put ${KEY} --config workers/briefings/wrangler.jsonc`,
+			`wrangler secret put ${KEY} --config workers/api/wrangler.jsonc`,
+			`wrangler secret put ${KEY}`,
+		]);
+		const values = puts(result.calls);
+		assert.equal(new Set(values.map(({ print }) => print)).size, 1, "the same value on all three");
+		assert.equal(values[0].length, 44, "32 bytes in base64");
+		assert.doesNotMatch(result.output, /[A-Za-z0-9+/]{43}=/, "the value is not printed");
+		const again = run(["briefings", "us"]);
+		assert.notEqual(puts(again.calls)[0].print, values[0].print, "a new value each time");
+	});
+
+	test("refuses when any of them has one already, and changes nothing", () => {
+		for (const has of ["app", "api", "briefings", "app api briefings"]) {
+			const result = run(["briefings", "eu"], { env: { LIST_HAS: has } });
+			assert.equal(result.status, 1, result.output);
+			assert.deepEqual(puts(result.calls), [], has);
+			assert.match(result.output, /already set on/);
+			assert.match(result.output, /Nothing is changed/);
+			assert.ok(result.calls.every(({ command }) => command.endsWith("--env eu --format json")), "the EU Workers");
+		}
+	});
+
+	test("--rotate warns that stored AI keys become unreadable and goes on only once the region is typed", () => {
+		const refused = run(["briefings", "us", "--rotate"], { input: answers("yes"), env: { LIST_HAS: "app api briefings" } });
+		assert.equal(refused.status, 1);
+		assert.deepEqual(puts(refused.calls), []);
+		assert.match(refused.output, /WARNING/);
+		assert.match(refused.output, /stored AI provider key/);
+		const result = run(["briefings", "us", "--rotate"], { input: answers("us"), env: { LIST_HAS: "app api briefings" } });
+		assert.equal(result.status, 0, result.output);
+		assert.equal(puts(result.calls).length, 3);
+		assert.equal(new Set(puts(result.calls).map(({ print }) => print)).size, 1);
+	});
+
+	test("--existing copies the app's value, typed twice, to the API Worker and the briefings Worker only", () => {
+		const result = run(["briefings", "us", "--existing"], { input: answers(TYPED_KEY, TYPED_KEY), env: { LIST_HAS: "app" } });
+		assert.equal(result.status, 0, result.output);
+		assert.deepEqual(puts(result.calls).map(({ command }) => command), [`wrangler secret put ${KEY} --config workers/api/wrangler.jsonc`, `wrangler secret put ${KEY} --config workers/briefings/wrangler.jsonc`]);
+		assert.ok(puts(result.calls).every(({ print }) => print === fingerprint(TYPED_KEY)));
+		assert.ok(!result.output.includes(TYPED_KEY));
+		for (const [input, env, message] of [
+			[answers(TYPED_KEY, TYPED_KEY), {}, /has no CREDENTIALS_ENCRYPTION_KEY/],
+			[answers(TYPED_KEY, `${TYPED_KEY}x`), { LIST_HAS: "app" }, /did not match/],
+			[answers("short", "short"), { LIST_HAS: "app" }, /not 32 bytes/],
+		]) {
+			const refused = run(["briefings", "us", "--existing"], { input, env });
+			assert.equal(refused.status, 1, refused.output);
+			assert.deepEqual(puts(refused.calls), []);
+			assert.match(refused.output, message);
+		}
+	});
+
+	test("a failure stops at that Worker, and a Worker it cannot list stops it before anything is set", () => {
+		const failed = run(["briefings", "us"], { env: { FAIL_ON: "put CREDENTIALS_ENCRYPTION_KEY --config workers/api" } });
+		assert.equal(failed.status, 1);
+		assert.ok(!puts(failed.calls).some(({ command }) => command === `wrangler secret put ${KEY}`), "the app is not given it");
+		assert.match(failed.output, /flockstack-api does not have it/);
+		const unlisted = run(["briefings", "us"], { env: { FAIL_ON: "list --config workers/briefings" } });
+		assert.equal(unlisted.status, 1);
+		assert.deepEqual(puts(unlisted.calls), []);
+		assert.match(unlisted.output, /Could not list the secrets of flockstack-briefings/);
+	});
+
+	test("--dry-run asks and calls nothing; --off, and --rotate with --existing, are refused", () => {
+		const dry = run(["briefings", "eu", "--dry-run"]);
+		assert.equal(dry.status, 0, dry.output);
+		assert.deepEqual(dry.calls, []);
+		assert.match(dry.output, /would make a random 32-byte value and set it on flockstack-briefings-eu, flockstack-api-eu and flockstack-eu/);
+		for (const args of [["briefings", "us", "--off"], ["briefings", "us", "--rotate", "--existing"], ["replies", "us", "--rotate"], ["collaboration", "us", "--existing"]]) {
+			const result = run(args);
+			assert.equal(result.status, 1, args.join(" "));
+			assert.match(result.stderr, /usage:/);
+			assert.deepEqual(result.calls, []);
+		}
+	});
+});
+
 describe("use", () => {
 	test("needs a service and a region, and takes nothing else", () => {
 		for (const args of [[], ["replies"], ["us"], ["replies", "us", "--bogus"], ["replies", "mars"]]) {
@@ -156,8 +251,9 @@ describe("use", () => {
 		assert.match(read("lib/reply-address.js"), /process\.env\.REPLIES_DOMAIN/);
 		assert.match(read("lib/reply-ingest-auth.js"), /process\.env\.REPLY_INGEST_SECRET/);
 		assert.match(read("lib/collaboration-authority.js"), /process\.env\.COLLABORATION_ENABLED/);
+		assert.match(read("lib/credentials.js"), /env\.CREDENTIALS_ENCRYPTION_KEY/);
 		const listed = spawnSync("node", ["scripts/api-env.mjs"], { cwd: ROOT, encoding: "utf8" }).stdout;
-		for (const name of ["REPLIES_DOMAIN", "REPLY_INGEST_SECRET", "COLLABORATION_ENABLED"]) assert.match(listed, new RegExp(`^  ${name}$`, "m"), name);
+		for (const name of ["REPLIES_DOMAIN", "REPLY_INGEST_SECRET", "COLLABORATION_ENABLED", "CREDENTIALS_ENCRYPTION_KEY"]) assert.match(listed, new RegExp(`^  ${name}$`, "m"), name);
 		assert.match(listed, /COLLABORATION_STORAGE/);
 	});
 });

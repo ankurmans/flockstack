@@ -11,7 +11,7 @@ const briefingRunSchema = new mongoose.Schema(
 		newsletterId: { type: mongoose.Schema.Types.ObjectId, ref: "Newsletter", required: true },
 		slot: { type: String, required: true },
 		isManual: { type: Boolean, default: false },
-		stage: { type: String, enum: BRIEFING_STAGES, default: "collect" },
+		stage: { type: String, enum: BRIEFING_STAGES, default: "discover" },
 		status: { type: String, enum: BRIEFING_RUN_STATUSES, default: "running" },
 		counts: { sources: { type: Number, default: 0 }, fetched: { type: Number, default: 0 }, fresh: { type: Number, default: 0 }, groups: { type: Number, default: 0 }, picked: { type: Number, default: 0 } },
 		sourceErrors: [{ _id: false, sourceId: String, problem: String }],

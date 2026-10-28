@@ -5,10 +5,10 @@ import { join } from "node:path";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { readJsonc } from "../scripts/bundle-worker.mjs";
-import { applyOptionalBindings, collaborationVars, describeOptionalWorkers, hasCollaboration, loadOptionalWorkers, parseOptionalWorkers } from "../scripts/optional-workers.mjs";
+import { applyOptionalBindings, briefingsVars, briefingsWorkerName, collaborationVars, describeOptionalWorkers, hasCollaboration, loadOptionalWorkers, parseOptionalWorkers } from "../scripts/optional-workers.mjs";
 import { isAllowedOrigin, isTestOrigin } from "../workers/collaboration/origin.js";
 
-// The optional Workers (realtime editing, inbound replies): what the repository's configurations may name, what a region's setting adds to a
+// The optional Workers (realtime editing, inbound replies, briefings): what the repository's configurations may name, what a region's setting adds to a
 // deploy, and the origins the collaboration Worker accepts. The deploy flow itself is in tests/deploy-all.test.mjs.
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const read = (path) => readJsonc(readFileSync(join(ROOT, path), "utf8"));
@@ -22,13 +22,14 @@ describe("the configurations in the repository", () => {
 		for (const path of ["wrangler.jsonc", "workers/api/wrangler.jsonc", "workers/readers/wrangler.jsonc", "workers/public/wrangler.jsonc", "workers/router/wrangler.jsonc"]) {
 			const text = readFileSync(join(ROOT, path), "utf8");
 			assert.doesNotMatch(text, /COLLABORATION_|flockstack-collaboration|flockstack-replies/, path);
+			assert.doesNotMatch(text, /BRIEFINGS_|flockstack-briefings|BriefingsDelivery/, path);
 		}
 	});
 
-	test("the two optional Workers are configured like the others: the account, no workers.dev address, no preview URLs, logs", () => {
+	test("the optional Workers are configured like the others: the account, no workers.dev address, no preview URLs, logs", () => {
 		const account = APP.account_id;
 		assert.match(account, /^[0-9a-f]{32}$/);
-		for (const path of ["workers/collaboration/wrangler.jsonc", "workers/replies/wrangler.jsonc"]) {
+		for (const path of ["workers/collaboration/wrangler.jsonc", "workers/replies/wrangler.jsonc", "workers/briefings/wrangler.jsonc"]) {
 			const config = read(path);
 			for (const [label, part] of [["top level", config], ["env.eu", config.env.eu]]) {
 				assert.equal(part.account_id, account, `${path} ${label} account_id`);
@@ -36,6 +37,24 @@ describe("the configurations in the repository", () => {
 				assert.equal(part.preview_urls, false, `${path} ${label} preview_urls`);
 				assert.equal(part.observability?.enabled, true, `${path} ${label} observability`);
 			}
+		}
+	});
+
+	test("the briefings Worker: its region's database and API Worker entrypoint, Workers AI, a tick every 10 minutes, public fetches only, no route", () => {
+		const config = read("workers/briefings/wrangler.jsonc");
+		const API_CONFIG = read("workers/api/wrangler.jsonc");
+		for (const [region, part, app, api] of [["us", config, APP, API_CONFIG], ["eu", config.env.eu, APP.env.eu, API_CONFIG.env.eu]]) {
+			assert.equal(part.name, briefingsWorkerName(region));
+			assert.deepEqual(part.d1_databases.map(({ binding, database_id }) => [binding, database_id]), [["DB", app.d1_databases[0].database_id]], `${region}: the app's database`);
+			assert.deepEqual(part.services, [{ binding: "API", service: api.name, entrypoint: "BriefingsDelivery" }], region);
+			assert.deepEqual(part.ai, { binding: "AI" });
+			assert.deepEqual(part.triggers.crons, ["*/10 * * * *"]);
+			assert.ok(part.compatibility_flags.includes("global_fetch_strictly_public") && part.compatibility_flags.includes("nodejs_compat"), region);
+			assert.ok(part.limits.cpu_ms >= 30000 && part.limits.cpu_ms <= 300000, region);
+			assert.equal(part.routes, undefined, region);
+			assert.equal(part.vars.FLOCKSTACK_REGION, region);
+			assert.equal(part.vars.FLOCKSTACK_CLOUD, "true");
+			assert.equal(part.vars.BRIEFINGS_DISABLED, undefined, "on when deployed; the off switch is set by hand");
 		}
 	});
 
@@ -54,7 +73,9 @@ describe("the setting", () => {
 			for (const region of ["us", "eu"]) {
 				assert.equal(hasCollaboration(settings, region), false);
 				assert.equal(settings[region].replies, false);
+				assert.equal(settings[region].briefings, false);
 				assert.deepEqual(collaborationVars(settings, region), []);
+				assert.deepEqual(briefingsVars(settings, region), []);
 				assert.match(describeOptionalWorkers(settings, region), /^none/);
 			}
 		}
@@ -69,6 +90,32 @@ describe("the setting", () => {
 		assert.deepEqual(settings.eu.collaboration.testOrigins, ["https://flockstack-router-eu.example.workers.dev"]);
 		assert.match(describeOptionalWorkers(settings, "us"), /collaboration enabled, replies/);
 		assert.match(describeOptionalWorkers(settings, "eu"), /collaboration provisioned \(also accepts sockets from https:\/\/flockstack-router-eu\.example\.workers\.dev\)/);
+	});
+
+	test("briefings is true or false per region; a setting written before it existed reads as it always did", () => {
+		const settings = parseOptionalWorkers('{"us":{"briefings":true,"replies":true},"eu":{"collaboration":"provisioned"}}');
+		assert.equal(settings.us.briefings, true);
+		assert.equal(settings.eu.briefings, false);
+		assert.deepEqual(briefingsVars(settings, "us"), ["--var", "BRIEFINGS_ENABLED:true"]);
+		assert.deepEqual(briefingsVars(settings, "eu"), []);
+		assert.match(describeOptionalWorkers(settings, "us"), /^replies, briefings$/);
+		assert.equal(describeOptionalWorkers(settings, "eu"), "collaboration provisioned");
+		const older = '{"us":{"collaboration":"enabled","replies":true},"eu":{"collaboration":{"state":"provisioned","testOrigins":["https://flockstack-router-eu.example.workers.dev"]}}}';
+		const parsed = parseOptionalWorkers(older);
+		assert.deepEqual(parsed, { us: { collaboration: { state: "enabled", testOrigins: [] }, replies: true, briefings: false }, eu: { collaboration: { state: "provisioned", testOrigins: ["https://flockstack-router-eu.example.workers.dev"] }, replies: false, briefings: false } });
+		assert.equal(parseOptionalWorkers('{"us":{"briefings":false}}').us.briefings, false);
+		for (const text of ['{"us":{"briefings":"yes"}}', '{"us":{"briefings":1}}', '{"eu":{"briefings":null}}']) assert.throws(() => parseOptionalWorkers(text), /briefings for (us|eu) is true or false/, text);
+	});
+
+	test("briefings never adds a binding to the app, API Worker or router: the briefings Worker binds the API Worker, not the other way round", () => {
+		const on = parseOptionalWorkers('{"us":{"briefings":true},"eu":{"briefings":true}}');
+		for (const [config, kind] of [[APP, "app"], [API, "api"], [ROUTER, "router"]]) {
+			for (const region of ["us", "eu"]) {
+				const result = applyOptionalBindings(config, kind, region, on);
+				assert.equal(result.config, config);
+				assert.deepEqual(result.added, []);
+			}
+		}
 	});
 
 	test("refuses what it does not understand instead of guessing, so a typo never reaches a deploy", () => {

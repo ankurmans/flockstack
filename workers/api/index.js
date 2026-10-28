@@ -103,3 +103,16 @@ export class CollaborationAuthority extends WorkerEntrypoint {
 		});
 	}
 }
+
+// Service binding RPC only, for the briefings Worker (workers/briefings): it writes a run's draft, calendar item and test email here,
+// through runAction, so that Worker needs no SES or auth secrets. The module loads on the first call, never on an API request.
+export class BriefingsDelivery extends WorkerEntrypoint {
+	async deliverIssue(payload) {
+		setBindings(this.env);
+		return runInRequest(this.ctx, async () => (await import("../../lib/briefings-delivery.js")).deliverIssue(payload));
+	}
+	async notifyOwner(message) {
+		setBindings(this.env);
+		return runInRequest(this.ctx, async () => (await import("../../lib/briefings-delivery.js")).notifyOwner(message));
+	}
+}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
-import { BarChart3, ChevronDown, ClipboardList, CreditCard, Filter, FormInput, Gift, Headphones, LayoutGrid, LayoutTemplate, Link2, Megaphone, MessageSquare, PanelsTopLeft, Receipt, Repeat, Send, Settings, ShoppingBag, Users, Workflow } from "lucide-react";
+import { BarChart3, ChevronDown, ClipboardList, CreditCard, Filter, FormInput, Gift, Headphones, LayoutGrid, LayoutTemplate, Link2, Megaphone, MessageSquare, Newspaper, PanelsTopLeft, Receipt, Repeat, Send, Settings, ShoppingBag, Users, Workflow } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // The sidebar's groups, by the job being done. Each group can be folded and the group of the current page is always open; what is folded is remembered in this browser only.
@@ -82,6 +82,7 @@ export function getGroups({ hasAudio = false } = {}) {
 			items: [
 				{ href: "/campaigns", label: "Campaigns", icon: Send },
 				{ href: "/series", label: "Series", icon: Repeat },
+				{ href: "/briefings", label: "Briefings", icon: Newspaper },
 				{ href: "/automations", label: "Automations", icon: Workflow },
 				{ href: "/templates", label: "Templates", icon: LayoutTemplate },
 				...(hasAudio ? [{ href: "/audio", label: "Audio", icon: Headphones }] : []),

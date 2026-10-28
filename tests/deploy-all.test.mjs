@@ -671,6 +671,41 @@ describe("optional Workers", () => {
 		assert.ok(deploys().every(({ config }) => config === null));
 	});
 
+	test("a briefings Worker is deployed right after its API Worker, and the app and the API Worker get BRIEFINGS_ENABLED for that deploy", async () => {
+		const output = await run(["--baseline", "0"], { optional: '{"us":{"briefings":true},"eu":{"briefings":true}}' });
+		assert.deepEqual(deploys().map(({ deploy }) => deploy), [
+			["--var", "BRIEFINGS_ENABLED:true"],
+			["--config", "workers/api/wrangler.jsonc", "--var", "BRIEFINGS_ENABLED:true"],
+			["--config", "workers/briefings/wrangler.jsonc"],
+			...DEPLOYS_BOTH.slice(2, 5),
+			["--env", "eu", "--var", "BRIEFINGS_ENABLED:true"],
+			["--config", "workers/api/wrangler.jsonc", "--env", "eu", "--var", "BRIEFINGS_ENABLED:true"],
+			["--config", "workers/briefings/wrangler.jsonc", "--env", "eu"],
+			...DEPLOYS_BOTH.slice(7),
+		]);
+		assert.ok(deploys().every(({ config }) => config === null), "no configuration copy: it adds no binding anywhere");
+		assert.match(output, /==> Optional Workers\n    us: briefings\.\n    eu: briefings\./);
+		assert.match(output, /Deployed flockstack, flockstack-api, flockstack-readers, flockstack-public, flockstack-router, flockstack-eu, flockstack-api-eu, flockstack-readers-eu, flockstack-public-eu, flockstack-router-eu, flockstack-briefings, flockstack-briefings-eu\./);
+	});
+
+	test("with briefings and collaboration together, the variable and the copy with the bindings go into the one deploy", async () => {
+		await run(["--baseline", "0", "--only", "us"], { optional: '{"us":{"briefings":true,"collaboration":"provisioned"}}' });
+		const calls = deploys();
+		assert.deepEqual(calls.slice(0, 4).map(({ deploy }) => deploy), [
+			["--config", "workers/collaboration/wrangler.jsonc"],
+			["--config", "wrangler.optional.jsonc", "--var", "BRIEFINGS_ENABLED:true"],
+			["--config", "workers/api/wrangler.optional.jsonc", "--var", "BRIEFINGS_ENABLED:true"],
+			["--config", "workers/briefings/wrangler.jsonc"],
+		]);
+		assert.deepEqual(bindingsOf(calls[2].config), ["COLLABORATION_STORAGE"]);
+		assert.deepEqual(leftover(), []);
+	});
+
+	test("without briefings, no deploy carries BRIEFINGS_ENABLED, so setting it back to false takes the variable off", async () => {
+		await run(["--baseline", "0"], { optional: '{"us":{"briefings":false,"replies":true}}' });
+		assert.ok(deploys().every(({ deploy }) => !deploy.join(" ").includes("BRIEFINGS") && !deploy.join(" ").includes("workers/briefings")));
+	});
+
 	test("--only leaves the other region's optional Workers alone", async () => {
 		await run(["--baseline", "0", "--only", "us"], { optional: '{"eu":{"collaboration":"enabled","replies":true}}' });
 		assert.deepEqual(deploys().map(({ deploy }) => deploy), DEPLOYS_BOTH.slice(0, 5));

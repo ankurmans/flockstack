@@ -30,6 +30,7 @@ const ACCOUNT_PAGES = [
 	{ href: "/media", label: "Media", icon: Images },
 	{ href: "/domains", label: "Domains", icon: Globe },
 	{ href: "/api-keys", label: "API keys", icon: KeyRound },
+	{ href: "/ai-keys", label: "AI keys", icon: KeyRound },
 	{ href: "/approvals", label: "Approvals", icon: ShieldCheck },
 	{ href: "/agent-activity", label: "Agent activity", icon: Activity },
 	{ href: "/webhooks", label: "Webhooks", icon: Webhook },
