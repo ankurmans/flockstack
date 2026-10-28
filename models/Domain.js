@@ -6,8 +6,9 @@ const domainSchema = new mongoose.Schema(
 	{
 		domain: { type: String, required: true, unique: true, lowercase: true, trim: true },
 		mailFromDomain: { type: String, required: true, lowercase: true, trim: true },
-		// Archive, tracked links and unsubscribe links live here once it points at FlockStack.
-		archiveHost: { type: String, required: true, unique: true, lowercase: true, trim: true },
+		// Archive, tracked links and unsubscribe links live here once it points at FlockStack. None for a domain used only for
+		// sending (add_domain sendingOnly): its newsletters' websites stay on FlockStack's host, a subfolder or another domain.
+		archiveHost: { type: String, lowercase: true, trim: true },
 		// The email provider it was added at (lib/email-provider), and its id there. Domains from before the
 		// provider switch are SES's.
 		provider: { type: String },
@@ -43,5 +44,8 @@ const domainSchema = new mongoose.Schema(
 
 domainSchema.plugin(accountScoped);
 domainSchema.index({ accountId: 1, createdAt: 1 });
+// Unique across accounts. A sending-only domain has none, and SQLite never lets missing values collide, so the index stays the
+// one migration 0001 made (plain: no IFNULL that would make two missing hosts the same).
+domainSchema.index({ archiveHost: 1 }, { unique: true, plain: true });
 
 export default mongoose.models.Domain || mongoose.model("Domain", domainSchema);

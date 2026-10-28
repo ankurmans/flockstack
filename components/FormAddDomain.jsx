@@ -16,6 +16,7 @@ export default function FormAddDomain({ fromLocalPart, hasArchiveHost }) {
 	const id = useId();
 	const [domainInput, setDomainInput] = useState("");
 	const [archiveInput, setArchiveInput] = useState("");
+	const [sendingOnly, setSendingOnly] = useState(false);
 	const [, action, isPending] = useActionState(async (previous, formData) => {
 		const result = await addDomainAction(previous, formData);
 		if (result?.error) toast.error(result.error);
@@ -23,6 +24,7 @@ export default function FormAddDomain({ fromLocalPart, hasArchiveHost }) {
 			toast.success(`${result.domain} added. Add its DNS records next.`);
 			setDomainInput("");
 			setArchiveInput("");
+			setSendingOnly(false);
 		}
 		return result;
 	}, null);
@@ -80,7 +82,7 @@ export default function FormAddDomain({ fromLocalPart, hasArchiveHost }) {
 						{fromLocalPart}@<TextDomain domain={domain} />
 					</span>
 				</RowPreview>
-				{hasArchiveHost && (
+				{hasArchiveHost && !sendingOnly && (
 					<RowPreview label="Website and links" htmlFor={`${id}-archive`}>
 						<label className="flex h-9 max-w-full min-w-0 cursor-text items-center rounded-lg border border-input bg-background px-2.5 font-mono text-base transition-[border-color,box-shadow] duration-150 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring sm:h-8 sm:text-[13px] dark:bg-input/30">
 							<input
@@ -100,8 +102,14 @@ export default function FormAddDomain({ fromLocalPart, hasArchiveHost }) {
 						</label>
 					</RowPreview>
 				)}
+				{hasArchiveHost && (
+					<label className="flex items-center gap-2 text-sm text-muted-foreground">
+						<input type="checkbox" name="sendingOnly" checked={sendingOnly} onChange={(event) => setSendingOnly(event.target.checked)} className="size-4 accent-foreground" />
+						Only for sending, like newsletter.example.com: the website stays where it is
+					</label>
+				)}
 			</div>
-			<input type="hidden" name="archiveHost" value={archiveLabel && domain ? `${archiveLabel}.${domain}` : ""} />
+			<input type="hidden" name="archiveHost" value={!sendingOnly && archiveLabel && domain ? `${archiveLabel}.${domain}` : ""} />
 		</form>
 	);
 }

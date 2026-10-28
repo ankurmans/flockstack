@@ -282,6 +282,30 @@ describe("own domains", () => {
 		assert.match(email.headers["List-Unsubscribe"], /^<https:\/\/news\.owner-mail\.com\/api\/unsubscribe/);
 	});
 
+	test("a domain only for sending has no archive subdomain, no website step, and is ready once verified", async () => {
+		const user = await customer("sender-only@example.com", "sender-only-news");
+		const result = await as(user, () => m.domains.addDomainAction(null, form({ domain: "newsletter.sender-only.com", archiveHost: "news.newsletter.sender-only.com", sendingOnly: "on" })));
+		assert.deepEqual(result, { ok: true, domain: "newsletter.sender-only.com" });
+		const domain = await m.Domain.findOne({ accountId: user.accountId }).lean();
+		assert.equal(domain.archiveHost, undefined, "the archive host the form still held is ignored");
+
+		const { key } = await as(user, () => m.apiKeys.createApiKey(null, form({ name: "Agent", level: "full" })));
+		const listed = async () => (await callApi("GET", "/api/v1/domains", { key })).body.domains.find(({ id }) => id === String(domain._id));
+		const api = await listed();
+		assert.equal(api.archiveHost, null);
+		assert.ok(!api.setup.some((step) => step.key === "archive"), JSON.stringify(api.setup.map((step) => step.key)));
+
+		state.identities.get("newsletter.sender-only.com").verified = true;
+		assert.deepEqual(await as(user, () => m.domains.checkDomainAction(String(domain._id))), { ok: true, verified: true, archiveHostVerified: false });
+		assert.equal((await listed()).status, "Ready");
+		assert.equal((await m.Newsletter.findOne({ accountId: user.accountId }).lean()).archiveHost, undefined);
+
+		const second = await as(user, () => m.domains.addDomainAction(null, form({ domain: "mail.sender-only.com", sendingOnly: "on" })));
+		assert.deepEqual(second, { ok: true, domain: "mail.sender-only.com" }, "two domains without an archive host don't collide");
+		const viaApi = await callApi("POST", "/api/v1/domains", { key, body: { domain: "news-only.sender-only.com", sendingOnly: true } });
+		assert.deepEqual([viaApi.status, viaApi.body.archiveHost], [201, null]);
+	});
+
 	test("an archive host in ARCHIVE_TRUSTED_HOSTS can sit on another domain and is verified without a CNAME", async () => {
 		const user = await customer("trusted@example.com", "trusted-news");
 		await withEnv({ ARCHIVE_TRUSTED_HOSTS: "Newsletter.Trusted-Site.com" }, async () => {

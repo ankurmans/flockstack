@@ -13,6 +13,7 @@ export async function addDomainAction(_state, formData) {
 	const { output, failure } = await runDashboardAction("add_domain", {
 		domain: String(formData.get("domain") ?? ""),
 		archiveHost: String(formData.get("archiveHost") ?? ""),
+		sendingOnly: formData.get("sendingOnly") === "on",
 	});
 	revalidatePath("/domains");
 	return failure ? toDomainError(failure, "Adding the domain") : { ok: true, domain: output.domain };

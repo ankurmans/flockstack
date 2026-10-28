@@ -150,8 +150,8 @@ function CardDomain({ domain, newsletters, current, sharedDomain, cnameTarget, s
 					</div>
 				</div>
 				<div className="flex items-center gap-1">
-					<ButtonCheckDomain id={id} hasArchiveHost={Boolean(cnameTarget)} />
-					<DialogRemoveDomain id={id} domain={domain.domain} hasArchiveHost={Boolean(cnameTarget)} />
+					<ButtonCheckDomain id={id} hasArchiveHost={Boolean(cnameTarget && domain.archiveHost)} />
+					<DialogRemoveDomain id={id} domain={domain.domain} hasArchiveHost={Boolean(cnameTarget && domain.archiveHost)} />
 				</div>
 			</div>
 			{current && <RowsSender domain={domain} newsletters={newsletters} current={current} sharedDomain={sharedDomain} />}
