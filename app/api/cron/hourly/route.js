@@ -4,6 +4,7 @@ import { runAgentHousekeeping } from "@/lib/agent-housekeeping";
 import { announceTelegram } from "@/lib/alerts";
 import { sendCommentDigests } from "@/lib/comment-notify";
 import { sendConfirmationReminders } from "@/lib/confirmation-reminders";
+import { purgeOldClaimChecks } from "@/lib/claim-check";
 import { withCronSecret } from "@/lib/cron";
 import { purgeCustomRequests } from "@/lib/custom-requests";
 import { followDedicatedIps } from "@/lib/dedicated-ip";
@@ -44,10 +45,10 @@ async function runBriefingsInCron() {
 // exports whose links ran out, the owners' digests of new comments and reports, the extra emails Polar hasn't been told
 // about yet, dedicated IPs that no longer match their add-on, the day of every IP warm-up and the stock of spare IPs, the reminders to signups that haven't confirmed, and the
 // Custom plan requests past their two years, the RSS feeds' kept copies nobody has read for a day, comps and gifts that ran out, and
-// pledge charging whose job went quiet, and the agent approvals nobody decided and the agent activity past its 90 days, the held sends whose release job never ran, and the link checks nobody looked at for a week.
+// pledge charging whose job went quiet, and the agent approvals nobody decided and the agent activity past its 90 days, the held sends whose release job never ran, and the link and claim checks nobody looked at for a week.
 // On a self-hosted server with BRIEFINGS_IN_CRON=true, also a tick of the briefings engine.
 export const GET = withCronSecret(async () => {
-	const [postshiba, telegram, expiredExports, commentDigests, extraEmails, dedicatedIps, ipWarmups, ipInventory, reminders, customRequests, feedCopies, grants, pledges, giftsSent, giftsExpired, agentRecords, heldSends, linkChecks, editorSnapshots, briefings] = await Promise.all([
+	const [postshiba, telegram, expiredExports, commentDigests, extraEmails, dedicatedIps, ipWarmups, ipInventory, reminders, customRequests, feedCopies, grants, pledges, giftsSent, giftsExpired, agentRecords, heldSends, linkChecks, claimChecks, editorSnapshots, briefings] = await Promise.all([
 		checkPostshibaStatus(),
 		announceTelegram(),
 		expireAccountExports(),
@@ -66,9 +67,10 @@ export const GET = withCronSecret(async () => {
 		runAgentHousekeeping(),
 		sweepHeldSends(),
 		purgeOldLinkChecks(),
+		purgeOldClaimChecks(),
 		expireCollaborationSnapshots(),
 		runBriefingsInCron(),
 	]);
-	console.info(`[hourly] ${JSON.stringify({ postshiba, telegram, expiredExports, commentDigests, extraEmails, dedicatedIps, ipWarmups, ipInventory, reminders, customRequests, feedCopies, grants, pledges, giftsSent, giftsExpired, agentRecords, heldSends, linkChecks, editorSnapshots, briefings })}`);
+	console.info(`[hourly] ${JSON.stringify({ postshiba, telegram, expiredExports, commentDigests, extraEmails, dedicatedIps, ipWarmups, ipInventory, reminders, customRequests, feedCopies, grants, pledges, giftsSent, giftsExpired, agentRecords, heldSends, linkChecks, claimChecks, editorSnapshots, briefings })}`);
 	return { postshiba, telegram };
 });

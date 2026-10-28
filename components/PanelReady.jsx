@@ -55,7 +55,7 @@ export default function PanelReady({ ready, extra = [], isApproval = false, onFi
 			{[...blockers, ...warnings, ...infos].length > 0 && (
 				<ul className="divide-y divide-border/60">
 					{[...blockers, ...warnings, ...infos].map((entry) => (
-						<RowItem key={entry.id} entry={entry} isApproval={isApproval} isChecking={result?.isChecking && entry.id === "links"} onFix={onFix} onTest={onTest} />
+						<RowItem key={entry.id} entry={entry} isApproval={isApproval} isChecking={isStillChecking(result, entry.id)} onFix={onFix} onTest={onTest} />
 					))}
 				</ul>
 			)}
@@ -71,6 +71,13 @@ export default function PanelReady({ ready, extra = [], isApproval = false, onFi
 			)}
 		</CardSettings>
 	);
+}
+
+// The links and the claim check are opened by a job: their rows spin until the result is in. A result from before the claim
+// check names no list and only the links are being opened.
+function isStillChecking(result, id) {
+	if (!result?.isChecking) return false;
+	return Array.isArray(result.checking) ? result.checking.includes(id) : id === "links";
 }
 
 const ICONS = {
