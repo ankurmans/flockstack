@@ -399,6 +399,99 @@ describe("verdict links", () => {
 	});
 });
 
+describe("sections", () => {
+	let user;
+	let briefing;
+	const SECTIONS = [
+		{ id: "lead", title: "Lead", purpose: "The day's most important story, with its numbers", format: "sentences", maxItems: 1, budgetShare: 30, priority: 1 },
+		{ id: "deal-flow", title: "Deal flow", purpose: "Acquisitions and funding rounds, each with the amount", format: "one-liners", maxItems: 12, budgetShare: 40, priority: 2 },
+		{ id: "people", title: "People moves", format: "one-liners", maxItems: 6 },
+	];
+
+	before(async () => {
+		user = await t.customer("briefings-sections@example.com");
+		briefing = (await t.api(user.key, "POST", "/briefings", { name: "Sectioned", brief: BRIEF, sections: SECTIONS })).body;
+	});
+
+	test("go round trip through create, get and update; a list sent replaces it, and [] goes back to the unsectioned layout", async () => {
+		const expected = SECTIONS.map((section) => ({ purpose: "", budgetShare: null, priority: null, ...section }));
+		assert.deepEqual(briefing.sections, expected);
+		assert.deepEqual((await t.api(user.key, "GET", `/briefings/${briefing.id}`)).body.sections, expected);
+		const reordered = await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { sections: [{ ...SECTIONS[2], id: "People", budgetShare: 10 }, SECTIONS[0]] });
+		assert.equal(reordered.status, 200, JSON.stringify(reordered.body));
+		assert.deepEqual(reordered.body.sections.map(({ id, budgetShare }) => [id, budgetShare]), [["people", 10], ["lead", 30]], "reading order kept, ids lower-cased");
+		assert.deepEqual((await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { name: "Renamed" })).body.sections.length, 2, "a change without sections keeps them");
+		const cleared = await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { sections: [] });
+		assert.deepEqual(cleared.body.sections, []);
+		assert.deepEqual((await m.Briefing.findOne({ accountId: user.accountId, _id: briefing.id }).lean()).sections, []);
+		await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { sections: SECTIONS });
+		assert.equal(m.scopes.getActionClass("update_briefing", { sections: SECTIONS }), "write", "a sections change is write");
+	});
+
+	test("refuses sections the rules don't allow, saying why", async () => {
+		const one = (change) => [{ ...SECTIONS[1], ...change }];
+		const refusals = [
+			[Array.from({ length: 13 }, (_, index) => ({ id: `s${index}`, title: `S${index}`, format: "one-liners", maxItems: 1 })), /sections/],
+			[one({ id: "Deal Flow" }), /lower-case letters, digits and dashes/],
+			[one({ id: "-deals" }), /lower-case letters/],
+			[[SECTIONS[0], { ...SECTIONS[1], id: "lead" }], /Section 2: another section has the id lead/],
+			[one({ title: "" }), /title/],
+			[one({ title: "a".repeat(61) }), /title/],
+			[one({ purpose: "a".repeat(401) }), /purpose/],
+			[one({ format: "paragraphs" }), /format/],
+			[one({ maxItems: 0 }), /maxItems/],
+			[one({ maxItems: 26 }), /maxItems/],
+			[one({ budgetShare: 12.5 }), /budgetShare/],
+			[[{ ...SECTIONS[0], budgetShare: 60 }, { ...SECTIONS[1], budgetShare: 41 }], /add up to 100 at most, not 101/],
+			[one({ priority: 0 }), /priority/],
+			[one({ priority: 13 }), /priority/],
+		];
+		for (const [sections, pattern] of refusals) {
+			const response = await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { sections });
+			assert.match(t.assertError(response, 400, "validation_failed"), pattern, JSON.stringify(sections).slice(0, 80));
+		}
+		assert.equal((await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { sections: [{ ...SECTIONS[0], budgetShare: 60 }, { ...SECTIONS[1], budgetShare: 40 }] })).status, 200, "shares of exactly 100");
+		assert.equal((await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { sections: SECTIONS.map(({ budgetShare: _share, ...section }) => section) })).status, 200, "no shares: split evenly");
+	});
+
+	test("a run shows its sections, and each story's and call's section", async () => {
+		const run = await makeRun(user, briefing, {
+			slot: "2026-10-29",
+			stories: [
+				{ storyKey: "a".repeat(64), kind: "full", title: "A plant opened", url: "https://news.example.com/plant", sourceKind: "reporting", score: 80, sectionId: "lead" },
+				{ storyKey: "b".repeat(64), kind: "brief", title: "A round closed", url: "https://news.example.com/round", sourceKind: "reporting", score: 70, sectionId: "deal-flow" },
+			],
+			sections: [
+				{ id: "lead", title: "Lead", status: "written", items: 1, costUsd: 0.0021 },
+				{ id: "deal-flow", title: "Deal flow", status: "written", items: 1, costUsd: 0.0012 },
+				{ id: "people", title: "People moves", status: "empty", items: 0, costUsd: 0 },
+			],
+			calls: [
+				{ step: "write", sectionId: "lead", provider: "openai", model: "gpt-4.1-mini", inputTokens: 900, outputTokens: 80, costUsd: 0.0021, costFrom: "price_table" },
+				{ step: "triage", provider: "typesafe", model: "jev-latest", inputTokens: 4000, outputTokens: 0, costUsd: 0.0004, costFrom: "price_table" },
+			],
+		});
+		const one = (await t.api(user.key, "GET", `/briefing-runs/${run._id}`)).body;
+		assert.deepEqual(one.sections, [
+			{ id: "lead", title: "Lead", status: "written", items: 1, costUsd: 0.0021, problem: null },
+			{ id: "deal-flow", title: "Deal flow", status: "written", items: 1, costUsd: 0.0012, problem: null },
+			{ id: "people", title: "People moves", status: "empty", items: 0, costUsd: 0, problem: null },
+		]);
+		assert.deepEqual(one.stories.map(({ sectionId }) => sectionId), ["lead", "deal-flow"]);
+		assert.deepEqual(one.calls.map(({ sectionId }) => sectionId), ["lead", null]);
+		const [listed] = (await t.api(user.key, "GET", `/briefings/${briefing.id}/runs?limit=1`)).body.runs;
+		assert.equal(listed.sections.length, 3);
+		const unsectioned = (await t.api(user.key, "GET", `/briefing-runs/${(await makeRun(user, briefing, { slot: "2026-10-30" }))._id}`)).body;
+		assert.deepEqual([unsectioned.sections, unsectioned.stories[0].sectionId], [[], null]);
+
+		const page = renderToStaticMarkup(await as(user, () => m.runPage.default({ params: Promise.resolve({ id: briefing.id, runId: String(run._id) }) })));
+		assert.match(page, /Sections/);
+		assert.match(page, /Deal flow/);
+		assert.match(page, /Empty/);
+		assert.match(page, /\$0\.0021/);
+	});
+});
+
 describe("agents", () => {
 	test("each action has its class: reads, settings, drafting, deletes and keys", async () => {
 		const names = ["list_briefings", "get_briefing", "create_briefing", "update_briefing", "pause_briefing", "resume_briefing", "delete_briefing", "run_briefing", "list_briefing_runs", "get_briefing_run", "rate_briefing_story", "add_ai_key", "list_ai_keys", "check_ai_key", "delete_ai_key"];
@@ -507,6 +600,11 @@ describe("the dashboard", () => {
 			},
 			testEmail: "briefings-dashboard@example.com",
 			active: true,
+			sections: [
+				{ title: "Market pulse", purpose: "Rate moves", format: "one-liners", maxItems: "6", budgetShare: "", priority: "" },
+				{ title: "Market pulse", purpose: "", format: "sentences", maxItems: "2", budgetShare: "30", priority: "1" },
+				{ title: "  ", purpose: "", format: "one-liners", maxItems: "1", budgetShare: "", priority: "" },
+			],
 		};
 		const bad = await as(user, () => m.actions.createBriefing(user.newsletterId, { ...values, trustedOutlets: "https://news.example.com/" }));
 		assert.match(bad.error, /host name/);
@@ -516,6 +614,14 @@ describe("the dashboard", () => {
 		assert.deepEqual([stored.status, stored.stories.minFull, stored.stories.maxFull, stored.stories.briefItems, stored.minScore, stored.budgetUsd, stored.brief.examples.length, stored.languages], ["active", 5, 8, 4, 70, 0.5, 1, ["en", "fr"]]);
 		assert.deepEqual(stored.trustedOutlets, ["news.example.com", "blog.example.org", "wire.example.net"]);
 		assert.equal(String(stored.discovery.searchKeyId), search.id);
+		assert.deepEqual(
+			stored.sections.map(({ id, format, maxItems, budgetShare, priority }) => [id, format, maxItems, budgetShare ?? null, priority ?? null]),
+			[["market-pulse", "one-liners", 6, null, null], ["market-pulse-2", "sentences", 2, 30, 1]],
+			"ids made from titles, blank rows dropped, empty numbers left out"
+		);
+		const editPage = renderToStaticMarkup(await as(user, () => m.detail.default({ params: Promise.resolve({ id: created.id }) })));
+		assert.match(editPage, /Add a section/);
+		assert.match(editPage, /value="Market pulse"/);
 
 		const listed = renderToStaticMarkup(await as(user, () => m.list.default()));
 		assert.match(listed, /Dashboard briefing/);

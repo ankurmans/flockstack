@@ -4,15 +4,19 @@ import BadgeStatus from "@/components/BadgeStatus";
 import ButtonsVerdict from "@/components/ButtonsVerdict";
 import CardSettings from "@/components/CardSettings";
 import HeaderPage from "@/components/HeaderPage";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { runAction } from "@/lib/actions/run-action";
 import { requireAccount } from "@/lib/auth";
 import { isValidObjectId } from "@/lib/docdb";
 
 export const metadata = { title: "Briefing run" };
 
+const SECTION_STATUSES = { written: "ok", empty: "paused", skipped_budget: "pending", failed: "failed" };
+const SECTION_LABELS = { written: "Written", empty: "Empty", skipped_budget: "Skipped: budget", failed: "Failed" };
 const SOURCE_LABELS = { press_release: "Press release", filing: "Filing", regulator: "Regulator", company: "Company", community: "Community" };
 
-// One run of a briefing through get_briefing_run: its stories with keep and drop, what discovery searched and could not do, the checks.
+// One run of a briefing through get_briefing_run: its sections, its stories with keep and drop, what discovery searched and could
+// not do, the checks.
 export default async function BriefingRunPage({ params }) {
 	const [{ id, runId }, { account, user }] = await Promise.all([params, requireAccount()]);
 	if (!isValidObjectId(id) || !isValidObjectId(runId)) notFound();
@@ -24,6 +28,7 @@ export default async function BriefingRunPage({ params }) {
 		throw error;
 	}
 	if (run.briefingId !== id) notFound();
+	const sectionTitles = new Map(run.sections.map(({ id: sectionId, title }) => [sectionId, title]));
 
 	return (
 		<>
@@ -35,6 +40,33 @@ export default async function BriefingRunPage({ params }) {
 				)}
 			</HeaderPage>
 			<div className="flex max-w-3xl flex-col gap-4">
+				{run.sections.length > 0 && (
+					<CardSettings title="Sections">
+						<Table>
+							<TableHeader>
+								<TableRow className="hover:bg-transparent">
+									<TableHead className="pl-4">Section</TableHead>
+									<TableHead>Status</TableHead>
+									<TableHead className="text-right">Items</TableHead>
+									<TableHead className="pr-4 text-right">Cost</TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{run.sections.map((section) => (
+									<TableRow key={section.id}>
+										<TableCell className="max-w-0 py-3 pl-4">
+											<span className="block truncate font-medium">{section.title || section.id}</span>
+											{section.problem && <span className="block truncate text-xs text-muted-foreground" title={section.problem}>{section.problem}</span>}
+										</TableCell>
+										<TableCell>{section.status ? <BadgeStatus status={SECTION_STATUSES[section.status]} label={SECTION_LABELS[section.status]} /> : <span className="text-muted-foreground">Not yet</span>}</TableCell>
+										<TableCell className="text-right tabular-nums">{section.items}</TableCell>
+										<TableCell className="pr-4 text-right tabular-nums">${section.costUsd.toFixed(4)}</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+					</CardSettings>
+				)}
 				<CardSettings title="Stories">
 					{run.stories.length === 0 ? (
 						<p className="px-4 py-3 text-sm text-muted-foreground">No stories in this run.</p>
@@ -47,7 +79,7 @@ export default async function BriefingRunPage({ params }) {
 											{story.title || story.url}
 										</a>
 										<span className="block text-xs text-muted-foreground">
-											{[story.kind === "brief" ? "One-line item" : "Full story", SOURCE_LABELS[story.sourceKind], story.score !== null && `score ${Math.round(story.score)}`].filter(Boolean).join(", ")}
+											{[sectionTitles.get(story.sectionId) ?? (story.kind === "brief" ? "One-line item" : "Full story"), SOURCE_LABELS[story.sourceKind], story.score !== null && `score ${Math.round(story.score)}`].filter(Boolean).join(", ")}
 										</span>
 									</span>
 									{story.storyKey && <ButtonsVerdict briefingId={id} runId={run.id} storyKey={story.storyKey} verdict={story.verdict} />}

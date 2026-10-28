@@ -18,6 +18,29 @@ function readHosts(value) {
 		.filter(Boolean);
 }
 
+// The form's sections as the actions take them: in the form's order, each with a stable id (its own, or one made from its title).
+function readSections(values) {
+	const taken = new Set();
+	return (Array.isArray(values) ? values : [])
+		.filter((section) => String(section?.title ?? "").trim())
+		.map((section) => {
+			const base = String(section.id || section.title).toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 36) || "section";
+			let id = base;
+			for (let n = 2; taken.has(id); n += 1) id = `${base}-${n}`;
+			taken.add(id);
+			const optional = (value) => (value === "" || value === null || value === undefined ? null : Number(value));
+			return {
+				id,
+				title: String(section.title),
+				purpose: String(section.purpose ?? ""),
+				format: section.format === "sentences" ? "sentences" : "one-liners",
+				maxItems: Number(section.maxItems),
+				budgetShare: optional(section.budgetShare),
+				priority: optional(section.priority),
+			};
+		});
+}
+
 // The form's values as the actions take them: whole numbers, examples with an address, the steps that have a key.
 function readBriefing(values) {
 	const examples = (Array.isArray(values?.examples) ? values.examples : [])
@@ -40,6 +63,7 @@ function readBriefing(values) {
 		styleGuide: String(values?.styleGuide ?? ""),
 		languages: (Array.isArray(values?.languages) ? values.languages : ["en"]).map(String),
 		stories: { minFull: Number(values?.minFull), maxFull: Number(values?.maxFull), briefItems: Number(values?.briefItems) },
+		sections: readSections(values?.sections),
 		minScore: Number(values?.minScore),
 		budgetUsd: Number(values?.budgetUsd),
 		steps,

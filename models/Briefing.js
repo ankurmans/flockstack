@@ -1,6 +1,6 @@
 import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
-import { BRIEFING_REVIEW_MODES, BRIEFING_STATUSES, DEFAULT_BUDGET_USD, DEFAULT_MIN_SCORE } from "../lib/briefing-rules.js";
+import { BRIEFING_REVIEW_MODES, BRIEFING_STATUSES, DEFAULT_BUDGET_USD, DEFAULT_MIN_SCORE, SECTION_FORMATS } from "../lib/briefing-rules.js";
 
 // A newsletter's briefing (docs/BRIEFINGS-DESIGN.md): on its schedule the engine searches the web from the brief, picks the stories for the
 // audience, writes a sourced issue in the style guide's voice, checks it and leaves it as a draft. nextRunAt is the next run due,
@@ -43,6 +43,21 @@ const briefingSchema = new mongoose.Schema(
 		// The issue is written in the first; the others are offered to readers through reader translation.
 		languages: { type: [String], default: undefined },
 		stories: { minFull: { type: Number }, maxFull: { type: Number }, briefItems: { type: Number } },
+		// The issue's sections in reading order, when set; without them the issue is full stories then brief items (stories).
+		// priority decides which sections are written first when the budget runs short (1 first; the reading order otherwise).
+		// budgetShare is the section's percent of the extract and write steps' shares.
+		sections: [
+			{
+				_id: false,
+				id: { type: String, required: true },
+				title: { type: String, required: true, trim: true },
+				purpose: { type: String, trim: true, default: "" },
+				format: { type: String, enum: SECTION_FORMATS, required: true },
+				maxItems: { type: Number, required: true },
+				budgetShare: { type: Number },
+				priority: { type: Number },
+			},
+		],
 		minScore: { type: Number, default: DEFAULT_MIN_SCORE },
 		steps: { query: stepSchema, triage: stepSchema, extract: stepSchema, write: stepSchema, check: stepSchema, translate: stepSchema },
 		// Percent of budgetUsd per step (DEFAULT_STEP_BUDGETS when unset).
