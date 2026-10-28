@@ -470,6 +470,20 @@ describe("discovery's providers and their limits", () => {
 		const run = await runOf(briefing);
 		assert.ok(run.stories.find(({ url }) => url === ZINC).foundBy.some((by) => by.startsWith("tinyfish:")));
 		assert.equal(String(ids.tinyfish).length, 24);
+		assert.ok(usedKeys.includes(String(ids.tinyfish)), "the search key is recorded as used, like a model key");
+	});
+
+	test("a candidate feed key that answered is recorded as used", async () => {
+		const feed = "https://feed.example.com/candidates";
+		const pages = new Proxy(PAGES, { get: (target, url) => (String(url).startsWith(feed) ? { status: 200, body: JSON.stringify({ items: [{ url: ZINC, title: TITLES[ZINC], publishedAt: AGO, publisher: "businesswire.com" }] }), headers: { "content-type": "application/json" } } : target[url]) });
+		const world = makeWorld({ pages });
+		const feedKeyId = new m.ObjectId();
+		keys.set(String(feedKeyId), { provider: "candidate-feed", baseUrl: feed, accountRef: null, secret: "cd-test-0123456789abcdefSECRET" });
+		const { briefing } = await makeBriefing({ discovery: () => ({ candidateFeedKeyId: feedKeyId }) });
+		await tick({ world });
+		assert.ok(world.requests.some(({ url }) => url.startsWith(feed)));
+		assert.ok((await runOf(briefing)).stories.length > 0);
+		assert.ok(usedKeys.includes(String(feedKeyId)));
 	});
 
 	test("a minute's limit is waited out when it fits, an hour's or a day's stops the provider for its window", async () => {
@@ -533,6 +547,7 @@ describe("discovery's providers and their limits", () => {
 		await tick({ world, delivery });
 		assert.equal(calls.length, 1);
 		assert.deepEqual(rejectedKeys, [String(ids.tinyfish)]);
+		assert.ok(!usedKeys.includes(String(ids.tinyfish)), "a key the provider refused wasn't used");
 		assert.equal(delivery.notes.length, 1);
 		assert.match(delivery.notes[0].subject, /tinyfish refused your key/);
 		const run = await runOf(briefing);
@@ -626,7 +641,7 @@ describe("what the run fetches", () => {
 				return Response.json({ results: [{ url: body.urls[0], final_url: body.urls[0], title: "Acme", text: `Acme Corp raised $40 million for its battery plant.\n\n${LONG} ${LONG} ${LONG}`, links: [] }], errors: [] });
 			},
 		});
-		const { briefing } = await makeBriefing({ discovery: (ids) => ({ searchKeyId: ids.tinyfish }) });
+		const { briefing, ids } = await makeBriefing({ discovery: (keyIds) => ({ searchKeyId: keyIds.tinyfish }) });
 		await tick({ world, items: [found(shell, { title: TITLES[ACME] }), found(ACME), ...STORIES.slice(3)] });
 		const fetches = tinyfishCalls.filter(({ url }) => url.startsWith("https://api.fetch.tinyfish.ai/"));
 		assert.equal(fetches.length, 1);
@@ -635,6 +650,7 @@ describe("what the run fetches", () => {
 		assert.ok(world.requests.findIndex(({ url }) => url === "https://app.example.com/robots.txt") < world.requests.findIndex(({ url }) => url.startsWith("https://api.fetch.tinyfish.ai/")));
 		const run = await runOf(briefing);
 		assert.equal(run.stories.find(({ title }) => title === TITLES[ACME]).url, shell);
+		assert.ok(usedKeys.includes(String(ids.tinyfish)), "a fetch with the search key counts as using it");
 	});
 });
 
@@ -916,10 +932,65 @@ describe("the security review's findings", () => {
 		const run = await runOf(briefing);
 		assert.equal(run.status, "drafted", run.error);
 		assert.deepEqual(run.languages, [
-			{ language: "fr", status: "failed", problem: "The translation into French came back empty" },
-			{ language: "de", status: "failed", problem: "The translation into German came back empty" },
+			{ language: "fr", status: "failed", problem: "The translation into French came back empty 2 times" },
+			{ language: "de", status: "failed", problem: "The translation into German came back empty 2 times" },
 		]);
+		assert.equal(world.requests.filter(({ body }) => body?.messages?.[0].content.startsWith("You translate")).length, 4, "an empty answer is asked once more");
 		assert.equal(delivery.issues.length, 1);
+		assert.deepEqual(delivery.issues[0].translations, []);
+	});
+
+	// The Underwritten run: gpt-oss reasoned through most of Italian's cap and wrote only the subject and preview before it ran out.
+	test("a translation cut off at its cap is asked again with twice the room, and one cut off again fails, never done with half an issue", async () => {
+		const translateCalls = [];
+		const world = makeWorld({
+			openai: (body) => {
+				const [system, user] = body.messages.map(({ content }) => content);
+				if (!system.startsWith("You translate")) return null;
+				translateCalls.push({ language: /into (\w+)/.exec(system)[1], maxTokens: body.max_tokens ?? body.max_completion_tokens });
+				const issue = dataBlock(user, "issue");
+				const header = issue.split("\n\n")[0];
+				const tries = translateCalls.filter(({ language }) => language === /into (\w+)/.exec(system)[1]).length;
+				const usage = { prompt_tokens: 500, completion_tokens: body.max_tokens ?? body.max_completion_tokens };
+				// Italian: only the header the first time, the whole issue with twice the room. Spanish: cut off each time.
+				if (/into Italian/.test(system) && tries === 1) return Response.json({ choices: [{ message: { content: `${header}\n\n` }, finish_reason: "length" }], usage });
+				if (/into Spanish/.test(system)) return Response.json({ choices: [{ message: { content: `${header}\n\n${issue.slice(header.length + 2, header.length + 40)}` }, finish_reason: "length" }], usage });
+				return Response.json({ choices: [{ message: { content: issue.replace(/\n\n(?!#)/g, "\n\nIT ") }, finish_reason: "stop" }], usage: { prompt_tokens: 500, completion_tokens: 400 } });
+			},
+		});
+		const { briefing } = await makeBriefing({ languages: ["en", "it", "es"] });
+		const delivery = makeDelivery();
+		await tick({ world, delivery, items: [...STORIES, found(ZINC)] });
+		const run = await runOf(briefing);
+		assert.equal(run.status, "drafted", run.error);
+		const italian = translateCalls.filter(({ language }) => language === "Italian");
+		assert.equal(italian.length, 2);
+		assert.equal(italian[1].maxTokens, italian[0].maxTokens * 2, "the second ask has twice the room");
+		assert.equal(translateCalls.filter(({ language }) => language === "Spanish").length, 2, "bounded: two asks");
+		const spanishCap = translateCalls.filter(({ language }) => language === "Spanish")[1].maxTokens;
+		assert.deepEqual(run.languages, [
+			{ language: "it", status: "done" },
+			{ language: "es", status: "failed", problem: `The translation into Spanish was cut off at the model's ${spanishCap}-token limit 2 times` },
+		]);
+		assert.deepEqual(delivery.issues[0].translations.map(({ language }) => language), ["it"]);
+		assert.match(delivery.issues[0].translations[0].markdown, /\nIT /, "the whole issue, not the header alone");
+		assert.ok(run.discoveryNotes.some(({ provider, problem }) => provider === "translate" && /^es: The translation into Spanish was cut off/.test(problem)));
+		assert.equal(run.calls.filter(({ step }) => step === "translate").length, 4, "every ask is metered");
+	});
+
+	test("a translation that comes back with only its subject twice says the model used its room before the issue", async () => {
+		const world = makeWorld({
+			openai: (body) => {
+				const [system, user] = body.messages.map(({ content }) => content);
+				if (!system.startsWith("You translate")) return null;
+				return Response.json({ choices: [{ message: { content: dataBlock(user, "issue").split("\n\n")[0] }, finish_reason: "length" }], usage: { prompt_tokens: 500, completion_tokens: body.max_tokens ?? body.max_completion_tokens } });
+			},
+		});
+		const { briefing } = await makeBriefing({ languages: ["en", "it"] });
+		await tick({ world, items: [...STORIES, found(ZINC)] });
+		const [italian] = (await runOf(briefing)).languages;
+		assert.equal(italian.status, "failed");
+		assert.match(italian.problem, /^The translation into Italian came back empty 2 times: the model used all \d+ tokens it had before writing the issue$/);
 	});
 
 	test("a blocked or deleting account, or a briefing whose newsletter is gone, makes no model call", async () => {

@@ -249,9 +249,26 @@ describe("managing a briefing", () => {
 		assert.equal(resumed.body.status, "active");
 		assert.ok(new Date(resumed.body.nextRunAt) > new Date());
 
-		assert.match(t.assertError(await t.api(user.key, "DELETE", `/ai-keys/${openai.id}`), 409, "conflict"), /A briefing uses this key/);
-		assert.match(t.assertError(await t.api(user.key, "DELETE", `/ai-keys/${search.id}`), 409, "conflict"), /steps or discovery/, "a search key in use stays too");
+		assert.equal(
+			t.assertError(await t.api(user.key, "DELETE", `/ai-keys/${openai.id}`), 409, "conflict"),
+			'A briefing still uses this key: "Morning briefing" (Queries step, Triage step, Extract step, Write step and Translate step). Switch those to another key in the briefing first, then delete this key.',
+			"the refusal names the briefing and its steps, and says what to do"
+		);
+		assert.equal(
+			t.assertError(await t.api(user.key, "DELETE", `/ai-keys/${search.id}`), 409, "conflict"),
+			'A briefing still uses this key: "Morning briefing" (Search key). Switch it to another key in the briefing first, then delete this key.',
+			"a search key in use stays too"
+		);
 		assert.equal((await t.api(user.key, "GET", "/ai-keys")).body.keys.find(({ id }) => id === search.id).usedBy, 1);
+		const evening = await t.api(user.key, "POST", "/briefings", { newsletter: (await m.Newsletter.create({ accountId: user.accountId, name: "Evening", slug: "briefings-evening", fromName: "x", fromEmail: "x@briefings-evening.flockstackmail.com" }))._id.toString(), name: "Evening briefing" });
+		assert.equal(evening.status, 201, JSON.stringify(evening.body));
+		await t.api(user.key, "PATCH", `/briefings/${evening.body.id}`, { discovery: { searchKeyId: search.id }, steps: { check: { keyId: groq.id, model: "llama-3.3-70b" } } });
+		assert.equal(
+			t.assertError(await t.api(user.key, "DELETE", `/ai-keys/${search.id}`), 409, "conflict"),
+			'2 briefings still use this key: "Morning briefing" (Search key) and "Evening briefing" (Search key). Switch those to another key in each briefing first, then delete this key.'
+		);
+		assert.match(t.assertError(await t.api(user.key, "DELETE", `/ai-keys/${groq.id}`), 409, "conflict"), /^2 briefings still use this key: "Morning briefing" \(Check step\) and "Evening briefing" \(Check step\)\./);
+		assert.equal((await t.api(user.key, "DELETE", `/briefings/${evening.body.id}`)).status, 200);
 	});
 
 	test("run_briefing answers unavailable where the engine doesn't run, and queues a manual run where it does", async () => {
@@ -649,7 +666,9 @@ describe("the dashboard", () => {
 		assert.match(unavailable.error, /don't run on this server/);
 		assert.deepEqual(await withEnv({ BRIEFINGS_ENABLED: "true" }, () => as(user, () => m.actions.runBriefingNow(created.id))), { ok: true });
 
-		const run = await makeRun(user, { id: created.id, newsletterId: user.newsletterId }, { slot: "manual:2026-10-28T08:00:00.000Z", isManual: true, costUsd: 0.0123, startedAt: new Date() });
+		const languages = [{ language: "fr", status: "done" }, { language: "it", status: "failed", problem: "The translation into Italian was cut off at the model's 1150-token limit 2 times" }];
+		const run = await makeRun(user, { id: created.id, newsletterId: user.newsletterId }, { slot: "manual:2026-10-28T08:00:00.000Z", isManual: true, costUsd: 0.0123, startedAt: new Date(), languages });
+		assert.deepEqual((await t.api(user.key, "GET", `/briefing-runs/${run._id}`)).body.languages, [{ ...languages[0], problem: null }, languages[1]], "why a language wasn't written reaches the API and MCP");
 		const page = renderToStaticMarkup(await as(user, () => m.detail.default({ params: Promise.resolve({ id: created.id }) })));
 		assert.match(page, /Dashboard briefing/);
 		assert.match(page, /Run by hand/);
@@ -668,6 +687,8 @@ describe("the dashboard", () => {
 		assert.match(runPage, /battery plant europe/);
 		assert.match(runPage, /Hourly limit reached/);
 		assert.match(runPage, /GDELT Project/);
+		assert.match(runPage, /Italian.*The translation into Italian was cut off at the model&#x27;s 1150-token limit 2 times.*Failed/s, "the run page says which translation failed and why");
+		assert.match(runPage, /French.*Written/s);
 		assert.deepEqual(await as(user, () => m.actions.rateBriefingStory(created.id, String(run._id), "b".repeat(64), "keep")), { ok: true, verdict: "keep" });
 		assert.equal((await m.BriefingVerdict.findOne({ accountId: user.accountId, runId: run._id, storyKey: "b".repeat(64) }).lean()).decidedBy, String(user.userId));
 

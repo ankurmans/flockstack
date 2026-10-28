@@ -10,16 +10,19 @@ import StateEmpty from "@/components/StateEmpty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { runAction } from "@/lib/actions/run-action";
 import { requireAccount } from "@/lib/auth";
+import { languageName } from "@/lib/briefings/write";
 import { isValidObjectId } from "@/lib/docdb";
 
 export const metadata = { title: "Briefing run" };
 
 const SECTION_STATUSES = { written: "ok", empty: "paused", skipped_budget: "pending", failed: "failed" };
 const SECTION_LABELS = { written: "Written", empty: "Empty", skipped_budget: "Skipped: budget", failed: "Failed" };
-const SOURCE_LABELS = { press_release: "Press release", filing: "Filing", regulator: "Regulator", company: "Company", community: "Community" };
+const LANGUAGE_STATUSES = { done: "ok", pending: "pending", skipped_budget: "pending", skipped_no_key: "paused", failed: "failed" };
+const LANGUAGE_LABELS = { done: "Written", pending: "Not yet", skipped_budget: "Skipped: budget", skipped_no_key: "Skipped: no key", failed: "Failed" };
+const SOURCE_LABELS ={ press_release: "Press release", filing: "Filing", regulator: "Regulator", company: "Company", community: "Community" };
 
 // One run of a briefing through get_briefing_run: its sections, its stories with keep and drop, what discovery searched and could
-// not do, the checks.
+// not do, each translation and why one wasn't written, the checks.
 export default async function BriefingRunPage({ params }) {
 	const [{ id, runId }, { account, user }] = await Promise.all([params, requireAccount()]);
 	if (!isValidObjectId(id) || !isValidObjectId(runId)) notFound();
@@ -122,6 +125,21 @@ export default async function BriefingRunPage({ params }) {
 						</p>
 					</div>
 				</CardSettings>
+				{run.languages.length > 0 && (
+					<CardSettings title="Translations">
+						<ul className="divide-y">
+							{run.languages.map((entry) => (
+								<li key={entry.language} className="flex items-start gap-3 px-4 py-3 text-sm">
+									<span className="min-w-0 flex-1">
+										<span className="block font-medium">{languageName(entry.language)}</span>
+										{entry.problem && <span className="block text-xs text-muted-foreground">{entry.problem}</span>}
+									</span>
+									<BadgeStatus status={LANGUAGE_STATUSES[entry.status] ?? "pending"} label={LANGUAGE_LABELS[entry.status] ?? entry.status} />
+								</li>
+							))}
+						</ul>
+					</CardSettings>
+				)}
 				<CardSettings title="Checks and cost">
 					<ul className="flex flex-col gap-1 px-4 py-3 text-sm">
 						{run.checks.map((check) => (
