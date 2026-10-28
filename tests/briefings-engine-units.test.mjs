@@ -538,6 +538,42 @@ describe("the security review's findings", () => {
 		);
 	});
 
+	test("gpt-oss models on any host are asked to reason little, and keep max_tokens and their temperature", async () => {
+		const log = [];
+		const fetchImpl = respond({ "https://api.groq.com/openai/v1/chat/completions": { choices: [{ message: { content: "ok" }, finish_reason: "stop" }], usage: { prompt_tokens: 1, completion_tokens: 1 } } }, log);
+		const key = { keyId: "k", provider: "groq", secret: SECRET };
+		const prices = [{ model: "openai/gpt-oss-20b", inputPerMillion: 1, outputPerMillion: 1 }, { model: "llama-3.1-8b-instant", inputPerMillion: 1, outputPerMillion: 1 }];
+		const call = (model) => providers.callModel({ step: "extract", model, system: "S", user: "U", maxTokens: 700, fetchImpl, meter: meter.createMeter({ budgetUsd: 1, prices, calls: [] }), endpoints: AI_PROVIDER_ENDPOINTS, key });
+		await call("openai/gpt-oss-20b");
+		await call("llama-3.1-8b-instant");
+		assert.deepEqual(
+			log.map(({ body }) => [body.max_tokens, body.max_completion_tokens, body.temperature, body.reasoning_effort]),
+			[
+				[700, undefined, 0.2, "low"],
+				[700, undefined, 0.2, undefined],
+			]
+		);
+	});
+
+	test("an answer cut off at its cap with nothing usable is asked once more with twice the room, and both calls are charged", async () => {
+		const log = [];
+		const answers = [
+			{ choices: [{ message: { content: "" }, finish_reason: "length" }], usage: { prompt_tokens: 100, completion_tokens: 700 } },
+			{ choices: [{ message: { content: '{"what":"done"}' }, finish_reason: "stop" }], usage: { prompt_tokens: 100, completion_tokens: 900 } },
+		];
+		const fetchImpl = async (url, init) => {
+			log.push({ url: String(url), body: JSON.parse(init.body) });
+			return new Response(JSON.stringify(answers.shift()), { status: 200, headers: { "content-type": "application/json" } });
+		};
+		const calls = [];
+		const m = meter.createMeter({ budgetUsd: 1, prices: [{ model: "openai/gpt-oss-20b", inputPerMillion: 1, outputPerMillion: 1 }], calls });
+		const key = { keyId: "k", provider: "groq", secret: SECRET };
+		const answer = await providers.callModel({ step: "extract", model: "openai/gpt-oss-20b", system: "S", user: "U", json: true, maxTokens: 700, fetchImpl, meter: m, endpoints: AI_PROVIDER_ENDPOINTS, key });
+		assert.deepEqual(answer.json, { what: "done" });
+		assert.deepEqual(log.map(({ body }) => body.max_tokens), [700, 1400]);
+		assert.deepEqual(calls.map(({ outputTokens }) => outputTokens), [700, 900]);
+	});
+
 	test("a draft's links are checked four at a time, and the check stops and resumes when its time runs out", async () => {
 		let active = 0;
 		let most = 0;
