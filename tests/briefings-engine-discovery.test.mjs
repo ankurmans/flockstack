@@ -464,3 +464,25 @@ describe("the engine's own key reader", () => {
 		}
 	});
 });
+
+describe("query planning", () => {
+	test("each trusted outlet gets one of the run's own queries, in turn, never the topic paragraph", async () => {
+		const topic = "Commercial insurance and the technology around it: commercial lines, specialty and E&S, MGAs and program business";
+		const ctx = {
+			briefing: { name: "Daily", brief: { topic }, trustedOutlets: ["a.example", "b.example", "c.example"], steps: { query: { keyId: "k", model: "m" } } },
+			keyFor: async () => ({ key: { provider: "groq" }, model: "m" }),
+			models: { text: async () => ({ json: { queries: [{ text: "MGA capacity 2026", angle: "capacity" }, { text: "cat bond issuance", angle: "ILS" }] } }) },
+			describe: (error) => String(error?.message ?? error),
+			work: {},
+			run: { discoveryNotes: [] },
+		};
+		const queries = await m.discovery.planQueries(ctx, { settings: { maxQueries: 16 }, kept: [] });
+		const sites = queries.filter(({ site }) => site);
+		assert.deepEqual(sites.map(({ site, text }) => [site, text]), [
+			["a.example", "MGA capacity 2026"],
+			["b.example", "cat bond issuance"],
+			["c.example", "MGA capacity 2026"],
+		]);
+		assert.ok(!queries.some(({ site, text }) => site && text === topic.slice(0, 120)));
+	});
+});
