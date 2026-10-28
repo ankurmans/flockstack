@@ -20,6 +20,7 @@ const labels = await import("../lib/briefings/labels.js");
 const rank = await import("../lib/briefings/rank.js");
 const triage = await import("../lib/briefings/triage.js");
 const stages = await import("../lib/briefings/stages.js");
+const extractModule = await import("../lib/briefings/extract.js");
 const { AI_PROVIDER_ENDPOINTS } = await import("../lib/ai-keys.js");
 
 const SECRET = "sk-test-abcdefghijklmnop0123SECRET";
@@ -458,5 +459,115 @@ describe("clustering and source labels", () => {
 			[[1], [2], [3]],
 			"the label is no claim, and each brief bullet is a claim of its own"
 		);
+	});
+});
+
+describe("the security review's findings", () => {
+	const PUBLIC = async () => ["93.184.216.34"];
+	const quiet = () => meter.createMeter({ budgetUsd: 1, prices: [{ model: "local-model", inputPerMillion: 0.1, outputPerMillion: 0.1 }], calls: [] });
+
+	test("a model server's address is held to the public-address rule, and a redirect from it is an error, not followed", async () => {
+		const log = [];
+		const fetchImpl = respond({ "https://llm.example.com/v1/chat/completions": new Response(null, { status: 307, headers: { location: "https://169.254.169.254/latest" } }) }, log);
+		const fetcher = fetching.createFetcher({ fetchImpl, resolveHost: async (host) => (host === "inside.example.com" ? ["192.168.1.20"] : ["93.184.216.34"]) });
+		const base = { step: "write", model: "local-model", system: "S", user: "U", maxTokens: 10, fetchImpl, guard: fetcher.assertPublic };
+		await assert.rejects(providers.callModel({ ...base, meter: quiet(), key: { keyId: "k", provider: "openai-compatible", baseUrl: "https://inside.example.com/v1", secret: SECRET } }), /private network/);
+		assert.equal(log.length, 0);
+		await assert.rejects(providers.callModel({ ...base, meter: quiet(), key: { keyId: "k", provider: "openai-compatible", baseUrl: "https://llm.example.com/v1", secret: SECRET } }), /answered 307/);
+		assert.equal(log.length, 1);
+		assert.equal(log[0].url, "https://llm.example.com/v1/chat/completions");
+	});
+
+	test("an error body adds a short, plain, scrubbed line at most", async () => {
+		const noisy = `${"<script>alert(1)</script>".repeat(20)}\u0000 key ${SECRET}`;
+		const fetchImpl = async () => Response.json({ error: { message: noisy } }, { status: 400 });
+		const error = await providers.callModel({ step: "write", model: "gpt-4o-mini", system: "S", user: "U", maxTokens: 10, fetchImpl, meter: meter.createMeter({ budgetUsd: 1, prices: [], calls: [] }), endpoints: AI_PROVIDER_ENDPOINTS, key: { keyId: "k", provider: "openai", baseUrl: "https://api.openai.com/v1", secret: SECRET } }).catch((caught) => caught);
+		assert.ok(error.message.length <= 160, error.message);
+		assert.doesNotMatch(error.message, /<|\u0000/);
+		assert.ok(!error.message.includes(SECRET));
+	});
+
+	test("an answer without usage is charged its max_tokens, and non-Latin text isn't under-counted", () => {
+		const cap = meter.createMeter({ budgetUsd: 1, prices: [], calls: [] });
+		const call = cap.record({ step: "write", provider: "openai", model: "gpt-4o-mini", usage: {}, input: "abc", output: "x".repeat(40), maxTokens: 900 });
+		assert.equal(call.outputTokens, 900);
+		assert.equal(cap.record({ step: "write", provider: "openai", model: "gpt-4o-mini", usage: {}, input: "abc", output: "y".repeat(8000), maxTokens: 900 }).outputTokens, 2000, "or the reply's own length when that is more");
+		const cjk = "電池工場の建設が始まった。".repeat(100);
+		assert.ok(meter.estimateTokens(cjk) >= Math.ceil(new TextEncoder().encode(cjk).length / 3));
+		assert.equal(meter.estimateTokens("abcd".repeat(100)), 100);
+	});
+
+	test("robots.txt is read through up to five redirects, each held to the same address rules", async () => {
+		robots.clearRobotsCache();
+		const log = [];
+		const fetchImpl = respond(
+			{
+				"https://site.example.com/robots.txt": new Response(null, { status: 301, headers: { location: "https://cdn.example.net/robots.txt" } }),
+				"https://cdn.example.net/robots.txt": new Response("User-agent: *\nDisallow: /private\n"),
+				"https://site.example.com/public": new Response("<p>ok</p>"),
+				"https://other.example.com/robots.txt": new Response(null, { status: 302, headers: { location: "https://10.0.0.9/robots.txt" } }),
+			},
+			log
+		);
+		const fetcher = fetching.createFetcher({ fetchImpl, resolveHost: PUBLIC });
+		await fetcher.get("https://site.example.com/public");
+		await assert.rejects(fetcher.get("https://site.example.com/private/x"), /robots\.txt/);
+		assert.deepEqual(
+			log.map(({ url }) => url),
+			["https://site.example.com/robots.txt", "https://cdn.example.net/robots.txt", "https://site.example.com/public"]
+		);
+		await assert.rejects(fetcher.get("https://other.example.com/x"), /robots\.txt/, "a redirect to a private address counts as unreachable");
+		assert.ok(!log.some(({ url }) => url.includes("10.0.0.9")));
+	});
+
+	test("OpenAI's reasoning models get max_completion_tokens and no temperature", async () => {
+		const log = [];
+		const fetchImpl = respond({ "https://api.openai.com/v1/chat/completions": { choices: [{ message: { content: "ok" } }], usage: { prompt_tokens: 1, completion_tokens: 1 } } }, log);
+		const key = { keyId: "k", provider: "openai", baseUrl: "https://api.openai.com/v1", secret: SECRET };
+		const call = (model) => providers.callModel({ step: "write", model, system: "S", user: "U", maxTokens: 700, fetchImpl, meter: meter.createMeter({ budgetUsd: 1, prices: [{ model: "o4-mini", inputPerMillion: 1, outputPerMillion: 4 }], calls: [] }), endpoints: AI_PROVIDER_ENDPOINTS, key });
+		await call("gpt-5-mini");
+		await call("o4-mini");
+		await call("gpt-4o-mini");
+		assert.deepEqual(
+			log.map(({ body }) => [body.max_tokens, body.max_completion_tokens, body.temperature, body.reasoning_effort]),
+			[
+				[undefined, 700, undefined, "minimal"],
+				[undefined, 700, undefined, "low"],
+				[700, undefined, 0.2, undefined],
+			]
+		);
+	});
+
+	test("a draft's links are checked four at a time, and the check stops and resumes when its time runs out", async () => {
+		let active = 0;
+		let most = 0;
+		const asked = [];
+		const fetcher = {
+			checkLink: async (url) => {
+				asked.push(url);
+				active += 1;
+				most = Math.max(most, active);
+				await new Promise((resolve) => setTimeout(resolve, 2));
+				active -= 1;
+				return { url, state: "ok" };
+			},
+		};
+		const links = Array.from({ length: 10 }, (_, index) => `https://news.example.com/${index}`);
+		const states = {};
+		let passes = 0;
+		const first = await check.checkLinks({ links, fetcher, states, hasTime: () => passes++ < 1 });
+		assert.equal(first.done, false);
+		assert.equal(Object.keys(states).length, 4);
+		const second = await check.checkLinks({ links, fetcher, states, hasTime: () => true });
+		assert.equal(second.done, true);
+		assert.equal(Object.keys(states).length, 10);
+		assert.equal(new Set(asked).size, 10, "no link checked twice");
+		assert.equal(most, 4);
+	});
+
+	test("links are read from the HTML the issue renders to: every href and src", () => {
+		assert.deepEqual(check.renderedLinks("[a](https://a.example.com/x) and ![i](https://img.example.com/p.png)\n\n[r]: https://ref.example.com/"), ["https://a.example.com/x", "https://img.example.com/p.png"]);
+		assert.equal(write.sanitizeModelMarkdown('<a href="https://x.example.com">x</a> <b>bold</b> https://bare.example.com/a www.bare.example.com [t](https://x.example.com) [r][2] [3]\n[2]: https://ref.example.com'), "x bold   t r [3]");
+		assert.equal(extractModule.cleanCompany("Zinc](https://evil.example.com) <b>Corp</b> *now*"), "Zinc Corp now");
 	});
 });

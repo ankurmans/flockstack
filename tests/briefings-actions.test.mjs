@@ -259,6 +259,13 @@ describe("managing a briefing", () => {
 			const queued = await t.api(user.key, "POST", `/briefings/${briefing.id}/run`);
 			assert.equal(queued.status, 200, JSON.stringify(queued.body));
 			assert.ok(Date.now() - new Date(queued.body.manualRunAt) < 60_000);
+			// Three manual runs a local day: a fourth is refused when asked for, not dropped later without a word.
+			const BriefingRun = (await import("../models/BriefingRun.js")).default;
+			const now = new Date();
+			for (const n of [1, 2, 3]) await BriefingRun.create({ accountId: user.accountId, briefingId: briefing.id, newsletterId: briefing.newsletterId, slot: `manual:test-${n}`, isManual: true, status: "drafted", startedAt: now });
+			const fourth = await t.api(user.key, "POST", `/briefings/${briefing.id}/run`);
+			assert.match(t.assertError(fourth, 429, "rate_limited"), /3 manual runs today/);
+			await BriefingRun.deleteMany({ accountId: user.accountId, briefingId: briefing.id, slot: { $in: ["manual:test-1", "manual:test-2", "manual:test-3"] } });
 		});
 		await withEnv({ BRIEFINGS_IN_CRON: "true" }, async () => {
 			const bare = await t.api(user.key, "POST", "/briefings", { newsletter: (await m.Newsletter.create({ accountId: user.accountId, name: "Second", slug: "briefings-second", fromName: "x", fromEmail: "x@briefings-second.flockstackmail.com" }))._id.toString(), name: "Bare" });
@@ -382,6 +389,14 @@ describe("verdict links", () => {
 		assert.match(bad, /This link doesn&#x27;t work/);
 		assert.equal(await anonymous(() => catchRedirect(m.verdictActions.confirmVerdict(form({ token: "nope" })))), "/briefing-verdict/nope");
 	});
+
+	test("a link with a broken escape (%, %zz) shows the invalid-link page instead of failing", async () => {
+		const { anonymous } = await import("./helpers/app.mjs");
+		for (const token of ["%", "abc%zz", "%E0%A4%A"]) {
+			const page = await anonymous(async () => renderToStaticMarkup(await m.verdictPage.default({ params: Promise.resolve({ token }), searchParams: Promise.resolve({}) })));
+			assert.match(page, /This link doesn&#x27;t work/, token);
+		}
+	});
 });
 
 describe("agents", () => {
@@ -395,7 +410,7 @@ describe("agents", () => {
 			pause_briefing: "write",
 			resume_briefing: "write",
 			delete_briefing: "destructive",
-			run_briefing: "write",
+			run_briefing: "send",
 			list_briefing_runs: "read",
 			get_briefing_run: "read",
 			rate_briefing_story: "write-draft",
@@ -409,6 +424,16 @@ describe("agents", () => {
 		assert.equal(m.scopes.isGateable("create_briefing"), true);
 		assert.equal(m.scopes.getTargetOf("get_briefing_run").model, "BriefingRun");
 		assert.equal(m.scopes.getTargetOf("rate_briefing_story").model, "BriefingRun");
+		// Spending more of the account's own model and search money than the default is a send: it can't be taken back.
+		for (const name of ["create_briefing", "update_briefing"]) {
+			assert.equal(m.scopes.getActionClass(name, { budgetUsd: 0.25 }), "write", name);
+			assert.equal(m.scopes.getActionClass(name, { budgetUsd: 0.26 }), "send", name);
+			assert.equal(m.scopes.getActionClass(name, { budgetUsd: 20 }), "send", name);
+			assert.equal(m.scopes.getActionClass(name, { discovery: { discoveryBudgetUsd: 0 } }), "write", name);
+			assert.equal(m.scopes.getActionClass(name, { discovery: { discoveryBudgetUsd: 0.01 } }), "send", name);
+		}
+		assert.equal(m.scopes.isGateable("run_briefing"), true);
+		assert.equal((await import("../lib/briefing-rules.js")).DEFAULT_BUDGET_USD, 0.25, "lib/action-scopes.js repeats the default budget");
 
 		const user = await t.customer("briefings-agents@example.com");
 		const drafts = await t.createKey(user, "drafts");
@@ -421,6 +446,22 @@ describe("agents", () => {
 		const deletion = await callApi("DELETE", `/api/v1/briefings/${created.body.id}`, { key: careful });
 		assert.equal(deletion.status, 202, "a delete waits for the owner");
 		assert.equal(deletion.body.status, "approval_required");
+
+		// A send with approval key can't raise what a run may spend, nor start runs on the account's keys, without the owner.
+		for (const [method, path, body] of [
+			["PATCH", `/api/v1/briefings/${created.body.id}`, { budgetUsd: 20 }],
+			["PATCH", `/api/v1/briefings/${created.body.id}`, { discovery: { discoveryBudgetUsd: 5 } }],
+			["POST", `/api/v1/briefings/${created.body.id}/run`, undefined],
+		]) {
+			const waiting = await withEnv({ BRIEFINGS_ENABLED: "true" }, () => callApi(method, path, { key: careful, body }));
+			assert.equal(waiting.status, 202, `${method} ${path} ${JSON.stringify(body)}`);
+			assert.equal(waiting.body.status, "approval_required");
+		}
+		const stored = await m.Briefing.findOne({ accountId: user.accountId, _id: created.body.id }).lean();
+		assert.deepEqual([stored.budgetUsd, stored.discovery?.discoveryBudgetUsd ?? 0, stored.manualRunAt ?? null], [0.25, 0, null], "nothing ran before the owner approved");
+		assert.equal((await t.api(careful, "PATCH", `/briefings/${created.body.id}`, { budgetUsd: 0.2 })).status, 200, "spending less runs at once");
+		const createExpensive = await callApi("POST", "/api/v1/briefings", { key: careful, body: { newsletter: (await m.Newsletter.create({ accountId: user.accountId, name: "Other", slug: "briefings-agents-other", fromName: "x", fromEmail: "x@briefings-agents-other.flockstackmail.com" }))._id.toString(), name: "Expensive", budgetUsd: 5 } });
+		assert.equal(createExpensive.status, 202);
 	});
 
 	test("account purge deletes the seven collections", async () => {

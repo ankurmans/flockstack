@@ -32,6 +32,7 @@ before(async () => {
 		...t.m,
 		aiKeys: await import("../lib/ai-keys.js"),
 		credentials: await import("../lib/credentials.js"),
+		publicHost: await import("../lib/public-host.js"),
 		actions: await import("../app/(app)/ai-keys/actions.js"),
 		page: await import("../app/(app)/ai-keys/page.js"),
 		exportJob: await import("../app/api/jobs/export-account/route.js"),
@@ -40,6 +41,8 @@ before(async () => {
 		AgentActivity: (await import("../models/AgentActivity.js")).default,
 		ApprovalRequest: (await import("../models/ApprovalRequest.js")).default,
 	};
+	// No DNS in tests: every name a key's own server has resolves to a public address unless a test says otherwise.
+	m.publicHost.setHostResolver(async () => ["93.184.216.34"]);
 	realFetch = globalThis.fetch;
 	globalThis.fetch = async (input, init = {}) => {
 		const url = String(input?.url ?? input);
@@ -71,7 +74,7 @@ describe("adding a key", () => {
 		const stored = await m.AiProviderKey.findOne({ accountId: user.accountId, _id: response.body.id }).select("+secret").lean();
 		hasNoSecret(stored);
 		assert.match(stored.secret, /^v1\./);
-		const context = { context: `ai-key:${user.accountId}:${stored._id}` };
+		const context = { context: `ai-key:${user.accountId}:${stored._id}:openrouter::` };
 		assert.equal(m.credentials.decryptSecret(stored.secret, context), SECRET);
 		assert.throws(() => m.credentials.decryptSecret(stored.secret, { context: `ai-key:${crypto.randomBytes(12).toString("hex")}:${stored._id}` }), /doesn't decrypt/);
 		assert.equal((await m.AiProviderKey.findOne({ accountId: user.accountId, _id: stored._id }).lean()).secret, undefined, "hidden from every read that doesn't ask");
@@ -163,7 +166,8 @@ describe("checking a key", () => {
 
 		answer = () => new Response(`upstream error for ${SECRET}`, { status: 502 });
 		const failing = await t.api(user.key, "POST", `/ai-keys/${openrouter.id}/check`);
-		assert.match(t.assertError(failing, 503, "unavailable"), /answered 502/);
+		const failure = t.assertError(failing, 503, "unavailable");
+		assert.doesNotMatch(failure, /502/, "the target's status is never repeated");
 		hasNoSecret(failing.body);
 		answer = () => {
 			throw new Error(`connect ECONNREFUSED with ${SECRET}`);
@@ -310,5 +314,64 @@ describe("deleting a key", () => {
 		assert.equal(await m.AiProviderKey.countDocuments({ accountId: user.accountId }), 0);
 		assert.equal(await m.aiKeys.getAiKeyForRun({ accountId: user.accountId, keyId: added.id }), null);
 		t.assertError(await t.api(user.key, "DELETE", `/ai-keys/${added.id}`), 404, "not_found");
+	});
+});
+
+describe("the safety review", () => {
+	test("checking a key on the account's own server resolves its name first, refuses a private address before any request, follows no redirect and says only ok, rejected or unavailable", async () => {
+		const user = await t.customer("ai-keys-review-dns@example.com");
+		const own = (await t.api(user.key, "POST", "/ai-keys", { name: "Own server", provider: "openai-compatible", key: SECRET, baseUrl: "https://llm.example.com/v1" })).body;
+		const feed = (await t.api(user.key, "POST", "/ai-keys", { name: "Feed", provider: "candidate-feed", key: SECRET, baseUrl: "https://feed.example.com/candidates" })).body;
+		const asked = [];
+		m.publicHost.setHostResolver(async (host) => {
+			asked.push(host);
+			return host === "llm.example.com" ? ["10.0.0.8"] : host === "feed.example.com" ? ["93.184.216.34", "::1"] : ["93.184.216.34"];
+		});
+		try {
+			requests.length = 0;
+			for (const key of [own, feed]) {
+				const refused = await t.api(user.key, "POST", `/ai-keys/${key.id}/check`);
+				assert.match(t.assertError(refused, 400, "validation_failed"), /private network/);
+				hasNoSecret(refused.body);
+			}
+			assert.deepEqual(asked, ["llm.example.com", "feed.example.com"]);
+			assert.equal(requests.length, 0, "nothing is sent to a private address, the key least of all");
+
+			m.publicHost.setHostResolver(async () => ["93.184.216.34"]);
+			for (const [status, extra] of [[302, { location: "http://169.254.169.254/latest" }], [500, {}], [418, {}]]) {
+				answer = () => new Response("", { status, headers: extra });
+				const response = await t.api(user.key, "POST", `/ai-keys/${own.id}/check`);
+				const message = t.assertError(response, 503, "unavailable");
+				assert.doesNotMatch(message, new RegExp(String(status)), `${status} is not repeated`);
+				assert.doesNotMatch(JSON.stringify(response.body), /169\.254/);
+			}
+			assert.ok(requests.every(({ redirect, url }) => redirect === "manual" && url === "https://llm.example.com/v1/models"), "a redirect is never followed");
+			assert.equal((await t.api(user.key, "GET", "/ai-keys")).body.keys.find(({ id }) => id === own.id).status, "unchecked");
+		} finally {
+			m.publicHost.setHostResolver(async () => ["93.184.216.34"]);
+			answer = () => new Response("{}", { status: 200 });
+		}
+	});
+
+	test("a key moved to another provider, address or Cloudflare account in the database no longer decrypts", async () => {
+		const user = await t.customer("ai-keys-review-context@example.com");
+		const own = (await t.api(user.key, "POST", "/ai-keys", { name: "Own server", provider: "openai-compatible", key: SECRET, baseUrl: "https://llm.example.com/v1" })).body;
+		const cloudflare = (await t.api(user.key, "POST", "/ai-keys", { name: "Workers AI", provider: "cloudflare", key: SECRET, accountRef: "a".repeat(32) })).body;
+		assert.equal((await m.aiKeys.getAiKeyForRun({ accountId: user.accountId, keyId: own.id })).secret, SECRET);
+		const moves = [
+			[own.id, { baseUrl: "https://elsewhere.example.com/v1" }],
+			[own.id, { provider: "openai", baseUrl: "https://llm.example.com/v1" }],
+			[cloudflare.id, { accountRef: "b".repeat(32) }],
+		];
+		for (const [id, change] of moves) {
+			const { secret, ...before } = await m.AiProviderKey.findOne({ accountId: user.accountId, _id: id }).select("+secret").lean();
+			await m.AiProviderKey.updateOne({ accountId: user.accountId, _id: id }, { $set: change });
+			await assert.rejects(m.aiKeys.getAiKeyForRun({ accountId: user.accountId, keyId: id }), (error) => /doesn't decrypt/.test(error.message) && !error.message.includes(SECRET), JSON.stringify(change));
+			const checked = await t.api(user.key, "POST", `/ai-keys/${id}/check`);
+			assert.equal(checked.status, 503);
+			hasNoSecret(checked.body);
+			await m.AiProviderKey.updateOne({ accountId: user.accountId, _id: id }, { $set: { provider: before.provider, ...(before.baseUrl && { baseUrl: before.baseUrl }), ...(before.accountRef && { accountRef: before.accountRef }), secret } });
+		}
+		assert.equal((await m.aiKeys.getAiKeyForRun({ accountId: user.accountId, keyId: cloudflare.id })).secret, SECRET);
 	});
 });

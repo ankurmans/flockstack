@@ -22,6 +22,15 @@ export const metadata = {
 
 const WORDS = { keep: "Keep", drop: "Drop" };
 
+// The token as it was signed; a broken escape (a link cut or mangled by a mail client) is simply not a link of ours.
+function readToken(value) {
+	try {
+		return decodeURIComponent(String(value ?? ""));
+	} catch {
+		return "";
+	}
+}
+
 async function load(link) {
 	try {
 		await connectDb();
@@ -41,7 +50,8 @@ async function load(link) {
 
 export default async function BriefingVerdictPage({ params, searchParams }) {
 	const [{ token }, query] = await Promise.all([params, searchParams]);
-	const link = verifyVerdictToken(decodeURIComponent(String(token ?? "")));
+	const signed = readToken(token);
+	const link = verifyVerdictToken(signed);
 	const found = link ? await load(link) : null;
 
 	return (
@@ -61,7 +71,7 @@ export default async function BriefingVerdictPage({ params, searchParams }) {
 					</span>
 					{query?.result === "busy" && <span className="mt-2 block">Too many tries from here: wait a few minutes and press it again.</span>}
 					<form action={confirmVerdict} className="mt-4">
-						<input type="hidden" name="token" value={decodeURIComponent(String(token))} />
+						<input type="hidden" name="token" value={signed} />
 						<Button type="submit">{link.verdict === "keep" ? "Keep this story" : "Drop this story"}</Button>
 					</form>
 				</CardNotice>

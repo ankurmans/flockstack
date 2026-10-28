@@ -51,6 +51,8 @@ before(async () => {
 	ContentItem = (await import("../models/ContentItem.js")).default;
 	IssueTranslation = (await import("../models/IssueTranslation.js")).default;
 	user = await setupSender(m, "briefing-owner@example.com", { contacts: 3 });
+	// The test address has to be the owner's or a team member's (create_briefing checks it, and delivery again).
+	await (await import("../models/TeamSeat.js")).default.create({ accountId: user.accountId, email: "editor@example.net", role: "editor", status: "active" });
 });
 
 after(() => app?.stop());
@@ -301,5 +303,39 @@ describe("a briefing's translation for readers", () => {
 		} finally {
 			setAi(null);
 		}
+	});
+});
+
+describe("the safety review", () => {
+	test("the note's keep and drop links are emailed but never logged", async () => {
+		const lines = [];
+		const original = { log: console.log, info: console.info, warn: console.warn, error: console.error };
+		for (const level of Object.keys(original)) console[level] = (...args) => lines.push(args.map(String).join(" "));
+		const before = platformEmails.length;
+		try {
+			await delivery.deliverIssue(payload({ slot: "2026-11-10", runId: "6650f1c2e9b1d4a0123457a1" }));
+		} finally {
+			Object.assign(console, original);
+		}
+		const note = platformEmails.slice(before).find(({ subject }) => /briefing draft is ready/.test(subject));
+		const tokens = [...note.text.matchAll(/\/briefing-verdict\/(\S+)$/gm)].map(([, token]) => token);
+		assert.equal(tokens.length, 4, "the email has them");
+		const logged = lines.join("\n");
+		assert.match(logged, /A briefing draft is ready to review/, "the alert is still logged");
+		assert.doesNotMatch(logged, /briefing-verdict/);
+		for (const token of tokens) {
+			assert.ok(!logged.includes(token), "a verdict token in the logs");
+			assert.ok(!logged.includes(token.split(".")[1]), "a verdict signature in the logs");
+		}
+	});
+
+	test("a test address that is no longer the owner's or a team member's gets nothing: the test goes to the owner, and the note says so", async () => {
+		const sentBefore = sent.length;
+		const notesBefore = platformEmails.length;
+		await delivery.deliverIssue(payload({ slot: "2026-11-11", runId: "6650f1c2e9b1d4a0123457a2", testEmail: "left-the-team@example.org" }));
+		assert.deepEqual(sent.slice(sentBefore).map(({ to }) => to), ["briefing-owner@example.com"]);
+		const note = platformEmails.slice(notesBefore).find(({ subject }) => /briefing draft is ready/.test(subject));
+		assert.match(note.text, /left-the-team@example\.org is no longer you or a member of your team, so the test email went to briefing-owner@example\.com instead\./);
+		assert.match(note.text, /A test email went to briefing-owner@example\.com\./);
 	});
 });

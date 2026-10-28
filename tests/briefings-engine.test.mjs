@@ -189,6 +189,7 @@ let rejectedKeys;
 
 async function makeBriefing(overrides = {}) {
 	const account = await m.Account.create({ ownerId: new m.ObjectId() });
+	const newsletter = await m.Newsletter.create({ accountId: account._id, name: "Battery news", slug: `battery-${account._id}`, fromEmail: "news@example.com" });
 	const ids = { typesafe: new m.ObjectId(), openai: new m.ObjectId(), openrouter: new m.ObjectId(), tinyfish: new m.ObjectId() };
 	keys.set(String(ids.typesafe), { provider: "typesafe", baseUrl: "https://api.typesafe.ai/v1", accountRef: null, secret: TYPESAFE_SECRET });
 	keys.set(String(ids.openai), { provider: "openai", baseUrl: "https://api.openai.com/v1", accountRef: null, secret: OPENAI_SECRET });
@@ -206,7 +207,7 @@ async function makeBriefing(overrides = {}) {
 	const { discovery, ...rest } = overrides;
 	const briefing = await m.Briefing.create({
 		accountId: account._id,
-		newsletterId: new m.ObjectId(),
+		newsletterId: newsletter._id,
 		name: "Battery news",
 		status: "active",
 		brief: { topic: "The battery industry and city transport", audience: "People who follow the battery industry and their city", useful: "Money raised, plants opened, rules changed", examples: [{ url: "https://news.example.com/old-battery-story", note: "battery plant funding" }] },
@@ -276,6 +277,7 @@ before(async () => {
 		BriefingPublisher: (await import("../models/BriefingPublisher.js")).default,
 		BriefingVerdict: (await import("../models/BriefingVerdict.js")).default,
 		DiscoveryUsage: (await import("../models/DiscoveryUsage.js")).default,
+		Newsletter: (await import("../models/Newsletter.js")).default,
 	};
 });
 
@@ -782,5 +784,108 @@ describe("resuming and the lock", () => {
 		await m.Briefing.updateOne({ accountId: account._id, _id: briefing._id }, { $set: { manualRunAt: NOW } });
 		assert.equal((await tick({ world: makeWorld(), timeBudgetMs: 0 })).claimed, 0);
 		assert.equal((await m.Briefing.findOne({ accountId: account._id, _id: briefing._id }).lean()).manualRunAt.toISOString(), NOW.toISOString());
+	});
+});
+
+describe("the security review's findings", () => {
+	test("a run saved mid-discovery, and after a minute's limit, holds no decrypted key", async () => {
+		const world = makeWorld({ tinyfish: async () => Response.json({ results: [] }) });
+		const { account, briefing, ids } = await makeBriefing({ discovery: (keyIds) => ({ searchKeyId: keyIds.tinyfish }) });
+		const minuteStart = new Date(Math.floor(NOW.getTime() / 60_000) * 60_000);
+		await m.DiscoveryUsage.create({ accountId: account._id, provider: "tinyfish", keyId: String(ids.tinyfish), operation: "search", window: "minute", windowStart: minuteStart, count: 30 });
+		await tick({ world });
+		const run = await runOf(briefing);
+		assert.equal(run.stage, "discover");
+		assert.ok(run.work.discovery.providers.some(({ id }) => id === "tinyfish"));
+		for (const secret of [TINYFISH_SECRET, OPENAI_SECRET, TYPESAFE_SECRET]) assert.ok(!JSON.stringify(run).includes(secret), "no key in the stored run");
+		await m.DiscoveryUsage.deleteMany({ accountId: account._id, window: "minute" });
+		await tick({ world, now: new Date(NOW.getTime() + 20 * 60_000) });
+		assert.equal((await runOf(briefing)).status, "drafted", "the key is loaded again for the next tick");
+	});
+
+	test("model output can't carry raw HTML, bare or reference links, and a company name can't carry markup", async () => {
+		const world = makeWorld({
+			writer: (records) =>
+				honestWriter(records).replace(
+					"It matters to readers",
+					'See <a href="https://evil.example.com/x">this</a> <img src="https://evil.example.com/p.gif"> https://evil.example.com/bare <https://evil.example.com/auto> www.evil.example.com and [ref][1] [inline](https://evil.example.com/inline). It matters to readers'
+				) + "\n\n[1]: https://evil.example.com/ref",
+			openai: (body) => {
+				const [system, user] = body.messages.map(({ content }) => content);
+				if (!system.startsWith("You read news pages") || !/zinc/i.test(user)) return null;
+				return Response.json({ choices: [{ message: { content: JSON.stringify({ what: "Zinc Corp opened a recycling line that processes 12,000 tonnes a year.", sourceKind: "press_release", company: "Zinc](https://evil.example.com) <b>Corp</b> *now*" }) } }], usage: { prompt_tokens: 10, completion_tokens: 10 } });
+			},
+		});
+		const { briefing } = await makeBriefing();
+		const delivery = makeDelivery();
+		await tick({ world, delivery, items: [...STORIES, found(ZINC)] });
+		const { markdown } = delivery.issues[0];
+		assert.doesNotMatch(markdown, /evil\.example\.com/, markdown);
+		assert.doesNotMatch(markdown, /<[a-z]/i);
+		assert.match(markdown, /\*Announced by Zinc Corp now\*/);
+		const extract = world.requests.find(({ body }) => body?.messages?.[0].content.startsWith("You read news pages"));
+		assert.match(extract.body.messages[1].content, /^<<<DATA story>>>\n/, "the story's title is data too");
+		assert.equal((await runOf(briefing)).status, "drafted");
+	});
+
+	test("briefings of accounts at their hourly cap don't starve the claim queue", async () => {
+		const world = makeWorld();
+		const { account } = await makeBriefing({ manualRunAt: undefined });
+		for (let index = 0; index < 3; index++) await m.BriefingRun.create({ accountId: account._id, briefingId: new m.ObjectId(), newsletterId: new m.ObjectId(), slot: `cap-${index}`, status: "drafted", stage: "done", startedAt: NOW });
+		for (let index = 0; index < 26; index++) {
+			await m.Briefing.create({ accountId: account._id, newsletterId: new m.ObjectId(), name: `Capped ${index}`, status: "active", schedule: { days: [1, 2, 3, 4, 5, 6, 7], time: "06:00", timeZone: "UTC" }, nextRunAt: new Date(NOW.getTime() - 2 * HOUR - index * 1000) });
+		}
+		const waiting = await makeBriefing({ manualRunAt: undefined, nextRunAt: new Date(NOW.getTime() - HOUR) });
+		const result = await tick({ world, timeBudgetMs: 0 });
+		assert.equal(result.claimed, 1);
+		assert.equal(await m.BriefingRun.countDocuments({ accountId: waiting.account._id, briefingId: waiting.briefing._id }), 1);
+		await m.Briefing.updateMany({ accountId: account._id }, { $set: { status: "paused" } });
+	});
+
+	test("a briefing gets 3 manual runs a local day at most", async () => {
+		const world = makeWorld();
+		const { account, briefing } = await makeBriefing({ manualRunAt: undefined, schedule: { days: [1, 2, 3, 4, 5, 6, 7], time: "06:00", timeZone: "America/New_York" } });
+		for (let index = 0; index < 3; index++) {
+			await m.BriefingRun.create({ accountId: account._id, briefingId: briefing._id, newsletterId: briefing.newsletterId, slot: `manual:earlier-${index}`, isManual: true, status: "drafted", stage: "done", startedAt: new Date(NOW.getTime() - 2 * HOUR - index * 30 * 60_000) });
+		}
+		// Earlier today in New York (02:00 to 03:00), and out of the account's hourly cap.
+		await m.BriefingRun.updateMany({ accountId: account._id, briefingId: briefing._id }, { $set: { createdAt: new Date(NOW.getTime() - 2 * HOUR) } });
+		await m.Briefing.updateOne({ accountId: account._id, _id: briefing._id }, { $set: { manualRunAt: NOW } });
+		assert.equal((await tick({ world, timeBudgetMs: 0 })).claimed, 0);
+		const saved = await m.Briefing.findOne({ accountId: account._id, _id: briefing._id }).lean();
+		assert.equal(saved.manualRunAt, undefined, "the request is dropped, not kept waiting");
+		await m.BriefingRun.updateMany({ accountId: account._id, briefingId: briefing._id, slot: "manual:earlier-2" }, { $set: { startedAt: new Date(NOW.getTime() - 6 * HOUR) } });
+		await m.Briefing.updateOne({ accountId: account._id, _id: briefing._id }, { $set: { manualRunAt: NOW } });
+		assert.equal((await tick({ world, timeBudgetMs: 0 })).claimed, 1, "one of the three was yesterday in New York, so a third runs");
+	});
+
+	test("a translation that fails any other way leaves that language failed and the draft delivered", async () => {
+		const world = makeWorld({ openai: (body) => (body.messages[0].content.startsWith("You translate") ? Response.json({ choices: [{ message: { content: "" } }], usage: { prompt_tokens: 10, completion_tokens: 0 } }) : null) });
+		const { briefing } = await makeBriefing({ languages: ["en", "fr", "de"] });
+		const delivery = makeDelivery();
+		await tick({ world, delivery, items: [...STORIES, found(ZINC)] });
+		const run = await runOf(briefing);
+		assert.equal(run.status, "drafted", run.error);
+		assert.deepEqual(run.languages, [
+			{ language: "fr", status: "failed" },
+			{ language: "de", status: "failed" },
+		]);
+		assert.equal(delivery.issues.length, 1);
+	});
+
+	test("a blocked or deleting account, or a briefing whose newsletter is gone, makes no model call", async () => {
+		for (const setup of [
+			async ({ account }) => m.Account.updateOne({ _id: account._id }, { $set: { status: "paused" } }),
+			async ({ account }) => m.Account.updateOne({ _id: account._id }, { $set: { "deletion.requestedAt": NOW } }),
+			async ({ account, briefing }) => m.Newsletter.deleteOne({ accountId: account._id, _id: briefing.newsletterId }),
+		]) {
+			const world = makeWorld();
+			const made = await makeBriefing();
+			await setup(made);
+			await tick({ world, items: STORIES });
+			const run = await runOf(made.briefing);
+			assert.equal(run.status, "failed");
+			assert.ok(!world.requests.some(({ url }) => url.includes("/chat/completions") || url.endsWith("/systemone")), run.error);
+		}
 	});
 });
