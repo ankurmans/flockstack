@@ -36,6 +36,6 @@ export default function ReaderTranslation({ slug, post, language, enabled, hasSe
 			{answer?.error && <p role="alert" className="w-full text-muted-foreground">{t(ERRORS[answer.error] ?? ERRORS.unavailable)}</p>}
 			{answer?.status === "pending" && <p role="status" className="w-full text-muted-foreground">{t("Another translation is in progress. Try again shortly.")}</p>}
 		</div>
-		{show && answer?.text ? <div lang={answer.language} className="mt-8"><p className="mb-4 text-xs text-muted-foreground">{t("Translated text. Check the original for exact wording.")}</p><div className="whitespace-pre-wrap break-words leading-relaxed">{answer.text}</div></div> : children}
+		{show && answer?.text ? <div lang={answer.language} className="mt-8"><p className="mb-4 text-xs text-muted-foreground">{t(answer.beta ? "Translation written with the issue (beta). Check the original for exact wording." : "Translated text. Check the original for exact wording.")}</p><div className="whitespace-pre-wrap break-words leading-relaxed">{answer.text}</div></div> : children}
 	</>;
 }

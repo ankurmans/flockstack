@@ -35,6 +35,8 @@ const PUBLIC_PATHS = [
 	/^\/unsubscribe$/,
 	/^\/confirm$/,
 	/^\/keep$/,
+	// The confirmation page of a briefing note's keep or drop link (lib/briefing-verdict-links.js): the token is the credential.
+	/^\/briefing-verdict\/[A-Za-z0-9_.%-]+$/,
 	/^\/referral$/,
 	/^\/signup-flow$/,
 	/^\/reader\/(in|signin|replies)$/,

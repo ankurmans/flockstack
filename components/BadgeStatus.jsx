@@ -72,4 +72,6 @@ const STATUS_TONES = {
 	proposed: "amber",
 	ready_for_review: "blue",
 	changes_requested: "amber",
+	rejected: "red",
+	stopped_at_budget: "amber",
 };

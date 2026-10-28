@@ -6,6 +6,7 @@ import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { buildApiWorker } from "../scripts/build-api-worker.mjs";
 import { buildReadersWorker } from "../scripts/build-readers-worker.mjs";
+import { buildBriefingsWorker } from "../scripts/build-briefings-worker.mjs";
 import { buildCollaborationWorker } from "../scripts/build-collaboration-worker.mjs";
 import { checkBudgets, formatReport, readBudgets } from "../scripts/perf-budget.mjs";
 
@@ -16,7 +17,7 @@ const budgets = readBudgets();
 
 describe("the budgets", () => {
 	test("name every Worker script, each with a limit a little above what it measured", () => {
-		assert.deepEqual(Object.keys(budgets).sort(), ["api-worker", "app-handler", "app-upload", "collaboration-worker", "public-handler", "readers-worker", "replies-worker", "router"]);
+		assert.deepEqual(Object.keys(budgets).sort(), ["api-worker", "app-handler", "app-upload", "briefings-worker", "collaboration-worker", "public-handler", "readers-worker", "replies-worker", "router"]);
 		for (const [name, budget] of Object.entries(budgets)) {
 			assert.ok(budget.maxBytes > 0 && budget.label && (budget.file || budget.bundle), name);
 			if (budget.measured) {
@@ -29,7 +30,8 @@ describe("the budgets", () => {
 	test("the router and the public pages Worker, bundled, and the API and readers Workers, built, are inside theirs", async () => {
 		await buildReadersWorker();
 		await buildCollaborationWorker();
-		for (const result of checkBudgets(budgets, { only: ["router", "public-handler", "readers-worker", "replies-worker", "collaboration-worker"] })) {
+		await buildBriefingsWorker();
+		for (const result of checkBudgets(budgets, { only: ["router", "public-handler", "readers-worker", "replies-worker", "collaboration-worker", "briefings-worker"] })) {
 			assert.equal(result.isMissing, false, result.name);
 			assert.equal(result.isOver, false, `${result.label} is ${result.bytes} bytes, over ${result.maxBytes}`);
 		}

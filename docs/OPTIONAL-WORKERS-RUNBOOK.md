@@ -1,6 +1,6 @@
-# Optional Workers: realtime editing and inbound replies
+# Optional Workers: realtime editing, inbound replies and briefings
 
-Two services are built and deployed nowhere. `node scripts/deploy-all.mjs` deploys neither unless a region's setting says its Worker exists (next section), no config of a Worker that runs today names them, and their switches are off. This page is how to provision each, region by region, US first and EU a day later. Nothing here has been run against production; the commands that change production are marked *.
+Three services are built and deployed nowhere. `node scripts/deploy-all.mjs` deploys neither unless a region's setting says its Worker exists (next section), no config of a Worker that runs today names them, and their switches are off. This page is how to provision each, region by region, US first and EU a day later. Nothing here has been run against production; the commands that change production are marked *.
 
 ## The setting that makes a deploy include them
 
@@ -20,6 +20,7 @@ The setting is JSON, in the environment variable `FLOCKSTACK_OPTIONAL_WORKERS` o
 | `collaboration` | `"off"` (the default), `"provisioned"`, `"enabled"` | `provisioned`: the region's collaboration Worker is deployed first with its flag off, and the app (`COLLABORATION_SOCKET`, `COLLABORATION_STORAGE`), the API Worker (`COLLABORATION_STORAGE`) and the router (`COLLABORATION_SOCKET`, both its workers.dev and its domain variants) get the bindings. `enabled`: the same, and every deploy of the collaboration Worker passes `--var COLLABORATION_ENABLED:true`, so a later deploy never turns it back off. |
 | `collaboration.testOrigins` | up to five exact origins (`https://…`, or `http://localhost:…`), only with `provisioned` or `enabled` | The collaboration Worker also accepts sockets from those origins (`--var COLLABORATION_ALLOWED_ORIGINS`), to try realtime editing on a `workers.dev` router before a domain moves. No wildcards, no paths; the dashboard's own origin always works. Remove them when the test is over. |
 | `replies` | `true` or `false` | The replies Worker is deployed last in its region. It needs no binding anywhere else. |
+| `briefings` | `true` or `false` | The briefings Worker is deployed right after the region's API Worker (its `API` binding names the API Worker's `BriefingsDelivery` entrypoint), and the app and the API Worker are deployed with `--var BRIEFINGS_ENABLED:true`, which lets `run_briefing` queue a run. Nothing else gets a binding. Section C. |
 
 Set `provisioned` or `true` only after the step that creates the Worker has been done for that region (A.2, B.2 below): the setting is the one place that says it exists. A value it does not understand stops the run before anything is built, migrated or deployed. `node scripts/deploy-all.mjs --dry-run` prints an "Optional Workers" line per region, each added binding, and the commands.
 
@@ -143,3 +144,44 @@ The two regions use different subdomains and different secrets and never share a
 - Stop mail reaching the Worker: in Email Routing, disable the catch-all rule or the subdomain.
 - A bad Worker version: `npx wrangler rollback --config workers/replies/wrangler.jsonc [--env eu]`.
 - Replies already stored stay in the inbox until their 90 days end, or the owner archives them; they are in the account export.
+
+## C. Briefings
+
+**What it is for.** A newsletter's briefing watches its sources on a schedule, writes a short sourced issue with the account's own AI provider key, checks it and saves it as a draft, with a test email to the briefing's test address and a note to the owner with the checks and the cost (docs/BRIEFINGS-DESIGN.md). Off unless the region's setting says `"briefings": true`; without it `run_briefing` answers `unavailable`.
+
+**How it works.** A Cron Trigger every 10 minutes runs one tick of `lib/briefings` in the briefings Worker: it claims the due briefings and the manual runs and moves each run through as many stages as fit in 5 minutes, saving after every stage, so a run cut off resumes on the next tick. The draft, the content calendar item and the test email are written by the API Worker, through `runAction`, when the briefings Worker calls its `BriefingsDelivery` entrypoint over the `API` service binding: the briefings Worker has no SES or sign-in secret. Stored AI keys are encrypted with `CREDENTIALS_ENCRYPTION_KEY`; the app and the API Worker encrypt when a key is added, and the briefings Worker decrypts at run time.
+
+**What it needs.**
+
+| Piece | US | EU |
+| --- | --- | --- |
+| Worker (new) | `flockstack-briefings` (`workers/briefings/wrangler.jsonc`, built by `npm run build:briefings`) | `flockstack-briefings-eu` (`--env eu`) |
+| Bindings | `DB` (the app's D1 `flockstack`), `AI` (Workers AI, grouping embeddings only), `API` to `flockstack-api#BriefingsDelivery` | `flockstack-eu`, `AI`, `flockstack-api-eu#BriefingsDelivery` |
+| Trigger | Cron `*/10 * * * *`; `limits.cpu_ms` 30,000 (a Cron Trigger more frequent than hourly gets at most 30 seconds of CPU; waiting on fetches does not count; wall time is 15 minutes) | the same |
+| `CREDENTIALS_ENCRYPTION_KEY` | secret on the app, the API Worker and the briefings Worker, one value per region | its own value |
+| `BRIEFINGS_ENABLED` | `--var` on the app and the API Worker, set by `deploy-all` while the setting says `true` | the same |
+| `BRIEFINGS_DISABLED` | optional, on the briefings Worker only: `true` stops the ticks | the same |
+| Routes, `workers.dev`, queues, R2 | none (its `fetch` answers 404 to everything but `/__briefings/health`) | none |
+
+`CREDENTIALS_ENCRYPTION_KEY` also encrypts PostShiba's SMTP passwords and the Postmaster Tools connection, so the app may have it already. The script never replaces it without `--rotate`, and replacing it makes everything encrypted with the old value unreadable.
+
+**Steps, US; then EU with `--env eu` and the `-eu` names.**
+
+1. **Agent.** `npm run build:briefings` and `npm run perf:budget` (the briefings Worker measured 608,225 bytes of 750,000), then `npx wrangler deploy --dry-run --config workers/briefings/wrangler.jsonc --outdir ../dry`. Expect: pass, and the dry run lists `DB`, `AI`, `API` to `flockstack-api#BriefingsDelivery` and the cron.
+2. **Owner terminal*.** The API Worker must export `BriefingsDelivery` before anything binds it: deploy this code once without the setting (`node scripts/deploy-all.mjs --only us`, the usual deploy). Nothing changes for users: the entrypoint is only reachable through a service binding, and `run_briefing` still answers `unavailable`.
+3. **Owner terminal*.** Create the Worker switched off: `npx wrangler deploy --config workers/briefings/wrangler.jsonc --var BRIEFINGS_DISABLED:true`. Expect: `Deployed flockstack-briefings` with its schedule. If it fails on the entrypoint, step 2 did not deploy the API Worker from this code.
+4. **Owner terminal*.** The key: `bash scripts/set-optional-worker-secrets.sh briefings us` (`--dry-run` first). It lists the secret names of the app, the API Worker and the briefings Worker (names only), and when none has `CREDENTIALS_ENCRYPTION_KEY` it makes a random 32-byte value nobody sees and sets it on the briefings Worker, the API Worker and the app, in that order. When the app has one already it stops and says so; then run `bash scripts/set-optional-worker-secrets.sh briefings us --existing` and type the app's value (hidden, twice) to put it on the API Worker and the briefings Worker. If the app's value is not known anywhere, rotating is the only way (`--rotate`, after its warning); PostShiba and Postmaster Tools then need connecting again.
+5. **Owner terminal*.** Say the Worker exists: `export FLOCKSTACK_OPTIONAL_WORKERS='{"us":{"briefings":true}}'` (keep the other keys of the region when it has some), check `node scripts/deploy-all.mjs --only us --skip-build --dry-run` (the app and the API Worker with `--var BRIEFINGS_ENABLED:true`, the briefings Worker after the API Worker), then run it without `--dry-run`. This also deploys the briefings Worker without `BRIEFINGS_DISABLED`, so the ticks start.
+6. **Owner terminal.** `npx wrangler tail flockstack-briefings`: every 10 minutes a line `[briefings] {"claimed":…,"advanced":…,"finished":…}`. The Worker's Cron Triggers page in the Cloudflare dashboard lists past events; a failed tick shows there.
+7. **Owner browser.** Add an AI key and a briefing on a test newsletter, in drafts only, with your own address as the test address, and run it. Expect within about 10 minutes: a draft campaign, its item in the content calendar, a test email to the test address only, and an owner email "A briefing draft is ready to review" with the checks and the cost. Nothing is sent to readers.
+8. EU: the same, with `--env eu`, `"eu":{"briefings":true}` and the `-eu` Workers. Its key is its own.
+
+**Self-hosted.** No Worker: set `BRIEFINGS_IN_CRON=true` and `CREDENTIALS_ENCRYPTION_KEY` on the server, and the hourly cron (`/api/cron/hourly`) runs a tick of 40 seconds once an hour. Delivery is the same code, called directly.
+
+**Rollback.**
+
+- Stop the ticks at once, with no other deploy: `printf true | npx wrangler secret put BRIEFINGS_DISABLED --config workers/briefings/wrangler.jsonc` (a secret survives later deploys; delete it to start again). Runs in progress stay where they are and are marked failed after an hour untouched.
+- Switch the feature off: set `"briefings": false` for the region (or remove the key) and redeploy with `node scripts/deploy-all.mjs --only us`. The app and the API Worker are deployed without `BRIEFINGS_ENABLED`, so `run_briefing` answers `unavailable`, and the briefings Worker is no longer deployed. A plain `wrangler deploy` of the app or API Worker outside `deploy-all` also drops the variable.
+- Remove the Worker after that: `npx wrangler delete --config workers/briefings/wrangler.jsonc` (EU: `--env eu`). The API Worker's `BriefingsDelivery` entrypoint can stay; nothing calls it.
+- A bad version only: `npx wrangler rollback --config workers/briefings/wrangler.jsonc`.
+- Keep `CREDENTIALS_ENCRYPTION_KEY` everywhere: deleting it from the app breaks PostShiba and Postmaster Tools, and stored AI keys become unreadable. Drafts already made stay drafts; briefings, runs and seen URLs stay in D1, and the hourly housekeeping deletes runs after 90 days and seen URLs after 30.

@@ -1,0 +1,57 @@
+{
+	"$schema": "../../node_modules/wrangler/config-schema.json",
+	// Optional briefings Worker (docs/BRIEFINGS-DESIGN.md, docs/OPTIONAL-WORKERS-RUNBOOK.md, C). A Cron Trigger every 10 minutes runs one
+	// tick of lib/briefings; scripts/build-briefings-worker.mjs builds it, as Wrangler's build step. `node scripts/deploy-all.mjs` deploys
+	// it, after the API Worker, only for a region whose optional Workers setting says "briefings": true: its API binding names the API
+	// Worker's BriefingsDelivery entrypoint, which a deploy of an older API Worker would not have.
+	//
+	// DB is the same database as the region's app. AI is Workers AI, for grouping embeddings only. The one secret is
+	// CREDENTIALS_ENCRYPTION_KEY, the same value as the app's and the API Worker's of its region (scripts/set-optional-worker-secrets.sh briefings).
+	// BRIEFINGS_DISABLED=true (a variable or a secret) stops the ticks without a deploy of anything else.
+	// limits.cpu_ms: a Cron Trigger that fires more often than hourly gets at most 30 seconds of CPU, whatever is set, so this is the
+	// ceiling, written down; a tick is mostly waiting on fetches and model calls, which is not CPU time. Wall time is 15 minutes.
+	"name": "flockstack-briefings",
+	"main": "dist/index.js",
+	"no_bundle": true,
+	"build": { "command": "npm run build:briefings" },
+	"compatibility_date": "2026-09-01",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"workers_dev": false,
+	"preview_urls": false,
+	"observability": { "enabled": true },
+	"upload_source_maps": false,
+	"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
+	"triggers": { "crons": ["*/10 * * * *"] },
+	"limits": { "cpu_ms": 30000 },
+	"d1_databases": [{ "binding": "DB", "database_name": "flockstack", "database_id": "97615845-8aa2-413f-ad98-89821937069f" }],
+	"ai": { "binding": "AI" },
+	"services": [{ "binding": "API", "service": "flockstack-api", "entrypoint": "BriefingsDelivery" }],
+	"vars": {
+		"FLOCKSTACK_CLOUD": "true",
+		"FLOCKSTACK_REGION": "us"
+	},
+	"env": {
+		"eu": {
+			"name": "flockstack-briefings-eu",
+			"main": "dist/index.js",
+			"no_bundle": true,
+			"build": { "command": "npm run build:briefings" },
+			"compatibility_date": "2026-09-01",
+			"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+			"workers_dev": false,
+			"preview_urls": false,
+			"observability": { "enabled": true },
+			"upload_source_maps": false,
+			"account_id": "fe96ffccbfec88e9c8516169adb1fee2",
+			"triggers": { "crons": ["*/10 * * * *"] },
+			"limits": { "cpu_ms": 30000 },
+			"d1_databases": [{ "binding": "DB", "database_name": "flockstack-eu", "database_id": "3ffda07e-c73f-46ee-a933-1eb4feb18f70" }],
+			"ai": { "binding": "AI" },
+			"services": [{ "binding": "API", "service": "flockstack-api-eu", "entrypoint": "BriefingsDelivery" }],
+			"vars": {
+				"FLOCKSTACK_CLOUD": "true",
+				"FLOCKSTACK_REGION": "eu"
+			}
+		}
+	}
+}

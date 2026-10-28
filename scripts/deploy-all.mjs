@@ -9,11 +9,12 @@
 // --only deploys one region (its database and Workers; the build is still the one build). --dry-run prints every command
 // and runs none, and talks to nothing. --skip-build deploys the .open-next folder and workers/public/dist as they are (build .open-next with FLOCKSTACK_CLOUD_BUILD=true).
 // Placeholders left in lib/legal.js don't stop it: the legal pages stay hidden until they are filled, and it says which are left.
-// The optional Workers (realtime editing, inbound replies) are in no configuration of the repository, so a deploy never names a Worker that
+// The optional Workers (realtime editing, inbound replies, briefings) are in no configuration of the repository, so a deploy never names a Worker that
 // may not exist. A region that has one says so in FLOCKSTACK_OPTIONAL_WORKERS or optional-workers.json (scripts/optional-workers.mjs,
 // docs/OPTIONAL-WORKERS-RUNBOOK.md); then this deploys it too and adds its bindings to the app, API Worker and router for that deploy only.
 //
-// Order, for each region: the app, then the API Worker and the readers Worker (they ask the app, through a binding, to drop cached pages), then the public
+// Order, for each region: the app, then the API Worker (then the briefings Worker where there is one: it binds the API Worker's
+// BriefingsDelivery) and the readers Worker (they ask the app, through a binding, to drop cached pages), then the public
 // pages (which point at the files of the build the app now has), then the router (which binds the API and readers Workers and needs them to exist).
 // While the app still lists the region's domain (before the cutover) the router is deployed without the domain, on workers.dev only,
 // to be tried there; once the app has let the domain go, the router is deployed with it, which keeps it.
@@ -41,7 +42,7 @@ import { getLegalTodos } from "../lib/legal.js";
 import { getRegionUrls } from "../lib/region.js";
 import { readJsonc } from "./bundle-worker.mjs";
 import { formatResults, runChecks } from "./check-mcp-auth.mjs";
-import { applyOptionalBindings, collaborationVars, collaborationWorkerName, describeOptionalWorkers, hasCollaboration, loadOptionalWorkers, repliesWorkerName } from "./optional-workers.mjs";
+import { applyOptionalBindings, briefingsVars, briefingsWorkerName, collaborationVars, collaborationWorkerName, describeOptionalWorkers, hasCollaboration, loadOptionalWorkers, repliesWorkerName } from "./optional-workers.mjs";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const MIGRATIONS_DIR = join(ROOT, "migrations");
@@ -66,6 +67,7 @@ export const REGIONS = {
 		routerStagedArgs: ["--config", "workers/router/wrangler.jsonc"],
 		collaborationArgs: ["--config", "workers/collaboration/wrangler.jsonc"],
 		repliesArgs: ["--config", "workers/replies/wrangler.jsonc"],
+		briefingsArgs: ["--config", "workers/briefings/wrangler.jsonc"],
 	},
 	eu: {
 		worker: "flockstack-eu",
@@ -82,6 +84,7 @@ export const REGIONS = {
 		routerStagedArgs: ["--config", "workers/router/wrangler.jsonc", "--env", "eu-staged"],
 		collaborationArgs: ["--config", "workers/collaboration/wrangler.jsonc", "--env", "eu"],
 		repliesArgs: ["--config", "workers/replies/wrangler.jsonc", "--env", "eu"],
+		briefingsArgs: ["--config", "workers/briefings/wrangler.jsonc", "--env", "eu"],
 	},
 };
 
@@ -337,7 +340,7 @@ export async function main(argv = process.argv.slice(2), { migrationsDir = MIGRA
 	const deployed = [];
 
 	for (const region of regions) {
-		const { worker, wranglerArgs, apiWorker, apiArgs, readersWorker, readersArgs, publicWorker, publicArgs, routerWorker, routerArgs, routerStagedArgs, collaborationArgs, repliesArgs } = REGIONS[region];
+		const { worker, wranglerArgs, apiWorker, apiArgs, readersWorker, readersArgs, publicWorker, publicArgs, routerWorker, routerArgs, routerStagedArgs, collaborationArgs, repliesArgs, briefingsArgs } = REGIONS[region];
 		// First, so the bindings the app, the API Worker and the router are about to get point at the current code.
 		if (hasCollaboration(optionalWorkers, region)) {
 			const name = collaborationWorkerName(region);
@@ -346,9 +349,16 @@ export async function main(argv = process.argv.slice(2), { migrationsDir = MIGRA
 			run("npx", ["wrangler", "deploy", ...collaborationArgs, ...collaborationVars(optionalWorkers, region)], options);
 		}
 		console.log(`\n==> Deploy: ${worker}`);
-		deployWithOptional(worker, "app", wranglerArgs, region, optionalWorkers, options);
+		deployWithOptional(worker, "app", [...wranglerArgs, ...briefingsVars(optionalWorkers, region)], region, optionalWorkers, options);
 		console.log(`\n==> Deploy: ${apiWorker} (it gets no traffic until the router's API_ENABLED says so)`);
-		deployWithOptional(apiWorker, "api", apiArgs, region, optionalWorkers, options);
+		deployWithOptional(apiWorker, "api", [...apiArgs, ...briefingsVars(optionalWorkers, region)], region, optionalWorkers, options);
+		// Its API binding names the BriefingsDelivery entrypoint, which the API Worker just deployed has.
+		if (optionalWorkers[region].briefings) {
+			const name = briefingsWorkerName(region);
+			deployed.push(name);
+			console.log(`\n==> Deploy: ${name} (optional; a Cron Trigger every 10 minutes, no HTTP route)`);
+			run("npx", ["wrangler", "deploy", ...briefingsArgs], options);
+		}
 		console.log(`\n==> Deploy: ${readersWorker} (it gets no traffic until the router's READERS_ENABLED says so)`);
 		run("npx", ["wrangler", "deploy", ...readersArgs], options);
 		console.log(`\n==> Deploy: ${publicWorker}`);
