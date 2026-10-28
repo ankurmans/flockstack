@@ -332,7 +332,8 @@ describe("a full run with open-web discovery", () => {
 		assert.equal(String(run.campaignId), CAMPAIGN_ID);
 		assert.deepEqual(
 			run.queries.map(({ text }) => text),
-			["battery plant funding", "city bike lanes", "The battery industry and city transport"]
+			["battery plant funding", "city bike lanes", "battery plant funding"],
+			"the trusted outlet searches with one of the run's own queries, not the topic"
 		);
 		assert.equal(run.queries[2].site, undefined, "the trusted outlet's query keeps its site out of the stored text");
 		assert.equal(run.counts.queries, 3);
