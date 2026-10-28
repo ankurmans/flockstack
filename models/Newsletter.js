@@ -38,6 +38,16 @@ const newsletterSchema = new mongoose.Schema(
 		// The account's verified archive subdomain (lib/domains.js syncArchiveHosts). Without one, the
 		// archive and the links in its emails use <slug>.<shared domain>.
 		archiveHost: { type: String, lowercase: true, trim: true },
+		// The website at a path of the owner's own site, which forwards it here with the token (lib/mount-rules.js, lib/mounts.js).
+		// Only its SHA-256 is kept; the previous one keeps working until previousUntil. The pages move there once verifiedAt is set.
+		// Never with an archiveHost.
+		mount: {
+			url: { type: String, trim: true },
+			tokenHash: { type: String },
+			previousTokenHash: { type: String },
+			previousUntil: { type: Date },
+			verifiedAt: { type: Date },
+		},
 		// The shared address's sending domain, <slug>.<shared domain>, in the account's tenant at the email
 		// provider, with the DNS records FlockStack published for it on the shared domain (lib/shared-sender.js).
 		sharedSender: {

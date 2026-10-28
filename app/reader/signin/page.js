@@ -1,11 +1,12 @@
 import { getReaderText } from "@/lib/reader-languages";
 import { BookOpen, Link2Off, MessageCircle, UserRound } from "lucide-react";
+import { redirect } from "next/navigation";
 import CardNotice from "@/components/CardNotice";
 import { Button } from "@/components/ui/button";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { connectDb } from "@/lib/db";
 import { SIGNIN_DESTINATIONS } from "@/lib/reader-links";
-import { previewSignInLink } from "@/lib/reader-session";
+import { getMountHandoffUrl, previewSignInLink } from "@/lib/reader-session";
 import { ARCHIVE_SLUG_PATTERN } from "@/lib/slug";
 import { continueSignIn } from "@/app/reader/signin/actions";
 
@@ -25,6 +26,8 @@ export default async function ReaderSignInPage({ searchParams }) {
 	const issueSlug = typeof p === "string" && ARCHIVE_SLUG_PATTERN.test(p) ? p : "";
 	const destination = SIGNIN_DESTINATIONS.includes(next) ? next : "";
 	const isAccount = destination === "account";
+	const handoff = await getHandoff(validToken, issueSlug, destination);
+	if (handoff) redirect(handoff);
 	const preview = await getPreview(validToken);
 	const urls = preview.newsletter && getArchiveUrls(preview.newsletter);
 
@@ -68,6 +71,19 @@ export default async function ReaderSignInPage({ searchParams }) {
 			)}
 		</main>
 	);
+}
+
+// The same page under the newsletter's subfolder, where the session it starts is read (lib/reader-session.js).
+async function getHandoff(token, issueSlug, destination) {
+	if (!token) return null;
+	try {
+		await connectDb();
+		const query = new URLSearchParams({ token, ...(issueSlug && { p: issueSlug }), ...(destination && { next: destination }) });
+		return await getMountHandoffUrl("signin", token, "/reader/signin", `?${query}`);
+	} catch (error) {
+		console.error("[reader] Could not check the sign-in link:", error.message);
+		return null;
+	}
 }
 
 async function getPreview(token) {

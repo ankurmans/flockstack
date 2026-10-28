@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import CardMount from "@/components/CardMount";
 import CardRedirects from "@/components/CardRedirects";
 import CardSearch from "@/components/CardSearch";
 import FormNewsletter from "@/components/FormNewsletter";
@@ -8,9 +9,10 @@ import { scoped } from "@/lib/account-scope";
 import { getWelcomePauseNotice } from "@/lib/account-state";
 import { runDashboardAction } from "@/lib/actions/dashboard";
 import { hasPublishedIssue } from "@/lib/archive-data";
-import { getArchiveUrls } from "@/lib/archive-hosts";
+import { getArchiveUrls, getMountUpstream } from "@/lib/archive-hosts";
 import { cleanupTotalsPipeline } from "@/lib/cleanup";
 import { getAppUrl, getArchiveCnameTarget, getSharedDomain, isSendingEnabled } from "@/lib/config";
+import { toMountOutput } from "@/lib/mounts";
 import { ADD_NEWSLETTER_PATH } from "@/lib/newsletters";
 import { findAccountDomains } from "@/lib/sender";
 import { formatJsonLd } from "@/lib/seo-rules";
@@ -42,7 +44,7 @@ export default async function SettingsPage() {
 			<HeaderPage title="Settings" />
 			<FormNewsletter
 				key={String(newsletter._id)}
-				newsletter={serialize(newsletter)}
+				newsletter={serialize(withoutMountSecrets(newsletter))}
 				domains={serialize(domains)}
 				sharedDomain={getSharedDomain()}
 				appUrl={getAppUrl()}
@@ -54,6 +56,14 @@ export default async function SettingsPage() {
 				cleanupTotals={cleanupTotals}
 				welcomePause={usage.welcomeEmailsPaused ? getWelcomePauseNotice(usage) : null}
 			/>
+			<CardMount
+				key={`mount-${newsletter._id}`}
+				newsletterId={String(newsletter._id)}
+				initial={toMountOutput(newsletter)}
+				archiveHost={newsletter.archiveHost ?? null}
+				upstream={getMountUpstream(newsletter)}
+				className="mt-4"
+			/>
 			<CardSearch
 				key={`search-${newsletter._id}`}
 				newsletterId={String(newsletter._id)}
@@ -64,6 +74,12 @@ export default async function SettingsPage() {
 			<CardRedirects key={`redirects-${newsletter._id}`} newsletterId={String(newsletter._id)} initial={redirects ?? null} className="mt-4" />
 		</LayoutNarrow>
 	);
+}
+
+// The form needs where the website is, never the mount's token hashes.
+function withoutMountSecrets(newsletter) {
+	const { mount, ...rest } = newsletter;
+	return mount?.url ? { ...rest, mount: { url: mount.url, verifiedAt: mount.verifiedAt ?? null } } : rest;
 }
 
 async function getCleanupTotals(account, newsletterId) {

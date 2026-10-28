@@ -3,6 +3,12 @@ import { AsyncLocalStorage } from "node:async_hooks";
 // A request for the code that runs inside it: its headers, and a cookie jar that cookies().set() writes
 // to, the way a browser keeps the session cookie between requests.
 const storage = new AsyncLocalStorage();
+// The options each cookie was last set with, per jar, for the tests that check a cookie's path.
+const options = new WeakMap();
+
+export function readCookieOptions(jar, name) {
+	return options.get(jar)?.get(name);
+}
 
 export function runWithRequest({ jar = new Map(), headers = {} } = {}, run) {
 	const cookie = [...jar].map(([name, value]) => `${name}=${value}`).join("; ");
@@ -27,8 +33,10 @@ export async function cookies() {
 		get: (name) => (jar.has(name) ? { name, value: jar.get(name) } : undefined),
 		getAll: () => [...jar].map(([name, value]) => ({ name, value })),
 		has: (name) => jar.has(name),
-		set(name, value, options = {}) {
-			const isExpired = options.maxAge === 0 || (options.expires && new Date(options.expires) <= new Date());
+		set(name, value, setOptions = {}) {
+			if (!options.has(jar)) options.set(jar, new Map());
+			options.get(jar).set(name, setOptions);
+			const isExpired = setOptions.maxAge === 0 || (setOptions.expires && new Date(setOptions.expires) <= new Date());
 			if (isExpired || value === "") jar.delete(name);
 			else jar.set(name, value);
 		},

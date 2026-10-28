@@ -164,3 +164,30 @@ export async function importRedirects(newsletterId, csv) {
 	const { output, failure } = await runDashboardAction("import_redirects", { newsletter: String(newsletterId ?? ""), csv: String(csv ?? "") });
 	return failure ? toFormError(failure) : output;
 }
+
+// The website's subfolder on the owner's own site (lib/mounts.js), on the settings page. The token comes back once.
+export async function setMount(newsletterId, url) {
+	const { output, failure } = await runDashboardAction("set_newsletter_mount", { id: String(newsletterId ?? ""), url: String(url ?? "") });
+	if (failure) return toFormError(failure);
+	revalidatePath("/newsletters");
+	return output;
+}
+
+export async function checkMount(newsletterId) {
+	const { output, failure } = await runDashboardAction("check_newsletter_mount", { id: String(newsletterId ?? "") });
+	if (failure) return toFormError(failure);
+	revalidatePath("/newsletters");
+	return output;
+}
+
+export async function rotateMountToken(newsletterId) {
+	const { output, failure } = await runDashboardAction("rotate_newsletter_mount_token", { id: String(newsletterId ?? "") });
+	return failure ? toFormError(failure) : output;
+}
+
+export async function removeMount(newsletterId) {
+	const { failure } = await runDashboardAction("remove_newsletter_mount", { id: String(newsletterId ?? "") });
+	if (failure) return toFormError(failure);
+	revalidatePath("/newsletters");
+	return { ok: true };
+}

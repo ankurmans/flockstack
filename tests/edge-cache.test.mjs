@@ -184,6 +184,8 @@ describe("lib/edge-cache.js: a newsletter's public pages on its own host", () =>
 		assert.equal(archive({ method: "HEAD" }), null);
 		assert.equal(archive({ hasSession: true }), null);
 		for (const name of ["rsc", "next-router-prefetch", "next-action", "range", "authorization"]) assert.equal(archive({ headers: new Headers({ [name]: "1" }) }), null, name);
+		// A request from a newsletter's subfolder on its owner's site is rewritten for that site: the app answers it every time.
+		assert.equal(archive({ headers: new Headers({ "x-flockstack-mount": "fsm_token" }) }), null);
 		assert.equal(archive({ appHostname: "" }), null);
 	});
 
