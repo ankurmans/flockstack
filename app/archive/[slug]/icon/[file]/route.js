@@ -5,6 +5,8 @@ import { getRenderedImage } from "@/lib/rendered-images";
 import { isSectionIconKey } from "@/lib/section-icons";
 import Newsletter from "@/models/Newsletter";
 
+// Raised when the drawing changes: 1 was drawn by next/og, blank on Workers; 2 is written from the icon masks.
+const ICON_VERSION = 2;
 const FILE_PATTERN = /^([a-z-]{1,20})\.png$/;
 const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$/;
 
@@ -20,7 +22,7 @@ export async function GET(request, { params }) {
 	if (!newsletter) return new Response("Not found", { status: 404 });
 
 	const color = getIconColor(newsletter);
-	const { bytes } = await getRenderedImage(`section-icons/${color}/${key}.png`, () => drawSectionIcon(key, `#${color}`));
+	const { bytes } = await getRenderedImage(`section-icons/${ICON_VERSION}/${color}/${key}.png`, () => drawSectionIcon(key, `#${color}`));
 	const isCurrent = new URL(request.url).searchParams.get("c") === color;
 	return new Response(bytes, {
 		headers: { "Content-Type": "image/png", "Cache-Control": isCurrent ? "public, max-age=31536000, immutable" : "public, max-age=3600, s-maxage=86400" },

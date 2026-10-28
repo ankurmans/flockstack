@@ -253,6 +253,23 @@ describe("share card", () => {
 });
 
 describe("section icon PNGs", () => {
+	// next/og draws an SVG image blank on Workers, so the icons are written from masks drawn at build time: the masks must be the
+	// icons' drawings as they are now.
+	test("the icon masks are current: scripts/make-section-icon-masks.mjs draws the same", async () => {
+		const sharp = (await import("sharp")).default;
+		const { MASK_SIZE, SECTION_ICON_MASKS } = await import("../lib/section-icon-masks.js");
+		for (const key of m.icons.SECTION_ICON_KEYS) {
+			const svg = Buffer.from(m.icons.sectionIconSvg(key, { size: MASK_SIZE, color: "#000000" }));
+			const { data, info } = await sharp(svg, { density: 72 * 4 }).resize(MASK_SIZE, MASK_SIZE).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+			const mask = Buffer.from(SECTION_ICON_MASKS[key], "base64");
+			let changed = 0;
+			for (let pixel = 0; pixel < MASK_SIZE * MASK_SIZE; pixel++) if (Math.abs(mask[pixel] - data[pixel * info.channels + 3]) > 2) changed++;
+			assert.equal(changed, 0, `${key}: run node scripts/make-section-icon-masks.mjs`);
+			assert.ok(mask.filter((alpha) => alpha > 128).length > 60, `${key} draws something`);
+		}
+	});
+
+
 	test("each key is 48 by 48 in the accent on transparent, stored once per color; anything else is 404", async () => {
 		const user = await briefingPublisher("visuals-icons");
 		const color = m.issueCard.getIconColor(user.newsletter);
@@ -269,7 +286,7 @@ describe("section icon PNGs", () => {
 			const colors = [...opaqueColors(pixels)];
 			assert.ok(colors.includes(ACCENT), key);
 			assert.ok(colors.every((color) => off(color) <= 3), `${key}: ${colors.join(" ")}`);
-			assert.ok(images.has(`section-icons/${color}/${key}.png`));
+			assert.ok(images.has(`section-icons/2/${color}/${key}.png`));
 		}
 		assert.match((await iconFor(user.slug, "lead.png", "?c=000000")).headers.get("cache-control"), /^public, max-age=3600/);
 		for (const file of ["rocket.png", "lead.svg", "lead", "../lead.png"]) assert.equal((await iconFor(user.slug, file)).status, 404, file);
@@ -329,7 +346,7 @@ describe("email", () => {
 		const icons = [...html.matchAll(/<h2[^>]*><img src="([^"]+)" width="24" height="24" alt="([^"]+)"[^>]*>([^<]+)<\/h2>/g)];
 		assert.equal(icons.length, 9);
 		for (const [index, [, src, alt, text]] of icons.entries()) {
-			assert.match(src, new RegExp(`^https://${user.slug}\\.${SHARED_DOMAIN.replace(".", "\\.")}/icon/[a-z-]+\\.png\\?c=c33e00$`));
+			assert.match(src, new RegExp(`^https://${user.slug}\\.${SHARED_DOMAIN.replace(".", "\\.")}/icon/[a-z-]+\\.png\\?c=c33e00&amp;v=2$`), "escaped in the attribute");
 			assert.equal(alt.replace(/&amp;/g, "&"), SECTION_TITLES[index]);
 			assert.equal(text.replace(/&amp;/g, "&"), SECTION_TITLES[index]);
 		}
