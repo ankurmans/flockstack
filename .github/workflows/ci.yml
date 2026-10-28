@@ -1,26 +1,46 @@
 # Lint, tests and production build. Never deploys.
 # Runs on the self-hosted Contabo runner. This repo is PUBLIC, so pull requests from forks are skipped: they must never run on that machine.
+#
+# One job runs at a time across every repo on that runner, so a pull request runs only what its change affects:
+#   - Every pull request: lint, then the tests scripts/affected-tests.mjs picks from the changed files, then the Next.js build only if
+#     the change can reach it (app/, components/, public/, proxy.js, instrumentation.js, or any file those import, the Next, PostCSS or
+#     package config, the lockfile).
+#   - Everything (all tests, the build) runs on: push to main, nightly at 05:00 UTC, and a manual run (workflow_dispatch).
+#   - Those full runs also write the test map (which files each test loaded) and cache it for the pull requests.
+#
+# A pull request runs the FULL suite and the build when it changes any of these (scripts/affected-tests.mjs, FOUNDATIONAL):
+#   package.json and the lockfile; the Next, OpenNext, ESLint, PostCSS, Wrangler, Vitest and components configs and jsconfig.json;
+#   .github/ (this file); tests/setup, tests/stubs, tests/helpers/app.mjs and shallow.mjs; scripts/test-all.mjs and
+#   scripts/affected-tests.mjs; migrations/; models/; perf-budgets.json; worker-entry.mjs.
+# It also runs everything when a changed file maps to no test, or when a third or more of the suite is affected.
+# If a failure ever shows up only on the main run, say so in that pull request so the list above can be tightened.
 name: CI
 
 on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   check:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, linux, contabo]
+    # Jobs also count the wait for the runner's shared lock.
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -32,8 +52,42 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Tests
-        run: npm test
+      - name: Restore the test map
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@v4
+        with:
+          path: .ci/test-map.json
+          key: test-map-none
+          restore-keys: test-map-
+
+      - name: Pick the tests this pull request affects
+        id: plan
+        if: github.event_name == 'pull_request'
+        run: node scripts/affected-tests.mjs --base "origin/${{ github.base_ref }}" --map .ci/test-map.json --list .ci/affected-tests.txt --github-output "$GITHUB_OUTPUT"
+
+      - name: Tests (everything)
+        if: github.event_name != 'pull_request' || steps.plan.outputs.mode == 'all'
+        env:
+          TEST_MAP_DIR: ${{ runner.temp }}/test-map
+        run: |
+          mkdir -p "$TEST_MAP_DIR"
+          npm test
+
+      - name: Tests (affected only)
+        if: github.event_name == 'pull_request' && steps.plan.outputs.mode == 'subset'
+        run: node --import ./tests/setup/register.mjs --test $(cat .ci/affected-tests.txt)
+
+      - name: Write the test map
+        if: github.event_name != 'pull_request'
+        run: node scripts/test-map.mjs "${{ runner.temp }}/test-map" .ci/test-map.json
+
+      - name: Cache the test map
+        if: github.event_name != 'pull_request'
+        uses: actions/cache/save@v4
+        with:
+          path: .ci/test-map.json
+          key: test-map-${{ github.sha }}
 
       - name: Build
+        if: github.event_name != 'pull_request' || steps.plan.outputs.build == 'true'
         run: npm run build

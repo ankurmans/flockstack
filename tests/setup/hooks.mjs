@@ -1,4 +1,4 @@
-import { statSync } from "node:fs";
+import { appendFileSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -77,8 +77,21 @@ export async function resolve(specifier, context, nextResolve) {
 const JSX_FILE = /\.jsx$|\/app\/(.*\/)?(page|layout|opengraph-image|og\/route)\.js$/;
 let swc;
 
+// With TEST_MAP_DIR set (CI's full runs), every repository file a test process loads is noted, one file per process, so
+// scripts/test-map.mjs can say which tests load which files and scripts/affected-tests.mjs can pick a pull request's tests.
+const MAP_DIR = process.env.TEST_MAP_DIR;
+function note(url) {
+	if (!MAP_DIR) return;
+	try {
+		appendFileSync(`${MAP_DIR}/${process.pid}.txt`, `${url.slice(ROOT_URL.length)}\n`);
+	} catch {
+		// Noting is a convenience for CI, never a reason for a test to fail.
+	}
+}
+
 export async function load(url, context, nextLoad) {
 	if (!url.startsWith(ROOT_URL) || url.includes("/node_modules/")) return nextLoad(url, context);
+	note(url);
 	if (url.endsWith(".css")) return { format: "module", source: "", shortCircuit: true };
 	if (!JSX_FILE.test(url)) return nextLoad(url, context);
 	swc ??= loadSwc();
