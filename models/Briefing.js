@@ -32,6 +32,8 @@ const briefingSchema = new mongoose.Schema(
 			shortlist: { type: Number },
 			followLinks: { type: Number },
 			discoveryBudgetUsd: { type: Number },
+			lookbackHours: { type: Number },
+			mondayLookbackHours: { type: Number },
 		},
 		schedule: {
 			// Weekdays, 1 (Monday) to 7 (Sunday).

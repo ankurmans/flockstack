@@ -279,8 +279,8 @@ describe("calling an adapter", () => {
 	});
 
 	test("the funnel's widths come from the briefing, held to their maximums", () => {
-		assert.deepEqual(m.discovery.discoverySettings({}), { maxQueries: 16, resultsPerQuery: 10, maxCandidates: 300, shortlist: 40, followLinks: 5, discoveryBudgetUsd: 0 });
-		assert.deepEqual(m.discovery.discoverySettings({ discovery: { maxQueries: 99, shortlist: 10, followLinks: 0 } }), { maxQueries: 40, resultsPerQuery: 10, maxCandidates: 300, shortlist: 10, followLinks: 0, discoveryBudgetUsd: 0 });
+		assert.deepEqual(m.discovery.discoverySettings({}), { maxQueries: 16, resultsPerQuery: 10, maxCandidates: 300, shortlist: 40, followLinks: 5, discoveryBudgetUsd: 0, lookbackHours: 30, mondayLookbackHours: 72 });
+		assert.deepEqual(m.discovery.discoverySettings({ discovery: { maxQueries: 99, shortlist: 10, followLinks: 0 } }), { maxQueries: 40, resultsPerQuery: 10, maxCandidates: 300, shortlist: 10, followLinks: 0, discoveryBudgetUsd: 0, lookbackHours: 30, mondayLookbackHours: 72 });
 	});
 });
 

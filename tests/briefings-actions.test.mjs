@@ -143,7 +143,7 @@ describe("managing a briefing", () => {
 		assert.deepEqual(briefing.brief, { ...BRIEF, examples: [{ url: "https://news.example.com/a-good-one", note: "Numbers and a named source" }] });
 		assert.deepEqual(briefing.trustedOutlets, ["news.example.com", "blog.example.org"]);
 		assert.deepEqual(briefing.blockedHosts, ["paywalled.example.net"]);
-		assert.deepEqual(briefing.discovery, { searchKey: null, candidateFeedKey: null, maxQueries: 16, resultsPerQuery: 10, maxCandidates: 300, shortlist: 40, followLinks: 5, discoveryBudgetUsd: 0 });
+		assert.deepEqual(briefing.discovery, { searchKey: null, candidateFeedKey: null, maxQueries: 16, resultsPerQuery: 10, maxCandidates: 300, shortlist: 40, followLinks: 5, discoveryBudgetUsd: 0, lookbackHours: 30, mondayLookbackHours: 72 });
 		assert.deepEqual(briefing.stories, { minFull: 6, maxFull: 10, briefItems: 10 });
 		assert.deepEqual(briefing.stepBudgets, { query: 5, triage: 10, extract: 35, write: 20, check: 15, translate: 15 });
 		assert.deepEqual(briefing.schedule, { days: [1, 5], time: "06:00", timeZone: "Europe/Paris" });
@@ -159,6 +159,8 @@ describe("managing a briefing", () => {
 		assert.deepEqual([changed.body.discovery.maxQueries, changed.body.discovery.shortlist, changed.body.stories.briefItems, changed.body.stories.maxFull], [20, 40, 0, 10]);
 		assert.ok(!JSON.stringify(changed.body).includes(SECRET));
 		assert.equal((await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { discovery: { searchKeyId: null } })).body.discovery.searchKey, null);
+		const window = (await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { discovery: { lookbackHours: 36, mondayLookbackHours: 80 } })).body.discovery;
+		assert.deepEqual([window.lookbackHours, window.mondayLookbackHours, window.maxQueries], [36, 80, 20], "the lookback is a setting, and the widths keep their values");
 
 		t.assertError(await t.api(user.key, "POST", "/briefings", { name: "Second" }), 409, "conflict");
 		const other = await t.customer("briefings-other@example.com");
@@ -186,6 +188,8 @@ describe("managing a briefing", () => {
 			[{ discovery: { maxQueries: 41 } }, /maxQueries/],
 			[{ discovery: { shortlist: 81 } }, /shortlist/],
 			[{ discovery: { discoveryBudgetUsd: 21 } }, /discoveryBudgetUsd/],
+			[{ discovery: { lookbackHours: 169 } }, /lookbackHours/],
+			[{ discovery: { mondayLookbackHours: 0 } }, /mondayLookbackHours/],
 			[{ discovery: { searchKeyId: openai.id } }, /needs a TinyFish key, not a model key/],
 			[{ discovery: { searchKeyId: feed.id } }, /needs a TinyFish key/],
 			[{ discovery: { candidateFeedKeyId: search.id } }, /needs a candidate feed key/],
