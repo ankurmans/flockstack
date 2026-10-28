@@ -176,6 +176,11 @@ export default function SubfolderPage() {
 					A newsletter has its own archive subdomain or a subfolder, not both. The path has one to three parts; the address is https on the
 					default port.
 				</p>
+				<p className="mt-4">
+					To send from your own domain while the website lives in the subfolder, add the sending domain as sending only (the checkbox on
+					Domains, or <code>sendingOnly: true</code> with <code>add_domain</code>): a subdomain like newsletter.example.com gets its mail
+					records and no website record.
+				</p>
 			</Section>
 
 			<Section title="Where your proxy forwards" stagger={3}>

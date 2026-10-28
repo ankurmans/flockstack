@@ -82,6 +82,7 @@ before(async () => {
 		Contact: (await import("../models/Contact.js")).default,
 		Campaign: (await import("../models/Campaign.js")).default,
 		Newsletter: (await import("../models/Newsletter.js")).default,
+		Domain: (await import("../models/Domain.js")).default,
 	};
 
 	jane = await signIn("jane@example.com");
@@ -270,11 +271,25 @@ describe("Add a newsletter's dialog", () => {
 		await addVerifiedDomain(user, "own-domain.dev");
 		await withEnv({ SHARED_DOMAIN: "" }, async () => {
 			const add = (fields) => as(user, () => m.newsletters.createNewsletter(null, form(fields)));
-			assert.deepEqual(await add({ name: "Own notes" }), { error: "From email is invalid" });
+			assert.deepEqual(await add({ name: "Own notes" }), { error: "fromEmail is required: send from an address on one of your domains, like hello@own-domain.dev (own-domain.dev)" });
 			assert.equal(await catchRedirect(add({ name: "Own notes", fromEmail: "notes@own-domain.dev" })), "/newsletters");
 		});
 		const created = await m.Newsletter.findOne({ accountId: user.accountId, slug: "own-notes" }).lean();
 		assert.equal(created.fromEmail, "notes@own-domain.dev");
+	});
+
+	test("without a shared domain or a domain of its own, the API says to add a domain first", async () => {
+		const user = await signIn("no-domain@example.com");
+		await activate(user);
+		const { key } = await as(user, () => m.apiKeys.createApiKey(null, form({ name: "Agent", level: "full" })));
+		await withEnv({ SHARED_DOMAIN: "" }, async () => {
+			const refused = await callApi("POST", "/api/v1/newsletters", { key, body: { name: "No domain yet" } });
+			assert.equal(refused.status, 400, JSON.stringify(refused.body));
+			assert.match(refused.body.error.message, /no shared sending address.*add_domain.*sendingOnly/);
+			await m.Domain.create({ accountId: user.accountId, domain: "pending-mail.dev", mailFromDomain: "bounce.pending-mail.dev", provider: "ses" });
+			const pending = await callApi("POST", "/api/v1/newsletters", { key, body: { name: "No domain yet" } });
+			assert.match(pending.body.error.message, /pending-mail\.dev isn't verified yet.*check_domain/);
+		});
 	});
 
 	test("/newsletters/new, the page it replaced, opens it on the dashboard", async () => {

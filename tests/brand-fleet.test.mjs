@@ -91,6 +91,20 @@ test("automatic DNS is account-bound, preserves a stronger DMARC policy, and ret
 	});
 });
 
+test("a sending-only subdomain of a configured zone gets its mail records and no website record", async () => {
+	const zoneId = "parent-zone";
+	await withEnv({ CLOUDFLARE_API_TOKEN: "test-token", CLOUDFLARE_FLEET_ZONES: JSON.stringify([{ accountId: owner.accountId, domain: "parent.example.com", zoneId }]) }, async () => {
+		await assert.rejects(act(m, owner, "onboard_brand_domains", { domains: [{ domain: "notparent.example.com", sendingOnly: true }] }), /isn't configured/);
+		await assert.rejects(act(m, owner, "onboard_brand_domains", { domains: [{ domain: "letters.parent.example.com", sendingOnly: true, archiveHost: "news.letters.parent.example.com" }] }), /no archive host/);
+		const result = (await act(m, owner, "onboard_brand_domains", { domains: [{ domain: "letters.parent.example.com", sendingOnly: true }] })).domains[0];
+		assert.equal(result.error, null, JSON.stringify(result));
+		const names = cloudflare.listRecords(zoneId).map(({ name }) => name);
+		assert.ok(names.every((name) => name.endsWith(".letters.parent.example.com")), names.join(" "));
+		assert.ok(!names.includes("news.letters.parent.example.com"), "no website record");
+		assert.equal((await m.Domain.findOne({ accountId: owner.accountId, domain: "letters.parent.example.com" }).lean()).archiveHost, undefined);
+	});
+});
+
 test("a conflicting archive record is preserved and partial provider failures can be retried", async () => {
 	const zoneId = "conflict-zone";
 	await withEnv({ CLOUDFLARE_API_TOKEN: "test-token", CLOUDFLARE_FLEET_ZONES: JSON.stringify([{ accountId: owner.accountId, domain: "conflict.example.com", zoneId }]) }, async () => {
