@@ -5,7 +5,7 @@ import { getTextOn } from "@/lib/editor-blocks";
 import { formatDate } from "@/lib/format";
 import { getShareFonts, readLogo } from "@/lib/og-image";
 import { CARD_SIZE } from "@/lib/share-card";
-import { sectionIconSvg } from "@/lib/section-icons";
+import { sectionIconDataUri, sectionIconPng } from "@/lib/section-icon-png";
 
 // The share card and the section icon PNGs (docs/VISUALS-DESIGN.md), drawn with next/og as PNG bytes. What they show comes from
 // lib/share-card.js, so a card's hash names exactly what is drawn.
@@ -26,10 +26,6 @@ function mix(hex, target, share) {
 	return `#${channels(hex)
 		.map((channel, index) => Math.round(channel + (to[index] - channel) * share).toString(16).padStart(2, "0"))
 		.join("")}`;
-}
-
-function iconDataUri(key, color) {
-	return `data:image/svg+xml;base64,${btoa(sectionIconSvg(key, { size: 24, color }))}`;
 }
 
 async function toBytes(response) {
@@ -59,8 +55,9 @@ function Mark({ logo, name, accent, size }) {
 	);
 }
 
-// inputs: from getCardInputs. logo: the newsletter's logo as a data URL (readLogo), or null.
-function ShareCard({ inputs, logo }) {
+// inputs: from getCardInputs. logo: the newsletter's logo as a data URL (readLogo), or null. icons: each section icon key's PNG as a
+// data URL (an SVG image comes out blank on Workers).
+function ShareCard({ inputs, logo, icons }) {
 	const isIssue = typeof inputs.title === "string";
 	const ink = getReadableAccent(inputs.accent, COLORS.page);
 	const tint = mix(inputs.accent, COLORS.page, 0.88);
@@ -91,7 +88,7 @@ function ShareCard({ inputs, logo }) {
 						{(inputs.icons ?? []).map((key) => (
 							<div key={key} style={{ display: "flex", width: 56, height: 56, borderRadius: 14, backgroundColor: tint, alignItems: "center", justifyContent: "center" }}>
 								{/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse renders plain <img> */}
-								<img src={iconDataUri(key, ink)} width={30} height={30} alt="" />
+								<img src={icons[key]} width={30} height={30} alt="" />
 							</div>
 						))}
 						{date && <span style={{ marginLeft: inputs.icons?.length ? 10 : 0 }}>{date}</span>}
@@ -105,22 +102,12 @@ function ShareCard({ inputs, logo }) {
 
 export async function drawShareCard(inputs) {
 	const logo = await readLogo(inputs.logo).catch(() => null);
-	return toBytes(new ImageResponse(<ShareCard inputs={inputs} logo={logo} />, { ...CARD_SIZE, fonts: getShareFonts() }));
+	const ink = getReadableAccent(inputs.accent, COLORS.page);
+	const icons = Object.fromEntries(await Promise.all((inputs.icons ?? []).map(async (key) => [key, await sectionIconDataUri(key, ink)])));
+	return toBytes(new ImageResponse(<ShareCard inputs={inputs} logo={logo} icons={icons} />, { ...CARD_SIZE, fonts: getShareFonts() }));
 }
 
-export const ICON_SIZE = 48;
-
 // One section icon at 48 by 48 (shown at 24 in email) in color, on a transparent background.
-export async function drawSectionIcon(key, color) {
-	return toBytes(
-		new ImageResponse(
-			(
-				<div style={{ display: "flex", width: ICON_SIZE, height: ICON_SIZE }}>
-					{/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse renders plain <img> */}
-					<img src={iconDataUri(key, color)} width={ICON_SIZE} height={ICON_SIZE} alt="" />
-				</div>
-			),
-			{ width: ICON_SIZE, height: ICON_SIZE, fonts: getShareFonts() }
-		)
-	);
+export function drawSectionIcon(key, color) {
+	return sectionIconPng(key, color);
 }
