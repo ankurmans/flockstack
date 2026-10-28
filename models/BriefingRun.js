@@ -1,6 +1,6 @@
 import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
-import { BRIEFING_RUN_STATUSES, BRIEFING_STAGES, CHECK_STATUSES, HOLD_REASONS, SOURCE_KINDS, STORY_KINDS } from "../lib/briefing-rules.js";
+import { BRIEFING_RUN_STATUSES, BRIEFING_STAGES, CHECK_STATUSES, HOLD_REASONS, SECTION_STATUSES, SOURCE_KINDS, STORY_KINDS } from "../lib/briefing-rules.js";
 
 // One run of a briefing: its history (stories, model calls and their cost, checks) and the lock that keeps a run from happening
 // twice. slot is the local date the run was due (manual:<ISO time> for a manual run), and a briefing has one run per slot.
@@ -18,8 +18,10 @@ const briefingRunSchema = new mongoose.Schema(
 		queries: [{ _id: false, text: String, angle: String }],
 		// A limit hit, a path robots.txt refused, a provider error: what discovery could not do, for the owner's email.
 		discoveryNotes: [{ _id: false, provider: String, problem: String, scope: String, until: Date }],
-		stories: [{ _id: false, storyKey: String, externalId: String, kind: { type: String, enum: STORY_KINDS }, title: String, url: String, sourceKind: { type: String, enum: SOURCE_KINDS }, score: Number, foundBy: [String], sources: [String], features: { type: mongoose.Schema.Types.Mixed } }],
-		calls: [{ _id: false, step: String, provider: String, model: String, inputTokens: Number, outputTokens: Number, costUsd: Number, costFrom: { type: String, enum: ["provider", "price_table"] } }],
+		stories: [{ _id: false, storyKey: String, externalId: String, kind: { type: String, enum: STORY_KINDS }, title: String, url: String, sourceKind: { type: String, enum: SOURCE_KINDS }, score: Number, foundBy: [String], sources: [String], features: { type: mongoose.Schema.Types.Mixed }, sectionId: String }],
+		// Per section of a sectioned briefing: what was written and what it cost.
+		sections: [{ _id: false, id: String, title: String, status: { type: String, enum: SECTION_STATUSES }, items: Number, costUsd: Number, problem: String }],
+		calls: [{ _id: false, step: String, sectionId: String, provider: String, model: String, inputTokens: Number, outputTokens: Number, costUsd: Number, costFrom: { type: String, enum: ["provider", "price_table"] } }],
 		costUsd: { type: Number, default: 0 },
 		checks: [{ _id: false, id: String, status: { type: String, enum: CHECK_STATUSES }, message: String }],
 		languages: [{ _id: false, language: String, status: String, problem: String }],
