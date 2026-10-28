@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { applyBatchPattern, saveBatchPattern } from "@/app/(app)/campaigns/calendar/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BRIEFING_ISSUE_SECTIONS } from "@/lib/briefing-issue-pattern";
 import { FUNNEL_STAGES } from "@/lib/content-rules";
 import { toast } from "@/lib/toast";
 
@@ -25,13 +26,15 @@ function toValues(pattern, timeZone) {
 		everyDays: String(pattern?.cadence?.everyDays ?? 1),
 		time: pattern?.cadence?.time ?? "",
 		timeZone: pattern?.cadence?.timeZone ?? timeZone,
+		issue: pattern?.issue ?? "",
 		startDate: "",
 		matchStages: false,
 	};
 }
 
 // A recurring pattern for the batch: the funnel stages in the order they repeat, and when slots fall. Saved on the batch, it does
-// nothing until Apply, which gives items without a day their planned days; Preview shows that without writing it.
+// nothing until Apply, which gives items without a day their planned days; Preview shows that without writing it. A Briefing issue
+// pattern also gives the empty issues it places the sectioned skeleton (lib/briefing-issue-pattern.js).
 export default function FormBatchPattern({ batchId, pattern, timeZone }) {
 	const router = useRouter();
 	const [values, setValues] = useState(() => toValues(pattern, timeZone));
@@ -39,7 +42,8 @@ export default function FormBatchPattern({ batchId, pattern, timeZone }) {
 	const [isWorking, startWorking] = useTransition();
 	const stages = values.stages.split(/[\s,]+/).map((stage) => stage.toUpperCase()).filter(Boolean);
 	const body = { ...values, stages };
-	const isValid = stages.length > 0 && stages.every((stage) => FUNNEL_STAGES.includes(stage));
+	const isIssue = values.issue === "briefing";
+	const isValid = stages.every((stage) => FUNNEL_STAGES.includes(stage)) && (stages.length > 0 || isIssue);
 
 	function run(task, success) {
 		startWorking(async () => {
@@ -56,7 +60,19 @@ export default function FormBatchPattern({ batchId, pattern, timeZone }) {
 			<label className="flex flex-col gap-1 text-sm font-medium">
 				Stages, in the order they repeat
 				<Input value={values.stages} onChange={(event) => setValues((current) => ({ ...current, stages: event.target.value }))} placeholder="TOFU, MOFU, BOFU, TOFU, TOFU" />
-				<span className="text-xs font-normal text-muted-foreground">TOFU, MOFU or BOFU, separated by commas. The pattern repeats from the first.</span>
+				<span className="text-xs font-normal text-muted-foreground">TOFU, MOFU or BOFU, separated by commas. The pattern repeats from the first.{isIssue && " Optional for a Briefing issue."}</span>
+			</label>
+			<label className="flex flex-col gap-1 text-sm font-medium">
+				Each issue
+				<select value={values.issue} onChange={(event) => setValues((current) => ({ ...current, issue: event.target.value }))} className="h-9 rounded-md border border-input bg-transparent px-3 text-sm">
+					<option value="">Plain: only planned days</option>
+					<option value="briefing">Briefing issue: sections of sourced one-liners</option>
+				</select>
+				{isIssue && (
+					<span className="text-xs font-normal text-muted-foreground">
+						An issue with no words and no linked campaign gets the skeleton: {BRIEFING_ISSUE_SECTIONS.map(({ title }) => title).join(", ")}. Leave out a section with nothing in it.
+					</span>
+				)}
 			</label>
 			<fieldset className="flex flex-wrap gap-x-3 gap-y-1">
 				<legend className="mb-1 text-sm font-medium">Days</legend>
@@ -110,12 +126,17 @@ export default function FormBatchPattern({ batchId, pattern, timeZone }) {
 						{preview.assignments.map((one) => (
 							<li key={one.id}>
 								{one.date}
-								{one.time && ` ${one.time}`}: {one.title || "Untitled"} <span className="text-muted-foreground">(wants {one.patternStage}, is {one.funnelStage ?? "no stage"})</span>
+								{one.time && ` ${one.time}`}: {one.title || "Untitled"} {one.patternStage && <span className="text-muted-foreground">(wants {one.patternStage}, is {one.funnelStage ?? "no stage"})</span>}
 							</li>
 						))}
 					</ul>
 					{preview.mismatches.length > 0 && <p className="mt-1 text-muted-foreground">{preview.mismatches.length} items have a different stage from the pattern&apos;s.</p>}
 					{preview.unassigned.length > 0 && <p className="mt-1 text-muted-foreground">{preview.unassigned.length} items have no slot.</p>}
+					{preview.issue && (
+						<p className="mt-1 text-muted-foreground">
+							{preview.skeletonFor.length === 1 ? "1 issue gets" : `${preview.skeletonFor.length} issues get`} the Briefing issue skeleton{preview.dryRun ? "" : ", in their body"}.
+						</p>
+					)}
 				</div>
 			)}
 		</form>

@@ -93,6 +93,8 @@ A new `Briefings` group in the registry, so the dashboard, REST and MCP get the 
 
 `rate_briefing_story` records keep or drop. The dashboard's run page calls it directly. The owner's email carries a signed, single-use link per story and verdict (HMAC with `BETTER_AUTH_SECRET`, as other email links are; 14 days). The link opens a confirmation page that names the story and the verdict and has a POST button; a GET never records anything, so mail scanners and link previews cannot vote. These links are written as plain links, never through click tracking.
 
+`get_agent_brief` (the Agents group) carries each briefing's last three runs (status, cost against `budgetUsd`, stories per section or picked, `heldReason`, translations not written, stories without a verdict), its next run and `needsOwner`, the lines that wait for the owner. Its briefings are the account's, or only the named newsletter's; a key limited to one newsletter sees only that one's (`lib/agent-brief-briefings.js`). The sections of a sectioned issue have a starting point in the Briefing issue pattern of `apply_editorial_pattern` (`lib/briefing-issue-pattern.js`), whose section ids are the section icon keys.
+
 `run_briefing` queues a manual run for the engine's next tick. Without the briefings Worker (self-hosted, or the region has it off), it answers `unavailable`.
 
 ## Where the engine runs
