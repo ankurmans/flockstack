@@ -339,3 +339,28 @@ describe("the safety review", () => {
 		assert.match(note.text, /A test email went to briefing-owner@example\.com\./);
 	});
 });
+
+describe("sections", () => {
+	test("the owner's note lists each section's cost and which were empty, skipped or failed, and the draft is the engine's Markdown as is", async () => {
+		const before = platformEmails.length;
+		const markdown = "## Lead\n\nA plant opened in Ohio ([1](https://news.example.com/ohio)).\n\n## Deal flow\n\n- **Acme** raised $5M ([2](https://news.example.com/acme))";
+		const { campaignId } = await delivery.deliverIssue(payload({
+			slot: "2026-11-12",
+			runId: "6650f1c2e9b1d4a0123457b1",
+			markdown,
+			sections: [
+				{ id: "lead", title: "Lead", status: "written", items: 1, costUsd: 0.0021 },
+				{ id: "deal-flow", title: "Deal flow", status: "written", items: 3, costUsd: 0.0012 },
+				{ id: "people", title: "People moves", status: "empty", items: 0, costUsd: 0 },
+				{ id: "coming-up", title: "Coming up", status: "skipped_budget", items: 0, costUsd: 0.0003 },
+				{ id: "launches", title: "Launches", status: "failed", items: 0, costUsd: 0.0001, problem: "The write model answered nothing" },
+			],
+		}));
+		assert.equal((await m.Campaign.findOne({ accountId: user.accountId, _id: campaignId }).lean()).markdown, markdown);
+		const note = platformEmails.slice(before).find(({ subject }) => /briefing draft is ready/.test(subject));
+		assert.match(note.text, /Sections:\n- Lead: 1 story, \$0\.0021\n- Deal flow: 3 stories, \$0\.0012\n- People moves: empty: no story for it, so it isn't in the issue, \$0\.0000\n- Coming up: skipped: its share of the budget ran out, \$0\.0003\n- Launches: failed, \$0\.0001 \(The write model answered nothing\)/);
+		assert.match(note.text, /Model cost of this run/);
+		assert.equal(delivery.describeSections([]).length, 0, "an unsectioned run has no section lines");
+	});
+});
+

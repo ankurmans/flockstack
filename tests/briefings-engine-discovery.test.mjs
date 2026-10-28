@@ -431,3 +431,36 @@ describe("the merge after triage", () => {
 		assert.equal(check.isTitleCase("The Hartford reports a strong third quarter"), false);
 	});
 });
+
+describe("the engine's own key reader", () => {
+	test("reads every kind of key lib/ai-keys.js saves to the same key and address, and its address table is the same", async () => {
+		const crypto = await import("node:crypto");
+		const previous = process.env.CREDENTIALS_ENCRYPTION_KEY;
+		process.env.CREDENTIALS_ENCRYPTION_KEY = crypto.randomBytes(32).toString("base64");
+		try {
+			const store = await import("../lib/ai-keys.js");
+			const deps = await import("../lib/briefings/deps.js");
+			assert.deepEqual(deps.PROVIDER_ENDPOINTS, store.AI_PROVIDER_ENDPOINTS);
+			const Account = (await import("../models/Account.js")).default;
+			const account = await Account.create({ ownerId: new m.ObjectId() });
+			const inputs = [
+				{ name: "OpenAI", provider: "openai", key: "sk-test-aaaaaaaaaaaaaaaa" },
+				{ name: "Cloudflare", provider: "cloudflare", accountRef: "0123456789ABCDEF0123456789abcdef", key: "cf-test-bbbbbbbbbbbbbbbb" },
+				{ name: "Local", provider: "openai-compatible", baseUrl: "https://llm.example.com/v1/", key: "lc-test-cccccccccccccccc" },
+				{ name: "Feed", provider: "candidate-feed", baseUrl: "https://signals.example.com/feed.json", key: "cd-test-dddddddddddddddd" },
+				{ name: "TinyFish", provider: "tinyfish", key: "tf-test-eeeeeeeeeeeeeeee" },
+			];
+			for (const input of inputs) {
+				const { id } = await store.addAiKey(account, input);
+				const theirs = await store.getAiKeyForRun({ accountId: account._id, keyId: id });
+				const ours = await deps.getKeyForRun({ accountId: account._id, keyId: id });
+				assert.deepEqual(ours, theirs, input.provider);
+				assert.equal(ours.secret, input.key);
+			}
+			assert.equal(await deps.getKeyForRun({ accountId: account._id, keyId: "not-an-id" }), null);
+		} finally {
+			if (previous === undefined) delete process.env.CREDENTIALS_ENCRYPTION_KEY;
+			else process.env.CREDENTIALS_ENCRYPTION_KEY = previous;
+		}
+	});
+});

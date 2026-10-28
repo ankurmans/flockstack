@@ -61,6 +61,12 @@ function found(url, extra = {}) {
 
 const STORIES = [found(`${ACME}?utm_source=feed&fbclid=abc#top`, { title: TITLES[ACME] }), found(COVER), found(WIRE), found(BIKE, { snippet: "The council voted 7 to 2 to approve 12 miles of new bike lanes." }), found(BUDGET, { snippet: "The city budget of 3 billion passed." }), found(CAT)];
 
+// Where a story goes in the test sections: deals for money and acquisitions, the roundup for the rest of the news.
+function sectionFor(title, ids) {
+	const wanted = /acquire|raises|lands/i.test(title) ? "deals" : /hartford|bike|zinc|budget/i.test(title) ? "roundup" : "none";
+	return ids.includes(wanted) ? wanted : "none";
+}
+
 function dataBlock(text, label) {
 	const match = new RegExp(`<<<DATA ${label}[^>]*>>>\\n([\\s\\S]*?)\\n<<<END DATA>>>`).exec(text);
 	return match ? match[1] : null;
@@ -96,6 +102,9 @@ function makeWorld({ pages = PAGES, robots = {}, addresses = {}, writer = honest
 					const top = LEVELS[feature];
 					const score = /acme|bike|zinc|amtrust|hartford/i.test(title) ? top : /budget|rates slipped/i.test(title) ? { relevance: 3, usefulness: 2, novelty: 2, primary: 2 }[feature] : 0;
 					answers[id] = { type: "score", score, confidence: 1, legend: {}, probabilities: {} };
+				} else if (question.type === "choice") {
+					const storyId = id.replace(/_section$/, "");
+					answers[id] = { type: "choice", choice: sectionFor(body.state.stories[storyId]?.title ?? "", Object.keys(question.criteria)), confidence: 1, probabilities: {} };
 				} else answers[id] = { type: "noul", noul };
 			}
 			return json({ model: "jev-1.13.0", answers, usage: { input_tokens: 400, output_tokens: 10 } });
@@ -123,6 +132,21 @@ function makeWorld({ pages = PAGES, robots = {}, addresses = {}, writer = honest
 					sourceKind: "reporting",
 					company: /zinc/i.test(what) ? "Zinc Corp" : "Acme Corp",
 				});
+			} else if (system.startsWith("You read a news page and note the one fact")) {
+				const text = dataBlock(user, "page") ?? "";
+				const what = text.split("\n")[0];
+				const figure = /\$?\d[\d,.]*(?: (?:million|billion))?%?/.exec(what)?.[0];
+				content = JSON.stringify({ entities: [(dataBlock(user, "story") ?? "").split(" ")[0]], what, figure: figure ? { value: figure, sentence: what } : null, date: "" });
+			} else if (system.startsWith("You write one section of a newsletter issue")) {
+				const records = JSON.parse(dataBlock(user, "records"));
+				const next = JSON.parse(dataBlock(user, "next") ?? "[]");
+				if (/'- \*\*<main entity>\*\*/.test(system)) content = records.map((record) => `- **${record.entities[0]}** ${record.what.replace(/\.$/, "")}${record.figure ? `, ${record.figure.value}` : ""} [${record.n}]`).join("\n");
+				else if (/^Subject:/m.test(system)) content = `Subject: ${records[0].title}\nPreview: The day's stories\n\n${records[0].what} [${records[0].n}]\n\nAlso today: ${next.map(({ title, n }) => `${title} [${n}]`).join("; ")}.`;
+				else content = records.map((record) => `${record.what} [${record.n}]`).join("\n\n");
+			} else if (system.startsWith("You sort candidate stories")) {
+				const stories = JSON.parse(dataBlock(user, "stories"));
+				const ids = [...system.matchAll(/^- ([\w-]+):/gm)].map(([, id]) => id);
+				content = JSON.stringify({ sections: Object.fromEntries(stories.map(({ id, title }) => [id, sectionFor(title, ids)])) });
 			} else if (system.startsWith("You write one newsletter issue")) {
 				content = writer({ full: JSON.parse(dataBlock(user, "full stories") ?? "[]"), brief: JSON.parse(dataBlock(user, "brief items") ?? "[]") });
 			} else if (system.startsWith("You check a newsletter draft")) {
@@ -132,7 +156,7 @@ function makeWorld({ pages = PAGES, robots = {}, addresses = {}, writer = honest
 				content = dataBlock(user, "issue").replace(/^Subject: /, "Subject: (fr) ").replace(/\n\n(?!#)/g, "\n\nFR ");
 			} else if (system.startsWith("You judge candidate stories")) {
 				const stories = JSON.parse(dataBlock(user, "stories"));
-				content = JSON.stringify({ scores: Object.fromEntries(stories.map(({ id, title }) => [id, /acme|bike|zinc/i.test(title) ? { relevance: 100, usefulness: 100, novelty: 100, primary: 100 } : { relevance: 0, usefulness: 0, novelty: 0, primary: 0 }])) });
+				content = JSON.stringify({ scores: Object.fromEntries(stories.map(({ id, title }) => [id, /acme|bike|zinc|amtrust|hartford/i.test(title) ? { relevance: 100, usefulness: 100, novelty: 100, primary: 100 } : { relevance: 0, usefulness: 0, novelty: 0, primary: 0 }])) });
 			} else content = "{}";
 			const usage = { prompt_tokens: 1000, completion_tokens: 200, ...(url.includes("openrouter") && { cost: 0.0123 }) };
 			return json({ choices: [{ message: { content } }], usage });
@@ -1096,5 +1120,212 @@ describe("the third production run's quality", () => {
 		assert.match(write.body.messages[0].content, /Why it matters.*names who in the audience is affected/s);
 		assert.match(write.body.messages[0].content, /highlights the importance/);
 		assert.match(write.body.messages[0].content, /sentence case/);
+	});
+});
+
+describe("sections", () => {
+	const AMTRUST = "https://www.insurancebusinessmag.com/us/news/amtrust-acquires-wakam";
+	const HARTFORD = "https://www.businessinsurance.com/hartford-q3-results";
+	const sectionPages = {
+		...PAGES,
+		[AMTRUST]: article("AmTrust Financial agreed to acquire Wakam for $210 million."),
+		[HARTFORD]: article("Hartford reported third-quarter core earnings of $1.1 billion."),
+	};
+	const SECTIONS = [
+		{ id: "lead", title: "Lead", format: "sentences", maxItems: 1, budgetShare: 30, priority: 1, purpose: "The day's most important story" },
+		{ id: "people", title: "People moves", format: "one-liners", maxItems: 2, budgetShare: 20, priority: 3, purpose: "Executive hires and departures" },
+		{ id: "deals", title: "Deal flow", format: "one-liners", maxItems: 2, budgetShare: 30, priority: 2, purpose: "M&A and funding rounds, each with the amount" },
+		{ id: "roundup", title: "Headline roundup", format: "one-liners", maxItems: 3, budgetShare: 20, priority: 4, purpose: "Other headlines" },
+	];
+	const ITEMS = [...STORIES, found(ZINC), found(AMTRUST, { title: "AmTrust acquires Wakam", snippet: "AmTrust Financial agreed to acquire Wakam." }), found(HARTFORD, { title: "Hartford reports third-quarter earnings", snippet: "Core earnings of $1.1 billion." })];
+
+	test("stories are sorted into sections with one Jev Choice per story, filled by priority up to each cap, one section a story", async () => {
+		const world = makeWorld({ pages: sectionPages });
+		const { briefing } = await makeBriefing({ sections: SECTIONS });
+		const delivery = makeDelivery();
+		await tick({ world, delivery, items: ITEMS });
+		const run = await runOf(briefing);
+		assert.equal(run.status, "drafted", run.error);
+		const assignment = world.requests.find(({ url, body }) => url.endsWith("/systemone") && Object.values(body.questions).some(({ type }) => type === "choice"));
+		const question = Object.values(assignment.body.questions)[0];
+		assert.deepEqual(Object.keys(question.criteria), ["lead", "people", "deals", "roundup", "none"]);
+		assert.equal(question.criteria.deals, "Deal flow: M&A and funding rounds, each with the amount");
+		assert.ok(Object.keys(assignment.body.questions).every((id) => /^s\d+_section$/.test(id)));
+		assert.equal(Object.keys(assignment.body.state.stories).length, Object.keys(assignment.body.questions).length);
+
+		const bySection = (id) => run.stories.filter(({ sectionId }) => sectionId === id).map(({ url }) => url);
+		assert.deepEqual(bySection("lead"), [ACME], "the lead takes the best story overall");
+		assert.deepEqual(bySection("deals"), [AMTRUST]);
+		assert.equal(bySection("roundup").length, 3, "the roundup fills to its cap");
+		assert.equal(new Set(run.stories.map(({ storyKey }) => storyKey)).size, run.stories.length, "one section a story");
+		assert.deepEqual(
+			run.sections.map(({ id, status, items }) => [id, status, items]),
+			[
+				["lead", "written", 1],
+				["people", "empty", 0],
+				["deals", "written", 1],
+				["roundup", "written", 3],
+			]
+		);
+		assert.ok(run.stories.every(({ sectionId, kind }) => (sectionId === "lead" ? kind === "full" : kind === "brief")));
+	});
+
+	test("the issue is the written sections in reading order: the lead's sentences, one sourced bullet per item, empty sections left out", async () => {
+		const world = makeWorld({ pages: sectionPages });
+		const { briefing } = await makeBriefing({ sections: SECTIONS });
+		const delivery = makeDelivery();
+		await tick({ world, delivery, items: ITEMS });
+		const { markdown, subject, sections } = delivery.issues[0];
+		assert.deepEqual([...markdown.matchAll(/^## (.+)$/gm)].map(([, title]) => title), ["Lead", "Deal flow", "Headline roundup"], "people moves had nothing, so it isn't there");
+		assert.equal(subject, TITLES[ACME], "the subject comes from the lead");
+		const lead = markdown.split("## Deal flow")[0];
+		assert.match(lead, /Acme Corp raised \$40 million .*\(\[news\.example\.com\]\(https:\/\/news\.example\.com\/acme-raises\)\)/);
+		assert.match(lead, /Also today: /, "the lead names the next top stories");
+		const bullets = markdown.split("\n").filter((line) => line.startsWith("- "));
+		assert.equal(bullets.length, 4);
+		for (const line of bullets) assert.match(line, /^- (\*[^*]+:\* )?\*\*[^*]+\*\* .+\(\[[^\]]+\]\(https:\/\/[^)]+\)\)$/, line);
+		assert.ok(bullets.some((line) => /\*\*AmTrust\*\* AmTrust Financial agreed to acquire Wakam for \$210 million, \$210 million/.test(line)));
+		assert.doesNotMatch(markdown, /Why it matters/);
+		assert.deepEqual(sections.map(({ id, status }) => [id, status]), [["lead", "written"], ["people", "empty"], ["deals", "written"], ["roundup", "written"]]);
+		const run = await runOf(briefing);
+		assert.ok(run.checks.some(({ id }) => id === "deals/numbers") && run.checks.some(({ id }) => id === "roundup/claims"), run.checks.map(({ id }) => id).join(" "));
+		assert.ok(!run.checks.some(({ status }) => status === "blocker"), JSON.stringify(run.checks.filter(({ status }) => status === "blocker")));
+		const claimCalls = world.requests.filter(({ url, body }) => url.endsWith("/systemone") && body.state?.claims);
+		assert.equal(claimCalls.length, 3, "one batched claim check per written section");
+	});
+
+	test("each section's cost is recorded, and with the calls outside sections they add up to the run's", async () => {
+		const world = makeWorld({ pages: sectionPages });
+		const { briefing } = await makeBriefing({ sections: SECTIONS });
+		const delivery = makeDelivery();
+		await tick({ world, delivery, items: ITEMS });
+		const run = await runOf(briefing);
+		for (const section of run.sections) {
+			const own = run.calls.filter(({ sectionId }) => sectionId === section.id).reduce((total, { costUsd }) => total + costUsd, 0);
+			assert.ok(Math.abs(section.costUsd - own) < 1e-9, section.id);
+		}
+		const outside = run.calls.filter(({ sectionId }) => !sectionId).reduce((total, { costUsd }) => total + costUsd, 0);
+		const inside = run.sections.reduce((total, { costUsd }) => total + costUsd, 0);
+		assert.ok(Math.abs(inside + outside - run.costUsd) < 1e-8);
+		assert.ok(run.calls.filter(({ step }) => step === "extract" || step === "write").every(({ sectionId }) => sectionId), "every extract and write call names its section");
+		assert.equal(run.sections.find(({ id }) => id === "people").costUsd, 0);
+		assert.deepEqual(delivery.issues[0].sections.map(({ costUsd }) => costUsd), run.sections.map(({ costUsd }) => costUsd));
+	});
+
+	test("without a TypeSafe key the triage model sorts the stories in one JSON call", async () => {
+		const world = makeWorld({ pages: sectionPages });
+		const { briefing } = await makeBriefing({ sections: SECTIONS, steps: (ids) => ({ triage: { keyId: ids.openai, model: "gpt-4o-mini" } }) });
+		await tick({ world, items: ITEMS });
+		const run = await runOf(briefing);
+		const sort = world.requests.filter(({ body }) => body?.messages?.[0].content.startsWith("You sort candidate stories"));
+		assert.equal(sort.length, 1);
+		assert.deepEqual(body(sort[0]).response_format, { type: "json_object" });
+		assert.deepEqual(run.stories.filter(({ sectionId }) => sectionId === "deals").map(({ url }) => url), [AMTRUST]);
+		function body(request) {
+			return request.body;
+		}
+	});
+
+	test("short of money, sections are written in priority order and the rest are skipped_budget", async () => {
+		const world = makeWorld({ pages: sectionPages });
+		const { briefing } = await makeBriefing({
+			sections: SECTIONS.map((section) => ({ ...section, budgetShare: 100 })),
+			budgetUsd: 0.03,
+			stepBudgets: { query: 5, triage: 10, extract: 35, write: 100, check: 15, translate: 15 },
+			prices: [{ model: "pricey-writer", inputPerMillion: 10, outputPerMillion: 10 }],
+			steps: (ids) => ({ write: { keyId: ids.openai, model: "pricey-writer" } }),
+		});
+		const delivery = makeDelivery();
+		await tick({ world, delivery, items: ITEMS });
+		const run = await runOf(briefing);
+		assert.equal(run.status, "drafted", run.error);
+		assert.deepEqual(
+			run.sections.map(({ id, status }) => [id, status]),
+			[
+				["lead", "written"],
+				["people", "empty"],
+				["deals", "written"],
+				["roundup", "skipped_budget"],
+			],
+			"deal flow (priority 2) is written before the roundup (priority 4), which the money no longer covers"
+		);
+		assert.equal(run.heldReason, "partial");
+		assert.deepEqual([...delivery.issues[0].markdown.matchAll(/^## (.+)$/gm)].map(([, title]) => title), ["Lead", "Deal flow"]);
+		assert.ok(run.costUsd <= 0.03);
+	});
+
+	test("a section past its own share does less, and is skipped_budget when it is left with nothing", async () => {
+		const world = makeWorld({ pages: sectionPages });
+		const { briefing } = await makeBriefing({ sections: SECTIONS.map((section) => (section.id === "roundup" ? { ...section, budgetShare: 0.001 } : section)) });
+		await tick({ world, items: ITEMS });
+		const run = await runOf(briefing);
+		assert.equal(run.sections.find(({ id }) => id === "roundup").status, "skipped_budget");
+		assert.equal(run.sections.find(({ id }) => id === "deals").status, "written");
+		assert.equal(run.calls.filter(({ sectionId }) => sectionId === "roundup").length, 0);
+	});
+
+	test("a 429 on an extract is waited out within the tick, or the run waits for the next tick: it never fails for one", async () => {
+		let refused = 0;
+		const world = makeWorld({
+			pages: sectionPages,
+			openai: (body) => (body.messages[0].content.startsWith("You read a news page and note") && refused++ < 2 ? new Response(JSON.stringify({ error: { message: "Rate limit reached" } }), { status: 429, headers: { "retry-after": "0" } }) : null),
+		});
+		const { briefing } = await makeBriefing({ sections: SECTIONS });
+		await tick({ world, items: ITEMS });
+		const run = await runOf(briefing);
+		assert.equal(run.status, "drafted", run.error);
+		assert.ok(world.sleeps.includes(0));
+		assert.ok(!run.checks.some(({ id }) => id === "extract_failed"));
+
+		let later = 0;
+		const slow = makeWorld({
+			pages: sectionPages,
+			openai: (body) => (body.messages[0].content.startsWith("You read a news page and note") && later++ < 1 ? new Response(JSON.stringify({ error: { message: "Rate limit reached" } }), { status: 429, headers: { "retry-after": "900" } }) : null),
+		});
+		const second = await makeBriefing({ sections: SECTIONS });
+		await tick({ world: slow, items: ITEMS });
+		let waiting = await runOf(second.briefing);
+		assert.equal(waiting.status, "running");
+		assert.equal(waiting.stage, "extract");
+		await tick({ world: slow, items: ITEMS, now: new Date(NOW.getTime() + 20 * 60_000) });
+		waiting = await runOf(second.briefing);
+		assert.equal(waiting.status, "drafted", waiting.error);
+	});
+
+	test("a translation keeps the sections' structure: headings, bullets, bold and links", async () => {
+		const world = makeWorld({
+			pages: sectionPages,
+			openai: (body) => {
+				if (!body.messages[0].content.startsWith("You translate")) return null;
+				const issue = dataBlock(body.messages[1].content, "issue");
+				const content = issue
+					.split("\n")
+					.map((line) => (/^Subject: /.test(line) ? line.replace("Subject: ", "Subject: (fr) ") : /^- /.test(line) ? line.replace(/^(- (?:\*[^*]+:\* )?\*\*[^*]+\*\* )/, "$1(fr) ") : line && !/^(#|Preview)/.test(line) ? `(fr) ${line}` : line))
+					.join("\n");
+				return Response.json({ choices: [{ message: { content } }], usage: { prompt_tokens: 900, completion_tokens: 600 } });
+			},
+		});
+		const { briefing } = await makeBriefing({ sections: SECTIONS, languages: ["en", "fr"] });
+		const delivery = makeDelivery();
+		await tick({ world, delivery, items: ITEMS });
+		const [french] = delivery.issues[0].translations;
+		assert.deepEqual([...french.markdown.matchAll(/^## (.+)$/gm)].map(([, title]) => title), ["Lead", "Deal flow", "Headline roundup"]);
+		const bullets = french.markdown.split("\n").filter((line) => line.startsWith("- "));
+		assert.equal(bullets.length, 4);
+		for (const line of bullets) assert.match(line, /\*\*[^*]+\*\* \(fr\) .+\(\[[^\]]+\]\(https:\/\/[^)]+\)\)$/, line);
+		assert.deepEqual((await runOf(briefing)).languages.map(({ language, status }) => [language, status]), [["fr", "done"]]);
+	});
+
+	test("without sections the issue is as before: full stories, then brief items, and no sections in the payload", async () => {
+		const world = makeWorld();
+		const { briefing } = await makeBriefing();
+		const delivery = makeDelivery();
+		await tick({ world, delivery, items: [...STORIES, found(ZINC)] });
+		const run = await runOf(briefing);
+		assert.deepEqual(run.sections, []);
+		assert.deepEqual(delivery.issues[0].sections, []);
+		assert.ok(run.stories.every(({ sectionId }) => sectionId === undefined));
+		assert.match(delivery.issues[0].markdown, /## In brief/);
+		assert.ok(!world.requests.some(({ body }) => body?.messages?.[0].content.startsWith("You write one section")));
 	});
 });

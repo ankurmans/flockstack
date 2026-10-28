@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Play, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Loader2, Play, Plus, X } from "lucide-react";
 import { createBriefing, deleteBriefing, runBriefingNow, updateBriefing } from "@/app/(app)/briefings/actions";
 import CardSettings, { RowSettings } from "@/components/CardSettings";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ function fromBriefing(briefing, defaultTimeZone, defaultEmail) {
 		minFull: briefing?.stories.minFull ?? 6,
 		maxFull: briefing?.stories.maxFull ?? 10,
 		briefItems: briefing?.stories.briefItems ?? 10,
+		sections: (briefing?.sections ?? []).map((section) => ({ ...section, budgetShare: section.budgetShare ?? "", priority: section.priority ?? "" })),
 		minScore: briefing?.minScore ?? 60,
 		budgetUsd: briefing?.budgetUsd ?? 0.25,
 		steps: Object.fromEntries(STEPS.map(([step]) => [step, { keyId: briefing?.steps[step]?.keyId ?? "", model: briefing?.steps[step]?.model ?? "" }])),
@@ -58,6 +59,12 @@ export default function FormBriefing({ newsletterId, briefing, keys, languages, 
 	const [isPending, startTransition] = useTransition();
 	const set = (key, value) => setDraft((current) => ({ ...current, [key]: value }));
 	const setExample = (index, change) => set("examples", draft.examples.map((example, at) => (at === index ? { ...example, ...change } : example)));
+	const setSection = (index, change) => set("sections", draft.sections.map((section, at) => (at === index ? { ...section, ...change } : section)));
+	const moveSection = (index, by) => {
+		const sections = [...draft.sections];
+		[sections[index], sections[index + by]] = [sections[index + by], sections[index]];
+		set("sections", sections);
+	};
 	const setStep = (step, change) => set("steps", { ...draft.steps, [step]: { ...draft.steps[step], ...change } });
 	const zones = useIsClient() ? getTimeZones(draft.timeZone) : [draft.timeZone];
 	const names = typeof Intl.DisplayNames === "function" ? new Intl.DisplayNames(["en"], { type: "language" }) : null;
@@ -226,7 +233,7 @@ export default function FormBriefing({ newsletterId, briefing, keys, languages, 
 							))}
 					</span>
 				</RowSettings>
-				<RowSettings label="Stories" hint="Full stories (fewest, most), then one-line items, and the score (0 to 100) a full story needs">
+				<RowSettings label="Stories" hint="Without sections: full stories (fewest, most), then one-line items. And the score (0 to 100) a full story needs.">
 					<span className="flex flex-wrap gap-2">
 						<Input type="number" min={1} max={15} value={draft.minFull} onChange={(event) => set("minFull", event.target.value)} className="w-20" aria-label="Fewest full stories" />
 						<Input type="number" min={1} max={15} value={draft.maxFull} onChange={(event) => set("maxFull", event.target.value)} className="w-20" aria-label="Most full stories" />
@@ -239,6 +246,43 @@ export default function FormBriefing({ newsletterId, briefing, keys, languages, 
 				</RowSettings>
 				<RowSettings label="Review">
 					<span className="text-sm">Each issue waits as a draft for you to review. Nothing is sent by itself.</span>
+				</RowSettings>
+			</CardSettings>
+
+			<CardSettings title="Sections">
+				<RowSettings label="Layout" hint="Optional, up to 12, in reading order. Each story goes into the section whose purpose it fits; a section with no story is left out. Budget shares are percents of the extract and write budget, split evenly when none is given; priority 1 is written first when the budget runs short.">
+					{draft.sections.map((section, index) => (
+						<span key={index} className="flex flex-col gap-2 rounded-lg p-3 shadow-border">
+							<span className="flex flex-wrap gap-2">
+								<Input value={section.title} onChange={(event) => setSection(index, { title: event.target.value })} placeholder="Title" maxLength={60} aria-label="Title" className="min-w-0 flex-1" />
+								<select value={section.format} onChange={(event) => setSection(index, { format: event.target.value })} className={SELECT} aria-label="Format">
+									<option value="one-liners">One-liners</option>
+									<option value="sentences">Sentences</option>
+								</select>
+								<Button type="button" variant="ghost" size="icon" aria-label="Move up" disabled={index === 0} onClick={() => moveSection(index, -1)}>
+									<ArrowUp />
+								</Button>
+								<Button type="button" variant="ghost" size="icon" aria-label="Move down" disabled={index === draft.sections.length - 1} onClick={() => moveSection(index, 1)}>
+									<ArrowDown />
+								</Button>
+								<Button type="button" variant="ghost" size="icon" aria-label="Remove" onClick={() => set("sections", draft.sections.filter((_, at) => at !== index))}>
+									<X />
+								</Button>
+							</span>
+							<Textarea value={section.purpose} onChange={(event) => setSection(index, { purpose: event.target.value })} placeholder="What belongs in it" rows={2} maxLength={400} aria-label="Purpose" />
+							<span className="flex flex-wrap gap-2">
+								<Input type="number" min={1} max={25} value={section.maxItems} onChange={(event) => setSection(index, { maxItems: event.target.value })} className="w-24" aria-label="Most items" title="Most items" />
+								<Input type="number" min={0} max={100} value={section.budgetShare} onChange={(event) => setSection(index, { budgetShare: event.target.value })} placeholder="Share %" className="w-24" aria-label="Budget share" />
+								<Input type="number" min={1} max={12} value={section.priority} onChange={(event) => setSection(index, { priority: event.target.value })} placeholder="Priority" className="w-24" aria-label="Priority" />
+							</span>
+						</span>
+					))}
+					{draft.sections.length < 12 && (
+						<Button type="button" variant="outline" size="sm" className="self-start" onClick={() => set("sections", [...draft.sections, { title: "", purpose: "", format: "one-liners", maxItems: 5, budgetShare: "", priority: "" }])}>
+							<Plus data-icon="inline-start" />
+							Add a section
+						</Button>
+					)}
 				</RowSettings>
 			</CardSettings>
 
