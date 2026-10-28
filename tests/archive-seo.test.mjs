@@ -89,7 +89,7 @@ test("the author page is a profile with the photo, bio and social profiles", () 
 	});
 
 	const { metadata: withoutPhoto } = getAuthorSeo({ ...newsletter, imageUrl: undefined }, APP);
-	assert.equal(withoutPhoto.openGraph.images[0].url, "https://flockstack.test/archive/field-notes/og");
+	assert.match(withoutPhoto.openGraph.images[0].url, /^https:\/\/flockstack\.test\/archive\/field-notes\/og\?v=[0-9a-f]{16}$/);
 	assert.equal(
 		withoutPhoto.description,
 		"One idea about building things, every Sunday.",
@@ -103,7 +103,7 @@ test("the archive home shares a generated card and canonicalizes to its domain's
 	assert.equal(shared.alternates.canonical, "https://field-notes.flockstackmail.com/", "without a subdomain of its own, the shared one");
 	const { metadata, jsonLd } = getHomeSeo({ ...newsletter, archiveHost: "news.example.com" }, APP);
 	assert.equal(metadata.alternates.canonical, "https://news.example.com/");
-	assert.equal(metadata.openGraph.images[0].url, "https://flockstack.test/archive/field-notes/og");
+	assert.match(metadata.openGraph.images[0].url, /^https:\/\/flockstack\.test\/archive\/field-notes\/og\?v=[0-9a-f]{16}$/);
 	assert.equal(jsonLd["@type"], "Blog");
 
 	delete process.env.SHARED_DOMAIN;

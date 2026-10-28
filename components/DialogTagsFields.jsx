@@ -6,6 +6,7 @@ import { Loader2, Plus, Tags, Trash2 } from "lucide-react";
 import { createCustomField, deleteCustomField, deleteTag, setTagColor, updateCustomField } from "@/app/(app)/contacts/actions";
 import BadgeTag from "@/components/BadgeTag";
 import PickerTagColor from "@/components/PickerTagColor";
+import StateEmpty from "@/components/StateEmpty";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -201,7 +202,9 @@ export default function DialogTagsFields({ newsletter, definitions, tags, tagCol
 				<section className="flex flex-col gap-3">
 					<h3 className="text-sm font-medium">Tags</h3>
 					{tags.length === 0 ? (
-						<p className="text-sm text-muted-foreground">No tags yet. Add them to a contact from its menu, with an import or the API.</p>
+						<StateEmpty isCompact className="px-0" icon={Tags} title="No tags yet">
+							<span className="text-muted-foreground">Add them to a contact from its menu, with an import or the API.</span>
+						</StateEmpty>
 					) : (
 						<ul className="flex flex-wrap gap-1.5">
 							{tags.map((tag) => (

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Loader2, Play, Plus, X } from "lucide-react";
 import { createBriefing, deleteBriefing, runBriefingNow, updateBriefing } from "@/app/(app)/briefings/actions";
 import CardSettings, { RowSettings } from "@/components/CardSettings";
+import SelectSectionIcon from "@/components/SelectSectionIcon";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +23,11 @@ const STEPS = [
 	["check", "Check", "Checks each claim against its source: another model than Write"],
 	["translate", "Translate", "Writes the other languages; needed only with more than one"],
 ];
+
+// What the server action makes a new section's id from (app/(app)/briefings/actions.js), so its default icon shows before saving.
+function toSectionId(title) {
+	return String(title ?? "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 36);
+}
 
 function fromBriefing(briefing, defaultTimeZone, defaultEmail) {
 	return {
@@ -42,7 +48,7 @@ function fromBriefing(briefing, defaultTimeZone, defaultEmail) {
 		minFull: briefing?.stories.minFull ?? 6,
 		maxFull: briefing?.stories.maxFull ?? 10,
 		briefItems: briefing?.stories.briefItems ?? 10,
-		sections: (briefing?.sections ?? []).map((section) => ({ ...section, budgetShare: section.budgetShare ?? "", priority: section.priority ?? "" })),
+		sections: (briefing?.sections ?? []).map((section) => ({ ...section, budgetShare: section.budgetShare ?? "", priority: section.priority ?? "", icon: section.icon ?? null })),
 		minScore: briefing?.minScore ?? 60,
 		budgetUsd: briefing?.budgetUsd ?? 0.25,
 		steps: Object.fromEntries(STEPS.map(([step]) => [step, { keyId: briefing?.steps[step]?.keyId ?? "", model: briefing?.steps[step]?.model ?? "" }])),
@@ -250,7 +256,7 @@ export default function FormBriefing({ newsletterId, briefing, keys, languages, 
 			</CardSettings>
 
 			<CardSettings title="Sections">
-				<RowSettings label="Layout" hint="Optional, up to 12, in reading order. Each story goes into the section whose purpose it fits; a section with no story is left out. Budget shares are percents of the extract and write budget, split evenly when none is given; priority 1 is written first when the budget runs short.">
+				<RowSettings label="Layout" hint="Optional, up to 12, in reading order. Each story goes into the section whose purpose it fits; a section with no story is left out. Its icon shows beside its heading in the email and on the web page. Budget shares are percents of the extract and write budget, split evenly when none is given; priority 1 is written first when the budget runs short.">
 					{draft.sections.map((section, index) => (
 						<span key={index} className="flex flex-col gap-2 rounded-lg p-3 shadow-border">
 							<span className="flex flex-wrap gap-2">
@@ -271,6 +277,7 @@ export default function FormBriefing({ newsletterId, briefing, keys, languages, 
 							</span>
 							<Textarea value={section.purpose} onChange={(event) => setSection(index, { purpose: event.target.value })} placeholder="What belongs in it" rows={2} maxLength={400} aria-label="Purpose" />
 							<span className="flex flex-wrap gap-2">
+								<SelectSectionIcon sectionId={section.id ?? toSectionId(section.title)} title={section.title} value={section.icon} onChange={(icon) => setSection(index, { icon })} />
 								<Input type="number" min={1} max={25} value={section.maxItems} onChange={(event) => setSection(index, { maxItems: event.target.value })} className="w-24" aria-label="Most items" title="Most items" />
 								<Input type="number" min={0} max={100} value={section.budgetShare} onChange={(event) => setSection(index, { budgetShare: event.target.value })} placeholder="Share %" className="w-24" aria-label="Budget share" />
 								<Input type="number" min={1} max={12} value={section.priority} onChange={(event) => setSection(index, { priority: event.target.value })} placeholder="Priority" className="w-24" aria-label="Priority" />
@@ -278,7 +285,7 @@ export default function FormBriefing({ newsletterId, briefing, keys, languages, 
 						</span>
 					))}
 					{draft.sections.length < 12 && (
-						<Button type="button" variant="outline" size="sm" className="self-start" onClick={() => set("sections", [...draft.sections, { title: "", purpose: "", format: "one-liners", maxItems: 5, budgetShare: "", priority: "" }])}>
+						<Button type="button" variant="outline" size="sm" className="self-start" onClick={() => set("sections", [...draft.sections, { title: "", purpose: "", format: "one-liners", maxItems: 5, budgetShare: "", priority: "", icon: null }])}>
 							<Plus data-icon="inline-start" />
 							Add a section
 						</Button>

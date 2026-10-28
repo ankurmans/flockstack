@@ -1,8 +1,14 @@
-// The Cloudflare bindings of a Worker, in memory: the private R2 bucket digital products live in (FILES), and Workers AI
-// (AI) once a test sets one. `files` maps each key to what was stored, so a test can see what is in the bucket.
+// The Cloudflare bindings of a Worker, in memory: the private R2 bucket digital products live in (FILES), the public one images
+// and drawn cards live in (IMAGES), and Workers AI (AI) once a test sets one. `files` and `images` map each key to what was
+// stored, so a test can see what is in each bucket.
 export const files = new Map();
+export const images = new Map();
 
-const bucket = {
+const bucket = makeBucket(files);
+const imagesBucket = makeBucket(images);
+
+function makeBucket(files) {
+	return {
 	async put(key, value, options = {}) {
 		const bytes = value instanceof Uint8Array ? value : new Uint8Array(await new Response(value).arrayBuffer());
 		files.set(key, { bytes, contentType: options.httpMetadata?.contentType });
@@ -30,7 +36,8 @@ const bucket = {
 	async delete(keys) {
 		for (const key of Array.isArray(keys) ? keys : [keys]) files.delete(key);
 	},
-};
+	};
+}
 
 // request.cf, the visitor's data Cloudflare adds to a request: set it to { country: "IE" } for a test.
 let cf;
@@ -56,6 +63,13 @@ export function setFilesBound(value) {
 let collaborationStorage = null;
 export function setCollaborationStorage(value) { collaborationStorage = value; }
 
+// false: a server without the IMAGES bucket bound.
+let hasImages = true;
+
+export function setImagesBound(value) {
+	hasImages = value;
+}
+
 export async function getCloudflareContext() {
-	return { env: { ...(hasFiles && { FILES: bucket }), ...(ai && { AI: ai }), ...(collaborationStorage && { COLLABORATION_STORAGE: collaborationStorage }) }, cf };
+	return { env: { ...(hasFiles && { FILES: bucket }), ...(hasImages && { IMAGES: imagesBucket }), ...(ai && { AI: ai }), ...(collaborationStorage && { COLLABORATION_STORAGE: collaborationStorage }) }, cf };
 }

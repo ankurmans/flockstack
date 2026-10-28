@@ -1,11 +1,12 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, TicketPercent, Trash2 } from "lucide-react";
 import { removeOffer, saveBanner, saveOffer, switchOffer } from "@/app/(app)/payments/actions";
 import ButtonCopy from "@/components/ButtonCopy";
 import CardSettings, { RowSettings } from "@/components/CardSettings";
 import GatePlan from "@/components/GatePlan";
+import StateEmpty from "@/components/StateEmpty";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatCount } from "@/lib/format";
@@ -50,7 +51,11 @@ export default function CardOffers({ newsletterId, data }) {
 	return (
 		<div className="flex flex-col gap-6">
 			<CardSettings title="Offers" stagger={1}>
-				{data.offers.length === 0 && <p className="px-4 py-3 text-sm text-muted-foreground">No offers yet. An offer is a discount or a trial with a link you can share.</p>}
+				{data.offers.length === 0 && (
+					<StateEmpty isCompact icon={TicketPercent} title="No offers yet">
+						<span className="text-muted-foreground">An offer is a discount or a trial with a link you can share.</span>
+					</StateEmpty>
+				)}
 				{data.offers.map((offer) => (
 					<div key={offer.id} className="flex flex-col gap-1.5 px-4 py-3 text-sm">
 						<div className="flex items-center justify-between gap-3">

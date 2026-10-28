@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ArrowDown, ArrowUp, ExternalLink, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ExternalLink, Link2, Plus, Trash2 } from "lucide-react";
 import { saveLinkPage } from "@/app/(app)/link-page/actions";
 import BarSave from "@/components/BarSave";
 import ButtonCopy from "@/components/ButtonCopy";
 import CardSettings from "@/components/CardSettings";
+import StateEmpty from "@/components/StateEmpty";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -109,7 +110,11 @@ export default function FormLinkPage({ newsletterId, page }) {
 					</Button>
 				}
 			>
-				{draft.links.length === 0 && <p className="px-4 py-3 text-sm text-pretty text-muted-foreground">No links yet. Add your shop, a podcast, your latest issue.</p>}
+				{draft.links.length === 0 && (
+					<StateEmpty isCompact icon={Link2} title="No links yet">
+						<span className="text-pretty text-muted-foreground">Add your shop, a podcast, your latest issue.</span>
+					</StateEmpty>
+				)}
 				{draft.links.map((link, index) => (
 					<div key={link.key} className="flex items-start gap-2 px-4 py-3">
 						<div className="flex min-w-0 flex-1 flex-col gap-2">

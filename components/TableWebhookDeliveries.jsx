@@ -1,11 +1,17 @@
+import { Send } from "lucide-react";
 import BadgeStatus from "@/components/BadgeStatus";
 import ButtonResendDelivery from "@/components/ButtonResendDelivery";
+import StateEmpty from "@/components/StateEmpty";
 import { formatRelative, formatSendTime } from "@/lib/format";
 
 // An endpoint's latest deliveries, newest first. Each opens to the body that was sent and the answer to its last attempt.
 export default function TableWebhookDeliveries({ endpointId, deliveries, keep }) {
 	if (deliveries.length === 0) {
-		return <p className="rounded-xl px-4 py-6 text-center text-sm text-muted-foreground shadow-border">Nothing sent yet. Send a test event to try it.</p>;
+		return (
+			<StateEmpty icon={Send} title="Nothing sent yet" className="py-8">
+				<p className="text-sm text-muted-foreground">Send a test event to try it.</p>
+			</StateEmpty>
+		);
 	}
 
 	return (

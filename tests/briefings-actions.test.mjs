@@ -52,7 +52,7 @@ function makeRun(user, briefing, fields = {}) {
 		queries: [{ text: "battery plant europe", angle: "plants" }],
 		discoveryNotes: [{ provider: "tinyfish", problem: "Hourly limit reached", scope: "hour", until: AT("2026-10-27T06:00:00Z") }],
 		stories: [
-			{ storyKey: "a".repeat(64), externalId: "briefing:x:a", kind: "full", title: "A plant opened in Ohio", url: "https://www.news.example.com/ohio", sourceKind: "reporting", score: 82, foundBy: ["gdelt"], sources: [], features: { relevance: 0.9, novelty: 0.4 } },
+			{ storyKey: "a".repeat(64), externalId: "briefing:x:a", kind: "full", title: "A plant opened in Ohio", url: "https://www.news.example.com/ohio", sourceKind: "reporting", score: 82, foundBy: ["gdelt"], sources: [], features: { relevance: 0.9, novelty: 0.4 }, previewImage: "https://cdn.example.com/ohio.jpg" },
 			{ storyKey: "b".repeat(64), externalId: "briefing:x:b", kind: "brief", title: "Prices fell", url: "https://prices.example.org/fell", sourceKind: "press_release", score: 61, foundBy: ["hn"], sources: [], features: { relevance: 0.6 } },
 		],
 		costUsd: 0.0049,
@@ -286,6 +286,7 @@ describe("managing a briefing", () => {
 		assert.deepEqual(one.queries, [{ text: "battery plant europe", angle: "plants" }]);
 		assert.deepEqual(one.discoveryNotes, [{ provider: "tinyfish", problem: "Hourly limit reached", scope: "hour", until: "2026-10-27T06:00:00.000Z" }]);
 		assert.deepEqual(one.stories.map(({ storyKey, kind, sourceKind, verdict }) => [storyKey.slice(0, 1), kind, sourceKind, verdict]), [["a", "full", "reporting", null], ["b", "brief", "press_release", null]]);
+		assert.deepEqual(one.stories.map(({ previewImage }) => previewImage), ["https://cdn.example.com/ohio.jpg", null], "the source page's og:image, for the owner's link preview");
 		for (const body of [listed.body, one, (await t.api(user.key, "GET", `/briefings/${briefing.id}`)).body]) {
 			assert.ok(!JSON.stringify(body).includes("WORKING_DATA"));
 			assert.ok(!JSON.stringify(body).includes('"work"'));
@@ -364,6 +365,9 @@ describe("verdict links", () => {
 		assert.match(page, /Drop this story\?/);
 		assert.match(page, /A plant opened in Ohio/);
 		assert.match(page, /Linked briefing/);
+		const preview = /<img [^>]*>/.exec(page)?.[0] ?? "";
+		for (const attribute of ['src="https://cdn.example.com/ohio.jpg"', 'alt="A plant opened in Ohio"', 'width="56"', 'height="56"', 'loading="lazy"', 'referrerPolicy="no-referrer"']) assert.ok(preview.includes(attribute), `${attribute} in ${preview}`);
+		assert.match(page, /href="https:\/\/www\.news\.example\.com\/ohio"[^>]*rel="noreferrer noopener"/);
 		assert.match(page, new RegExp(`name="token" value="${token.replace(/[.]/g, "\\.")}"`));
 		await open();
 		assert.equal(await m.BriefingVerdict.countDocuments({ accountId: user.accountId, runId: run._id }), 0, "a GET, a scanner or a preview records nothing");
@@ -414,7 +418,7 @@ describe("sections", () => {
 	});
 
 	test("go round trip through create, get and update; a list sent replaces it, and [] goes back to the unsectioned layout", async () => {
-		const expected = SECTIONS.map((section) => ({ purpose: "", budgetShare: null, priority: null, ...section }));
+		const expected = SECTIONS.map((section) => ({ purpose: "", budgetShare: null, priority: null, icon: null, ...section }));
 		assert.deepEqual(briefing.sections, expected);
 		assert.deepEqual((await t.api(user.key, "GET", `/briefings/${briefing.id}`)).body.sections, expected);
 		const reordered = await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { sections: [{ ...SECTIONS[2], id: "People", budgetShare: 10 }, SECTIONS[0]] });
@@ -602,7 +606,7 @@ describe("the dashboard", () => {
 			active: true,
 			sections: [
 				{ title: "Market pulse", purpose: "Rate moves", format: "one-liners", maxItems: "6", budgetShare: "", priority: "" },
-				{ title: "Market pulse", purpose: "", format: "sentences", maxItems: "2", budgetShare: "30", priority: "1" },
+				{ title: "Market pulse", purpose: "", format: "sentences", maxItems: "2", budgetShare: "30", priority: "1", icon: "earnings" },
 				{ title: "  ", purpose: "", format: "one-liners", maxItems: "1", budgetShare: "", priority: "" },
 			],
 		};
@@ -619,9 +623,13 @@ describe("the dashboard", () => {
 			[["market-pulse", "one-liners", 6, null, null], ["market-pulse-2", "sentences", 2, 30, 1]],
 			"ids made from titles, blank rows dropped, empty numbers left out"
 		);
+		assert.deepEqual(stored.sections.map(({ icon }) => icon), [undefined, "earnings"], "an icon only when one is picked");
 		const editPage = renderToStaticMarkup(await as(user, () => m.detail.default({ params: Promise.resolve({ id: created.id }) })));
 		assert.match(editPage, /Add a section/);
 		assert.match(editPage, /value="Market pulse"/);
+		assert.match(editPage, /aria-label="Icon: Market pulse"/, "a section without an icon shows the one matching its id");
+		assert.match(editPage, /aria-label="Icon: Earnings"/);
+		assert.match(editPage, /lucide-chart-column|lucide-bar-chart-3/);
 
 		const listed = renderToStaticMarkup(await as(user, () => m.list.default()));
 		assert.match(listed, /Dashboard briefing/);
@@ -648,6 +656,9 @@ describe("the dashboard", () => {
 
 		const runPage = renderToStaticMarkup(await as(user, () => m.runPage.default({ params: Promise.resolve({ id: created.id, runId: String(run._id) }) })));
 		assert.match(runPage, /A plant opened in Ohio/);
+		assert.match(runPage, /<img [^>]*src="https:\/\/cdn\.example\.com\/ohio\.jpg"[^>]*>/);
+		assert.equal((runPage.match(/<img /g) ?? []).length, 1, "a story without a preview image gets an icon instead");
+		assert.match(runPage, /referrerPolicy="no-referrer"/);
 		assert.match(runPage, /Press release/);
 		assert.match(runPage, /Keep/);
 		assert.match(runPage, /battery plant europe/);

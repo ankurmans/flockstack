@@ -1,11 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
-import { ExternalLink, Loader2 } from "lucide-react";
+import { ExternalLink, Gift, Loader2 } from "lucide-react";
 import { saveGifts } from "@/app/(app)/payments/actions";
 import ButtonCopy from "@/components/ButtonCopy";
 import CardSettings, { RowSettings } from "@/components/CardSettings";
 import GatePlan from "@/components/GatePlan";
+import StateEmpty from "@/components/StateEmpty";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/payments/config";
 import { submitKeepingFields } from "@/lib/submit-keeping-fields";
@@ -58,7 +59,7 @@ export default function CardGifts({ newsletterId, data }) {
 					</div>
 				)}
 				{gifts.length === 0 ? (
-					<p className="px-4 py-3 text-sm text-muted-foreground">No gifts yet.</p>
+					<StateEmpty isCompact icon={Gift} title="No gifts yet" />
 				) : (
 					gifts.map((gift) => (
 						<div key={gift.id} className="px-4 py-3 text-sm">

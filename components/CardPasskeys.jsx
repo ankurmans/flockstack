@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { KeyRound, Loader2, Trash2 } from "lucide-react";
 import CardSettings, { RowSettings } from "@/components/CardSettings";
+import StateEmpty from "@/components/StateEmpty";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 import { formatDate } from "@/lib/format";
@@ -58,7 +59,7 @@ export default function CardPasskeys() {
 			<RowSettings label="Sign in" hint="A passkey signs you in with your fingerprint, face or device PIN, with no code to wait for.">
 				<span className="flex flex-col gap-2">
 					{passkeys === null && <span className="text-sm text-muted-foreground">Loading…</span>}
-					{passkeys?.length === 0 && <span className="text-sm text-muted-foreground">No passkeys yet.</span>}
+					{passkeys?.length === 0 && <StateEmpty isCompact className="px-0 py-0" icon={KeyRound} title="No passkeys yet" />}
 					{passkeys?.map((passkey) => (
 						<span key={passkey.id} className="flex h-9 items-center justify-between gap-3 rounded-lg bg-muted/60 px-2.5 text-sm">
 							<span className="truncate">

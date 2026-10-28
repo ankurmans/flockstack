@@ -16,6 +16,12 @@ function readNumber(formData, key) {
 	return text ? Number(text) : null;
 }
 
+// A switch that can be left unset: "on", "off", or empty for the default.
+function readSwitch(formData, key) {
+	const value = readText(formData, key);
+	return value === "on" ? true : value === "off" ? false : null;
+}
+
 // The custom headers box: one "Name: value" a line. The action checks them.
 function readHeaderLines(text) {
 	return text
@@ -46,6 +52,8 @@ function readSettings(formData) {
 			fontPair: readText(formData, "fontPair") || "sans",
 			headerUrl: readText(formData, "headerUrl"),
 			emailLogo: formData.get("emailLogo") === "on",
+			publisher: readText(formData, "publisher"),
+			...(formData.has("issueCard") && { issueCard: readSwitch(formData, "issueCard") }),
 		},
 		preferencesLink: formData.get("preferencesLink") === "on",
 		utmLinks: formData.get("utmLinks") === "on",

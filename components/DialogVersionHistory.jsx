@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { formatCount, formatRelative } from "@/lib/format";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import StateEmpty from "@/components/StateEmpty";
 
 // The draft's earlier states (lib/campaign-versions.js): pick one to read it, and restore it. The draft as it is now is kept
 // first, so a restore can be undone the same way. onSave saves what the editor holds, so the list is current; the page
@@ -80,7 +81,11 @@ function PanelVersions({ campaignId, onSave, isPublished, onClose }) {
 					Loading…
 				</div>
 			)}
-			{versions?.length === 0 && <p className="py-6 text-sm text-muted-foreground">Nothing earlier yet. States are kept as you edit.</p>}
+			{versions?.length === 0 && (
+				<StateEmpty isCompact className="px-0" icon={History} title="Nothing earlier yet">
+					<span className="text-muted-foreground">States are kept as you edit.</span>
+				</StateEmpty>
+			)}
 			{versions?.length > 0 && (
 				<div className="grid max-h-[55dvh] gap-3 sm:grid-cols-[14rem_minmax(0,1fr)]">
 					<ul className="flex flex-col gap-1 overflow-y-auto" aria-label="Versions">
