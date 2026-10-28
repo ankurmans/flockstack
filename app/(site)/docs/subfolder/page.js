@@ -99,6 +99,32 @@ export default {
 };`;
 }
 
+function nextjs({ upstream }) {
+	return `// app${PREFIX}/[[...path]]/route.js in a Next.js site (Vercel or any host): Next.js rewrites can't add a request header, so a
+// route handler forwards the path with the token. FLOCKSTACK_MOUNT_TOKEN is an environment variable of the site.
+const UPSTREAM = "${upstream}";
+const PREFIX = "${PREFIX}";
+const HOP = ["host", "connection", "content-length", "transfer-encoding", "accept-encoding"];
+
+async function forward(request) {
+	const url = new URL(request.url);
+	const headers = new Headers(request.headers);
+	for (const name of HOP) headers.delete(name);
+	headers.set("X-Forwarded-Host", url.host);
+	headers.set("X-Forwarded-Proto", "https");
+	headers.set("X-FlockStack-Mount", process.env.FLOCKSTACK_MOUNT_TOKEN);
+	const body = ["GET", "HEAD"].includes(request.method) ? undefined : await request.arrayBuffer();
+	const answer = await fetch(\`\${UPSTREAM}\${url.pathname.slice(PREFIX.length)}\${url.search}\`, { method: request.method, headers, body, redirect: "manual", cache: "no-store" });
+	const out = new Headers(answer.headers);
+	out.delete("content-encoding");
+	out.delete("content-length");
+	return new Response(answer.body, { status: answer.status, headers: out });
+}
+
+export const dynamic = "force-dynamic";
+export { forward as GET, forward as HEAD, forward as POST, forward as PUT, forward as PATCH, forward as DELETE, forward as OPTIONS };`;
+}
+
 export default function SubfolderPage() {
 	const appUrl = getAppUrl();
 	const sharedDomain = getSharedDomain();
@@ -187,6 +213,15 @@ export default function SubfolderPage() {
 				</p>
 				<BlockCode title="With the shared host as the upstream" className="mt-4" code={caddy(shapes.shared)} />
 				<BlockCode title="With the app's address as the upstream" className="mt-4" code={caddy(shapes.app)} />
+			</Section>
+
+			<Section title="Next.js (Vercel)" stagger={7}>
+				<p>
+					For a Next.js site, on Vercel or anywhere: a catch-all route handler under the path, since rewrites can&apos;t add the token header. Set{" "}
+					<Code>FLOCKSTACK_MOUNT_TOKEN</Code> in the site&apos;s environment variables.
+				</p>
+				<BlockCode title="With the shared host as the upstream" className="mt-4" code={nextjs(shapes.shared)} />
+				<BlockCode title="With the app's address as the upstream" className="mt-4" code={nextjs(shapes.app)} />
 			</Section>
 
 			<Section title="Cloudflare Worker" stagger={7}>
