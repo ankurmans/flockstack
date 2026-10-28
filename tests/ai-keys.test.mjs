@@ -43,7 +43,7 @@ before(async () => {
 	realFetch = globalThis.fetch;
 	globalThis.fetch = async (input, init = {}) => {
 		const url = String(input?.url ?? input);
-		const isProvider = Object.values(m.aiKeys.AI_PROVIDER_ENDPOINTS).some((base) => url.startsWith(base.split("{")[0])) || url.startsWith("https://llm.example.com/");
+		const isProvider = Object.values(m.aiKeys.AI_PROVIDER_ENDPOINTS).some((base) => url.startsWith(base.split("{")[0])) || url.startsWith("https://llm.example.com/") || url.startsWith(m.aiKeys.TINYFISH_ENDPOINTS.account) || url.startsWith("https://feed.example.com/");
 		if (!isProvider) return realFetch(input, init);
 		requests.push({ url, headers: new Headers(init.headers), redirect: init.redirect });
 		return answer(url);
@@ -179,6 +179,54 @@ describe("checking a key", () => {
 		await t.api(user.key, "POST", `/ai-keys/${typesafe.id}/check`);
 		assert.equal(requests.at(-1).url, "https://api.typesafe.ai/v1/models");
 		answer = () => new Response("{}", { status: 200 });
+	});
+});
+
+describe("search keys", () => {
+	test("TinyFish and a candidate feed are search keys, checked with one free request each, and a candidate feed needs a public https address", async () => {
+		const user = await t.customer("ai-keys-search@example.com");
+		const tinyfish = await t.api(user.key, "POST", "/ai-keys", { name: "TinyFish", provider: "tinyfish", key: SECRET });
+		assert.equal(tinyfish.status, 201, JSON.stringify(tinyfish.body));
+		assert.deepEqual([tinyfish.body.kind, tinyfish.body.providerLabel, tinyfish.body.baseUrl], ["search", "TinyFish", null]);
+		hasNoSecret(tinyfish.body);
+		assert.equal((await m.aiKeys.getAiKeyForRun({ accountId: user.accountId, keyId: tinyfish.body.id })).baseUrl, "https://api.search.tinyfish.ai");
+
+		for (const [body, pattern] of [
+			[{ name: "Feed", provider: "candidate-feed", key: SECRET }, /address/],
+			[{ name: "Feed", provider: "candidate-feed", key: SECRET, baseUrl: "http://feed.example.com/candidates" }, /https/],
+			[{ name: "Feed", provider: "candidate-feed", key: SECRET, baseUrl: "https://127.0.0.1/candidates" }, /private network/],
+			[{ name: "TinyFish", provider: "tinyfish", key: SECRET, baseUrl: "https://feed.example.com/" }, /Only another OpenAI-compatible server or a candidate feed/],
+		]) {
+			const refused = await t.api(user.key, "POST", "/ai-keys", body);
+			assert.match(t.assertError(refused, 400, "validation_failed"), pattern);
+			hasNoSecret(refused.body);
+		}
+		const feed = (await t.api(user.key, "POST", "/ai-keys", { name: "Feed", provider: "candidate-feed", key: ANTHROPIC_SECRET, baseUrl: "https://feed.example.com/candidates" })).body;
+		assert.deepEqual([feed.kind, feed.baseUrl], ["search", "https://feed.example.com/candidates"]);
+
+		requests.length = 0;
+		answer = () => Response.json({ data: [] });
+		assert.equal((await t.api(user.key, "POST", `/ai-keys/${tinyfish.body.id}/check`)).body.key.status, "ok");
+		assert.equal(requests[0].url, "https://agent.tinyfish.ai/v1/runs?limit=1");
+		assert.equal(requests[0].headers.get("x-api-key"), SECRET);
+		assert.equal(requests[0].headers.get("authorization"), null);
+		answer = () => Response.json({ error: { code: "INVALID_API_KEY" } }, { status: 401 });
+		assert.equal((await t.api(user.key, "POST", `/ai-keys/${feed.id}/check`)).body.key.status, "rejected");
+		assert.equal(requests[1].url, "https://feed.example.com/candidates");
+		assert.equal(requests[1].headers.get("authorization"), `Bearer ${ANTHROPIC_SECRET}`);
+		answer = () => new Response("{}", { status: 200 });
+	});
+
+	test("the dashboard's form says a TinyFish key is used under its holder's own terms", async () => {
+		const user = await t.customer("ai-keys-search-page@example.com");
+		const { default: FormAiKey } = await import("../components/FormAiKey.jsx");
+		const { AI_PROVIDER_LABELS } = m.aiKeys;
+		const page = renderToStaticMarkup(await as(user, () => m.page.default()));
+		assert.match(page, /TinyFish/);
+		assert.match(page, /Candidate feed/);
+		const source = await (await import("node:fs/promises")).readFile(new URL("../components/FormAiKey.jsx", import.meta.url), "utf8");
+		assert.match(source, /Used under your own TinyFish account and terms\./);
+		assert.ok(FormAiKey && AI_PROVIDER_LABELS.tinyfish === "TinyFish");
 	});
 });
 

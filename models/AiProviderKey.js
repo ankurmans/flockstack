@@ -1,15 +1,15 @@
 import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
-import { AI_KEY_STATUSES, AI_PROVIDERS } from "../lib/briefing-rules.js";
+import { AI_KEY_STATUSES, AI_PROVIDERS, SEARCH_PROVIDERS } from "../lib/briefing-rules.js";
 
-// An account's own key for an AI provider, used by its briefings (docs/BRIEFINGS-DESIGN.md). secret is the key encrypted with
+// An account's own key for an AI provider or a search provider, used by its briefings (docs/BRIEFINGS-DESIGN.md). secret is the key encrypted with
 // lib/credentials.js (context ai-key:<accountId>:<keyId>), hidden from every read unless asked for with +secret, and only the
 // briefings engine asks. hint is its last four characters, so the dashboard can tell keys apart without showing one.
 const aiProviderKeySchema = new mongoose.Schema(
 	{
 		name: { type: String, required: true, trim: true },
-		provider: { type: String, enum: AI_PROVIDERS, required: true },
-		// openai-compatible only: the server's https address.
+		provider: { type: String, enum: [...AI_PROVIDERS, ...SEARCH_PROVIDERS], required: true },
+		// openai-compatible and candidate-feed only: the server's https address.
 		baseUrl: { type: String, trim: true },
 		// cloudflare only: the user's own Cloudflare account ID, part of the Workers AI address.
 		accountRef: { type: String, trim: true },

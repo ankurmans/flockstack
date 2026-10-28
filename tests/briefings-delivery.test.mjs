@@ -1,16 +1,18 @@
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
-import { platformEmails, startTestApp, withEnv } from "./helpers/app.mjs";
+import { as, platformEmails, startTestApp, withEnv } from "./helpers/app.mjs";
 import { QSTASH_KEYS, loadSendingModules, setupSender } from "./helpers/sending.mjs";
 import { sent } from "./stubs/ses.mjs";
 
-// lib/briefings-delivery.js: what a briefing run leaves behind (docs/BRIEFINGS-DESIGN.md, step 8): one draft per run, one calendar item
-// linked to it, a test email to the briefing's test address only, and the run's checks and cost in a note to the owner, never in the issue.
+// lib/briefings-delivery.js: what a briefing run leaves behind (docs/BRIEFINGS-DESIGN.md, step 9): one draft per run (never a send),
+// its translations for readers who choose them, one calendar item linked to it, a test email to the briefing's test address only, and a
+// note to the owner, never in the issue, with the checks, the cost, what discovery could not do and a keep and drop link per story.
 let app;
 let m;
 let delivery;
 let user;
 let ContentItem;
+let IssueTranslation;
 
 const NOTE = /Checks: \d+ passed/;
 
@@ -25,8 +27,8 @@ function payload(overrides = {}) {
 		previewText: "Three stories worth your time",
 		markdown: "# This week in batteries\n\nA plant opened in Ohio ([1](https://news.example.com/ohio)).",
 		stories: [
-			{ externalId: "briefing:6650f1c2e9b1d4a012345678:aaa", title: "A plant opened in Ohio", hook: "It makes cells.", body: "The plant makes cells.", url: "https://news.example.com/ohio", references: [{ label: "The filing", url: "https://filings.example.com/1", kind: "evidence" }] },
-			{ externalId: "briefing:6650f1c2e9b1d4a012345678:bbb", title: "Prices fell", hook: "Again.", body: "Prices fell.", url: "https://news.example.com/prices", references: [{ label: "Same page", url: "https://news.example.com/ohio", kind: "reference" }] },
+			{ storyKey: "a".repeat(64), kind: "full", sourceKind: "reporting", externalId: "briefing:6650f1c2e9b1d4a012345678:aaa", title: "A plant opened in Ohio", hook: "It makes cells.", body: "The plant makes cells.", url: "https://news.example.com/ohio", references: [{ label: "The filing", url: "https://filings.example.com/1", kind: "evidence" }] },
+			{ storyKey: "b".repeat(64), kind: "brief", sourceKind: "press_release", externalId: "briefing:6650f1c2e9b1d4a012345678:bbb", title: "Prices fell", hook: "Again.", body: "Prices fell.", url: "https://news.example.com/prices", references: [{ label: "Same page", url: "https://news.example.com/ohio", kind: "reference" }] },
 		],
 		testEmail: "editor@example.net",
 		checks: [
@@ -34,6 +36,10 @@ function payload(overrides = {}) {
 			{ id: "links", status: "warning", message: "One link answered slowly" },
 		],
 		costUsd: 0.0042,
+		thin: true,
+		heldReason: "review_mode",
+		discoveryNotes: [{ provider: "tinyfish", problem: "Hourly limit reached", scope: "hour", until: "2026-10-28T06:00:00.000Z" }],
+		translations: [{ language: "fr", markdown: "# Cette semaine\n\nUne usine a ouvert dans l'Ohio." }, { language: "xx", markdown: "ignored" }],
 		...overrides,
 	};
 }
@@ -43,6 +49,7 @@ before(async () => {
 	m = await loadSendingModules();
 	delivery = await import("../lib/briefings-delivery.js");
 	ContentItem = (await import("../models/ContentItem.js")).default;
+	IssueTranslation = (await import("../models/IssueTranslation.js")).default;
 	user = await setupSender(m, "briefing-owner@example.com", { contacts: 3 });
 });
 
@@ -105,6 +112,35 @@ describe("deliverIssue", () => {
 		assert.match(notes[0].text, /Warning: One link answered slowly/);
 		assert.match(notes[0].text, /Model cost of this run: \$0\.0042\./);
 		assert.match(notes[0].text, /A test email went to editor@example\.net\./);
+		assert.match(notes[0].text, /Kept as a draft for your review\./);
+		assert.match(notes[0].text, /This run was thin/);
+		assert.match(notes[0].text, /tinyfish: Hourly limit reached \(until 2026-10-28 06:00 UTC\)/);
+		assert.match(notes[0].text, /Prices fell \(brief\) \(press release\)/);
+	});
+
+	test("the note has a keep and a drop link per story, plain links to the confirmation page, never through click tracking", async () => {
+		const { verifyVerdictToken } = await import("../lib/briefing-verdict-links.js");
+		const [note] = platformEmails.slice(notesBefore).filter(({ subject }) => /briefing draft is ready/.test(subject));
+		const links = [...note.text.matchAll(/^(Keep|Drop): (\S+)$/gm)].map(([, word, url]) => ({ word, url }));
+		assert.equal(links.length, 4);
+		assert.equal(note.html, undefined, "a text email: nothing to rewrite");
+		for (const { word, url } of links) {
+			assert.ok(url.startsWith("http://localhost:3000/briefing-verdict/"), url);
+			assert.doesNotMatch(url, /\/c\/|\/o\//);
+			const link = verifyVerdictToken(url.split("/").at(-1));
+			assert.deepEqual([link.runId, link.verdict, link.accountId], [payload().runId, word.toLowerCase(), String(user.accountId)]);
+		}
+		assert.deepEqual(links.map(({ url }) => verifyVerdictToken(url.split("/").at(-1)).storyKey), ["a".repeat(64), "a".repeat(64), "b".repeat(64), "b".repeat(64)]);
+		assert.equal(new Set(links.map(({ url }) => verifyVerdictToken(url.split("/").at(-1)).linkId)).size, 4, "each link has its own id");
+	});
+
+	test("keeps the translations against the draft, as plain text from the briefing, and only for readers' languages", async () => {
+		const rows = await IssueTranslation.find({ accountId: user.accountId, campaignId: first.campaignId }).lean();
+		assert.deepEqual(rows.map(({ language, model }) => [language, model]), [["fr", "briefing"]]);
+		assert.match(rows[0].text, /^Cette semaine\s+Une usine a ouvert dans l'Ohio\.$/);
+		assert.match(rows[0].sourceHash, /^briefing:[a-f0-9]{64}$/);
+		assert.ok(rows[0].expiresAt > new Date(Date.now() + 365 * 86_400_000), "not the reader cache's 7 days");
+		assert.equal((await m.Campaign.findOne({ accountId: user.accountId, _id: first.campaignId }).lean()).status, "draft", "delivery never sends");
 	});
 
 	test("a retried delivery returns the same draft and makes, sends and notes nothing new", async () => {
@@ -213,5 +249,57 @@ describe("housekeeping", () => {
 		const later = await runAgentHousekeeping(new Date(Date.now() + 91 * day));
 		assert.equal(later.briefingRunsDeleted, 1);
 		assert.equal(await BriefingRun.countDocuments({ ...scope, briefingId }), 0);
+	});
+
+	test("the pacing counters of search keys go after 2 days", async () => {
+		const DiscoveryUsage = (await import("../models/DiscoveryUsage.js")).default;
+		const { runAgentHousekeeping } = await import("../lib/agent-housekeeping.js");
+		const now = Date.now();
+		const scope = { accountId: user.accountId, provider: "tinyfish", keyId: "6650f1c2e9b1d4a0123456ee", operation: "search", window: "hour", count: 3 };
+		await DiscoveryUsage.create({ ...scope, windowStart: new Date(now - 3 * 86_400_000) });
+		await DiscoveryUsage.create({ ...scope, windowStart: new Date(now - 3_600_000) });
+		const result = await runAgentHousekeeping(new Date(now));
+		assert.equal(result.discoveryUsageDeleted, 1);
+		assert.equal(await DiscoveryUsage.countDocuments({ accountId: user.accountId }), 1);
+	});
+});
+
+describe("a briefing's translation for readers", () => {
+	test("a reader who may read the whole issue gets the briefing's own translation, labelled beta, until the owner edits the issue", async () => {
+		const { setAi } = await import("./stubs/opennext-cloudflare.mjs");
+		const Newsletter = (await import("../models/Newsletter.js")).default;
+		const session = await import("../lib/reader-session.js");
+		const route = await import("../app/api/reader-translation/route.js");
+		await Newsletter.updateOne({ accountId: user.accountId, _id: user.newsletterId }, { $set: { archiveEnabled: true, readerTranslations: true } });
+		const newsletter = await Newsletter.findOne({ accountId: user.accountId, _id: user.newsletterId }).lean();
+		const contact = await m.Contact.create({ accountId: user.accountId, newsletterId: user.newsletterId, email: "translated-reader@example.org", status: "active" });
+		const reader = { jar: new Map(), ip: "198.51.100.77" };
+		await as(reader, () => session.startReaderSession(newsletter, contact._id));
+		const { campaignId } = await delivery.deliverIssue(payload({ slot: "2026-11-05", runId: "6650f1c2e9b1d4a0123456ef" }));
+		await m.Campaign.updateOne({ accountId: user.accountId, _id: campaignId }, { $set: { status: "sent", archiveSlug: "briefing-translated" } });
+		const ask = async (language) => {
+			const request = new Request("http://localhost:3000/api/reader-translation", { method: "POST", headers: { "content-type": "application/json", origin: "http://localhost:3000" }, body: JSON.stringify({ slug: newsletter.slug, post: "briefing-translated", language }) });
+			const response = await as(reader, () => route.POST(request));
+			return { status: response.status, body: await response.json() };
+		};
+		let calls = 0;
+		setAi({ async run() { calls += 1; return { response: "Traduit à la demande\n[END_TRANSLATION]" }; } });
+		try {
+			const ready = await ask("fr");
+			assert.equal(ready.status, 200, JSON.stringify(ready.body));
+			assert.deepEqual([ready.body.beta, calls], [true, 0], "no model call: the briefing wrote it");
+			assert.match(ready.body.text, /Une usine a ouvert/);
+			assert.notEqual((await ask("es")).body.beta, true, "a language the briefing didn't write goes to the model");
+			await m.Campaign.updateOne({ accountId: user.accountId, _id: campaignId }, { $set: { audience: "paid" } });
+			assert.notEqual((await ask("fr")).body.beta, true, "a reader who sees only part of a paid issue never gets the whole translation");
+			await m.Campaign.updateOne({ accountId: user.accountId, _id: campaignId }, { $unset: { audience: 1 } });
+			assert.equal((await ask("fr")).body.beta, true);
+			await m.Campaign.updateOne({ accountId: user.accountId, _id: campaignId }, { $set: { markdown: "# Edited by the owner" } });
+			const edited = await ask("fr");
+			assert.equal(edited.body.beta, undefined);
+			assert.match(edited.body.text, /Traduit à la demande/, "an edited issue falls back to translation on request");
+		} finally {
+			setAi(null);
+		}
 	});
 });

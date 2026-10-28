@@ -22,8 +22,8 @@ export default async function AiKeysPage() {
 			<HeaderPage title="AI keys" backHref="/briefings" />
 			<div className="flex flex-col gap-8">
 				<p className="max-w-prose text-sm text-pretty text-muted-foreground">
-					Briefings run on your own AI provider&apos;s key, so the model cost is yours and capped per run. A key is encrypted when you save it and
-					is never shown again: FlockStack sends it only to the provider it is for.
+					Briefings run on your own AI provider&apos;s key, so the model cost is yours and capped per run, and can search with your own search
+					key. A key is encrypted when you save it and is never shown again: FlockStack sends it only to the provider it is for.
 				</p>
 				{keys.length === 0 ? (
 					<StateEmpty icon={KeyRound} title="No AI keys yet" />

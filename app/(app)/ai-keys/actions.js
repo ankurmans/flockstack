@@ -10,7 +10,7 @@ export async function addAiKey(values) {
 		name: String(values?.name ?? "").slice(0, 60),
 		provider,
 		key: String(values?.key ?? ""),
-		...(provider === "openai-compatible" && { baseUrl: String(values?.baseUrl ?? "") }),
+		...((provider === "openai-compatible" || provider === "candidate-feed") && { baseUrl: String(values?.baseUrl ?? "") }),
 		...(provider === "cloudflare" && { accountRef: String(values?.accountRef ?? "") }),
 	});
 	if (failure) return toFormError(failure);

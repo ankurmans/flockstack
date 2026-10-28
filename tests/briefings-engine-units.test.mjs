@@ -16,6 +16,10 @@ const write = await import("../lib/briefings/write.js");
 const check = await import("../lib/briefings/check.js");
 const dedupe = await import("../lib/briefings/dedupe.js");
 const group = await import("../lib/briefings/group.js");
+const labels = await import("../lib/briefings/labels.js");
+const rank = await import("../lib/briefings/rank.js");
+const triage = await import("../lib/briefings/triage.js");
+const stages = await import("../lib/briefings/stages.js");
 const { AI_PROVIDER_ENDPOINTS } = await import("../lib/ai-keys.js");
 
 const SECRET = "sk-test-abcdefghijklmnop0123SECRET";
@@ -106,30 +110,64 @@ describe("robots.txt", () => {
 });
 
 describe("the fetcher", () => {
-	test("keeps the feed fetcher's limits", async () => {
+	const PUBLIC = async () => ["93.184.216.34"];
+
+	test("keeps the feed fetcher's limits and names itself on every request", async () => {
 		const { FEED_LIMITS } = await import("../lib/feed-fetch.js");
 		assert.equal(fetching.FETCH_LIMITS.bytes, FEED_LIMITS.bytes);
 		assert.equal(fetching.FETCH_LIMITS.timeoutMs, FEED_LIMITS.timeoutMs);
 		assert.equal(fetching.FETCH_LIMITS.redirects, FEED_LIMITS.redirects);
-		assert.equal(fetching.FETCH_LIMITS.perHost, 2);
-		assert.equal(fetching.FETCH_LIMITS.perRun, 300);
-	});
-
-	test("refuses private and plain http addresses before any request, and checks every redirect", async () => {
+		assert.deepEqual([fetching.FETCH_LIMITS.perHost, fetching.FETCH_LIMITS.perRun], [2, 300]);
 		robots.clearRobotsCache();
 		const log = [];
+		const fetcher = fetching.createFetcher({ fetchImpl: respond({ "https://news.example.com/a": new Response("<p>ok</p>") }, log), resolveHost: PUBLIC });
+		await fetcher.get("https://news.example.com/a");
+		assert.ok(log.every(({ headers }) => headers["user-agent"] === "FlockStack-Briefings/1.0 (+https://flockstack.io/docs/briefings-bot)"));
+		assert.ok(log.every(({ headers }) => !("cookie" in headers)));
+	});
+
+	test("refuses private and plain http addresses, names that resolve inside a network, and checks every redirect", async () => {
+		robots.clearRobotsCache();
+		const log = [];
+		const resolveHost = async (host) => ({ "inside.example.com": ["10.1.2.3"], "mixed.example.com": ["93.184.216.34", "fd00::1"], "nowhere.example.com": [] })[host] ?? ["93.184.216.34"];
 		const fetcher = fetching.createFetcher({
-			fetchImpl: respond({ "https://news.example.com/moved": new Response(null, { status: 301, headers: { location: "https://169.254.169.254/latest/meta-data" } }) }, log),
+			fetchImpl: respond({ "https://news.example.com/moved": new Response(null, { status: 301, headers: { location: "https://inside.example.com/admin" } }), "https://news.example.com/meta": new Response(null, { status: 302, headers: { location: "https://169.254.169.254/latest/meta-data" } }) }, log),
+			resolveHost,
 		});
 		await assert.rejects(fetcher.get("https://10.0.0.1/page"), /private network/);
 		await assert.rejects(fetcher.get("https://localhost/page"), /private network/);
 		await assert.rejects(fetcher.get("http://news.example.com/page"), /https/);
+		await assert.rejects(fetcher.get("https://inside.example.com/page"), /the name points inside a private network/);
+		await assert.rejects(fetcher.get("https://mixed.example.com/page"), /private network/, "every address must be public, not just the first");
+		await assert.rejects(fetcher.get("https://nowhere.example.com/page"), /doesn't resolve/);
 		assert.equal(log.length, 0);
-		await assert.rejects(fetcher.get("https://news.example.com/moved"), /redirects to an address FlockStack can't read: That address is inside a private network/);
+		await assert.rejects(fetcher.get("https://news.example.com/moved"), /the name points inside a private network/);
+		await assert.rejects(fetcher.get("https://news.example.com/meta"), /redirects to an address FlockStack can't read: That address is inside a private network/);
 		assert.deepEqual(
 			log.map(({ url }) => url),
-			["https://news.example.com/robots.txt", "https://news.example.com/moved"]
+			["https://news.example.com/robots.txt", "https://news.example.com/moved", "https://news.example.com/meta"]
 		);
+	});
+
+	test("a 401, 403 or 429 is final, and a blocked host or a robots.txt refusal is refused before the request", async () => {
+		robots.clearRobotsCache();
+		const log = [];
+		const fetcher = fetching.createFetcher({
+			fetchImpl: respond({ "https://paywall.example.com/story": new Response("no", { status: 403 }), "https://busy.example.com/story": new Response("later", { status: 429 }), "https://shy.example.com/robots.txt": new Response("User-agent: FlockStack-Briefings\nDisallow: /\n") }, log),
+			resolveHost: PUBLIC,
+			blockedHosts: ["blocked.example.com"],
+		});
+		for (const url of ["https://paywall.example.com/story", "https://busy.example.com/story"]) {
+			const error = await fetcher.get(url).catch((caught) => caught);
+			assert.equal(error.final, true);
+			assert.match(error.message, /answered (403|429)/);
+		}
+		assert.equal(log.filter(({ url }) => url.endsWith("/story")).length, 2, "each asked once");
+		await assert.rejects(fetcher.get("https://www.blocked.example.com/x"), /blocks this site/);
+		const robotsError = await fetcher.get("https://shy.example.com/story").catch((caught) => caught);
+		assert.equal(robotsError.robots, true);
+		assert.ok(!log.some(({ url }) => url.includes("blocked.example.com") || url === "https://shy.example.com/story"));
+		assert.equal(await fetcher.allowedByRobots("https://shy.example.com/other"), false);
 	});
 
 	test("asks one host for two pages at a time at most, stops at the run's cap and cuts a page over 1 MB", async () => {
@@ -146,7 +184,7 @@ describe("the fetcher", () => {
 			if (url.endsWith("/big")) return new Response("x".repeat(1_000_001));
 			return new Response("<p>ok</p>");
 		};
-		const fetcher = fetching.createFetcher({ fetchImpl, used: 290 });
+		const fetcher = fetching.createFetcher({ fetchImpl, resolveHost: PUBLIC, used: 290 });
 		await Promise.all(Array.from({ length: 6 }, (_, index) => fetcher.get(`https://one.example.com/${index}`)));
 		assert.equal(most, 2);
 		await assert.rejects(fetcher.get("https://one.example.com/big"), /over 1 MB/);
@@ -154,7 +192,31 @@ describe("the fetcher", () => {
 		await fetcher.get("https://one.example.com/7");
 		await fetcher.get("https://one.example.com/8");
 		await assert.rejects(fetcher.get("https://one.example.com/9"), /reached its 300 fetches/);
-		assert.equal(fetcher.count, 300);
+	});
+
+	test("in a Worker, a name is resolved over DNS over HTTPS", async () => {
+		const original = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+		Object.defineProperty(globalThis, "navigator", { value: { userAgent: "Cloudflare-Workers" }, configurable: true });
+		const log = [];
+		try {
+			const resolve = fetching.createResolver({
+				fetchImpl: async (url, init) => {
+					log.push({ url: String(url), accept: init.headers.accept });
+					return Response.json({ Status: 0, Answer: String(url).includes("type=AAAA") ? [{ type: 28, data: "2606:2800:220:1::1" }] : [{ type: 5, data: "cdn.example.net." }, { type: 1, data: "93.184.216.34" }] });
+				},
+			});
+			assert.deepEqual(await resolve("news.example.com"), ["93.184.216.34", "2606:2800:220:1::1"]);
+		} finally {
+			if (original) Object.defineProperty(globalThis, "navigator", original);
+			else delete globalThis.navigator;
+		}
+		assert.deepEqual(
+			log.map(({ url, accept }) => [url, accept]),
+			[
+				["https://cloudflare-dns.com/dns-query?name=news.example.com&type=A", "application/dns-json"],
+				["https://cloudflare-dns.com/dns-query?name=news.example.com&type=AAAA", "application/dns-json"],
+			]
+		);
 	});
 });
 
@@ -175,8 +237,9 @@ describe("page text", () => {
 
 describe("prices and the cost cap", () => {
 	test("the briefing's own price wins over the table, and a model in neither has none", () => {
-		assert.deepEqual(prices.findPrice({ provider: "typesafe", model: "jev-latest" }), { inputPerMillion: 0.042, outputPerMillion: 0, from: "table" });
-		assert.deepEqual(prices.findPrice({ provider: "openai", model: "gpt-4o-mini", prices: [{ model: "gpt-4o-mini", inputPerMillion: 1, outputPerMillion: 2 }] }), { inputPerMillion: 1, outputPerMillion: 2, from: "briefing" });
+		assert.deepEqual(prices.findPrice({ provider: "typesafe", model: "jev-latest" }), { inputPerMillion: 0.042, outputPerMillion: 0, from: "table", verified: true });
+		assert.equal(prices.findPrice({ provider: "openai", model: "gpt-4o-mini" }).verified, false, "every list price but Jev's is unverified");
+		assert.deepEqual(prices.findPrice({ provider: "openai", model: "gpt-4o-mini", prices: [{ model: "gpt-4o-mini", inputPerMillion: 1, outputPerMillion: 2 }] }), { inputPerMillion: 1, outputPerMillion: 2, from: "briefing", verified: false });
 		assert.equal(prices.findPrice({ provider: "openai", model: "gpt-unknown" }), null);
 		assert.equal(prices.PRICES_AS_OF, "2026-10");
 		assert.ok(Object.keys(prices.PRICE_TABLE).every((provider) => ["openai", "anthropic", "gemini", "openrouter", "groq", "together", "deepinfra", "fireworks", "mistral", "deepseek", "cloudflare", "typesafe"].includes(provider)));
@@ -333,25 +396,67 @@ describe("drafts and checks", () => {
 	});
 });
 
-describe("grouping", () => {
+describe("clustering and source labels", () => {
 	const items = [
-		{ title: "Acme raises $40 million for battery plant", url: "https://a.example.com/1", urlHash: "a", weight: 1, publisher: "A" },
-		{ title: "Acme lands $40 million to build battery plant", url: "https://b.example.com/1", urlHash: "b", weight: 2, publisher: "B" },
-		{ title: "City approves bike lanes", url: "https://c.example.com/1", urlHash: "c", weight: 1, publisher: "C" },
+		{ title: "Acme raises $40 million for battery plant", url: "https://a.example.com/1", urlHash: "a", foundBy: ["gdelt"], publisher: "A" },
+		{ title: "Acme announces $40 million for battery plant", url: "https://www.prnewswire.com/news-releases/acme.html", urlHash: "b", foundBy: ["hn"], publisher: "" },
+		{ title: "Acme raises $40 million for its battery plant", url: "https://trusted.example.org/acme", urlHash: "t", foundBy: ["gdelt", "outlet-feeds"], publisher: "T" },
+		{ title: "City approves bike lanes", url: "https://c.example.com/1", urlHash: "c", foundBy: ["gdelt"], publisher: "C" },
+		{ title: "Zinc Corp files its annual report", url: "https://www.sec.gov/Archives/edgar/data/1/zinc.htm", urlHash: "z", foundBy: ["gdelt"], publisher: "" },
 	];
 
-	test("without the binding, items sharing most of their title's words are one story, led by the weightiest", () => {
-		const stories = group.groupItems(items, null);
-		assert.equal(stories.length, 2);
-		assert.deepEqual(stories[0].items.map(({ urlHash }) => urlHash), ["b", "a"]);
-		assert.deepEqual(stories[0].sources, ["B", "A"]);
-		assert.equal(stories[0].url, "https://b.example.com/1");
+	test("sources are labelled from their address where it is plain", () => {
+		const { labelSource } = labels;
+		assert.equal(labelSource("https://www.globenewswire.com/news-release/x"), "press_release");
+		assert.equal(labelSource("https://www.businesswire.com/news/home/x"), "press_release");
+		assert.equal(labelSource("https://www.sec.gov/Archives/edgar/data/1/x.htm"), "filing");
+		assert.equal(labelSource("https://www.ftc.gov/news-events/x"), "regulator");
+		assert.equal(labelSource("https://www.gov.uk/government/news/x"), "regulator");
+		assert.equal(labelSource("https://newsroom.acme.example/acme-raises"), "company");
+		assert.equal(labelSource("https://acme.example/press-releases/series-b"), "company");
+		assert.equal(labelSource("https://news.ycombinator.com/item?id=1"), "community");
+		assert.equal(labelSource("https://news.example.com/acme"), null, "left to the extract model");
+	});
+
+	test("one story per event, its primary source independent reporting (a trusted outlet first) over the press release", () => {
+		const stories = group.clusterItems(items, null, { trustedOutlets: ["trusted.example.org"] });
+		assert.equal(stories.length, 3);
+		assert.deepEqual(
+			stories[0].sources.map(({ urlHash, sourceKind }) => [urlHash, sourceKind]),
+			[
+				["t", null],
+				["a", null],
+				["b", "press_release"],
+			]
+		);
+		assert.equal(stories[0].url, "https://trusted.example.org/acme");
+		assert.deepEqual(stories[0].foundBy, ["gdelt", "hn", "outlet-feeds"]);
+		assert.equal(stories[2].sourceKind, "filing");
+		assert.equal(labels.originLabel(stories[0].sources, "Acme"), null);
+		assert.equal(labels.originLabel([{ sourceKind: "press_release" }], "Acme Corp"), "Announced by Acme Corp");
+		assert.equal(labels.originLabel([{ sourceKind: "press_release" }, { sourceKind: "company" }], ""), "Press release");
+		assert.equal(labels.originLabel(stories[2].sources, ""), "Filing");
 	});
 
 	test("with embeddings, the similarity threshold decides", async () => {
-		const ai = { run: async (model, { text: list }) => ({ data: list.map((value) => (value.startsWith("City") ? [0, 1] : value.includes("raises") ? [1, 0] : [0.8, 0.6])) }) };
-		const vectors = await group.embedItems(ai, items);
-		assert.ok(group.cosine(vectors[0], vectors[1]) < group.SIMILARITY);
-		assert.equal(group.groupItems(items, vectors).length, 3);
+		const ai = { run: async (model, { text: list }, options) => ({ model, options, data: list.map((value) => (value.startsWith("City") ? [0, 1] : value.includes("raises $40 million for battery") ? [1, 0] : [0.8, 0.6])) }) };
+		const vectors = await group.embedTexts(ai, items.map(group.embeddingText));
+		assert.ok(rank.cosine(vectors[0], vectors[1]) < group.SIMILARITY);
+		assert.equal(group.clusterItems(items, vectors).length, 3);
+	});
+
+	test("a press-release-only story is labelled in the issue by code: under a full story's heading, at a brief item's start", () => {
+		const markdown = "## Zinc opens a line\n\nZinc opened a line [1].\n\n## In brief\n\n- Acme filed its report [2]\n- Bikes [3]";
+		const labelled = write.labelOrigins(markdown, [
+			{ n: 1, kind: "full", origin: "Announced by Zinc Corp" },
+			{ n: 2, kind: "brief", origin: "Filing" },
+			{ n: 3, kind: "brief", origin: null },
+		]);
+		assert.equal(labelled, "## Zinc opens a line\n\n*Announced by Zinc Corp*\n\nZinc opened a line [1].\n\n## In brief\n\n- *Filing:* Acme filed its report [2]\n- Bikes [3]");
+		assert.deepEqual(
+			write.draftParagraphs(labelled).map(({ cites }) => cites),
+			[[1], [2], [3]],
+			"the label is no claim, and each brief bullet is a claim of its own"
+		);
 	});
 });

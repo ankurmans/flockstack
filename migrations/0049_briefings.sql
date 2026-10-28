@@ -25,5 +25,5 @@ CREATE INDEX IF NOT EXISTS i_briefingverdicts__briefingId__decidedAt_d ON c_brie
 CREATE UNIQUE INDEX IF NOT EXISTS u_briefingverdicts__linkId ON c_briefingverdicts (json_extract(data, '$.linkId') ASC) WHERE json_type(data, '$.linkId') = 'text';
 CREATE TABLE IF NOT EXISTS c_discoveryusages (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS i_discoveryusages__accountId ON c_discoveryusages (accountId);
-CREATE UNIQUE INDEX IF NOT EXISTS u_discoveryusages__provider__keyId__operation__window__windowStart ON c_discoveryusages (json_extract(data, '$.provider') ASC, IFNULL(json_extract(data, '$.keyId'), '') ASC, json_extract(data, '$.operation') ASC, json_extract(data, '$.window') ASC, json_extract(data, '$.windowStart') ASC);
+CREATE UNIQUE INDEX IF NOT EXISTS u_discoveryusages__accountId__provider__keyId__operation__window__windowStart ON c_discoveryusages (accountId ASC, json_extract(data, '$.provider') ASC, IFNULL(json_extract(data, '$.keyId'), '') ASC, json_extract(data, '$.operation') ASC, json_extract(data, '$.window') ASC, json_extract(data, '$.windowStart') ASC);
 CREATE INDEX IF NOT EXISTS i_discoveryusages__windowStart ON c_discoveryusages (json_extract(data, '$.windowStart') ASC);

@@ -18,7 +18,7 @@ const discoveryUsageSchema = new mongoose.Schema(
 );
 
 discoveryUsageSchema.plugin(accountScoped);
-discoveryUsageSchema.index({ provider: 1, keyId: 1, operation: 1, window: 1, windowStart: 1 }, { unique: true });
+discoveryUsageSchema.index({ accountId: 1, provider: 1, keyId: 1, operation: 1, window: 1, windowStart: 1 }, { unique: true });
 discoveryUsageSchema.index({ windowStart: 1 });
 
 export default mongoose.models.DiscoveryUsage || mongoose.model("DiscoveryUsage", discoveryUsageSchema);

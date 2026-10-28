@@ -66,7 +66,9 @@ export default async function BriefingPage({ params }) {
 								{runs.map((run) => (
 									<TableRow key={run.id}>
 										<TableCell className="py-3 pl-4 text-muted-foreground tabular-nums">
-											<TimeLocal value={run.startedAt ?? run.createdAt} options={WHEN} />
+											<Link href={`/briefings/${id}/runs/${run.id}`} className="hover:underline">
+												<TimeLocal value={run.startedAt ?? run.createdAt} options={WHEN} />
+											</Link>
 											{run.isManual && <span className="block text-xs">Run by hand</span>}
 										</TableCell>
 										<TableCell className="max-w-0">

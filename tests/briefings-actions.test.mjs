@@ -5,11 +5,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { as, callApi, withEnv } from "./helpers/app.mjs";
 import { setupAudienceTests } from "./helpers/audience.mjs";
 
-// Briefings' actions (docs/BRIEFINGS-DESIGN.md, Actions): sources, schedule, steps on the account's own AI keys, runs asked for
-// and read back, over REST and the dashboard's server actions. The engine itself is tests/briefings-engine*.
+// Briefings' actions (docs/BRIEFINGS-DESIGN.md, Actions): a brief instead of sources, discovery on the account's own search key,
+// schedule, steps on its own AI keys, runs asked for and read back, the owner's keep or drop on each story, over REST, the dashboard's
+// server actions and the confirmation page of the owner's email links. The engine itself is tests/briefings-engine*.
 
 const SECRET = "sk-MADEUP-briefings-0123456789SECRET";
-const FEED = "https://news.example.com/feed.xml";
+const BRIEF = { topic: "Battery manufacturing in Europe", audience: "Engineers at small battery companies", useful: "New plants, prices and rules" };
 const AT = (text) => new Date(text);
 
 let t;
@@ -21,13 +22,48 @@ async function addKey(user, provider, key = `${SECRET}-${provider}`) {
 	return response.body;
 }
 
-function allSteps(writer, checker, { writeModel = "gpt-4.1-mini", checkModel = "gpt-4.1-nano" } = {}) {
+async function addSearchKey(user, provider = "tinyfish") {
+	const response = await t.api(user.key, "POST", "/ai-keys", { name: `${provider} key`, provider, key: `${SECRET}-${provider}`, ...(provider === "candidate-feed" && { baseUrl: "https://feed.example.com/candidates" }) });
+	assert.equal(response.status, 201, JSON.stringify(response.body));
+	return response.body;
+}
+
+function allSteps(writer, checker, { writeModel = "gpt-4.1-mini", checkModel = "gpt-4.1-nano", translate = false } = {}) {
 	return {
+		query: { keyId: writer.id, model: writeModel },
 		triage: { keyId: writer.id, model: writeModel },
 		extract: { keyId: writer.id, model: writeModel },
 		write: { keyId: writer.id, model: writeModel },
 		check: { keyId: checker.id, model: checkModel },
+		...(translate && { translate: { keyId: writer.id, model: writeModel } }),
 	};
+}
+
+// A finished run as the engine leaves it, with two stories and the ranker's features on each.
+function makeRun(user, briefing, fields = {}) {
+	return m.BriefingRun.create({
+		accountId: user.accountId,
+		briefingId: briefing.id,
+		newsletterId: briefing.newsletterId,
+		slot: "2026-10-27",
+		stage: "done",
+		status: "drafted",
+		counts: { queries: 12, results: 90, candidates: 70, fresh: 40, groups: 30, shortlisted: 20, picked: 2 },
+		queries: [{ text: "battery plant europe", angle: "plants" }],
+		discoveryNotes: [{ provider: "tinyfish", problem: "Hourly limit reached", scope: "hour", until: AT("2026-10-27T06:00:00Z") }],
+		stories: [
+			{ storyKey: "a".repeat(64), externalId: "briefing:x:a", kind: "full", title: "A plant opened in Ohio", url: "https://www.news.example.com/ohio", sourceKind: "reporting", score: 82, foundBy: ["gdelt"], sources: [], features: { relevance: 0.9, novelty: 0.4 } },
+			{ storyKey: "b".repeat(64), externalId: "briefing:x:b", kind: "brief", title: "Prices fell", url: "https://prices.example.org/fell", sourceKind: "press_release", score: 61, foundBy: ["hn"], sources: [], features: { relevance: 0.6 } },
+		],
+		costUsd: 0.0049,
+		checks: [{ id: "numbers", status: "pass", message: "Every number is in its source" }, { id: "length", status: "warning", message: "A little long" }],
+		thin: true,
+		heldReason: "review_mode",
+		startedAt: AT("2026-10-27T05:00:00Z"),
+		createdAt: AT("2026-10-27T05:00:00Z"),
+		work: { draft: "WORKING_DATA" },
+		...fields,
+	});
 }
 
 before(async () => {
@@ -43,6 +79,12 @@ before(async () => {
 		Briefing: (await import("../models/Briefing.js")).default,
 		BriefingRun: (await import("../models/BriefingRun.js")).default,
 		BriefingSeen: (await import("../models/BriefingSeen.js")).default,
+		BriefingVerdict: (await import("../models/BriefingVerdict.js")).default,
+		BriefingPublisher: (await import("../models/BriefingPublisher.js")).default,
+		runPage: await import("../app/(app)/briefings/[id]/runs/[runId]/page.js"),
+		verdictPage: await import("../app/briefing-verdict/[token]/page.js"),
+		verdictActions: await import("../app/briefing-verdict/actions.js"),
+		links: await import("../lib/briefing-verdict-links.js"),
 		TeamSeat: (await import("../models/TeamSeat.js")).default,
 	};
 });
@@ -73,36 +115,50 @@ describe("the schedule", () => {
 	});
 });
 
+
 describe("managing a briefing", () => {
 	let user;
 	let openai;
 	let groq;
+	let search;
 
 	before(async () => {
 		user = await t.customer("briefings-manage@example.com");
 		openai = await addKey(user, "openai");
 		groq = await addKey(user, "groq");
+		search = await addSearchKey(user);
 	});
 
-	test("created paused with the defaults, a stable id per source and the owner as test email", async () => {
+	test("created paused with the defaults, a brief instead of sources, hosts as lower-case names and the owner as test email", async () => {
 		const created = await t.api(user.key, "POST", "/briefings", {
 			name: "Morning briefing",
-			sources: [{ kind: "feed", url: FEED, label: "News" }, { kind: "page", url: "https://blog.example.com/" }],
+			brief: { ...BRIEF, examples: [{ url: "https://news.example.com/a-good-one", note: "Numbers and a named source" }] },
+			trustedOutlets: ["News.Example.com", "www.blog.example.org.", "news.example.com"],
+			blockedHosts: ["paywalled.example.net"],
 			schedule: { days: [5, 1, 1], timeZone: "europe/paris" },
 		});
 		assert.equal(created.status, 201, JSON.stringify(created.body));
 		const briefing = created.body;
-		assert.deepEqual([briefing.status, briefing.nextRunAt, briefing.reviewMode, briefing.maxStories, briefing.minScore, briefing.budgetUsd], ["paused", null, "draft", 6, 60, 0.25]);
+		assert.deepEqual([briefing.status, briefing.nextRunAt, briefing.reviewMode, briefing.minScore, briefing.budgetUsd], ["paused", null, "draft", 60, 0.25]);
+		assert.deepEqual(briefing.brief, { ...BRIEF, examples: [{ url: "https://news.example.com/a-good-one", note: "Numbers and a named source" }] });
+		assert.deepEqual(briefing.trustedOutlets, ["news.example.com", "blog.example.org"]);
+		assert.deepEqual(briefing.blockedHosts, ["paywalled.example.net"]);
+		assert.deepEqual(briefing.discovery, { searchKey: null, candidateFeedKey: null, maxQueries: 16, resultsPerQuery: 10, maxCandidates: 300, shortlist: 40, followLinks: 5, discoveryBudgetUsd: 0 });
+		assert.deepEqual(briefing.stories, { minFull: 6, maxFull: 10, briefItems: 10 });
+		assert.deepEqual(briefing.stepBudgets, { query: 5, triage: 10, extract: 35, write: 20, check: 15, translate: 15 });
 		assert.deepEqual(briefing.schedule, { days: [1, 5], time: "06:00", timeZone: "Europe/Paris" });
-		assert.deepEqual(briefing.languages, ["en"]);
 		assert.equal(briefing.testEmail, "briefings-manage@example.com");
-		assert.deepEqual(briefing.steps, { triage: null, extract: null, write: null, check: null });
-		assert.equal(briefing.sources.length, 2);
-		for (const source of briefing.sources) assert.match(source.id, /^src_[a-f0-9]{10}$/);
+		assert.deepEqual(Object.keys(briefing.steps), ["query", "triage", "extract", "write", "check", "translate"]);
+		assert.ok(Object.values(briefing.steps).every((step) => step === null));
+		assert.equal("sources" in briefing, false);
 
-		const again = await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { sources: [{ kind: "page", url: "https://blog.example.com/" }, { kind: "url", url: "https://example.com/pricing", id: "pricing" }] });
-		assert.equal(again.body.sources[0].id, briefing.sources[1].id, "an address keeps its id");
-		assert.equal(again.body.sources[1].id, "pricing");
+		const changed = await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { brief: { topic: "Batteries" }, discovery: { searchKeyId: search.id, maxQueries: 20 }, stories: { briefItems: 0 } });
+		assert.equal(changed.status, 200, JSON.stringify(changed.body));
+		assert.deepEqual([changed.body.brief.topic, changed.body.brief.audience, changed.body.brief.examples.length], ["Batteries", BRIEF.audience, 1], "the brief keeps what the change leaves out");
+		assert.deepEqual(changed.body.discovery.searchKey, { keyId: search.id, keyName: "tinyfish key", keyHint: search.hint, provider: "tinyfish" });
+		assert.deepEqual([changed.body.discovery.maxQueries, changed.body.discovery.shortlist, changed.body.stories.briefItems, changed.body.stories.maxFull], [20, 40, 0, 10]);
+		assert.ok(!JSON.stringify(changed.body).includes(SECRET));
+		assert.equal((await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { discovery: { searchKeyId: null } })).body.discovery.searchKey, null);
 
 		t.assertError(await t.api(user.key, "POST", "/briefings", { name: "Second" }), 409, "conflict");
 		const other = await t.customer("briefings-other@example.com");
@@ -117,67 +173,81 @@ describe("managing a briefing", () => {
 		const other = await t.customer("briefings-foreign@example.com");
 		const foreign = await addKey(other, "openai");
 		const typesafe = await addKey(user, "typesafe");
+		const feed = await addSearchKey(user, "candidate-feed");
 		const refusals = [
-			[{ sources: [{ kind: "feed", url: "http://news.example.com/feed" }] }, /Source 1: .*https/],
-			[{ sources: [{ kind: "feed", url: "https://192.168.1.4/feed" }] }, /Source 1: .*private network/],
-			[{ sources: [{ kind: "feed", url: FEED }, { kind: "page", url: FEED }] }, /Source 2: .*already/],
-			[{ sources: Array.from({ length: 101 }, (_, index) => ({ kind: "feed", url: `https://news.example.com/${index}` })) }, /sources/],
-			[{ sources: [{ kind: "rss", url: FEED }] }, /kind/],
+			[{ brief: { examples: [{ url: "http://news.example.com/a" }] } }, /Example 1: .*https/],
+			[{ brief: { examples: [{ url: "https://192.168.1.4/a" }] } }, /Example 1: .*private network/],
+			[{ brief: { examples: Array.from({ length: 11 }, (_, index) => ({ url: `https://news.example.com/${index}` })) } }, /examples/],
+			[{ brief: { topic: "a".repeat(501) } }, /topic/],
+			[{ brief: { useful: "a".repeat(2001) } }, /useful/],
+			[{ trustedOutlets: ["https://news.example.com/"] }, /Trusted outlet 1: write a host name/],
+			[{ blockedHosts: ["example.com/path"] }, /Blocked host 1/],
+			[{ trustedOutlets: Array.from({ length: 51 }, (_, index) => `n${index}.example.com`) }, /trustedOutlets/],
+			[{ discovery: { maxQueries: 41 } }, /maxQueries/],
+			[{ discovery: { shortlist: 81 } }, /shortlist/],
+			[{ discovery: { discoveryBudgetUsd: 21 } }, /discoveryBudgetUsd/],
+			[{ discovery: { searchKeyId: openai.id } }, /needs a TinyFish key, not a model key/],
+			[{ discovery: { searchKeyId: feed.id } }, /needs a TinyFish key/],
+			[{ discovery: { candidateFeedKeyId: search.id } }, /needs a candidate feed key/],
+			[{ discovery: { searchKeyId: foreign.id } }, /isn't one of this account's/],
+			[{ stories: { minFull: 8, maxFull: 4 } }, /minFull can't be more than stories.maxFull/],
+			[{ stories: { maxFull: 16 } }, /maxFull/],
+			[{ stories: { briefItems: 21 } }, /briefItems/],
+			[{ stepBudgets: { query: 10 } }, /add up to 100, not 105/],
 			[{ schedule: { days: [0] } }, /days/],
 			[{ schedule: { time: "6am" } }, /time/],
-			[{ schedule: { timeZone: "Mars/Olympus" } }, /time zone/],
 			[{ languages: ["xx"] }, /languages/],
-			[{ languages: [] }, /languages/],
-			[{ maxStories: 16 }, /maxStories/],
-			[{ minScore: 101 }, /minScore/],
 			[{ budgetUsd: 0 }, /budgetUsd/],
-			[{ budgetUsd: 20.01 }, /budgetUsd/],
-			[{ audience: "a".repeat(2001) }, /audience/],
-			[{ styleGuide: "a".repeat(8001) }, /styleGuide/],
 			[{ reviewMode: "send_if_checks_pass" }, /isn't available yet/],
 			[{ testEmail: "stranger@example.org" }, /team/],
 			[{ steps: { triage: { keyId: foreign.id, model: "gpt-4.1-mini" } } }, /isn't one of this account's/],
-			[{ steps: { write: { keyId: typesafe.id, model: "jev-latest" } } }, /TypeSafe key can score stories and check claims, not write/],
-			[{ steps: { extract: { keyId: typesafe.id, model: "jev-latest" } } }, /not extract/],
+			[{ steps: { query: { keyId: search.id, model: "x" } } }, /needs a model key, not a search key/],
+			[{ steps: { write: { keyId: typesafe.id, model: "jev-latest" } } }, /TypeSafe key can score stories and check claims, not write text/],
+			[{ steps: { query: { keyId: typesafe.id, model: "jev-latest" } } }, /not write text: choose another key for the query step/],
+			[{ steps: { translate: { keyId: typesafe.id, model: "jev-latest" } } }, /translate step/],
 			[{ steps: { write: { keyId: openai.id, model: "gpt-4.1" }, check: { keyId: openai.id, model: "GPT-4.1" } } }, /another model than the write step/],
-			[{ status: "active" }, /all four steps/],
+			[{ status: "active" }, /query, triage, extract, write, check steps/],
 		];
 		for (const [body, pattern] of refusals) {
 			const response = await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, body);
 			assert.match(t.assertError(response, 400, "validation_failed"), pattern, JSON.stringify(body).slice(0, 80));
 		}
+		assert.equal((await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { stepBudgets: { query: 10, extract: 30 } })).status, 200, "shares that add up to 100");
+		assert.equal((await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { discovery: { candidateFeedKeyId: feed.id } })).body.discovery.candidateFeedKey.provider, "candidate-feed");
 		const sameModelOtherProvider = await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { steps: { write: { keyId: openai.id, model: "llama-3.3-70b" }, check: { keyId: groq.id, model: "llama-3.3-70b" } } });
 		assert.equal(sameModelOtherProvider.status, 200, "the same name at another provider is another model");
 		const typesafeCheck = await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { steps: { triage: { keyId: typesafe.id, model: "jev-latest" }, check: { keyId: typesafe.id, model: "jev-latest" } } });
 		assert.equal(typesafeCheck.status, 200, JSON.stringify(typesafeCheck.body));
 		await m.TeamSeat.create({ accountId: user.accountId, email: "editor@briefings-manage.example.com", role: "editor", status: "active" });
 		assert.equal((await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { testEmail: "Editor@briefings-manage.example.com" })).body.testEmail, "editor@briefings-manage.example.com");
-		await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { steps: { triage: null, extract: null, write: null, check: null } });
+		await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { steps: Object.fromEntries(["query", "triage", "extract", "write", "check", "translate"].map((step) => [step, null])), discovery: { candidateFeedKeyId: null } });
 	});
 
-	test("turned on with all four steps it has a next run; paused it has none; resumed it has one again; the steps show keys by name", async () => {
+	test("turned on it needs a topic and the steps it uses, translate only with more than one language; paused, resumed, and keys in use stay", async () => {
 		const [briefing] = (await t.api(user.key, "GET", "/briefings")).body.briefings;
-		const on = await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { steps: allSteps(openai, groq, { checkModel: "llama-3.3-70b" }), status: "active", schedule: { days: [1, 2, 3, 4, 5, 6, 7], time: "07:30", timeZone: "UTC" } });
+		const noTopic = await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { brief: { topic: " " }, steps: allSteps(openai, groq, { checkModel: "llama-3.3-70b" }), status: "active" });
+		assert.match(t.assertError(noTopic, 400, "validation_failed"), /topic/);
+		const french = await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { brief: { topic: "Batteries" }, languages: ["en", "fr"], steps: allSteps(openai, groq, { checkModel: "llama-3.3-70b" }), status: "active" });
+		assert.match(t.assertError(french, 400, "validation_failed"), /translate step/);
+		const on = await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { brief: { topic: "Batteries" }, languages: ["en"], discovery: { searchKeyId: search.id }, steps: allSteps(openai, groq, { checkModel: "llama-3.3-70b" }), status: "active", schedule: { days: [1, 2, 3, 4, 5, 6, 7], time: "07:30", timeZone: "UTC" } });
 		assert.equal(on.status, 200, JSON.stringify(on.body));
-		assert.equal(on.body.status, "active");
 		const next = new Date(on.body.nextRunAt);
 		assert.ok(next > new Date() && next - Date.now() <= 86_400_000);
 		assert.equal(next.toISOString().slice(11, 16), "07:30");
 		assert.deepEqual(on.body.steps.write, { keyId: openai.id, keyName: "openai key", keyHint: openai.hint, provider: "openai", model: "gpt-4.1-mini" });
-		assert.ok(!JSON.stringify(on.body).includes(SECRET));
-		assert.ok(!JSON.stringify((await t.api(user.key, "GET", `/briefings/${briefing.id}`)).body).includes(SECRET));
+		assert.equal(on.body.steps.translate, null);
+		const translated = await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { languages: ["en", "fr"], steps: { translate: { keyId: openai.id, model: "gpt-4.1-mini" } } });
+		assert.equal(translated.status, 200, JSON.stringify(translated.body));
 
 		const paused = await t.api(user.key, "POST", `/briefings/${briefing.id}/pause`);
 		assert.deepEqual([paused.body.status, paused.body.nextRunAt], ["paused", null]);
 		const resumed = await t.api(user.key, "POST", `/briefings/${briefing.id}/resume`);
 		assert.equal(resumed.body.status, "active");
 		assert.ok(new Date(resumed.body.nextRunAt) > new Date());
-		const moved = await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { schedule: { time: "05:00" } });
-		assert.equal(new Date(moved.body.nextRunAt).toISOString().slice(11, 16), "05:00");
 
-		const used = await t.api(user.key, "DELETE", `/ai-keys/${openai.id}`);
-		assert.match(t.assertError(used, 409, "conflict"), /A briefing uses this key/);
-		assert.equal((await t.api(user.key, "GET", "/ai-keys")).body.keys.find(({ id }) => id === openai.id).usedBy, 1);
+		assert.match(t.assertError(await t.api(user.key, "DELETE", `/ai-keys/${openai.id}`), 409, "conflict"), /A briefing uses this key/);
+		assert.match(t.assertError(await t.api(user.key, "DELETE", `/ai-keys/${search.id}`), 409, "conflict"), /steps or discovery/, "a search key in use stays too");
+		assert.equal((await t.api(user.key, "GET", "/ai-keys")).body.keys.find(({ id }) => id === search.id).usedBy, 1);
 	});
 
 	test("run_briefing answers unavailable where the engine doesn't run, and queues a manual run where it does", async () => {
@@ -193,58 +263,131 @@ describe("managing a briefing", () => {
 		await withEnv({ BRIEFINGS_IN_CRON: "true" }, async () => {
 			const bare = await t.api(user.key, "POST", "/briefings", { newsletter: (await m.Newsletter.create({ accountId: user.accountId, name: "Second", slug: "briefings-second", fromName: "x", fromEmail: "x@briefings-second.flockstackmail.com" }))._id.toString(), name: "Bare" });
 			assert.equal(bare.status, 201, JSON.stringify(bare.body));
-			assert.match(t.assertError(await t.api(user.key, "POST", `/briefings/${bare.body.id}/run`), 400, "validation_failed"), /all four steps|source/);
+			assert.match(t.assertError(await t.api(user.key, "POST", `/briefings/${bare.body.id}/run`), 400, "validation_failed"), /topic/);
 		});
 	});
 
-	test("runs are listed newest first and read one by one, never with their working data", async () => {
+	test("runs are listed newest first and read one by one, with discovery's notes and the stories, never with their working data", async () => {
 		const [briefing] = (await t.api(user.key, "GET", "/briefings")).body.briefings;
-		const base = { accountId: user.accountId, briefingId: briefing.id, newsletterId: briefing.newsletterId };
-		const older = await m.BriefingRun.create({ ...base, slot: "2026-10-26", stage: "done", status: "no_news", startedAt: AT("2026-10-26T05:00:00Z"), createdAt: AT("2026-10-26T05:00:00Z"), work: { items: ["WORKING_DATA"] } });
-		const newer = await m.BriefingRun.create({
-			...base,
-			slot: "2026-10-27",
-			stage: "done",
-			status: "drafted",
-			counts: { sources: 2, fetched: 40, fresh: 12, groups: 8, picked: 3 },
-			stories: [{ externalId: "briefing:x:1", title: "A story", url: "https://news.example.com/a", score: 82, sources: ["src_1"] }],
-			calls: [{ step: "write", provider: "openai", model: "gpt-4.1-mini", inputTokens: 9000, outputTokens: 800, costUsd: 0.0049, costFrom: "price_table" }],
-			costUsd: 0.0049,
-			checks: [{ id: "numbers", status: "pass", message: "Every number is in its source" }, { id: "length", status: "warning", message: "A little long" }],
-			startedAt: AT("2026-10-27T05:00:00Z"),
-			createdAt: AT("2026-10-27T05:00:00Z"),
-			work: { draft: "WORKING_DATA" },
-		});
+		const older = await makeRun(user, briefing, { slot: "2026-10-26", status: "no_news", stories: [], startedAt: AT("2026-10-26T05:00:00Z"), createdAt: AT("2026-10-26T05:00:00Z") });
+		const newer = await makeRun(user, briefing);
 		const listed = await t.api(user.key, "GET", `/briefings/${briefing.id}/runs`);
 		assert.deepEqual(listed.body.runs.map(({ id }) => id), [String(newer._id), String(older._id)]);
 		assert.deepEqual((await t.api(user.key, "GET", `/briefings/${briefing.id}/runs?limit=1`)).body.runs.map(({ id }) => id), [String(newer._id)]);
-		const one = await t.api(user.key, "GET", `/briefing-runs/${newer._id}`);
-		assert.deepEqual([one.body.status, one.body.counts.picked, one.body.costUsd, one.body.checks.length], ["drafted", 3, 0.0049, 2]);
-		for (const body of [listed.body, one.body, (await t.api(user.key, "GET", `/briefings/${briefing.id}`)).body]) {
+		const one = (await t.api(user.key, "GET", `/briefing-runs/${newer._id}`)).body;
+		assert.deepEqual([one.status, one.counts.shortlisted, one.costUsd, one.checks.length, one.thin, one.heldReason], ["drafted", 20, 0.0049, 2, true, "review_mode"]);
+		assert.deepEqual(one.queries, [{ text: "battery plant europe", angle: "plants" }]);
+		assert.deepEqual(one.discoveryNotes, [{ provider: "tinyfish", problem: "Hourly limit reached", scope: "hour", until: "2026-10-27T06:00:00.000Z" }]);
+		assert.deepEqual(one.stories.map(({ storyKey, kind, sourceKind, verdict }) => [storyKey.slice(0, 1), kind, sourceKind, verdict]), [["a", "full", "reporting", null], ["b", "brief", "press_release", null]]);
+		for (const body of [listed.body, one, (await t.api(user.key, "GET", `/briefings/${briefing.id}`)).body]) {
 			assert.ok(!JSON.stringify(body).includes("WORKING_DATA"));
 			assert.ok(!JSON.stringify(body).includes('"work"'));
+			assert.ok(!JSON.stringify(body).includes('"features"'), "what the ranker saw stays inside");
 		}
-		assert.equal((await t.api(user.key, "GET", `/briefings/${briefing.id}`)).body.lastRun.id, String(newer._id));
 		const other = await t.customer("briefings-runs-other@example.com");
 		t.assertError(await t.api(other.key, "GET", `/briefing-runs/${newer._id}`), 404, "not_found");
 	});
 
-	test("deleting a briefing takes its runs and memory with it, and frees its keys", async () => {
+	test("rate_briefing_story saves the verdict with the ranker's features, counts it for the host once, and a new verdict replaces it", async () => {
+		const [briefing] = (await t.api(user.key, "GET", "/briefings")).body.briefings;
+		const run = await makeRun(user, briefing, { slot: "2026-10-28" });
+		const key = "a".repeat(64);
+		const kept = await t.api(user.key, "POST", `/briefing-runs/${run._id}/stories/${key}/verdict`, { verdict: "keep" });
+		assert.equal(kept.status, 200, JSON.stringify(kept.body));
+		assert.deepEqual([kept.body.runId, kept.body.storyKey, kept.body.verdict], [String(run._id), key, "keep"]);
+		const saved = await m.BriefingVerdict.findOne({ accountId: user.accountId, runId: run._id, storyKey: key }).lean();
+		assert.deepEqual([saved.verdict, saved.url, saved.features, String(saved.briefingId)], ["keep", "https://www.news.example.com/ohio", { relevance: 0.9, novelty: 0.4 }, briefing.id]);
+		const host = () => m.BriefingPublisher.findOne({ accountId: user.accountId, briefingId: briefing.id, host: "news.example.com" }).lean();
+		assert.deepEqual([(await host()).kept, (await host()).dropped], [1, 0]);
+		await t.api(user.key, "POST", `/briefing-runs/${run._id}/stories/${key}/verdict`, { verdict: "keep" });
+		assert.deepEqual([(await host()).kept, (await host()).dropped], [1, 0], "the same verdict again counts nothing");
+		await t.api(user.key, "POST", `/briefing-runs/${run._id}/stories/${key}/verdict`, { verdict: "drop" });
+		assert.deepEqual([(await host()).kept, (await host()).dropped], [0, 1]);
+		assert.equal(await m.BriefingVerdict.countDocuments({ accountId: user.accountId, runId: run._id }), 1);
+		assert.equal((await t.api(user.key, "GET", `/briefing-runs/${run._id}`)).body.stories[0].verdict, "drop");
+
+		t.assertError(await t.api(user.key, "POST", `/briefing-runs/${run._id}/stories/${"c".repeat(64)}/verdict`, { verdict: "keep" }), 404, "not_found");
+		t.assertError(await t.api(user.key, "POST", `/briefing-runs/${run._id}/stories/${key}/verdict`, { verdict: "maybe" }), 400, "validation_failed");
+		const other = await t.customer("briefings-rate-other@example.com");
+		t.assertError(await t.api(other.key, "POST", `/briefing-runs/${run._id}/stories/${key}/verdict`, { verdict: "keep" }), 404, "not_found");
+		const drafts = await t.createKey(user, "drafts");
+		assert.equal((await t.api(drafts, "POST", `/briefing-runs/${run._id}/stories/${"b".repeat(64)}/verdict`, { verdict: "keep" })).status, 200, "a drafts key may rate");
+	});
+
+	test("deleting a briefing takes its runs, memory, verdicts and publishers with it, and frees its keys", async () => {
 		const [briefing] = (await t.api(user.key, "GET", "/briefings")).body.briefings;
 		await m.BriefingSeen.create({ accountId: user.accountId, briefingId: briefing.id, urlHash: "a".repeat(64), firstSeenAt: new Date() });
 		assert.deepEqual((await t.api(user.key, "DELETE", `/briefings/${briefing.id}`)).body, { id: briefing.id, deleted: true });
-		assert.equal(await m.BriefingRun.countDocuments({ accountId: user.accountId, briefingId: briefing.id }), 0);
-		assert.equal(await m.BriefingSeen.countDocuments({ accountId: user.accountId, briefingId: briefing.id }), 0);
+		for (const Model of [m.BriefingRun, m.BriefingSeen, m.BriefingVerdict, m.BriefingPublisher]) assert.equal(await Model.countDocuments({ accountId: user.accountId, briefingId: briefing.id }), 0, Model.modelName);
 		assert.equal((await t.api(user.key, "DELETE", `/ai-keys/${openai.id}`)).status, 200);
+		assert.equal((await t.api(user.key, "DELETE", `/ai-keys/${search.id}`)).status, 200);
+	});
+});
+
+describe("verdict links", () => {
+	let user;
+	let briefing;
+	let run;
+	const KEY = "a".repeat(64);
+
+	before(async () => {
+		user = await t.customer("briefings-links@example.com");
+		briefing = (await t.api(user.key, "POST", "/briefings", { name: "Linked briefing", brief: BRIEF })).body;
+		run = await makeRun(user, briefing);
+	});
+
+	test("are signed, single-purpose and expire after 14 days", () => {
+		const token = m.links.createVerdictToken({ accountId: user.accountId, runId: run._id, storyKey: KEY, verdict: "keep" });
+		const link = m.links.verifyVerdictToken(token);
+		assert.deepEqual([link.accountId, link.runId, link.storyKey, link.verdict], [String(user.accountId), String(run._id), KEY, "keep"]);
+		assert.match(link.linkId, /^[A-Za-z0-9_-]{16}$/);
+		assert.notEqual(m.links.verifyVerdictToken(m.links.createVerdictToken({ accountId: user.accountId, runId: run._id, storyKey: KEY, verdict: "keep" })).linkId, link.linkId, "each link has its own id");
+		const [payload, signature] = token.split(".");
+		const forged = Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(payload, "base64url")), v: "drop" })).toString("base64url");
+		assert.equal(m.links.verifyVerdictToken(`${forged}.${signature}`), null, "a changed verdict breaks the signature");
+		assert.equal(m.links.verifyVerdictToken(token, Date.now() + 15 * 86_400_000), null);
+		assert.equal(m.links.getVerdictLinkUrl("https://app.example.com/", token), `https://app.example.com/briefing-verdict/${token}`);
+	});
+
+	test("opening one records nothing; its button records the verdict once, and a second press says it is already recorded", async () => {
+		const { anonymous, catchRedirect, form } = await import("./helpers/app.mjs");
+		const token = m.links.createVerdictToken({ accountId: user.accountId, runId: run._id, storyKey: KEY, verdict: "drop" });
+		const open = () => anonymous(async () => renderToStaticMarkup(await m.verdictPage.default({ params: Promise.resolve({ token }), searchParams: Promise.resolve({}) })));
+		const page = await open();
+		assert.match(page, /Drop this story\?/);
+		assert.match(page, /A plant opened in Ohio/);
+		assert.match(page, /Linked briefing/);
+		assert.match(page, new RegExp(`name="token" value="${token.replace(/[.]/g, "\\.")}"`));
+		await open();
+		assert.equal(await m.BriefingVerdict.countDocuments({ accountId: user.accountId, runId: run._id }), 0, "a GET, a scanner or a preview records nothing");
+		assert.deepEqual(m.verdictPage.metadata.robots, { index: false, follow: false });
+		assert.equal(m.verdictPage.metadata.referrer, "no-referrer");
+		assert.equal(m.verdictPage.dynamic, "force-dynamic");
+
+		const pressed = await anonymous(() => catchRedirect(m.verdictActions.confirmVerdict(form({ token }))));
+		assert.equal(pressed, `/briefing-verdict/${token}?result=recorded`);
+		const saved = await m.BriefingVerdict.findOne({ accountId: user.accountId, runId: run._id, storyKey: KEY }).lean();
+		assert.deepEqual([saved.verdict, saved.decidedBy, saved.features], ["drop", "email-link", { relevance: 0.9, novelty: 0.4 }]);
+		assert.equal(saved.linkId, m.links.verifyVerdictToken(token).linkId);
+		assert.equal((await m.BriefingPublisher.findOne({ accountId: user.accountId, briefingId: briefing.id, host: "news.example.com" }).lean()).dropped, 1);
+
+		assert.equal(await anonymous(() => catchRedirect(m.verdictActions.confirmVerdict(form({ token })))), `/briefing-verdict/${token}?result=already`);
+		const keep = m.links.createVerdictToken({ accountId: user.accountId, runId: run._id, storyKey: KEY, verdict: "keep" });
+		assert.equal(await anonymous(() => catchRedirect(m.verdictActions.confirmVerdict(form({ token: keep })))), `/briefing-verdict/${keep}?result=already`, "the other link doesn't overturn a verdict either");
+		assert.equal((await m.BriefingVerdict.findOne({ accountId: user.accountId, runId: run._id, storyKey: KEY }).lean()).verdict, "drop");
+		assert.equal((await m.BriefingPublisher.findOne({ accountId: user.accountId, briefingId: briefing.id, host: "news.example.com" }).lean()).dropped, 1);
+		assert.match(await anonymous(async () => renderToStaticMarkup(await m.verdictPage.default({ params: Promise.resolve({ token: keep }), searchParams: Promise.resolve({ result: "already" }) }))), /Already recorded/);
+
+		const bad = await anonymous(async () => renderToStaticMarkup(await m.verdictPage.default({ params: Promise.resolve({ token: `${token}x` }), searchParams: Promise.resolve({}) })));
+		assert.match(bad, /This link doesn&#x27;t work/);
+		assert.equal(await anonymous(() => catchRedirect(m.verdictActions.confirmVerdict(form({ token: "nope" })))), "/briefing-verdict/nope");
 	});
 });
 
 describe("agents", () => {
-	test("each action has its class: reads, settings, deletes and keys", async () => {
-		const classes = Object.fromEntries(
-			["list_briefings", "get_briefing", "create_briefing", "update_briefing", "pause_briefing", "resume_briefing", "delete_briefing", "run_briefing", "list_briefing_runs", "get_briefing_run", "add_ai_key", "list_ai_keys", "check_ai_key", "delete_ai_key"].map((name) => [name, m.scopes.getActionClass(name, {})])
-		);
-		assert.deepEqual(classes, {
+	test("each action has its class: reads, settings, drafting, deletes and keys", async () => {
+		const names = ["list_briefings", "get_briefing", "create_briefing", "update_briefing", "pause_briefing", "resume_briefing", "delete_briefing", "run_briefing", "list_briefing_runs", "get_briefing_run", "rate_briefing_story", "add_ai_key", "list_ai_keys", "check_ai_key", "delete_ai_key"];
+		assert.deepEqual(Object.fromEntries(names.map((name) => [name, m.scopes.getActionClass(name, {})])), {
 			list_briefings: "read",
 			get_briefing: "read",
 			create_briefing: "write",
@@ -255,6 +398,7 @@ describe("agents", () => {
 			run_briefing: "write",
 			list_briefing_runs: "read",
 			get_briefing_run: "read",
+			rate_briefing_story: "write-draft",
 			add_ai_key: "admin",
 			list_ai_keys: "read",
 			check_ai_key: "admin",
@@ -264,6 +408,7 @@ describe("agents", () => {
 		assert.equal(m.scopes.getActionClass("update_briefing", { reviewMode: "send_if_checks_pass" }), "send");
 		assert.equal(m.scopes.isGateable("create_briefing"), true);
 		assert.equal(m.scopes.getTargetOf("get_briefing_run").model, "BriefingRun");
+		assert.equal(m.scopes.getTargetOf("rate_briefing_story").model, "BriefingRun");
 
 		const user = await t.customer("briefings-agents@example.com");
 		const drafts = await t.createKey(user, "drafts");
@@ -278,45 +423,66 @@ describe("agents", () => {
 		assert.equal(deletion.body.status, "approval_required");
 	});
 
-	test("account purge deletes the four collections", async () => {
+	test("account purge deletes the seven collections", async () => {
 		const { CONTENT_MODELS } = await import("../lib/account-purge.js");
-		for (const model of [m.Briefing, m.BriefingRun, m.BriefingSeen, (await import("../models/AiProviderKey.js")).default]) assert.ok(CONTENT_MODELS.includes(model), model.modelName);
+		const models = [m.Briefing, m.BriefingRun, m.BriefingSeen, m.BriefingVerdict, m.BriefingPublisher, (await import("../models/DiscoveryUsage.js")).default, (await import("../models/AiProviderKey.js")).default];
+		for (const model of models) assert.ok(CONTENT_MODELS.includes(model), model.modelName);
 	});
 });
 
 describe("the dashboard", () => {
-	test("makes, saves, runs and deletes a briefing through the server actions, and the pages show it with its runs", async () => {
+	test("makes, saves, runs and deletes a briefing through the server actions, and the pages show it, its runs and the keep and drop buttons", async () => {
 		const user = await t.customer("briefings-dashboard@example.com");
 		const writer = await addKey(user, "openrouter");
 		const checker = await addKey(user, "typesafe");
+		const search = await addSearchKey(user);
 		const values = {
 			name: "Dashboard briefing",
-			sources: [{ kind: "feed", url: FEED, label: "" }, { kind: "feed", url: "  ", label: "" }],
+			topic: BRIEF.topic,
+			audience: BRIEF.audience,
+			useful: BRIEF.useful,
+			examples: [{ url: "https://news.example.com/good", note: "" }, { url: "  ", note: "" }],
+			trustedOutlets: "News.example.com\nblog.example.org, www.wire.example.net",
+			blockedHosts: "",
+			searchKeyId: search.id,
+			candidateFeedKeyId: "",
 			days: [1, 3],
 			time: "06:30",
 			timeZone: "UTC",
-			audience: "Founders",
 			styleGuide: "Short",
 			languages: ["en", "fr"],
-			maxStories: "5",
+			minFull: "5",
+			maxFull: "8",
+			briefItems: "4",
 			minScore: "70",
 			budgetUsd: "0.5",
-			steps: { triage: { keyId: checker.id, model: "jev-latest" }, extract: { keyId: writer.id, model: "qwen/qwen3-30b" }, write: { keyId: writer.id, model: "qwen/qwen3-30b" }, check: { keyId: checker.id, model: "jev-latest" } },
+			steps: {
+				query: { keyId: writer.id, model: "qwen/qwen3-30b" },
+				triage: { keyId: checker.id, model: "jev-latest" },
+				extract: { keyId: writer.id, model: "qwen/qwen3-30b" },
+				write: { keyId: writer.id, model: "qwen/qwen3-30b" },
+				check: { keyId: checker.id, model: "jev-latest" },
+				translate: { keyId: writer.id, model: "qwen/qwen3-30b" },
+			},
 			testEmail: "briefings-dashboard@example.com",
 			active: true,
 		};
-		const bad = await as(user, () => m.actions.createBriefing(user.newsletterId, { ...values, sources: [{ kind: "feed", url: "http://example.com/feed" }] }));
-		assert.match(bad.error, /https/);
+		const bad = await as(user, () => m.actions.createBriefing(user.newsletterId, { ...values, trustedOutlets: "https://news.example.com/" }));
+		assert.match(bad.error, /host name/);
 		const created = await as(user, () => m.actions.createBriefing(user.newsletterId, values));
 		assert.equal(created.ok, true, JSON.stringify(created));
 		const stored = await m.Briefing.findOne({ accountId: user.accountId, _id: created.id }).lean();
-		assert.deepEqual([stored.status, stored.maxStories, stored.minScore, stored.budgetUsd, stored.sources.length, stored.languages], ["active", 5, 70, 0.5, 1, ["en", "fr"]]);
+		assert.deepEqual([stored.status, stored.stories.minFull, stored.stories.maxFull, stored.stories.briefItems, stored.minScore, stored.budgetUsd, stored.brief.examples.length, stored.languages], ["active", 5, 8, 4, 70, 0.5, 1, ["en", "fr"]]);
+		assert.deepEqual(stored.trustedOutlets, ["news.example.com", "blog.example.org", "wire.example.net"]);
+		assert.equal(String(stored.discovery.searchKeyId), search.id);
 
 		const listed = renderToStaticMarkup(await as(user, () => m.list.default()));
 		assert.match(listed, /Dashboard briefing/);
-		assert.match(listed, /Mondays and Wednesdays at 06:30 \(UTC\), 1 source/);
+		assert.match(listed, /Mondays and Wednesdays at 06:30 \(UTC\), Battery manufacturing in Europe/);
 		assert.match(listed, /None yet/);
-		assert.match(renderToStaticMarkup(await as(user, () => m.create.default())), /qwen|openrouter key/i);
+		const blank = renderToStaticMarkup(await as(user, () => m.create.default()));
+		assert.match(blank, /openrouter key \(OpenRouter, …/);
+		assert.match(blank, /under your own TinyFish account and terms/);
 
 		assert.equal((await as(user, () => m.actions.updateBriefing(created.id, { ...values, active: false }))).ok, true);
 		assert.equal((await m.Briefing.findOne({ accountId: user.accountId, _id: created.id }).lean()).status, "paused");
@@ -324,14 +490,24 @@ describe("the dashboard", () => {
 		assert.match(unavailable.error, /don't run on this server/);
 		assert.deepEqual(await withEnv({ BRIEFINGS_ENABLED: "true" }, () => as(user, () => m.actions.runBriefingNow(created.id))), { ok: true });
 
-		await m.BriefingRun.create({ accountId: user.accountId, briefingId: created.id, newsletterId: user.newsletterId, slot: "manual:2026-10-28T08:00:00.000Z", isManual: true, stage: "done", status: "drafted", counts: { picked: 4 }, costUsd: 0.0123, checks: [{ id: "links", status: "pass", message: "ok" }, { id: "quotes", status: "warning", message: "long" }], startedAt: new Date() });
+		const run = await makeRun(user, { id: created.id, newsletterId: user.newsletterId }, { slot: "manual:2026-10-28T08:00:00.000Z", isManual: true, costUsd: 0.0123, startedAt: new Date() });
 		const page = renderToStaticMarkup(await as(user, () => m.detail.default({ params: Promise.resolve({ id: created.id }) })));
 		assert.match(page, /Dashboard briefing/);
 		assert.match(page, /Run by hand/);
 		assert.match(page, /\$0\.01/);
 		assert.match(page, /1 warning, 1 passed/);
-		assert.match(page, /openrouter key \(OpenRouter, …/);
+		assert.match(page, new RegExp(`/briefings/${created.id}/runs/${run._id}`));
 		assert.ok(!page.includes(SECRET));
+
+		const runPage = renderToStaticMarkup(await as(user, () => m.runPage.default({ params: Promise.resolve({ id: created.id, runId: String(run._id) }) })));
+		assert.match(runPage, /A plant opened in Ohio/);
+		assert.match(runPage, /Press release/);
+		assert.match(runPage, /Keep/);
+		assert.match(runPage, /battery plant europe/);
+		assert.match(runPage, /Hourly limit reached/);
+		assert.match(runPage, /GDELT Project/);
+		assert.deepEqual(await as(user, () => m.actions.rateBriefingStory(created.id, String(run._id), "b".repeat(64), "keep")), { ok: true, verdict: "keep" });
+		assert.equal((await m.BriefingVerdict.findOne({ accountId: user.accountId, runId: run._id, storyKey: "b".repeat(64) }).lean()).decidedBy, String(user.userId));
 
 		assert.equal((await as(user, () => m.actions.deleteBriefing(created.id))).ok, true);
 		assert.doesNotMatch(renderToStaticMarkup(await as(user, () => m.list.default())), /Dashboard briefing/);

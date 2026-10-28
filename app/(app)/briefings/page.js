@@ -39,8 +39,9 @@ export default async function BriefingsPage() {
 			{briefings.length === 0 ? (
 				<StateEmpty icon={Newspaper} title="No briefing yet">
 					<p className="max-w-sm text-sm text-pretty text-muted-foreground">
-						A briefing reads the sources you choose on a schedule, picks the stories your readers care about and writes a short issue with every
-						story linked to its source. Each issue waits as a draft for you to review. It runs on your own AI key.
+						Describe a topic and who reads about it, and a briefing searches the web for it on a schedule, picks the stories your readers care
+						about and writes a short issue with every story linked to its source. Each issue waits as a draft for you to review. It runs on your
+						own AI key.
 					</p>
 				</StateEmpty>
 			) : (
@@ -62,7 +63,7 @@ export default async function BriefingsPage() {
 											{briefing.name}
 										</Link>
 										<span className="block truncate text-xs font-normal text-muted-foreground">
-											{briefing.scheduleSummary}, {briefing.sources.length === 1 ? "1 source" : `${briefing.sources.length} sources`}
+											{briefing.scheduleSummary}{briefing.brief.topic ? `, ${briefing.brief.topic}` : ""}
 										</span>
 									</TableCell>
 									<TableCell>

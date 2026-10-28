@@ -39,8 +39,13 @@ export default function FormAiKey({ providers }) {
 						))}
 					</select>
 				</RowSettings>
-				{draft.provider === "openai-compatible" && (
-					<RowSettings label="Address" hint="The server's https address, on a public host" isLabel>
+				{draft.provider === "tinyfish" && (
+					<RowSettings label="Terms">
+						<span className="text-sm">Used under your own TinyFish account and terms. Briefings search with it within its free limits unless you give discovery a budget.</span>
+					</RowSettings>
+				)}
+				{(draft.provider === "openai-compatible" || draft.provider === "candidate-feed") && (
+					<RowSettings label="Address" hint={draft.provider === "candidate-feed" ? "The feed's https address: a JSON list of candidates, read with the key as a bearer token" : "The server's https address, on a public host"} isLabel>
 						<Input value={draft.baseUrl} onChange={(event) => set("baseUrl", event.target.value)} placeholder="https://llm.example.com/v1" maxLength={500} inputMode="url" required />
 					</RowSettings>
 				)}
