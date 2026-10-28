@@ -21,7 +21,7 @@ A briefing belongs to a newsletter. From a topic brief (no fixed source list), i
 
 ## Data model
 
-Six new collections and one migration (`0049_briefings.sql`, additive). All are account-scoped (`accountScoped` plugin), included in account export (keys as metadata only) and deleted by account purge.
+Seven collections and one migration (`0049_briefings.sql`, additive). All are account-scoped (`accountScoped` plugin), included in account export (keys as metadata only) and deleted by account purge.
 
 **`AiProviderKey`** (account level, shared by the account's briefings; holds model keys and search keys)
 
@@ -35,14 +35,15 @@ Six new collections and one migration (`0049_briefings.sql`, additive). All are 
 - `newsletterId`, `name`, `status` (`active`, `paused`)
 - `brief`: `{ topic, audience, useful, examples[] }`. `useful` says what makes a story worth a reader's time; `examples` (at most 10) are `{ url, note }`, stories the owner would have wanted, used for queries and as the ranker's first positives.
 - `trustedOutlets[]` (hosts, at most 50): a ranking boost and a fallback index (their own feeds are read each run), never a limit on what is searched.
+- `blockedHosts[]` (at most 100): hosts never fetched or cited for this briefing, whatever their `robots.txt` says (for example a publisher whose terms forbid automated collection).
 - `discovery`: `{ searchKeyId, maxQueries (default 16, at most 40), resultsPerQuery (default 10, at most 25), maxCandidates (default 300, at most 600), shortlist (default 30, at most 60), followLinks (default 5 per strong article), discoveryBudgetUsd (default 0) }`
 - `schedule`: `{ days: [1..7], time: "HH:MM", timeZone }`, and the derived `nextRunAt`
 - `styleGuide` (plain text, at most 8,000 characters)
-- `languages`: the issue is written in the first; the others are offered to readers through reader translation, labelled beta
-- `maxStories` (default 6, at most 15), `minScore` (default 60)
-- `steps`: `{ triage, extract, write, check }`, each `{ keyId, model }`. The check step must use a different model from the write step; saving the same model is refused.
+- `languages`: the issue is written in the first; the translate step writes the others (beta, labelled as such to readers)
+- `stories`: `{ minFull, maxFull, briefItems }` (defaults 6, 10 and 10): between `minFull` and `maxFull` full stories (a paragraph or two each, as many as clear `minScore`), then up to `briefItems` one-line items with a link. `minScore` defaults to 60.
+- `steps`: `{ query, triage, extract, write, check, translate }`, each `{ keyId, model }`; `translate` is needed only when `languages` has more than one. The check step must use a different model from the write step; saving the same model is refused.
 - `prices`: optional per-model `{ inputPerMillion, outputPerMillion }` in USD, overriding the built-in table
-- `budgetUsd`: the model spend cap per run (default 0.25, at most 20), with optional per-step shares `stepBudgets: { query, triage, extract, write, check }` (defaults 5, 15, 40, 25, 15 percent). Discovery has its own `discoveryBudgetUsd`, 0 by default because the default indexes and free tiers cost nothing.
+- `budgetUsd`: the model spend cap per run (default 0.25, at most 20), with optional per-step shares `stepBudgets: { query, triage, extract, write, check, translate }` (defaults 5, 10, 35, 20, 15, 15 percent). Discovery has its own `discoveryBudgetUsd`, 0 by default because the default indexes and free tiers cost nothing.
 - `reviewMode`: `draft` or `send_if_checks_pass` (Phase 3; until then only `draft` is accepted)
 - `testEmail`: the address the test send goes to, which must be a team member's address
 
@@ -52,12 +53,14 @@ Six new collections and one migration (`0049_briefings.sql`, additive). All are 
 - `counts`: `{ queries, results, candidates, fresh, groups, shortlisted, picked }`, plus `discoveryNotes[]` (`{ provider, problem, scope }`: a limit hit, a refused robots path, a provider error)
 - `stories[]`: `{ externalId, title, url, score, sources[] }`
 - `calls[]`: `{ step, provider, model, inputTokens, outputTokens, costUsd, costFrom: "provider" | "price_table" }`, and `costUsd` (the total)
+- `stories[]` also carry `kind` (`full` or `brief`) and `sourceKind` (`reporting`, `press_release`, `filing`, `regulator`, `company`, `community`, `other`).
+- `thin`, `heldReason` (`review_mode`, `thin`, `checks`, `partial`, `agent_approval`), `languages[]` (`{ language, status }`)
 - `checks[]`: `{ id, status, message }`, `campaignId`, `error`, `startedAt`, `finishedAt`
 - Working data between stages (`items`, `records`, `draft`) is kept on the run while it is running and dropped when it finishes. Runs are kept 90 days.
 
 **`BriefingSeen`** (dedupe across runs): `{ briefingId, urlHash, storyKey, firstSeenAt }`, unique on `(briefingId, urlHash)`, kept 30 days.
 
-**`BriefingVerdict`** (the owner's keep or drop on a story): `{ briefingId, runId, storyKey, url, verdict: keep | drop, features, decidedBy, decidedAt }`. The training data for the ranker. Kept while the briefing exists.
+**`BriefingVerdict`** (the owner's keep or drop on a story): `{ briefingId, runId, storyKey, url, verdict: keep | drop, features, linkId, decidedBy, decidedAt }`, unique per story per run, and `linkId` unique so an email link counts once. The training data for the ranker. Kept while the briefing exists.
 
 **`BriefingPublisher`** (what a briefing has learned about a host): `{ briefingId, host, seen, shortlisted, picked, kept, dropped, firstSeenAt }`, so new publishers earn a score over time.
 
@@ -87,7 +90,7 @@ A new `Briefings` group in the registry, so the dashboard, REST and MCP get the 
 
 `add_ai_key` takes the key once and answers with its `hint` only. Its description recommends adding keys from the dashboard rather than through an agent, so the key does not pass through a model's context. `get_briefing` shows which key each step uses by name and hint, never the key.
 
-`rate_briefing_story` records keep or drop; the dashboard's run page and the owner's test email (signed one-click links, like unsubscribe links) both call it.
+`rate_briefing_story` records keep or drop. The dashboard's run page calls it directly. The owner's email carries a signed, single-use link per story and verdict (HMAC with `BETTER_AUTH_SECRET`, as other email links are; 14 days). The link opens a confirmation page that names the story and the verdict and has a POST button; a GET never records anything, so mail scanners and link previews cannot vote. These links are written as plain links, never through click tracking.
 
 `run_briefing` queues a manual run for the engine's next tick. Without the briefings Worker (self-hosted, or the region has it off), it answers `unavailable`.
 
@@ -108,12 +111,13 @@ Why its own Worker: the app handler has about 250 KB left in its size budget, an
 
 1. **Discover** (see "Open-web discovery" below): queries from the brief and from yesterday's winners, free indexes first, then the account's search provider, then one hop along the outbound links of strong articles. The result is a candidate list of `{ url, title, snippet, publishedAt, publisher, foundBy }`.
 2. **Dedupe.** Canonicalise each URL (lower-case host, no fragment, no `utm_*`, `fbclid`, `gclid` or `ref`, AMP paths dropped, `rel=canonical` when a page is fetched) and drop what `BriefingSeen` already has or what is older than the previous run.
-3. **Cluster.** Embed title plus snippet with `@cf/baai/bge-m3` (multilingual) on the Workers AI binding and put candidates above 0.86 cosine similarity in one story, so syndicated copies and the press release behind them become one story with several sources. The story's primary source is the earliest original page in the cluster (a press release, filing, regulator notice or the publisher that broke it). Without the binding, cluster by title-word overlap. This is FlockStack's only model call; it counts as one AI request against the account's daily allowance.
-4. **Rank** (see "Ranking" below), and keep the `shortlist` best stories, then the top `maxStories` after triage. None left means `no_news`: no draft, and the owner gets a one-line email.
+3. **Cluster.** Embed title plus snippet with `@cf/baai/bge-m3` (multilingual) on the Workers AI binding and put candidates above 0.86 cosine similarity in one story, so syndicated copies and the press release behind them become one story with several sources. Each source is labelled (`reporting`, `press_release`, `filing`, `regulator`, `company`, `community`). The story's primary source is independent reporting when the cluster has any, else the original document (a filing, a regulator notice, a press release). A story whose only source is a press release is labelled as such in the issue ("Announced by" or "Press release"). Without the binding, cluster by title-word overlap. This is FlockStack's only model call; it counts as one AI request against the account's daily allowance.
+4. **Rank** (see "Ranking" below), and keep the `shortlist` best stories, then after triage the full stories (`minFull` to `maxFull`) and the brief items. None left means `no_news`: no draft, and the owner gets a one-line email.
 5. **Extract.** For the survivors only, fetch the primary page (and at most one primary source it links to), reduce it to readable text (at most 20,000 characters), and ask the extract model for a record: what happened, who, numbers with the sentence each comes from, and the URL. Quotes are capped at 25 words. A paywalled page is never worked around: the story keeps only facts found on public pages, or is dropped.
-6. **Write.** One call to the write model with the style guide, the brief and the records only (no raw pages). It returns Markdown in which every paragraph cites at least one record by number; code turns the citations into links to the originals.
+6. **Write.** One call to the write model with the style guide, the brief and the records only (no raw pages): full stories first, then the brief items as one line each with their link. It returns Markdown in which every paragraph cites at least one record by number; code turns the citations into links to the originals.
 7. **Check.** Code checks first: every number in the draft appears in the text of a page it cites; every link resolves (the link checker's rules); every story links to its original; no quote is over 25 words; length within bounds. Then the check model, which must differ from the writer, judges each claim against the record it cites (with a TypeSafe key: one Noul per claim, as in TypeSafe's citation check). Each check is recorded as `pass`, `warning` or `blocker`.
-8. **Deliver.** Through `BriefingsDelivery`: one content item per story (`externalId` `briefing:<briefingId>:<urlHash>`, with its references), the issue as a draft campaign (`externalId` `briefing:<briefingId>:<slot>`, so a retried run returns the same draft), and a test email to `testEmail` with the run's checks, cost, discovery notes and a keep or drop link per story at the top. With `send_if_checks_pass` (Phase 3), a run with no blocker and no warning is queued for sending, unless the newsletter has "ask me before an agent sends" on, which turns it into an approval request.
+8. **Translate** (beta). When `languages` has more than one, the translate model writes each other language from the checked draft, within its share of the budget. The translations are stored against the draft for readers who choose that language, labelled beta; one that does not fit the budget is skipped and noted.
+9. **Deliver.** Through `BriefingsDelivery`: the issue as a draft campaign (`externalId` `briefing:<briefingId>:<slot>`, so a retried run returns the same draft), one newsletter content item linked to it carrying every story's references (the calendar allows one newsletter item per issue, and per-story items would fill the 5,000-item cap within a year of daily runs; story keys stay on the run), a test email of the draft to `testEmail`, and a separate note to the owner with the run's checks, cost, discovery notes and a keep or drop link per story. The note is never part of the draft. With `send_if_checks_pass` (Phase 3), a run with no blocker and no warning is queued for sending, unless the newsletter has "ask me before an agent sends" on, which turns it into an approval request. A thin run, a run that stopped at the budget, a run with any blocker, and a run with a discovery provider that failed never send: they are held as a draft, with `heldReason` and the reason in the owner's email.
 
 ## Open-web discovery
 
@@ -125,19 +129,19 @@ There is no source list. Cost is controlled by how wide each stage of the funnel
 | Search results | 10 per query, 300 candidates after merging | free indexes and the search provider's free tier |
 | Outbound links followed | 5 per article scoring in the top tenth, one hop, same-run only | free (own fetch) |
 | Shortlist after ranking | 30 | Jev (input tokens only) and embeddings |
-| Stories written | 6 | extract, write and check calls |
+| Stories written | 6 to 10 full, about 10 brief | extract, write, check and translate calls |
 
 **Queries.** One call to the extract model turns the brief, the examples and yesterday's kept stories (their companies, people, products and topics) into up to `maxQueries` search queries, each tagged with the angle it covers. Code adds one query per trusted outlet (`site:` where the provider supports it) and dedupes. Queries are stored on the run so the owner can see why a story was found.
 
 **Indexes, in order.** Each is an adapter (below). A failing or limited index is noted and skipped; the run goes on with the rest.
 
-1. Free indexes, no key: the GDELT DOC 2.0 API (`api.gdeltproject.org/api/v2/doc/doc`, `mode=artlist`, `format=json`, up to 250 records, last three months), Hacker News through Algolia (`hn.algolia.com/api/v1/search_by_date`), and the feeds of trusted outlets and of publishers that earned a score (found by feed autodiscovery on their home page, read with the existing feed fetcher).
+1. Free indexes, no key: the GDELT DOC 2.0 API (free for commercial use; any use must cite the GDELT Project and link to gdeltproject.org, so the owner's run page credits it) (`api.gdeltproject.org/api/v2/doc/doc`, `mode=artlist`, `format=json`, up to 250 records, last three months), Hacker News through Algolia (`hn.algolia.com/api/v1/search_by_date`; the only published rule is 10,000 requests an hour per IP, and Workers share outbound IPs, so a run makes at most one request per query), and the feeds of trusted outlets and of publishers that earned a score (found by feed autodiscovery on their home page, read with the existing feed fetcher).
 2. The account's search provider, with its own key (BYOK). Default adapter: TinyFish Search. Others can be added behind the same interface (another search API, or a model provider's own web search). No provider is required: without one, discovery uses the free indexes only.
 3. Owner-only community signals: a generic `candidate-feed` adapter reads a JSON list of candidates from an https URL with a bearer key. Sniffington (Reddit and Bluesky) plugs in this way for the owner's own briefings; no Sniffington code is in this repository.
 
 Google News search RSS is not used: `news.google.com/robots.txt` disallows `/rss/` for every user agent.
 
-**Fetching.** Pages are fetched by the Worker itself (public hosts, `robots.txt` checked first and cached 24 hours, 1 MB, 8 s, re-checked redirects, at most 2 at a time per host, 300 fetches per run). The search provider's fetch (TinyFish Fetch) is used only for a page the Worker's own fetch cannot read as text, after the same `robots.txt` check, and counts against that provider's limits. Paywalls are never bypassed: no cookies, no alternate user agents, no archive or cache copies.
+**Fetching.** Every fetch, the Worker's own and a provider's, is checked first against the briefing's `blockedHosts` and the host's `robots.txt` (cached 24 hours, for the user agent `FlockStack-Briefings/1.0 (+https://flockstack.io/docs/briefings-bot)`, which names a page saying what the fetcher is, what it reads and how a site opts out). Before connecting, the hostname is resolved (DNS over HTTPS in Workers, `dns.lookup` on a self-hosted server) and every address must be public; the check runs again on each redirect hop. Pages are fetched by the Worker itself ( 1 MB, 8 s, re-checked redirects, at most 2 at a time per host, 300 fetches per run). The search provider's fetch (TinyFish Fetch) is used only for a page the Worker's own fetch cannot read as text, after the same `robots.txt` check, and counts against that provider's limits. Paywalls and blocks are never worked around: no cookies, no other user agents, no stealth or headless modes, no proxy rotation, no archive or cache copies. A page that answers 401, 403 or 429 to the honest fetcher is not retried another way. A public copy of a press release on another site (a wire service, the company's newsroom) may be cited instead; if no legitimate copy can be read, the story is dropped.
 
 ### The adapter interface
 
@@ -190,7 +194,7 @@ Model providers:
 | TypeSafe (Jev) | `POST /v1/systemone` | triage and the claim check only; priced per input token |
 | Any OpenAI-compatible server | OpenAI-compatible, `baseUrl` given by the user | https, public host only, same guard as feeds |
 
-Search providers: TinyFish (Search and Fetch; free within published limits of 30 searches a minute and 500 an hour, and 150 fetches a minute and 1,000 a day, checked on its pricing page 2026-10-28) and `candidate-feed` (any https JSON list of candidates with a bearer key). TinyFish's terms license use for the key holder's internal business purposes and bar sublicensing, so the dashboard says a TinyFish key is used under the key holder's own TinyFish account and terms. Each further search API is added only after its pricing and terms are checked.
+Search providers: TinyFish (the default for the owner's own briefings; for other accounts an option labelled "under your own TinyFish terms", and the default only after TinyFish confirms in writing) (Search and Fetch; free within published limits of 30 searches a minute and 500 an hour, and 150 fetches a minute and 1,000 a day, checked on its pricing page 2026-10-28) and `candidate-feed` (any https JSON list of candidates with a bearer key). TinyFish's terms license use for the key holder's internal business purposes and bar sublicensing, so the dashboard says a TinyFish key is used under the key holder's own TinyFish account and terms. Each further search API is added only after its pricing and terms are checked.
 
 Two adapters cover the text providers (OpenAI-compatible and Anthropic Messages) plus one for TypeSafe. A user picks a model per step by its provider's name; FlockStack does not keep a model catalogue beyond the price table.
 
@@ -199,6 +203,7 @@ Two adapters cover the text providers (OpenAI-compatible and Anthropic Messages)
 - `budgetUsd` caps the model steps (queries, triage, extract, write, check); each step also has a share of it (`stepBudgets`), so a long extract cannot leave nothing for the check. `discoveryBudgetUsd` caps paid search separately and is 0 by default, which keeps discovery on free indexes and free tiers.
 - Before each model call, the engine estimates its cost from the input size, the call's `max_tokens` and the model's price (the briefing's `prices`, else the built-in table, else refused: a model with no known price cannot run under a cap). If the step's share or the run's total would be passed, the call is not made: a step that can do less (fewer stories extracted, a shorter shortlist triaged) does less, and a step that cannot (write, check) stops the run with `stopped_at_budget`. Whatever was already delivered stays, and nothing half-written is saved as a draft.
 - After each call, the real cost is recorded from the provider's answer: OpenRouter's reported cost, else the reported token counts times the price. `costFrom` says which.
+- The reference below is an estimate from the prompts, not a measurement; every run records its real cost per call, and the estimate is replaced by the measured cost of the first runs.
 - Reference for 6 stories from a 30-story shortlist with an open model of about 30B parameters on a low-cost host: about 100,000 input and 6,000 output tokens, around one US cent at current list prices; Jev triage and claim checks add about 60,000 input tokens (about a quarter of a cent). Well under a $0.25 cap; a run that nears the cap means the funnel widths or the style guide need a look, and the run's cost line says so.
 - FlockStack's own model use is the clustering embeddings, counted in the account's existing daily AI allowance.
 
