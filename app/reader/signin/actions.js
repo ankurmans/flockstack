@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { connectDb } from "@/lib/db";
+import { MOUNT_PATH_HEADER } from "@/lib/mount-rules";
 import { getClientIp, isRateLimited } from "@/lib/rate-limit";
 import { SIGNIN_DESTINATIONS } from "@/lib/reader-links";
 import { redeemSignInLink } from "@/lib/reader-session";
@@ -17,10 +18,12 @@ export async function continueSignIn(formData) {
 	const token = String(formData.get("token") ?? "");
 	const issueSlug = String(formData.get("p") ?? "");
 	const next = SIGNIN_DESTINATIONS.includes(formData.get("next")) ? formData.get("next") : "";
-	if (await isRateLimited({ ...PER_IP, key: getClientIp(await headers()) })) redirect(backTo(token, issueSlug, next));
+	// Under a subfolder the page is at <mount path>/reader/signin on the owner's site.
+	const base = (await headers()).get(MOUNT_PATH_HEADER) ?? "";
+	if (await isRateLimited({ ...PER_IP, key: getClientIp(await headers()) })) redirect(backTo(base, token, issueSlug, next));
 	await connectDb();
 	const { newsletter, contact } = await redeemSignInLink(token);
-	if (!contact) redirect(backTo(token, issueSlug, next));
+	if (!contact) redirect(backTo(base, token, issueSlug, next));
 	const urls = getArchiveUrls(newsletter);
 	if (next === "account") redirect(urls.absoluteAccount);
 	if (next === "issue") redirect(ARCHIVE_SLUG_PATTERN.test(issueSlug) ? urls.absolutePost(issueSlug) : urls.siteIndex);
@@ -28,7 +31,7 @@ export async function continueSignIn(formData) {
 }
 
 // The page again, which says what is wrong with the link.
-function backTo(token, issueSlug, next) {
+function backTo(base, token, issueSlug, next) {
 	const query = new URLSearchParams({ token, ...(ARCHIVE_SLUG_PATTERN.test(issueSlug) && { p: issueSlug }), ...(next && { next }) });
-	return `/reader/signin?${query}`;
+	return `${base}/reader/signin?${query}`;
 }

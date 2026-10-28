@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { getReaderPathname, withReaderBase } from "@/lib/reader-base";
 import { buildVisit, hasOptedOut } from "@/lib/visit-beacon";
 
 // The page the visitor arrived by is only told once per tab: the next pages' referrer is this website.
@@ -15,10 +16,11 @@ export default function TrackVisit({ slug }) {
 
 	useEffect(() => {
 		if (hasOptedOut({ navigator, window })) return;
-		const body = JSON.stringify(buildVisit({ slug, pathname: window.location.pathname, referrer: hasReportedReferrer ? "" : document.referrer }));
+		const body = JSON.stringify(buildVisit({ slug, pathname: getReaderPathname(window.location.pathname), referrer: hasReportedReferrer ? "" : document.referrer }));
 		hasReportedReferrer = true;
-		const isQueued = navigator.sendBeacon?.("/api/visit", new Blob([body], { type: "application/json" }));
-		if (!isQueued) fetch("/api/visit", { method: "POST", body, keepalive: true, headers: { "Content-Type": "application/json" } }).catch(() => {});
+		const url = withReaderBase("/api/visit");
+		const isQueued = navigator.sendBeacon?.(url, new Blob([body], { type: "application/json" }));
+		if (!isQueued) fetch(url, { method: "POST", body, keepalive: true, headers: { "Content-Type": "application/json" } }).catch(() => {});
 	}, [pathname, slug]);
 
 	return null;

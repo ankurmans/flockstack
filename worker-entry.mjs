@@ -3,6 +3,7 @@
 import openNext from "./.open-next/worker.js";
 import { isCertificateValidationRequest } from "./lib/certificate-validation.js";
 import { EDGE_CACHE_POLICIES, getEdgeCacheKind, serveWithEdgeCache } from "./lib/edge-cache.js";
+import { MOUNTED_RESPONSE_HEADER, MOUNTED_SLUG_RESPONSE_HEADER, MOUNT_HEADER, toMountedRequestUrl } from "./lib/mount-rules.js";
 import { getCookiePrefix } from "./lib/region.js";
 import { unavailableResponse } from "./lib/unavailable-response.js";
 import { hasSessionCookie, shouldForwardToWebsite } from "./lib/website-routing.js";
@@ -51,11 +52,28 @@ function withTiming(response, startedAt) {
 	return copy;
 }
 
+// What proxy.js marked as mounted goes out with its URLs under the mount path (lib/mount-rewrite.js, loaded only for these).
+async function withMount(response, url) {
+	const mountPath = response.headers.get(MOUNTED_RESPONSE_HEADER);
+	if (!mountPath) return response;
+	const { rewriteMountedResponse } = await import("./lib/mount-rewrite.js");
+	return rewriteMountedResponse(response, { mountPath, slug: response.headers.get(MOUNTED_SLUG_RESPONSE_HEADER), upstreamOrigin: url.origin });
+}
+
 export default {
-	fetch: async (request, env, ctx) => {
+	fetch: async (incoming, env, ctx) => {
 		const startedAt = Date.now();
-		if (isCertificateValidationRequest(request, env)) return fetch(request);
-		const url = new URL(request.url);
+		if (isCertificateValidationRequest(incoming, env)) return fetch(incoming);
+		let request = incoming;
+		let url = new URL(request.url);
+		// A request forwarded from a subfolder of its owner's site (lib/mount-rules.js). Whether it really is mounted is proxy.js's to
+		// say, from the token; this only maps the app's own files and drops a trailing slash.
+		const mounted = request.headers.has(MOUNT_HEADER) ? toMountedRequestUrl(url) : null;
+		if (mounted) {
+			if (mounted.isStatic && env.ASSETS) return env.ASSETS.fetch(new Request(mounted.url, request));
+			request = new Request(mounted.url, request);
+			url = mounted.url;
+		}
 		if (url.pathname === "/api/collaboration/socket") return env.COLLABORATION_SOCKET ? env.COLLABORATION_SOCKET.fetch(request) : new Response("Collaborative editing is unavailable", { status: 503 });
 		// The marketing website is its own Worker (a private repository), reached through the WEBSITE service binding. It is
 		// FlockStack Cloud's: no binding, no APP_URL, no forwarding (a self-hosted server, or a Worker without the binding).
@@ -99,7 +117,7 @@ export default {
 					})
 				: null;
 		if (cacheKind) return withTiming(await serveWithEdgeCache({ request, env, ctx, cache: caches.default, render, policy: EDGE_CACHE_POLICIES[cacheKind] }), startedAt);
-		return withTiming(await render(request), startedAt);
+		return withTiming(await withMount(await render(request), url), startedAt);
 	},
 
 	async scheduled(event, env, ctx) {

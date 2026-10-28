@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import useReaderText from "@/components/useReaderText";
+import { withReaderBase } from "@/lib/reader-base";
 import { READER_LANGUAGES } from "@/lib/reader-languages";
 const LABELS = { en: "English", es: "Español", fr: "Français", de: "Deutsch", it: "Italiano", pt: "Português" };
 const ERRORS = {
@@ -20,7 +21,7 @@ export default function ReaderTranslation({ slug, post, language, enabled, hasSe
 	function translate() {
 		start(async () => {
 			try {
-				const response = await fetch("/api/reader-translation", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ slug, post, language: target }), cache: "no-store" });
+				const response = await fetch(withReaderBase("/api/reader-translation"), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ slug, post, language: target }), cache: "no-store" });
 				const result = await response.json();
 				setAnswer({ ...result, language: target });
 				setShow(result.status === "ready");

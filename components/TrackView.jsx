@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { withReaderBase } from "@/lib/reader-base";
 import { readStoredNumber, storeValue } from "@/lib/storage";
 
 const VIEW_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -13,9 +14,10 @@ export default function TrackView({ issueId }) {
 		storeValue(key, Date.now());
 
 		const body = JSON.stringify({ id: issueId });
-		const isQueued = navigator.sendBeacon?.("/api/views", new Blob([body], { type: "application/json" }));
+		const url = withReaderBase("/api/views");
+		const isQueued = navigator.sendBeacon?.(url, new Blob([body], { type: "application/json" }));
 		if (!isQueued) {
-			fetch("/api/views", {
+			fetch(url, {
 				method: "POST",
 				body,
 				keepalive: true,

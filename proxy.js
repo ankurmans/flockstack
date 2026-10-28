@@ -4,6 +4,20 @@ import { isAppRoute } from "@/lib/app-routes";
 import { getArchiveHostUrl } from "@/lib/archive-hosts";
 import { isCloud } from "@/lib/config";
 import { resolveArchiveHost } from "@/lib/host-routing";
+import { findVerifiedMountUrl, matchMount } from "@/lib/mount-routing";
+import {
+	INTERNAL_MOUNT_HEADERS,
+	MOUNTED_RESPONSE_HEADER,
+	MOUNTED_SLUG_RESPONSE_HEADER,
+	MOUNT_CHECK_PATH,
+	MOUNT_HEADER,
+	MOUNT_MATCH_HEADER,
+	MOUNT_PATH_HEADER,
+	MOUNT_SLUG_HEADER,
+	getMountPageUrl,
+	isMountPagePath,
+	splitArchivePath,
+} from "@/lib/mount-rules";
 import { withQuery } from "@/lib/redirect-paths";
 import { findRedirect } from "@/lib/redirect-routing";
 import { getCookiePrefix } from "@/lib/region";
@@ -108,54 +122,109 @@ const SITE_PAGE_PATHS = { "/issues": "issues", "/signin": "signin", "/account": 
 // Generated share images stay on the app domain, where social cards point: they're only PNGs.
 const ARCHIVE_IMAGE_PATH_PATTERN = /^\/archive\/[^/]+\/og$/;
 
-function rewriteTo(request, pathname) {
+function rewriteTo(request, pathname, init) {
 	const url = request.nextUrl.clone();
 	url.pathname = pathname;
-	return NextResponse.rewrite(url);
+	return NextResponse.rewrite(url, init);
+}
+
+// A newsletter's host: its pages map onto app/archive/[slug], and the links in its emails stay at their own paths. path is the
+// request's path, or for a mounted request (lib/mount-rules.js) the path after the mount's prefix, which reads the same way
+// whatever the owner's proxy forwards to. mounted carries the request headers the app reads (lib/mount-request.js).
+async function routeArchiveHost(request, slug, path, mounted) {
+	const init = mounted?.init;
+	const pass = () => (path === request.nextUrl.pathname ? NextResponse.next(init) : rewriteTo(request, path, init));
+	if (ARCHIVE_HOST_PATHS.some((pattern) => pattern.test(path))) return pass();
+	if (path === "/embed.js") return rewriteTo(request, "/api/embed-script", init);
+	if (path === MOUNT_CHECK_PATH) return rewriteTo(request, "/api/mount-check", init);
+	if (!slug) return new NextResponse("Not found", { status: 404 });
+	if (path === "/") return rewriteTo(request, `/archive/${slug}`, init);
+	if (path === "/sitemap.xml") return rewriteTo(request, `/archive/${slug}/sitemap`, init);
+	if (path === "/robots.txt") return rewriteTo(request, `/archive/${slug}/robots`, init);
+	if (path === "/llms.txt") return rewriteTo(request, `/archive/${slug}/llms`, init);
+	if (path === "/feed.xml") return rewriteTo(request, `/archive/${slug}/feed`, init);
+	if (path === "/podcast.xml") return rewriteTo(request, `/archive/${slug}/podcast`, init);
+	const audioSlug = AUDIO_PATH_PATTERN.exec(path)?.[1];
+	if (audioSlug) return rewriteTo(request, `/archive/${slug}/audio/${audioSlug}`, init);
+	const markdownSlug = /^\/p\/([a-z0-9-]+)\.md$/.exec(path)?.[1];
+	if (markdownSlug) return rewriteTo(request, `/archive/${slug}/markdown/${markdownSlug}`, init);
+	if (path === "/shop" || path === "/shop/") return rewriteTo(request, `/archive/${slug}/shop`, init);
+	if (path === "/subscribe" || path === "/subscribe/") return rewriteTo(request, `/archive/${slug}/subscribe`, init);
+	if (path === "/give" || path === "/give/") return rewriteTo(request, `/archive/${slug}/give`, init);
+	const offerCode = OFFER_PATH_PATTERN.exec(path)?.[1];
+	if (offerCode) return rewriteTo(request, `/archive/${slug}/offer/${offerCode}`, init);
+	if (path === "/links" || path === "/links/") return rewriteTo(request, `/archive/${slug}/links`, init);
+	const sitePage = SITE_PAGE_PATHS[path.replace(/(.)\/$/, "$1")];
+	if (sitePage) return rewriteTo(request, `/archive/${slug}/${sitePage}`, init);
+	const tagSlug = TAG_PATH_PATTERN.exec(path)?.[1];
+	if (tagSlug) return rewriteTo(request, `/archive/${slug}/tags/${tagSlug}`, init);
+	// The newsletter's redirects (lib/redirect-routing.js): old addresses of imported posts, and the owner's own.
+	const redirect = await findRedirect(slug, path);
+	if (redirect) {
+		const target = withQuery(redirect, request.nextUrl.search);
+		return NextResponse.redirect(mounted && target.startsWith("/") ? `${mounted.url}${target}` : new URL(target, request.url), 301);
+	}
+	const productSlug = PRODUCT_PATH_PATTERN.exec(path)?.[1];
+	if (productSlug) return rewriteTo(request, `/archive/${slug}/shop/${productSlug}`, init);
+	const issueSlug = ISSUE_PATH_PATTERN.exec(path)?.[1];
+	if (issueSlug) return rewriteTo(request, `/archive/${slug}/p/${issueSlug}`, init);
+	const authorSlug = AUTHOR_PATH_PATTERN.exec(path)?.[1];
+	if (authorSlug) return rewriteTo(request, `/archive/${slug}/authors/${authorSlug}`, init);
+	return new NextResponse("Not found", { status: 404 });
+}
+
+// A request the owner's proxy sent with the mount's token: the app reads the mount from request headers only this sets, and
+// worker-entry.mjs rewrites the answer's URLs under the mount path.
+async function routeMounted(request, slug, path, mounted) {
+	const headers = new Headers(request.headers);
+	headers.delete(MOUNT_HEADER);
+	headers.set(MOUNT_PATH_HEADER, mounted.path);
+	headers.set(MOUNT_SLUG_HEADER, slug);
+	headers.set(MOUNT_MATCH_HEADER, mounted.matched);
+	const response = await routeArchiveHost(request, slug, path, { ...mounted, init: { request: { headers } } });
+	response.headers.set(MOUNTED_RESPONSE_HEADER, mounted.path);
+	response.headers.set(MOUNTED_SLUG_RESPONSE_HEADER, slug);
+	return response;
+}
+
+function refuseMountToken(path) {
+	const headers = { "cache-control": "no-store" };
+	if (path === MOUNT_CHECK_PATH) return NextResponse.json({ mounted: false, reason: "wrong_token" }, { status: 403, headers });
+	return new NextResponse("The X-FlockStack-Mount token doesn't match this newsletter's subfolder.", { status: 403, headers });
 }
 
 export async function proxy(request) {
 	const { pathname } = request.nextUrl;
+	const mountToken = request.headers.get(MOUNT_HEADER);
+	// Only proxy.js says a request is mounted, after the token matched.
+	if (INTERNAL_MOUNT_HEADERS.some((name) => request.headers.has(name))) return new NextResponse("Bad request", { status: 400 });
 
 	// The script that frames a signup form (lib/embed-script.js) is /embed.js on every host. Its route is under /api: a folder
 	// named embed.js would look like a file to every tool that walks the source.
 	if (pathname === "/embed.js") return rewriteTo(request, "/api/embed-script");
 
 	const { isArchiveHost, slug: archiveSlug } = await resolveArchiveHost(request.headers.get("host"));
-	if (isArchiveHost) {
-		if (ARCHIVE_HOST_PATHS.some((pattern) => pattern.test(pathname))) return NextResponse.next();
-		if (!archiveSlug) return new NextResponse("Not found", { status: 404 });
-		if (pathname === "/") return rewriteTo(request, `/archive/${archiveSlug}`);
-		if (pathname === "/sitemap.xml") return rewriteTo(request, `/archive/${archiveSlug}/sitemap`);
-		if (pathname === "/robots.txt") return rewriteTo(request, `/archive/${archiveSlug}/robots`);
-		if (pathname === "/llms.txt") return rewriteTo(request, `/archive/${archiveSlug}/llms`);
-		if (pathname === "/feed.xml") return rewriteTo(request, `/archive/${archiveSlug}/feed`);
-		if (pathname === "/podcast.xml") return rewriteTo(request, `/archive/${archiveSlug}/podcast`);
-		const audioSlug = AUDIO_PATH_PATTERN.exec(pathname)?.[1];
-		if (audioSlug) return rewriteTo(request, `/archive/${archiveSlug}/audio/${audioSlug}`);
-		const markdownSlug = /^\/p\/([a-z0-9-]+)\.md$/.exec(pathname)?.[1];
-		if (markdownSlug) return rewriteTo(request, `/archive/${archiveSlug}/markdown/${markdownSlug}`);
-		if (pathname === "/shop" || pathname === "/shop/") return rewriteTo(request, `/archive/${archiveSlug}/shop`);
-		if (pathname === "/subscribe" || pathname === "/subscribe/") return rewriteTo(request, `/archive/${archiveSlug}/subscribe`);
-		if (pathname === "/give" || pathname === "/give/") return rewriteTo(request, `/archive/${archiveSlug}/give`);
-		const offerCode = OFFER_PATH_PATTERN.exec(pathname)?.[1];
-		if (offerCode) return rewriteTo(request, `/archive/${archiveSlug}/offer/${offerCode}`);
-		if (pathname === "/links" || pathname === "/links/") return rewriteTo(request, `/archive/${archiveSlug}/links`);
-		const sitePage = SITE_PAGE_PATHS[pathname.replace(/(.)\/$/, "$1")];
-		if (sitePage) return rewriteTo(request, `/archive/${archiveSlug}/${sitePage}`);
-		const tagSlug = TAG_PATH_PATTERN.exec(pathname)?.[1];
-		if (tagSlug) return rewriteTo(request, `/archive/${archiveSlug}/tags/${tagSlug}`);
-		// The newsletter's redirects (lib/redirect-routing.js): old addresses of imported posts, and the owner's own.
-		const redirect = await findRedirect(archiveSlug, pathname);
-		if (redirect) return NextResponse.redirect(new URL(withQuery(redirect, request.nextUrl.search), request.url), 301);
-		const productSlug = PRODUCT_PATH_PATTERN.exec(pathname)?.[1];
-		if (productSlug) return rewriteTo(request, `/archive/${archiveSlug}/shop/${productSlug}`);
-		const issueSlug = ISSUE_PATH_PATTERN.exec(pathname)?.[1];
-		if (issueSlug) return rewriteTo(request, `/archive/${archiveSlug}/p/${issueSlug}`);
-		const authorSlug = AUTHOR_PATH_PATTERN.exec(pathname)?.[1];
-		if (authorSlug) return rewriteTo(request, `/archive/${archiveSlug}/authors/${authorSlug}`);
-		return new NextResponse("Not found", { status: 404 });
+	// Subfolder hosting: the owner's proxy forwards to the newsletter's host, or to APP_URL/archive/<slug> on a server without a
+	// shared domain. Either way what follows the prefix is read as a path on the newsletter's host.
+	const archivePath = isArchiveHost ? null : splitArchivePath(pathname);
+	const mountSlug = isArchiveHost ? archiveSlug : archivePath?.slug;
+	const innerPath = isArchiveHost ? pathname : archivePath?.rest || "/";
+	if (mountSlug && mountToken) {
+		const mounted = await matchMount(mountSlug, mountToken);
+		if (!mounted) return refuseMountToken(innerPath);
+		return routeMounted(request, mountSlug, innerPath, mounted);
 	}
+	if (mountSlug && innerPath === MOUNT_CHECK_PATH) return NextResponse.json({ mounted: false, reason: "missing_token" }, { status: 403, headers: { "cache-control": "no-store" } });
+	// A page asked for at the upstream itself, once the subfolder is verified, is sent there: one address for search engines.
+	if (mountSlug && (request.method === "GET" || request.method === "HEAD") && isMountPagePath(innerPath)) {
+		const mountUrl = await findVerifiedMountUrl(mountSlug);
+		// The owner's proxy without its header would send the redirect straight back here.
+		if (mountUrl && request.headers.get("x-forwarded-host")?.toLowerCase() === new URL(mountUrl).host) {
+			return new NextResponse("The request came through the newsletter's subfolder without the X-FlockStack-Mount header.", { status: 403, headers: { "cache-control": "no-store" } });
+		}
+		if (mountUrl) return NextResponse.redirect(getMountPageUrl(mountUrl, innerPath, request.nextUrl.search), 301);
+	}
+	if (isArchiveHost) return routeArchiveHost(request, archiveSlug, pathname, null);
 
 	// Issues carry HTML from the API and the editor. They're read on the newsletter's host, so that HTML never
 	// shares the dashboard's origin. Without SHARED_DOMAIN (local dev) every archive stays under /archive, where

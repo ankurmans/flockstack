@@ -21,7 +21,7 @@ test("proxy.js and the routing modules stay clear of the site extensions and the
 // document store with mingo, the models) was 1 MB of its 2.9 MB bundle, loaded for requests that never ask a question of it. A request for
 // a newsletter's host loads it with its first lookup.
 test("the middleware's routing modules load the database layer when they look something up, not when they are imported", () => {
-	for (const path of ["lib/host-routing.js", "lib/redirect-routing.js"]) {
+	for (const path of ["lib/host-routing.js", "lib/redirect-routing.js", "lib/mount-routing.js"]) {
 		const statics = read(path)
 			.split("\n")
 			.filter((line) => /^\s*import\b.*from/.test(line))

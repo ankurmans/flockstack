@@ -81,7 +81,7 @@ export default function FormNewsletter({
 	const isDirty = draftKey !== savedKey;
 	const savedSlug = newsletter?.slug ?? "";
 	const archiveHost = newsletter?.archiveHost;
-	const websiteAddress = getWebsiteAddress({ slug: savedSlug || slug || "slug", archiveHost }, { sharedDomain, appUrl });
+	const websiteAddress = getWebsiteAddress({ slug: savedSlug || slug || "slug", archiveHost, mount: newsletter?.mount }, { sharedDomain, appUrl });
 	const slugCheck = useSlugCheck({ slug, savedSlug, newsletterId: newsletter?._id });
 
 	useEffect(() => {
@@ -250,6 +250,7 @@ export default function FormNewsletter({
 										slug: slug.trim().toLowerCase(),
 										savedSlug,
 										archiveHost,
+										mount: newsletter?.mount,
 										isShared,
 										sharedDomain,
 										appUrl,

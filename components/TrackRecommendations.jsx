@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { withReaderBase } from "@/lib/reader-base";
 import { readStoredNumber, storeValue } from "@/lib/storage";
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -16,7 +17,7 @@ export default function TrackRecommendations({ newsletterSlug, shown, surface })
 		storeValue(key, Date.now());
 
 		const body = JSON.stringify({ newsletter: newsletterSlug, shown: list.split(",") });
-		const url = "/api/recommendations/impression";
+		const url = withReaderBase("/api/recommendations/impression");
 		const isQueued = navigator.sendBeacon?.(url, new Blob([body], { type: "application/json" }));
 		if (!isQueued) fetch(url, { method: "POST", body, keepalive: true, headers: { "Content-Type": "application/json" } }).catch(() => {});
 	}, [newsletterSlug, list, surface]);

@@ -1,6 +1,6 @@
 # Subfolder hosting ("mount path"): design note
 
-Status: design, 2026-10-28. First use: a newsletter served at `https://quotesweep.com/newsletter/underwritten` from a site FlockStack does not run.
+Status: built, 2026-10-28 (the notes marked "Built:" say where the code went its own way). First use: a newsletter served at `https://quotesweep.com/newsletter/underwritten` from a site FlockStack does not run.
 
 Today a newsletter's public pages live on a host: its verified `archiveHost`, else `<slug>.<shared domain>`, else `APP_URL/archive/<slug>` (`lib/archive-hosts.js`). `proxy.js` maps a host's paths onto `app/archive/[slug]/*`. A mount path adds a fourth option: the newsletter's pages at a path on the owner's own site, which forwards that path to FlockStack.
 
@@ -13,11 +13,13 @@ Today a newsletter's public pages live on a host: its verified `archiveHost`, el
 
 Why the shared host as the upstream: it is already routed, has a certificate and a cache, and email links keep working on it whatever the owner's proxy does.
 
+Built: a server without a shared domain (FlockStack Cloud today) has no `<slug>.<shared domain>`, so the upstream is then `APP_URL/archive/<slug>` (`getMountUpstream`). `proxy.js` reads a mounted request's path after `/archive/<slug>` exactly as a path on the newsletter's host, so the mount's URLs have one shape (`/feed.xml`, `/p/<slug>.md`) whatever the upstream, and `worker-entry.mjs` serves `/archive/<slug>/_next/...` from the app's own files and drops a trailing slash before Next.js could redirect it. A token that doesn't match answers 403, never the 301 (which would loop through the proxy); a request that arrives with the app's own mount headers answers 400. Mounted requests skip the edge cache.
+
 ## Data
 
-On the newsletter: `mount: { url, tokenHash, verifiedAt }`. `url` is https, a public host, no query or fragment, a path of one to three segments. One mount per newsletter. An `archiveHost` and a mount cannot both be set. The token is shown once when the mount is set (as webhook secrets are) and can be rotated, with the previous one accepted for 24 hours.
+On the newsletter: `mount: { url, tokenHash, previousTokenHash, previousUntil, verifiedAt }`. `url` is https, a public host, no query or fragment, a path of one to three segments. One mount per newsletter. An `archiveHost` and a mount cannot both be set. The token is shown once when the mount is set (as webhook secrets are) and can be rotated, with the previous one accepted for 24 hours.
 
-Actions: `set_newsletter_mount` (url → token, shown once), `check_newsletter_mount` (FlockStack fetches `<url>/.well-known/flockstack-mount` through the owner's site and expects its own signed answer, proving the proxy forwards with the token), `remove_newsletter_mount`. Same registry, dashboard, REST and MCP parity as every action.
+Actions: `set_newsletter_mount` (url → token, shown once), `check_newsletter_mount` (FlockStack fetches `<url>/.well-known/flockstack-mount` through the owner's site and expects its own signed answer, proving the proxy forwards with the token), `rotate_newsletter_mount_token`, `remove_newsletter_mount`. Same registry, dashboard, REST and MCP parity as every action. Built: set and rotate are class admin (a credential, like a webhook secret), check is write, remove is destructive; no index changed, so no migration.
 
 ## URLs
 
@@ -37,6 +39,8 @@ Root-relative URLs in the HTML (`/_next/static/...`, `/api/visit`, `/api/views`,
 ## Cookies
 
 Reader sign-in and Subscriber Center cookies are set host-only (no `Domain`) with `Path` set to the mount path when mounted, so they belong to the owner's site under that path and never to the rest of `quotesweep.com`. `SameSite=Lax` stays.
+
+Built: a reader's sign-in link from an email (`/reader/in`, `/reader/signin`) stays on the FlockStack host like every email link, and once the mount is verified it goes on (303) to the same path under the mount, where the session's cookies are set. Unsubscribe, tracking and confirmation links never do.
 
 ## The owner's proxy
 

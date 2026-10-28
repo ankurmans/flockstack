@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { connectDb } from "@/lib/db";
-import { signInWithEmailLink } from "@/lib/reader-session";
+import { getMountHandoffUrl, signInWithEmailLink } from "@/lib/reader-session";
 import { ARCHIVE_SLUG_PATTERN } from "@/lib/slug";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +18,8 @@ export async function GET(request) {
 	let result = {};
 	try {
 		await connectDb();
+		const handoff = await getMountHandoffUrl("email", token, "/reader/in", request.nextUrl.search);
+		if (handoff) return noStore(NextResponse.redirect(handoff, 303));
 		result = await signInWithEmailLink(token);
 	} catch (error) {
 		console.error("[reader] Could not use the email link:", error.message);
@@ -29,7 +31,10 @@ export async function GET(request) {
 			? getArchiveUrls(newsletter).siteIndex
 			: new URL("/", request.url).toString();
 	const hash = result.contact ? (comment ? `#comment-${comment}` : "#comments") : "#comments-expired";
-	const response = NextResponse.redirect(new URL(`${destination}${hash}`, request.url), 303);
+	return noStore(NextResponse.redirect(new URL(`${destination}${hash}`, request.url), 303));
+}
+
+function noStore(response) {
 	response.headers.set("Cache-Control", "no-store");
 	return response;
 }
