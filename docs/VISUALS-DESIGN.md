@@ -25,8 +25,8 @@ at no model cost and within the size budgets.
 4. **Section icons as PNGs.** `GET /archive/<slug>/icon/<key>.png` renders a lucide icon at 48×48 (shown at 24×24) in the
    newsletter's accent on a transparent background, stored once per key and colour in `IMAGES` like the cards. Keys are a fixed
    list (below); anything else is 404. Email clients block SVG, so email uses these PNGs; the web page uses the same icons inline.
-5. **Email.** Optional header image: the issue's card at 600 px wide with alt text (the issue title), on by default for briefings and
-   off by default for other newsletters (a newsletter setting, `headerImage`, and a per-campaign override). Briefing sections show
+5. **Email.** Optional issue card at the top: the issue's card at 600 px wide with alt text (the issue title), on by default for briefings
+   and off by default for other newsletters (`brand.issueCard`, and a per-campaign `issueCard` override). Briefing sections show
    their icon (24×24, alt = section title) beside the heading. Images off: headings and text read the same, icons carry alt text,
    nothing depends on an image. No emoji as the only visual. Added weight per email: one card (about 60 KB, fetched by the client,
    not counted in the HTML) and at most nine icons (about 1 KB each); the HTML grows by under 2 KB, well inside Gmail's 102 KB.
@@ -42,9 +42,17 @@ at no model cost and within the size budgets.
 (scale), `people` (users), `launches` (rocket), `coming-up` (calendar), `generic` (file-text). A section without an icon takes the
 key of its id when one matches, else `generic`.
 
+## Brand additions (owner, 2026-10-28)
+
+- `brand.publisher`: a short line under the name in the website header on every page, in the email header and on the card
+  (Underwritten: "by QuoteSweep").
+- `brand.fontPair: "grotesk"`: Host Grotesk headlines over Inter text, self-hosted fonts on the website (no Google request);
+  email falls back to the device sans-serif.
+- The newsletter's `brand.headerUrl` (Underwritten: its wordmark banner) shows on every archive page's header, not only the home.
+
 ## Settings and parity
 
-- Newsletter `headerImage` (boolean) and campaign `headerImage` (true, false or null to follow the newsletter), through
+- Newsletter `brand.issueCard` (boolean) and campaign `issueCard` (true, false or null to follow the newsletter), through
   update_newsletter, create_campaign and update_campaign, with dashboard, REST and MCP parity.
 - Briefing section `icon` through create_briefing and update_briefing, shown in the dashboard section editor.
 - Additive fields only; no index changes, so no migration.
