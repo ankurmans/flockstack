@@ -889,3 +889,70 @@ describe("the security review's findings", () => {
 		}
 	});
 });
+
+describe("the first production run", () => {
+	const failExtractFor = (pattern, answer) => (body) => {
+		const [system, user] = body.messages.map(({ content }) => content);
+		return system.startsWith("You read news pages") && pattern.test(dataBlock(user, "story") ?? "") ? answer() : null;
+	};
+
+	test("a story whose extract call fails becomes a brief item, one whose answer can't be read too, and the run goes on", async () => {
+		const world = makeWorld({
+			openai: (body) =>
+				failExtractFor(/bike/i, () => Response.json({ error: { message: "upstream overloaded" } }, { status: 503 }))(body) ??
+				failExtractFor(/zinc/i, () => Response.json({ choices: [{ message: { content: "I can't help with that." } }], usage: { prompt_tokens: 10, completion_tokens: 5 } }))(body),
+		});
+		const { briefing } = await makeBriefing();
+		const delivery = makeDelivery();
+		await tick({ world, delivery, items: [...STORIES, found(ZINC)] });
+		const run = await runOf(briefing);
+		assert.equal(run.status, "drafted", run.error);
+		assert.deepEqual(
+			run.stories.map(({ kind, url }) => [kind, url]),
+			[
+				["full", ACME],
+				["brief", BIKE],
+				["brief", ZINC],
+				["brief", BUDGET],
+			]
+		);
+		const failed = run.checks.find(({ id }) => id === "extract_failed");
+		assert.equal(failed.status, "warning");
+		assert.match(failed.message, /City council approves new bike lanes.*Zinc Corp opens recycling line/);
+		assert.match(delivery.issues[0].markdown, /## In brief\n\n- The council voted 7 to 2 .*\(\[city\.example\.org\]\(https:\/\/city\.example\.org\/bike-lanes\)\)/);
+	});
+
+	test("the run fails only when every story's extract fails, or the key is refused", async () => {
+		const everyone = makeWorld({ openai: failExtractFor(/./, () => Response.json({ error: { message: "upstream overloaded" } }, { status: 500 })) });
+		const first = await makeBriefing();
+		await tick({ world: everyone, items: [...STORIES, found(ZINC)] });
+		const all = await runOf(first.briefing);
+		assert.equal(all.status, "failed");
+		assert.match(all.error, /^Every story's extract failed: openai answered 500/);
+
+		const refused = makeWorld({ openai: failExtractFor(/bike/i, () => Response.json({ error: { message: "bad key" } }, { status: 401 })) });
+		const second = await makeBriefing();
+		await tick({ world: refused, items: [...STORIES, found(ZINC)] });
+		const run = await runOf(second.briefing);
+		assert.equal(run.status, "failed");
+		assert.match(run.error, /^openai answered 401/);
+	});
+
+	test("queries fall back to the brief when the query model fails, but a refused key fails the run before any search", async () => {
+		const failing = makeWorld({ openai: (body) => (body.messages[0].content.startsWith("You plan web searches") ? Response.json({ error: { message: "overloaded" } }, { status: 503 }) : null) });
+		const first = await makeBriefing();
+		await tick({ world: failing });
+		const run = await runOf(first.briefing);
+		assert.equal(run.status, "drafted", run.error);
+		assert.deepEqual(run.queries.map(({ angle }) => angle), ["topic", "example", "trusted outlet news.example.com"]);
+		assert.ok(run.discoveryNotes.some(({ provider, problem }) => provider === "queries" && /from the topic only/.test(problem)));
+
+		const refused = makeWorld({ openai: (body) => (body.messages[0].content.startsWith("You plan web searches") ? Response.json({ error: { message: "bad key" } }, { status: 401 }) : null) });
+		const second = await makeBriefing();
+		await tick({ world: refused });
+		const failed = await runOf(second.briefing);
+		assert.equal(failed.status, "failed");
+		assert.match(failed.error, /^openai answered 401/);
+		assert.ok(!refused.requests.some(({ url }) => url.startsWith("https://api.gdeltproject.org/")), "no search was made");
+	});
+});

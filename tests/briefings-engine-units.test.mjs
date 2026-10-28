@@ -571,3 +571,60 @@ describe("the security review's findings", () => {
 		assert.equal(extractModule.cleanCompany("Zinc](https://evil.example.com) <b>Corp</b> *now*"), "Zinc Corp now");
 	});
 });
+
+describe("the first production run", () => {
+	const groq = { keyId: "g", provider: "groq", baseUrl: "https://api.groq.com/openai/v1", secret: SECRET };
+	const prices = [{ model: "openai/gpt-oss-20b", inputPerMillion: 0.1, outputPerMillion: 0.5 }];
+
+	test("a JSON-mode answer the server couldn't validate is asked again once without response_format, and both calls are charged", async () => {
+		const log = [];
+		const fetchImpl = async (url, init) => {
+			const body = JSON.parse(init.body);
+			log.push(body);
+			if (body.response_format) return Response.json({ error: { message: "Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.", type: "invalid_request_error", code: "json_validate_failed", failed_generation: '{"what": "half' } }, { status: 400 });
+			return Response.json({ choices: [{ message: { content: 'Sure: {"what": "Acme raised money."}' } }], usage: { prompt_tokens: 1200, completion_tokens: 80, total_tokens: 1280, queue_time: 0.01 } });
+		};
+		const calls = [];
+		const result = await providers.callModel({ key: groq, model: "openai/gpt-oss-20b", step: "extract", system: "S", user: "U", json: true, maxTokens: 700, fetchImpl, meter: meter.createMeter({ budgetUsd: 1, prices, calls }), endpoints: AI_PROVIDER_ENDPOINTS });
+		assert.deepEqual(result.json, { what: "Acme raised money." });
+		assert.equal(log.length, 2);
+		assert.deepEqual(log[0].response_format, { type: "json_object" });
+		assert.equal(log[1].response_format, undefined);
+		assert.deepEqual(log[1].messages, log[0].messages, "the same prompt");
+		assert.equal(calls.length, 2, "the refused call is charged too, at its ceiling");
+		assert.deepEqual(
+			calls.map(({ inputTokens, outputTokens, costFrom }) => [inputTokens, outputTokens, costFrom]),
+			[
+				[1, 700, "price_table"],
+				[1200, 80, "price_table"],
+			]
+		);
+
+		const other = async (url, init) => {
+			log.push(JSON.parse(init.body));
+			return Response.json({ error: { message: "model not found" } }, { status: 400 });
+		};
+		log.length = 0;
+		await assert.rejects(providers.callModel({ key: groq, model: "openai/gpt-oss-20b", step: "extract", system: "S", user: "U", json: true, maxTokens: 700, fetchImpl: other, meter: meter.createMeter({ budgetUsd: 1, prices, calls: [] }), endpoints: AI_PROVIDER_ENDPOINTS }), /answered 400: model not found/);
+		assert.equal(log.length, 1, "any other 400 isn't asked again");
+	});
+
+	test("usage is read as each API writes it: prompt_tokens and completion_tokens, or input_tokens and output_tokens", async () => {
+		const answers = [
+			{ choices: [{ message: { content: "ok" } }], usage: { prompt_tokens: 321, completion_tokens: 45, total_tokens: 366 } },
+			{ choices: [{ message: { content: "ok" } }], usage: { input_tokens: 111, output_tokens: 22 } },
+			{ choices: [{ message: { content: "ok" } }], x_groq: { usage: { prompt_tokens: 77, completion_tokens: 7 } } },
+		];
+		const recorded = [];
+		for (const answer of answers) {
+			const calls = [];
+			await providers.callModel({ key: groq, model: "openai/gpt-oss-20b", step: "write", system: "S", user: "U", maxTokens: 900, fetchImpl: async () => Response.json(answer), meter: meter.createMeter({ budgetUsd: 1, prices, calls }), endpoints: AI_PROVIDER_ENDPOINTS });
+			recorded.push([calls[0].inputTokens, calls[0].outputTokens]);
+		}
+		assert.deepEqual(recorded, [
+			[321, 45],
+			[111, 22],
+			[77, 7],
+		]);
+	});
+});
