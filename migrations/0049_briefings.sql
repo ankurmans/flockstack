@@ -1,0 +1,17 @@
+CREATE TABLE IF NOT EXISTS c_aiproviderkeys (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_aiproviderkeys__accountId ON c_aiproviderkeys (accountId);
+CREATE INDEX IF NOT EXISTS i_aiproviderkeys__createdAt ON c_aiproviderkeys (json_extract(data, '$.createdAt') ASC);
+CREATE TABLE IF NOT EXISTS c_briefings (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_briefings__accountId ON c_briefings (accountId);
+CREATE INDEX IF NOT EXISTS i_briefings__newsletterId__createdAt ON c_briefings (json_extract(data, '$.newsletterId') ASC, json_extract(data, '$.createdAt') ASC);
+CREATE INDEX IF NOT EXISTS i_briefings__status__nextRunAt ON c_briefings (json_extract(data, '$.status') ASC, json_extract(data, '$.nextRunAt') ASC);
+CREATE INDEX IF NOT EXISTS i_briefings__manualRunAt ON c_briefings (json_extract(data, '$.manualRunAt') ASC);
+CREATE TABLE IF NOT EXISTS c_briefingruns (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_briefingruns__accountId ON c_briefingruns (accountId);
+CREATE UNIQUE INDEX IF NOT EXISTS u_briefingruns__briefingId__slot ON c_briefingruns (json_extract(data, '$.briefingId') ASC, json_extract(data, '$.slot') ASC);
+CREATE INDEX IF NOT EXISTS i_briefingruns__briefingId__createdAt_d ON c_briefingruns (json_extract(data, '$.briefingId') ASC, json_extract(data, '$.createdAt') DESC);
+CREATE INDEX IF NOT EXISTS i_briefingruns__status__touchedAt ON c_briefingruns (json_extract(data, '$.status') ASC, json_extract(data, '$.touchedAt') ASC);
+CREATE TABLE IF NOT EXISTS c_briefingseens (_id TEXT PRIMARY KEY NOT NULL, accountId TEXT, data TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS i_briefingseens__accountId ON c_briefingseens (accountId);
+CREATE UNIQUE INDEX IF NOT EXISTS u_briefingseens__briefingId__urlHash ON c_briefingseens (json_extract(data, '$.briefingId') ASC, json_extract(data, '$.urlHash') ASC);
+CREATE INDEX IF NOT EXISTS i_briefingseens__firstSeenAt ON c_briefingseens (json_extract(data, '$.firstSeenAt') ASC);
