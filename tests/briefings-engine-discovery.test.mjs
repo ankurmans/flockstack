@@ -383,3 +383,51 @@ describe("the discovery budget", () => {
 		}
 	});
 });
+
+describe("the merge after triage", () => {
+	const story = (key, title, score) => ({ key, title, score, url: `https://${key}.example.com/`, sources: [{ urlHash: key, host: `${key}.example.com`, sourceKind: null }], foundBy: [key] });
+
+	test("the same company and the same kind of event make one story; the same company doing something else doesn't", async () => {
+		const merge = await import("../lib/briefings/merge.js");
+		const stories = [
+			story("a", "AmTrust acquires Wakam in European expansion", 90),
+			story("b", "AmTrust International acquires Wakam", 80),
+			story("c", "The Hartford reports third-quarter profit jump", 70),
+			story("d", "Hartford Q3: commercial lines drive results", 65),
+			story("e", "Hartford launches a cyber product for small firms", 60),
+			story("f", "City council approves new bike lanes", 55),
+			story("g", "City budget passes after long debate", 50),
+		];
+		const merged = merge.mergeDuplicates(stories);
+		assert.deepEqual(
+			merged.map(({ key, mergedKeys }) => [key, mergedKeys ?? []]),
+			[
+				["a", ["b"]],
+				["c", ["d"]],
+				["e", []],
+				["f", []],
+				["g", []],
+			]
+		);
+		assert.deepEqual(
+			merged[0].sources.map(({ urlHash }) => urlHash),
+			["a", "b"],
+			"the better scored story's primary stays first"
+		);
+		assert.equal(merge.mergeDuplicates([story("x", "Insurers raise rates", 1), story("y", "Insurers cut rates", 1)]).length, 2, "a capitalised first word alone isn't a name");
+	});
+
+	test("embeddings closer than 0.78 merge stories with nothing else in common", async () => {
+		const merge = await import("../lib/briefings/merge.js");
+		const merged = merge.mergeDuplicates([story("a", "Lloyd's market posts a strong year", 9), story("b", "A good twelve months in One Lime Street", 8)], { similar: { a: ["b"] } });
+		assert.equal(merged.length, 1);
+		assert.equal(merge.SIMILAR, 0.78);
+	});
+
+	test("Title Case subjects are told apart from sentence case with names in it", async () => {
+		const check = await import("../lib/briefings/check.js");
+		assert.equal(check.isTitleCase("Acme Raises Money: Battery Plants Next"), true);
+		assert.equal(check.isTitleCase("AmTrust acquires Wakam in European expansion"), false);
+		assert.equal(check.isTitleCase("The Hartford reports a strong third quarter"), false);
+	});
+});

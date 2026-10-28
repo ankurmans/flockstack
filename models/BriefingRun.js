@@ -22,7 +22,7 @@ const briefingRunSchema = new mongoose.Schema(
 		calls: [{ _id: false, step: String, provider: String, model: String, inputTokens: Number, outputTokens: Number, costUsd: Number, costFrom: { type: String, enum: ["provider", "price_table"] } }],
 		costUsd: { type: Number, default: 0 },
 		checks: [{ _id: false, id: String, status: { type: String, enum: CHECK_STATUSES }, message: String }],
-		languages: [{ _id: false, language: String, status: String }],
+		languages: [{ _id: false, language: String, status: String, problem: String }],
 		thin: { type: Boolean, default: false },
 		// Set when the run made a draft where its review mode would have sent.
 		heldReason: { type: String, enum: HOLD_REASONS },
