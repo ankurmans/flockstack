@@ -94,7 +94,7 @@ function makeWorld({ pages = PAGES, robots = {}, addresses = {}, writer = honest
 					const [storyId, feature] = id.split("_");
 					const title = body.state.stories[storyId]?.title ?? "";
 					const top = LEVELS[feature];
-					const score = /acme|bike|zinc/i.test(title) ? top : /budget/i.test(title) ? { relevance: 3, usefulness: 2, novelty: 2, primary: 2 }[feature] : 0;
+					const score = /acme|bike|zinc|amtrust|hartford/i.test(title) ? top : /budget|rates slipped/i.test(title) ? { relevance: 3, usefulness: 2, novelty: 2, primary: 2 }[feature] : 0;
 					answers[id] = { type: "score", score, confidence: 1, legend: {}, probabilities: {} };
 				} else answers[id] = { type: "noul", noul };
 			}
@@ -653,12 +653,16 @@ describe("the cost cap", () => {
 		await tick({ world, delivery, items: [...STORIES, found(ZINC)] });
 		const run = await runOf(briefing);
 		assert.equal(run.status, "drafted");
-		assert.deepEqual(run.languages, [
-			{ language: "fr", status: "skipped_budget" },
-			{ language: "de", status: "skipped_budget" },
-		]);
+		assert.deepEqual(
+			run.languages.map(({ language, status }) => ({ language, status })),
+			[
+				{ language: "fr", status: "skipped_budget" },
+				{ language: "de", status: "skipped_budget" },
+			]
+		);
+		assert.ok(run.languages.every(({ problem }) => /^Needs about \$/.test(problem)));
 		assert.deepEqual(delivery.issues[0].translations, []);
-		assert.ok(run.discoveryNotes.some(({ provider, problem }) => provider === "translate" && /fr translation didn't fit/.test(problem)));
+		assert.ok(run.discoveryNotes.some(({ provider, problem, scope }) => provider === "translate" && scope === "budget" && /^fr: Needs about/.test(problem)));
 	});
 
 	test("OpenRouter's own cost is recorded as is", async () => {
@@ -867,8 +871,8 @@ describe("the security review's findings", () => {
 		const run = await runOf(briefing);
 		assert.equal(run.status, "drafted", run.error);
 		assert.deepEqual(run.languages, [
-			{ language: "fr", status: "failed" },
-			{ language: "de", status: "failed" },
+			{ language: "fr", status: "failed", problem: "The translation into French came back empty" },
+			{ language: "de", status: "failed", problem: "The translation into German came back empty" },
 		]);
 		assert.equal(delivery.issues.length, 1);
 	});
@@ -954,5 +958,143 @@ describe("the first production run", () => {
 		assert.equal(failed.status, "failed");
 		assert.match(failed.error, /^openai answered 401/);
 		assert.ok(!refused.requests.some(({ url }) => url.startsWith("https://api.gdeltproject.org/")), "no search was made");
+	});
+});
+
+describe("the third production run's quality", () => {
+	const AMTRUST_A = "https://www.insurancebusinessmag.com/us/news/amtrust-acquires-wakam";
+	const AMTRUST_B = "https://www.reinsurancene.ws/amtrust-international-acquires-wakam/";
+	const HARTFORD_A = "https://www.businessinsurance.com/hartford-q3-results";
+	const HARTFORD_B = "https://www.insurancebusinessmag.com/us/news/the-hartford-third-quarter";
+	const OLD_RATES = "https://www.insurancejournal.com/news/q2-2026-rates";
+	const STALE_FULL = "https://www.carriermanagement.com/acme-old-news";
+	const dated = (html, date) => html.replace("<title>Story</title>", `<title>Story</title><meta property="article:published_time" content="${date}">`);
+	const qualityPages = {
+		...PAGES,
+		[AMTRUST_A]: article("AmTrust Financial agreed to acquire Wakam, the Paris-based insurer, for an undisclosed sum."),
+		[AMTRUST_B]: article("AmTrust International will buy Wakam, giving it a licensed carrier in France."),
+		[HARTFORD_A]: article("The Hartford reported third-quarter core earnings of $1.1 billion."),
+		[HARTFORD_B]: article("Hartford said commercial lines premiums grew 9% in the third quarter."),
+		[OLD_RATES]: dated(article("US commercial insurance rates slipped 2% in Q2 2026."), "2026-07-20T10:00:00Z"),
+		[STALE_FULL]: dated(article("Acme Corp opened a battery plant in 2025 that employs 300 people."), "2026-09-01T10:00:00Z"),
+	};
+	const QUALITY = [
+		found(AMTRUST_A, { title: "AmTrust acquires Wakam in European expansion", snippet: "AmTrust Financial agreed to acquire Wakam." }),
+		found(AMTRUST_B, { title: "AmTrust International acquires Wakam", snippet: "AmTrust International will buy Wakam." }),
+		found(HARTFORD_A, { title: "The Hartford reports third-quarter profit jump", snippet: "Core earnings of $1.1 billion." }),
+		found(HARTFORD_B, { title: "Hartford Q3: commercial lines drive results", snippet: "Commercial lines premiums grew 9%." }),
+		found(BIKE),
+	];
+	// AmTrust's two reports sit just under the clustering threshold, the way bge-m3 put them in production.
+	const nearAi = {
+		async run(model, input) {
+			return { data: input.text.map((text, index) => (/amtrust/i.test(text) ? (/international/i.test(text) ? [0.8, 0.6, 0] : [1, 0, 0]) : [0, 0, 1].concat(new Array(input.text.length).fill(0).map((_, at) => (at === index ? 1 : 0))).slice(0, 3 + input.text.length))).map((vector) => vector.concat(new Array(Math.max(0, 3 + input.text.length - vector.length)).fill(0))) };
+		},
+	};
+
+	test("every factual paragraph's citations reach the checks, even under a heading on the line above, and Why it matters is analysis", async () => {
+		const world = makeWorld({
+			writer: ({ full }) =>
+				`Subject: Battery news today\nPreview: Two stories\n\n${full.map((record) => `## ${record.title}\n${record.what} The details are in the source [${record.n}].\n\nWhy it matters: brokers placing battery risks get a new carrier to quote.`).join("\n\n")}`,
+		});
+		const { briefing } = await makeBriefing();
+		await tick({ world, items: [...STORIES, found(ZINC)] });
+		const run = await runOf(briefing);
+		const byId = checksById(run);
+		assert.equal(byId.citations.status, "pass", byId.citations.message);
+		assert.ok(!run.checks.some(({ message }) => /No cited claim/.test(message)));
+		const claimCalls = world.requests.filter(({ url, body }) => url.endsWith("/systemone") && body.questions.supported);
+		assert.equal(claimCalls.length, 3, "one Noul per factual paragraph, none for the analysis");
+		assert.ok(claimCalls.every(({ body }) => !/Why it matters/.test(body.state.claim)));
+	});
+
+	test("a Why it matters line can't bring in a number its section's records don't have", async () => {
+		const world = makeWorld({
+			writer: ({ full }) => `Subject: Battery news today\nPreview: Stories\n\n${full.map((record) => `## ${record.title}\n\n${record.what} [${record.n}]\n\nWhy it matters: carriers could see 37% more claims.`).join("\n\n")}`,
+		});
+		const { briefing } = await makeBriefing();
+		await tick({ world, items: [...STORIES, found(ZINC)] });
+		const numbers = checksById(await runOf(briefing)).numbers;
+		assert.equal(numbers.status, "blocker");
+		assert.match(numbers.message, /37/);
+	});
+
+	test("the same event found twice is merged after triage, by its companies and kind of event, or by a close embedding", async () => {
+		const world = makeWorld({ pages: qualityPages });
+		const { briefing } = await makeBriefing({ stories: { minFull: 1, maxFull: 4, briefItems: 4 } });
+		const delivery = makeDelivery();
+		await tick({ world, delivery, ai: nearAi, items: QUALITY });
+		const run = await runOf(briefing);
+		const titles = run.stories.map(({ title }) => title);
+		assert.equal(titles.filter((title) => /AmTrust/.test(title)).length, 1, titles.join(" | "));
+		assert.equal(titles.filter((title) => /Hartford/.test(title)).length, 1, titles.join(" | "));
+		const amtrust = run.stories.find(({ title }) => /AmTrust/.test(title));
+		assert.deepEqual(new Set(amtrust.sources.map((host) => host.replace(/^www\./, ""))), new Set(["insurancebusinessmag.com", "reinsurancene.ws"]));
+		const hartford = delivery.issues[0].stories.find(({ title }) => /Hartford/.test(title));
+		assert.equal(hartford.references.filter(({ kind }) => kind === "coverage").length, 1, "the other report is coverage of the one story");
+	});
+
+	test("a story whose own page dates it before the lookback is dropped, full or brief", async () => {
+		const world = makeWorld({ pages: qualityPages });
+		const { briefing } = await makeBriefing({ stories: { minFull: 1, maxFull: 2, briefItems: 4 }, lastRunAt: new Date(NOW.getTime() - 24 * HOUR), trustedOutlets: ["news.example.com", "insurancejournal.com"] });
+		await tick({ world, items: [found(STALE_FULL, { title: "Acme opens battery plant", publishedAt: null }), found(OLD_RATES, { title: "US commercial insurance rates slipped 2% in Q2 2026", publishedAt: null }), found(BIKE), found(ZINC), ...STORIES.slice(4)] });
+		const run = await runOf(briefing);
+		assert.ok(!run.stories.some(({ url }) => url === OLD_RATES || url === STALE_FULL), run.stories.map(({ url }) => url).join(" "));
+		assert.match(checksById(run).stale.message, /US commercial insurance rates slipped 2% in Q2 2026.*Acme opens battery plant|Acme opens battery plant.*US commercial insurance rates/);
+	});
+
+	test("a translation that fails says why; one refused for a rate limit is tried again after the others", async () => {
+		let french = 0;
+		const world = makeWorld({
+			openai: (body) => {
+				if (!body.messages[0].content.startsWith("You translate")) return null;
+				if (/into French/.test(body.messages[0].content) && ++french <= 2) return new Response(JSON.stringify({ error: { message: `Rate limit reached for tokens per minute ${OPENAI_SECRET}` } }), { status: 429, headers: { "retry-after": "0" } });
+				if (/into Italian/.test(body.messages[0].content)) return Response.json({ error: { message: "context_length_exceeded <b>bad</b>" } }, { status: 400 });
+				return null;
+			},
+		});
+		const { briefing } = await makeBriefing({ languages: ["en", "fr", "it", "es"] });
+		const delivery = makeDelivery();
+		await tick({ world, delivery, items: [...STORIES, found(ZINC)] });
+		const run = await runOf(briefing);
+		assert.deepEqual(
+			run.languages.map(({ language, status }) => [language, status]),
+			[
+				["fr", "done"],
+				["it", "failed"],
+				["es", "done"],
+			]
+		);
+		const italian = run.languages.find(({ language }) => language === "it");
+		assert.match(italian.problem, /^openai answered 400: context_length_exceeded bad$/);
+		assert.ok(!JSON.stringify(run).includes(OPENAI_SECRET));
+		assert.deepEqual(delivery.issues[0].translations.map(({ language }) => language).sort(), ["es", "fr"]);
+	});
+
+	test("a translation past its share says what it needed", async () => {
+		const world = makeWorld();
+		const { briefing } = await makeBriefing({ languages: ["en", "fr"], prices: [{ model: "big-translator", inputPerMillion: 5000, outputPerMillion: 5000 }], steps: (ids) => ({ translate: { keyId: ids.openai, model: "big-translator" } }) });
+		await tick({ world, items: [...STORIES, found(ZINC)] });
+		const [french] = (await runOf(briefing)).languages;
+		assert.equal(french.status, "skipped_budget");
+		assert.match(french.problem, /^Needs about \$\d+\.\d{4}; \$\d+\.\d{4} of the translate step's \$\d+\.\d{4} share was left$/);
+	});
+
+	test("filler phrases are a warning, and the subject has no long dashes", async () => {
+		const world = makeWorld({
+			writer: (records) => honestWriter(records).replace(/^Subject: .*$/m, "Subject: Acme Raises Money — Battery Plants Next").replace("It matters to readers", "This highlights the importance of scale, and price discipline remains critical. It matters to readers"),
+		});
+		const { briefing } = await makeBriefing();
+		const delivery = makeDelivery();
+		await tick({ world, delivery, items: [...STORIES, found(ZINC)] });
+		const byId = checksById(await runOf(briefing));
+		assert.equal(byId.filler.status, "warning");
+		assert.match(byId.filler.message, /highlights the importance.*remains critical/);
+		assert.doesNotMatch(delivery.issues[0].subject, /[\u2013\u2014]/);
+		assert.equal(byId.subject_case.status, "warning");
+		const write = world.requests.find(({ body }) => body?.messages?.[0].content.startsWith("You write one newsletter issue"));
+		assert.match(write.body.messages[0].content, /Why it matters.*names who in the audience is affected/s);
+		assert.match(write.body.messages[0].content, /highlights the importance/);
+		assert.match(write.body.messages[0].content, /sentence case/);
 	});
 });
