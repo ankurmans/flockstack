@@ -11,8 +11,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { OUT_FILE, buildReadersWorker } from "./build-readers-worker.mjs";
 
-// What the platform and the libraries probe for and the code never needs set.
-const IGNORED = /^(NODE_ENV|CI|DEBUG|NODE_V8_COVERAGE|JEST_WORKER_ID|NO_PROXY|HTTP_PROXY|HTTPS_PROXY|LOCALAPPDATA|AWS_LOGIN_CACHE_DIRECTORY|UNDICI_NO_FG|FLOCKSTACK_SQLITE|FLOCKSTACK_SQL_LOG|FLOCKSTACK_DOCDB_TRACE|FLOCKSTACK_PRERENDER|VERCEL_.*|NEXT_PUBLIC_.*|KV_REST_.*|AWS_.*)$/;
+// What the platform and the libraries probe for and the code never needs set (WATCH_REPORT_DEPENDENCIES: Node's ESM loader, on each new import).
+const IGNORED = /^(NODE_ENV|CI|DEBUG|NODE_V8_COVERAGE|WATCH_REPORT_DEPENDENCIES|JEST_WORKER_ID|NO_PROXY|HTTP_PROXY|HTTPS_PROXY|LOCALAPPDATA|AWS_LOGIN_CACHE_DIRECTORY|UNDICI_NO_FG|FLOCKSTACK_SQLITE|FLOCKSTACK_SQL_LOG|FLOCKSTACK_DOCDB_TRACE|FLOCKSTACK_PRERENDER|VERCEL_.*|NEXT_PUBLIC_.*|KV_REST_.*|AWS_.*)$/;
 // Bindings of the Worker (workers/readers/wrangler.jsonc). The vars FLOCKSTACK_CLOUD and FLOCKSTACK_REGION (and SES_REGION in the EU) are there too.
 export const BINDINGS = ["DB", "APP"];
 export const WRANGLER_VARS = ["FLOCKSTACK_CLOUD", "FLOCKSTACK_REGION"];
