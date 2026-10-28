@@ -140,7 +140,7 @@ function makeWorld({ pages = PAGES, robots = {}, addresses = {}, writer = honest
 			} else if (system.startsWith("You write one section of a newsletter issue")) {
 				const records = JSON.parse(dataBlock(user, "records"));
 				const next = JSON.parse(dataBlock(user, "next") ?? "[]");
-				if (/'- \*\*<main entity>\*\*/.test(system)) content = records.map((record) => `- **${record.entities[0]}** ${record.what.replace(/\.$/, "")}${record.figure ? `, ${record.figure.value}` : ""} [${record.n}]`).join("\n");
+				if (/'- \*\*<main entity>\*\*/.test(system)) content = records.map((record) => `- **${record.entities[0]}** ${record.what.replace(/\.$/, "")} [${record.n}]`).join("\n");
 				else if (/^Subject:/m.test(system)) content = `Subject: ${records[0].title}\nPreview: The day's stories\n\n${records[0].what} [${records[0].n}]\n\nAlso today: ${next.map(({ title, n }) => `${title} [${n}]`).join("; ")}.`;
 				else content = records.map((record) => `${record.what} [${record.n}]`).join("\n\n");
 			} else if (system.startsWith("You sort candidate stories")) {
@@ -693,12 +693,12 @@ describe("the cost cap", () => {
 
 	test("extract can do less: past its share the remaining stories become brief items, and the run is held as partial", async () => {
 		const world = makeWorld();
-		const { briefing } = await makeBriefing({ budgetUsd: 0.01, stepBudgets: { query: 5, triage: 10, extract: 6, write: 40, check: 20, translate: 20 } });
+		const { briefing } = await makeBriefing({ budgetUsd: 0.01, stepBudgets: { query: 5, triage: 10, extract: 10, write: 40, check: 20, translate: 20 } });
 		const delivery = makeDelivery();
 		await tick({ world, delivery, items: [...STORIES, found(ZINC)] });
 		const run = await runOf(briefing);
 		assert.equal(run.status, "drafted", run.error);
-		assert.equal(run.calls.filter(({ step }) => step === "extract").length, 1, "one extract fitted the $0.0006 share");
+		assert.equal(run.calls.filter(({ step }) => step === "extract").length, 1, "one extract fitted the $0.001 share, its cap leaving room for reasoning");
 		assert.deepEqual(
 			run.stories.map(({ kind }) => kind),
 			["full", "brief", "brief", "brief"]
@@ -1276,7 +1276,7 @@ describe("sections", () => {
 		const bullets = markdown.split("\n").filter((line) => line.startsWith("- "));
 		assert.equal(bullets.length, 4);
 		for (const line of bullets) assert.match(line, /^- (\*[^*]+:\* )?\*\*[^*]+\*\* .+\(\[[^\]]+\]\(https:\/\/[^)]+\)\)$/, line);
-		assert.ok(bullets.some((line) => /\*\*AmTrust\*\* AmTrust Financial agreed to acquire Wakam for \$210 million, \$210 million/.test(line)));
+		assert.ok(bullets.some((line) => /\*\*AmTrust\*\* AmTrust Financial agreed to acquire Wakam for \$210 million \(\[/.test(line)), "the figure sits in the sentence, not after a comma");
 		assert.doesNotMatch(markdown, /Why it matters/);
 		assert.deepEqual(sections.map(({ id, status }) => [id, status]), [["lead", "written"], ["people", "empty"], ["deals", "written"], ["roundup", "written"]]);
 		const run = await runOf(briefing);
@@ -1284,6 +1284,30 @@ describe("sections", () => {
 		assert.ok(!run.checks.some(({ status }) => status === "blocker"), JSON.stringify(run.checks.filter(({ status }) => status === "blocker")));
 		const claimCalls = world.requests.filter(({ url, body }) => url.endsWith("/systemone") && body.state?.claims);
 		assert.equal(claimCalls.length, 3, "one batched claim check per written section");
+	});
+
+	test("a section cut off at its cap is asked again with twice the room, and fails with the reason when cut off again", async () => {
+		const asked = [];
+		const world = makeWorld({
+			pages: sectionPages,
+			openai: (body) => {
+				if (!/titled "Deal flow"/.test(body.messages[0].content)) return null;
+				asked.push(body.max_tokens ?? body.max_completion_tokens);
+				return Response.json({ choices: [{ message: { content: "- **AmTrust** AmTrust Financial agreed to acquire Wakam for" }, finish_reason: "length" }], usage: { prompt_tokens: 400, completion_tokens: asked.at(-1) } });
+			},
+		});
+		const { briefing } = await makeBriefing({ sections: SECTIONS });
+		const delivery = makeDelivery();
+		await tick({ world, delivery, items: ITEMS });
+		const run = await runOf(briefing);
+		assert.equal(run.status, "drafted", run.error);
+		assert.equal(asked.length, 2);
+		assert.equal(asked[1], asked[0] * 2, "the second ask has twice the room");
+		const deals = run.sections.find(({ id }) => id === "deals");
+		assert.deepEqual([deals.status, deals.items], ["failed", 0]);
+		assert.match(deals.problem, /The Deal flow section was cut off at the model's \d+-token limit 2 times/);
+		assert.equal(run.heldReason, "partial");
+		assert.ok(!delivery.issues[0].markdown.includes("acquire Wakam for\n"), "the cut-off text is not in the issue");
 	});
 
 	test("each section's cost is recorded, and with the calls outside sections they add up to the run's", async () => {

@@ -811,7 +811,9 @@ describe("triggers", () => {
 
 		const fresh = await create(user, { name: "From now", trigger: { type: "unengaged", days: 60 }, steps: [tagStep("wake-up")] });
 		const everyone = await create(user, { name: "Everyone", trigger: { type: "unengaged", days: 60, includeExisting: true }, steps: [tagStep("wake-up-all")] });
+		// The look is once a UTC day: the three runs below span two hours, so they start where those two hours stay in one day.
 		const start = new Date();
+		if (start.getUTCHours() >= 21) start.setUTCHours(24, 30, 0, 0);
 		await run(start);
 		assert.equal((await enrollmentsOf(user, fresh)).filter(({ exitReason }) => exitReason !== "baseline").length, 0, "those already quiet are left alone");
 		assert.deepEqual(await tagsOf(user, "old-quiet"), ["wake-up-all"]);
