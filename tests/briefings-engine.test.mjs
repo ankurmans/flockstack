@@ -576,6 +576,26 @@ describe("what the run fetches", () => {
 		assert.match(checksById(run).dropped.message, /City council approves new bike lanes/);
 	});
 
+	test("the page read for a story gives its og:image as the story's preview, kept on the run and never in the issue", async () => {
+		const IMAGE = "https://cdn.example.com/acme-plant.jpg";
+		const withImage = (url, meta) => PAGES[url].replace("<title>Story</title>", `<title>Story</title>${meta}`);
+		const world = makeWorld({
+			pages: { ...PAGES, [ACME]: withImage(ACME, `<meta property="og:image" content="${IMAGE}">`), [BIKE]: withImage(BIKE, '<meta property="og:image" content="http://city.example.org/bike.jpg">') },
+		});
+		const { briefing } = await makeBriefing();
+		const delivery = makeDelivery();
+		await tick({ world, delivery, items: STORIES });
+		const run = await runOf(briefing);
+		assert.equal(run.status, "drafted", run.error);
+		const acme = run.stories.find(({ url }) => url === ACME);
+		assert.equal(acme.previewImage, IMAGE);
+		assert.equal(run.stories.find(({ url }) => url === BIKE)?.previewImage, undefined, "an http image is not kept");
+		const issue = delivery.issues[0];
+		assert.ok(!issue.markdown.includes("cdn.example.com"), "not in the issue's markdown");
+		assert.ok(!JSON.stringify(issue).includes(IMAGE), "not in anything the delivery is given, the draft's stories included");
+		assert.ok(!world.requests.some(({ url }) => url === IMAGE), "never fetched");
+	});
+
 	test("robots.txt, blocked hosts and private addresses are refused before any request to the page", async () => {
 		const blocked = "https://blocked.example.com/private/acme-story";
 		const world = makeWorld({

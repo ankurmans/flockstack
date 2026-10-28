@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
+import { Wallet } from "lucide-react";
 import ButtonExportReport from "@/components/ButtonExportReport";
 import FormRevenueRefresh from "@/components/FormRevenueRefresh";
 import HeaderPage from "@/components/HeaderPage";
 import NavFilters from "@/components/NavFilters";
+import StateEmpty from "@/components/StateEmpty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { runDashboardAction } from "@/lib/actions/dashboard";
 import { formatNumber } from "@/lib/format";
@@ -35,7 +37,11 @@ export default async function SubscriptionRevenuePage({ searchParams }) {
 			<p className="text-xs text-muted-foreground">{report.coverage.observedSubscriptions} stored subscription snapshots; {report.coverage.observedInvoices} invoice snapshots in this window. {report.coverage.untrackedSubscriptions == null ? "The scan cannot establish how many known subscriptions are missing." : `${report.coverage.untrackedSubscriptions} known contact subscriptions have no financial snapshot.`} Unknown amounts appear as a dash.</p>
 			{report.coverage.limited && <p role="status" className="rounded-xl border p-4 text-sm">This bounded scan is incomplete. Full monetary totals and the cohort rate are unavailable; known subtotals and event counts describe the scanned records. Use the private account export for all stored records.</p>}
 			{report.coverage.latestSubscriptionObservationAt && <p className="text-xs text-muted-foreground">Subscription snapshots range from {report.coverage.oldestSubscriptionObservationAt} to {report.coverage.latestSubscriptionObservationAt}. Refresh to read newer provider state. These dates do not establish complete event history.</p>}
-			{report.currencies.length === 0 && <p className="rounded-xl border p-5 text-sm text-muted-foreground">No financial observations yet. Refresh known subscriptions to begin. Earlier invoices and changes are not backfilled.</p>}
+			{report.currencies.length === 0 && (
+				<StateEmpty icon={Wallet} title="No financial observations yet">
+					<p className="max-w-sm text-sm text-pretty text-muted-foreground">Refresh known subscriptions to begin. Earlier invoices and changes are not backfilled.</p>
+				</StateEmpty>
+			)}
 			{report.currencies.map((row) => <section key={row.currency || "unknown"} className="overflow-hidden rounded-xl border bg-card">
 				<h2 className="border-b px-4 py-3 text-sm font-medium">{row.currency?.toUpperCase() || "Unknown currency"}</h2>
 				<dl className="grid gap-4 p-4 sm:grid-cols-3">

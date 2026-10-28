@@ -29,7 +29,7 @@ import {
 	getWebsiteAddress,
 } from "@/lib/newsletter-form";
 import { getSlugFormatProblem } from "@/lib/newsletter-settings";
-import { MAX_AUTHOR_BIO_LENGTH, MAX_DESCRIPTION_LENGTH } from "@/lib/newsletters";
+import { MAX_AUTHOR_BIO_LENGTH, MAX_DESCRIPTION_LENGTH, MAX_PUBLISHER_LENGTH } from "@/lib/newsletters";
 import { UNSUBSCRIBE_PLACEHOLDER, renderEmail } from "@/lib/render-email";
 import { getSharedAddress } from "@/lib/sender-rules";
 import { UNDO_LABELS, UNDO_SECONDS } from "@/lib/send-hold-rules";
@@ -131,9 +131,9 @@ export default function FormNewsletter({
 			fromEmail,
 			postalAddress: deferredPostalAddress,
 			accentColor: /^#[0-9a-f]{6}$/i.test(accentColor) ? accentColor.toLowerCase() : "",
-			brand: { theme: draft.theme, fontPair: draft.fontPair, headerUrl: draft.headerUrl, emailLogo: draft.isEmailLogo },
+			brand: { theme: draft.theme, fontPair: draft.fontPair, headerUrl: draft.headerUrl, emailLogo: draft.isEmailLogo, publisher: draft.publisher },
 		}),
-		[name, description, previewImageUrl, fromName, fromEmail, deferredPostalAddress, accentColor, draft.theme, draft.fontPair, draft.headerUrl, draft.isEmailLogo]
+		[name, description, previewImageUrl, fromName, fromEmail, deferredPostalAddress, accentColor, draft.theme, draft.fontPair, draft.headerUrl, draft.isEmailLogo, draft.publisher]
 	);
 	const isShared = Boolean(sharedDomain) && fromDomain === sharedDomain;
 	const isDomainUnverified = !isShared && domains.some(({ domain, verified }) => domain === fromDomain && !verified);
@@ -295,7 +295,7 @@ export default function FormNewsletter({
 						))}
 					</div>
 				</Field>
-				<Field label="Fonts" hint="Fonts every device has, so the email looks like the website." as="div">
+				<Field label="Fonts" hint="Fonts every device has, so the email looks like the website. Grotesk's web fonts show on the website only; emails use the device's sans-serif." as="div">
 					<input type="hidden" name="fontPair" value={draft.fontPair} />
 					<div role="radiogroup" aria-label="Fonts" className="grid gap-2 sm:grid-cols-2">
 						{Object.entries(FONT_PAIRS).map(([id, pair]) => (
@@ -317,6 +317,16 @@ export default function FormNewsletter({
 					<span className="flex items-center gap-2 text-sm">
 						<Switch name="emailLogo" checked={draft.isEmailLogo} onCheckedChange={(isChecked) => set("isEmailLogo", isChecked)} aria-label="Show the logo and name above every issue" />
 						Show the logo and name
+					</span>
+				</Field>
+				<Field label="Publisher line" hint="A short line under the name in the website's header, the email's header and the share card, like by Example Media.">
+					<Input name="publisher" value={draft.publisher} onChange={update("publisher")} placeholder="by Example Media" maxLength={MAX_PUBLISHER_LENGTH} />
+				</Field>
+				<Field label="Issue card" hint="The issue's share card, with its title and date, at the top of each email. Until you choose, issues a briefing writes show it and others don't; an issue can turn it on or off for itself." as="div">
+					<input type="hidden" name="issueCard" value={draft.issueCard === null ? "" : draft.issueCard ? "on" : "off"} />
+					<span className="flex items-center gap-2 text-sm">
+						<Switch checked={draft.issueCard === true} onCheckedChange={(isChecked) => set("issueCard", isChecked)} aria-label="Show the issue card at the top of each email" />
+						At the top of each email
 					</span>
 				</Field>
 				<PreviewBrand newsletter={brandPreview} />

@@ -105,6 +105,14 @@ export async function setCampaignShareButtons(id, value) {
 	return { ok: true };
 }
 
+// The issue card at the top of this issue's email: on, off, or null to follow the newsletter.
+export async function setCampaignIssueCard(id, value) {
+	const { failure } = await runDashboardAction("update_campaign", { id: String(id), issueCard: value === true ? true : value === false ? false : null });
+	if (failure) return toFormError(failure);
+	revalidatePath(`/campaigns/${id}`);
+	return { ok: true };
+}
+
 // Who the issue goes to, saved before the send so the list cleanup's count follows it.
 export async function setCampaignAudience(id, audience) {
 	const { failure } = await runDashboardAction("update_campaign", { id: String(id), audience: readAudience(audience) });

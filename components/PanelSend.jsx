@@ -4,7 +4,7 @@ import FormCampaignLists from "@/components/FormCampaignLists";
 import { CalendarClock, Loader2, Send } from "lucide-react";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { setCampaignFromName, setCampaignPublishTo, setCampaignShareButtons } from "@/app/(app)/campaigns/actions";
+import { setCampaignFromName, setCampaignIssueCard, setCampaignPublishTo, setCampaignShareButtons } from "@/app/(app)/campaigns/actions";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
 import CardAbTest from "@/components/CardAbTest";
 import CardSettings from "@/components/CardSettings";
@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { FIRST_SEND } from "@/lib/config";
 import { formatCount, formatNumber, formatSendTime } from "@/lib/format";
+import { isIssueCardOn } from "@/lib/issue-card-rules";
 import { getUndoSeconds } from "@/lib/send-hold-rules";
 import { getPaceHours } from "@/lib/send-spread";
 import { slugify } from "@/lib/slug";
@@ -157,7 +158,12 @@ export default function PanelSend({
 				</RowCampaign>
 				{archiveUrlBase && !campaign.resend?.of && campaign.publishTo !== "web" && (
 					<RowCampaign label="Share">
-						<ChoiceShareButtons campaign={campaign} newsletter={newsletter} />
+						<ChoiceOverride campaignId={campaign._id} value={campaign.shareButtons} isNewsletterOn={Boolean(newsletter.shareButtons)} onLabel="Share buttons on" ariaLabel="Share buttons in the email header" save={setCampaignShareButtons} />
+					</RowCampaign>
+				)}
+				{archiveUrlBase && !campaign.resend?.of && campaign.publishTo !== "web" && (
+					<RowCampaign label="Issue card">
+						<ChoiceOverride campaignId={campaign._id} value={campaign.issueCard} isNewsletterOn={isIssueCardOn(newsletter, { source: campaign.source, externalId: campaign.externalId })} onLabel="Card on" ariaLabel="The issue card at the top of the email" save={setCampaignIssueCard} />
 					</RowCampaign>
 				)}
 				{archiveUrlBase && !campaign.resend?.of && (
@@ -310,28 +316,29 @@ function ChoicePublishTo({ campaign, isWebsiteOn }) {
 	);
 }
 
-// Share buttons in this issue's email header: the newsletter's setting, or on or off for this issue. Saved as it's picked.
-function ChoiceShareButtons({ campaign, newsletter }) {
+// Something in this issue's email header (share buttons, the issue card): the newsletter's setting, or on or off for this issue.
+// Saved as it's picked.
+function ChoiceOverride({ campaignId, value: saved, isNewsletterOn, onLabel, ariaLabel, save }) {
 	const router = useRouter();
 	const toastError = useToastError();
 	const [isPending, startTransition] = useTransition();
-	const current = typeof campaign.shareButtons === "boolean" ? String(campaign.shareButtons) : "default";
+	const current = typeof saved === "boolean" ? String(saved) : "default";
 	const choices = [
-		{ value: "default", label: newsletter.shareButtons ? "Newsletter setting (on)" : "Newsletter setting (off)" },
-		{ value: "true", label: "Share buttons on" },
+		{ value: "default", label: isNewsletterOn ? "Newsletter setting (on)" : "Newsletter setting (off)" },
+		{ value: "true", label: onLabel },
 		{ value: "false", label: "Off" },
 	];
 
 	function choose(value) {
 		startTransition(async () => {
-			const result = await setCampaignShareButtons(campaign._id, value === "default" ? null : value === "true");
+			const result = await save(campaignId, value === "default" ? null : value === "true");
 			if (result?.error) return toastError(result);
 			router.refresh();
 		});
 	}
 
 	return (
-		<div role="radiogroup" aria-label="Share buttons in the email header" className="flex min-w-0 flex-wrap gap-1.5 py-2">
+		<div role="radiogroup" aria-label={ariaLabel} className="flex min-w-0 flex-wrap gap-1.5 py-2">
 			{choices.map(({ value, label }) => (
 				<button
 					key={value}

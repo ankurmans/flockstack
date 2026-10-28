@@ -234,6 +234,19 @@ describe("page text", () => {
 		assert.deepEqual(page.links, [{ url: "https://news.example.com/next", text: "next" }]);
 		assert.equal(readable.readablePage(`<p>${"word ".repeat(10_000)}</p>`, "https://example.com/").text.length, readable.MAX_READABLE_CHARS);
 	});
+
+	test("keeps the page's og:image as an absolute https address, and nothing else", () => {
+		const image = (meta, base = "https://news.example.com/story") => readable.readablePage(`<html><head>${meta}</head><body><p>Text</p></body></html>`, base).image;
+		assert.equal(image('<meta property="og:image" content="https://cdn.example.com/a.jpg?w=1200&amp;h=630">'), "https://cdn.example.com/a.jpg?w=1200&h=630");
+		assert.equal(image("<meta content='/images/a.png' property='og:image'>"), "https://news.example.com/images/a.png", "a relative address is read against the page");
+		assert.equal(image('<meta property="og:image" content="http://cdn.example.com/a.jpg">'), null, "http is not kept");
+		assert.equal(image('<meta property="og:image" content="javascript:alert(1)">'), null);
+		assert.equal(image('<meta property="og:image" content="data:image/png;base64,AAAA">'), null);
+		assert.equal(image('<meta property="og:image" content="">'), null);
+		assert.equal(image('<meta name="twitter:image" content="https://cdn.example.com/t.jpg">'), null, "only og:image");
+		assert.equal(image(`<meta property="og:image" content="https://cdn.example.com/${"a".repeat(1000)}.jpg">`), null, "a very long address is not kept");
+		assert.equal(image(""), null);
+	});
 });
 
 describe("prices and the cost cap", () => {

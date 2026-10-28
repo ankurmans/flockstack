@@ -1,6 +1,7 @@
 import { Check, Link2Off, ThumbsDown, ThumbsUp } from "lucide-react";
 import { confirmVerdict } from "@/app/briefing-verdict/actions";
 import CardNotice from "@/components/CardNotice";
+import ImageLinkPreview from "@/components/ImageLinkPreview";
 import { Button } from "@/components/ui/button";
 import { scoped } from "@/lib/account-scope";
 import { isDeletionPending } from "@/lib/account-state";
@@ -31,6 +32,16 @@ function readToken(value) {
 	}
 }
 
+// The story's site, for its link preview: an https page only.
+function httpsHost(url) {
+	try {
+		const parsed = new URL(String(url ?? ""));
+		return parsed.protocol === "https:" ? parsed.hostname.replace(/^www\./, "") : "";
+	} catch {
+		return "";
+	}
+}
+
 async function load(link) {
 	try {
 		await connectDb();
@@ -41,7 +52,7 @@ async function load(link) {
 			Briefing.findOne(scoped(account, { _id: run.briefingId })).select({ name: 1 }).lean(),
 			BriefingVerdict.findOne(scoped(account, { briefingId: run.briefingId, runId: run._id, storyKey: link.storyKey })).select({ verdict: 1 }).lean(),
 		]);
-		return briefing ? { story, briefingName: briefing.name, existing: existing?.verdict ?? null } : null;
+		return briefing ? { story, host: httpsHost(story.url), briefingName: briefing.name, existing: existing?.verdict ?? null } : null;
 	} catch (error) {
 		if (error?.code !== "not_found") console.error("[briefing-verdict] Could not load:", error?.message);
 		return null;
@@ -66,6 +77,15 @@ export default async function BriefingVerdictPage({ params, searchParams }) {
 				</CardNotice>
 			) : (
 				<CardNotice icon={link.verdict === "keep" ? ThumbsUp : ThumbsDown} title={`${WORDS[link.verdict]} this story?`}>
+					{found.host && (
+						<a href={found.story.url} target="_blank" rel="noreferrer noopener" className="my-3 flex items-center gap-3 rounded-lg p-2 text-left shadow-border hover:bg-muted/60">
+							<ImageLinkPreview src={found.story.previewImage} alt={found.story.title} />
+							<span className="min-w-0">
+								<span className="line-clamp-2 font-medium text-foreground">{found.story.title}</span>
+								<span className="block truncate text-xs">{found.host}</span>
+							</span>
+						</a>
+					)}
 					<span className="block">
 						&ldquo;{found.story.title}&rdquo;, found by {found.briefingName}. {link.verdict === "keep" ? "Later issues pick more stories like it." : "Later issues pick fewer stories like it."}
 					</span>

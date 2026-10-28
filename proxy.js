@@ -119,8 +119,10 @@ const AUTHOR_PATH_PATTERN = /^\/authors\/([a-z0-9][a-z0-9-]{0,59})\/?$/;
 const TAG_PATH_PATTERN = /^\/tags\/([a-z0-9][a-z0-9-]{0,59})\/?$/;
 // The list of issues, the reader's sign-in and the Subscriber Center are pages of the newsletter's site, not routes of their own.
 const SITE_PAGE_PATHS = { "/issues": "issues", "/signin": "signin", "/account": "account", "/perks": "perks", "/sponsor": "sponsor" };
-// Generated share images stay on the app domain, where social cards point: they're only PNGs.
-const ARCHIVE_IMAGE_PATH_PATTERN = /^\/archive\/[^/]+\/og$/;
+// Generated share images stay on the app domain, where social cards point: they're only PNGs. So do the section icons emails
+// show (app/archive/[slug]/icon), which a newsletter's host and a mount also answer.
+const ARCHIVE_IMAGE_PATH_PATTERN = /^\/archive\/[^/]+\/(og|icon\/[a-z-]{1,20}\.png)$/;
+const ICON_PATH_PATTERN = /^\/icon\/([a-z-]{1,20})\.png$/;
 
 function rewriteTo(request, pathname, init) {
 	const url = request.nextUrl.clone();
@@ -144,6 +146,10 @@ async function routeArchiveHost(request, slug, path, mounted) {
 	if (path === "/llms.txt") return rewriteTo(request, `/archive/${slug}/llms`, init);
 	if (path === "/feed.xml") return rewriteTo(request, `/archive/${slug}/feed`, init);
 	if (path === "/podcast.xml") return rewriteTo(request, `/archive/${slug}/podcast`, init);
+	// The share card and section icons of the newsletter's emails, on its link host (lib/issue-card.js).
+	if (path === "/og") return rewriteTo(request, `/archive/${slug}/og`, init);
+	const iconKey = ICON_PATH_PATTERN.exec(path)?.[1];
+	if (iconKey) return rewriteTo(request, `/archive/${slug}/icon/${iconKey}.png`, init);
 	const audioSlug = AUDIO_PATH_PATTERN.exec(path)?.[1];
 	if (audioSlug) return rewriteTo(request, `/archive/${slug}/audio/${audioSlug}`, init);
 	const markdownSlug = /^\/p\/([a-z0-9-]+)\.md$/.exec(path)?.[1];
@@ -265,7 +271,7 @@ export async function proxy(request) {
 
 // favicon.ico goes through the proxy so archive domains answer 404 and browsers keep the newsletter's logo. An export
 // uploaded for a post import doesn't: the proxy buffers a request's body, only its first 10 MB, and the route checks the
-// session itself.
+// session itself. Of the .png paths only a newsletter's section icons go through, which its host and a mount map to its archive.
 export const config = {
-	matcher: ["/((?!_next/static|_next/image|api/post-imports$|.*\\.(?:png|svg|jpg|webp)$).*)"],
+	matcher: ["/((?!_next/static|_next/image|api/post-imports$|.*\\.(?:png|svg|jpg|webp)$).*)", "/icon/:file"],
 };

@@ -73,6 +73,10 @@ const newsletterSchema = new mongoose.Schema(
 			fontPair: { type: String, enum: FONT_PAIR_IDS },
 			headerUrl: { type: String, trim: true },
 			emailLogo: { type: Boolean },
+			// A short line under the name in the website's header, the email's header and the share card ("by QuoteSweep").
+			publisher: { type: String, trim: true },
+			// The issue's share card (app/archive/[slug]/og) at the top of each email. A campaign's issueCard overrides it.
+			issueCard: { type: Boolean },
 		},
 		// The website's navigation bar, in order (lib/site-navigation.js). id: stable, so reordering keeps an item's identity.
 		navigation: [

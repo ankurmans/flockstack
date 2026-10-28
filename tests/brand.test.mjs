@@ -56,14 +56,17 @@ describe("a brand's colors", () => {
 		assert.equal(getBrand(null).theme, "classic");
 	});
 
-	test("offer four themes and five font pairs of fonts every device has", () => {
+	test("offer four themes, five font pairs of fonts every device has and one of web fonts for the website", () => {
 		assert.deepEqual(THEME_IDS, ["classic", "magazine", "minimal", "bold"]);
-		assert.deepEqual(FONT_PAIR_IDS, ["sans", "serif", "editorial", "modern", "helvetica"]);
+		assert.deepEqual(FONT_PAIR_IDS, ["sans", "serif", "editorial", "modern", "helvetica", "grotesk"]);
 		for (const pair of Object.values(FONT_PAIRS)) {
 			assert.match(pair.heading, /(Arial|serif)$/, "ends in a generic fallback");
 			assert.match(pair.body, /(Arial|serif)$/);
+			if (pair.webFonts) continue;
 			assert.doesNotMatch(pair.heading + pair.body, /Inter|Geist|Roboto Slab|Google/, "no web font");
 		}
+		assert.deepEqual(FONT_PAIRS.grotesk.webFonts, ["Host Grotesk", "Inter"]);
+		assert.match(FONT_PAIRS.grotesk.description, /website/);
 	});
 
 	test("take a logo or header only as an https address, or a path when the email knows where paths are served", () => {
@@ -202,13 +205,14 @@ describe("saving a brand", () => {
 		const user = await customer();
 		const created = await callApi("POST", "/api/v1/newsletters", { key: user.key, body: { name: "Brand notes" } });
 		assert.equal(created.status, 201);
-		assert.deepEqual(created.body.brand, { theme: "classic", fontPair: "sans", headerUrl: "", emailLogo: false }, "a new newsletter starts plain");
+		const plain = { headerUrl: "", emailLogo: false, publisher: "", issueCard: null };
+		assert.deepEqual(created.body.brand, { theme: "classic", fontPair: "sans", ...plain }, "a new newsletter starts plain");
 
 		const saved = await patch(user, created.body.slug, { accentColor: "#1d4ed8", brand: { theme: "bold", fontPair: "serif" } });
 		assert.equal(saved.status, 200, JSON.stringify(saved.body));
-		assert.deepEqual(saved.body.brand, { theme: "bold", fontPair: "serif", headerUrl: "", emailLogo: false });
+		assert.deepEqual(saved.body.brand, { theme: "bold", fontPair: "serif", ...plain });
 		const more = await patch(user, created.body.slug, { brand: { headerUrl: "https://cdn.example.com/h.jpg", emailLogo: true } });
-		assert.deepEqual(more.body.brand, { theme: "bold", fontPair: "serif", headerUrl: "https://cdn.example.com/h.jpg", emailLogo: true }, "a change keeps the fields it leaves out");
+		assert.deepEqual(more.body.brand, { theme: "bold", fontPair: "serif", ...plain, headerUrl: "https://cdn.example.com/h.jpg", emailLogo: true }, "a change keeps the fields it leaves out");
 		const cleared = await patch(user, created.body.slug, { brand: { headerUrl: "" } });
 		assert.equal(cleared.body.brand.headerUrl, "");
 		assert.equal((await callApi("GET", `/api/v1/newsletters/${created.body.slug}`, { key: user.key })).body.brand.theme, "bold");

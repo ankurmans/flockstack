@@ -1,6 +1,6 @@
 import { getReaderText } from "@/lib/reader-languages";
-import Image from "next/image";
 import AvatarNewsletter from "@/components/AvatarNewsletter";
+import ImageHeaderArchive from "@/components/ImageHeaderArchive";
 import FormSubscribe from "@/components/FormSubscribe";
 import LinksSocial from "@/components/LinksSocial";
 import { getBrand } from "@/lib/brand";
@@ -14,13 +14,7 @@ export default function PageComingSoon({ newsletter, signupFields, isPrivate = f
 
 	return (
 		<>
-			{brand.headerUrl && (
-				<div className="mx-auto max-w-5xl px-5 pt-6">
-					<div className="relative aspect-[3/1] overflow-hidden rounded-xl bg-muted outline -outline-offset-1 outline-black/10 dark:outline-white/10">
-						<Image src={brand.headerUrl} alt="" fill sizes="(min-width: 1024px) 1024px, 100vw" unoptimized priority className="object-cover" />
-					</div>
-				</div>
-			)}
+			{brand.headerUrl && <ImageHeaderArchive src={brand.headerUrl} />}
 			<section data-coming-soon className="site-hero relative isolate overflow-hidden">
 				<div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[34rem] bg-dots" />
 				<div className="site-hero-inner mx-auto flex max-w-2xl flex-col items-center px-5 pt-16 pb-24 text-center sm:pt-24 sm:pb-32">

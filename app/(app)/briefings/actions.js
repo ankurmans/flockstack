@@ -37,6 +37,7 @@ function readSections(values) {
 				maxItems: Number(section.maxItems),
 				budgetShare: optional(section.budgetShare),
 				priority: optional(section.priority),
+				icon: section.icon ? String(section.icon) : null,
 			};
 		});
 }

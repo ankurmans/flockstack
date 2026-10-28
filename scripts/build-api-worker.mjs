@@ -9,6 +9,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } 
 import { builtinModules, createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getMingoEsmAliases } from "./mingo-esm.mjs";
 import { narrowSource } from "./narrow-bundle.mjs";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
@@ -28,6 +29,7 @@ export const ALIASES = {
 	react: join(SHIMS, "react.js"),
 	"@opennextjs/cloudflare": join(SHIMS, "opennext-cloudflare.js"),
 	"@/lib/runtime-hooks": join(API, "runtime-hooks.js"),
+	...getMingoEsmAliases(ROOT),
 };
 // The FlockStack Cloud build (FLOCKSTACK_CLOUD_BUILD=true, set by scripts/deploy-all.mjs) keeps images in R2 only: the S3, CloudFront and
 // Vercel Blob clients are replaced by a stub that throws, as in next.config.mjs.

@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { History } from "lucide-react";
 import BadgeStatus from "@/components/BadgeStatus";
 import CardSettings from "@/components/CardSettings";
 import FormBriefing from "@/components/FormBriefing";
 import HeaderPage from "@/components/HeaderPage";
+import StateEmpty from "@/components/StateEmpty";
 import TimeLocal from "@/components/TimeLocal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { runAction } from "@/lib/actions/run-action";
@@ -51,7 +53,7 @@ export default async function BriefingPage({ params }) {
 				<FormBriefing newsletterId={briefing.newsletterId} briefing={briefing} keys={keys} languages={READER_LANGUAGES} defaultTimeZone={briefing.schedule.timeZone} />
 				<CardSettings title="Runs" className="self-start">
 					{runs.length === 0 ? (
-						<p className="px-4 py-3 text-sm text-muted-foreground">{briefing.manualRunAt ? "A run is waiting to start." : "Nothing has run yet."}</p>
+						<StateEmpty isCompact icon={History} title={briefing.manualRunAt ? "A run is waiting to start" : "Nothing has run yet"} />
 					) : (
 						<Table>
 							<TableHeader>

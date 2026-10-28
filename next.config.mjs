@@ -1,5 +1,7 @@
 import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from "./lib/security-headers.js";
+import { getMingoEsmAliases } from "./scripts/mingo-esm.mjs";
 
 // Uploads served from the S3 bucket's CDN, read at build time like the rest of this file.
 const IMAGES_CDN_URL = process.env.IMAGES_CDN_URL;
@@ -23,6 +25,9 @@ const SITE_EXTENSIONS = Object.entries({
 const IS_CLOUD_BUILD = process.env.FLOCKSTACK_CLOUD_BUILD === "true";
 const STORAGE_CLIENTS = IS_CLOUD_BUILD ? Object.fromEntries(["@vercel/blob", "@aws-sdk/client-s3", "@aws-sdk/client-cloudfront"].map((name) => [name, "./lib/cloud-build/unavailable-storage.js"])) : {};
 
+// mingo's ESM build, which Turbopack can tree-shake down to the operators lib/docdb/mingo-engine.js names (scripts/mingo-esm.mjs).
+const MINGO_ESM = getMingoEsmAliases(fileURLToPath(new URL("./", import.meta.url)), { relativeTo: true });
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
 	poweredByHeader: false,
@@ -31,7 +36,7 @@ const nextConfig = {
 	// One Worker holds every route, so a module that several routes share should sit in a chunk of its own, loaded once, not be
 	// copied into each route's chunks: this takes 5 MB out of the 43 MB handler, and the memory V8 keeps its source in.
 	experimental: { turbopackServerSideNestedAsyncChunking: true },
-	turbopack: { resolveAlias: { ...Object.fromEntries(SITE_EXTENSIONS), ...STORAGE_CLIENTS } },
+	turbopack: { resolveAlias: { ...Object.fromEntries(SITE_EXTENSIONS), ...STORAGE_CLIENTS, ...MINGO_ESM } },
 	images: {
 		remotePatterns: [
 			{ protocol: "https", hostname: "*.public.blob.vercel-storage.com" },

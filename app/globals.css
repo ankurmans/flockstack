@@ -190,6 +190,15 @@
   color: var(--site-link, var(--foreground));
   text-decoration-color: color-mix(in oklab, var(--site-link, var(--foreground)) 40%, transparent);
 }
+/* A sectioned issue's headings carry their section's icon (lib/section-icons.js), in the accent the links read in. */
+.prose-issue h2 > .section-icon {
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  margin-right: 0.4em;
+  vertical-align: -0.1em;
+  color: var(--site-link, currentColor);
+}
 
 [data-site-theme="magazine"] {
   --radius: 0.25rem;

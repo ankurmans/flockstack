@@ -1,9 +1,12 @@
+import { Newspaper } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import BadgeStatus from "@/components/BadgeStatus";
 import ButtonsVerdict from "@/components/ButtonsVerdict";
 import CardSettings from "@/components/CardSettings";
 import HeaderPage from "@/components/HeaderPage";
+import ImageLinkPreview from "@/components/ImageLinkPreview";
+import StateEmpty from "@/components/StateEmpty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { runAction } from "@/lib/actions/run-action";
 import { requireAccount } from "@/lib/auth";
@@ -69,11 +72,12 @@ export default async function BriefingRunPage({ params }) {
 				)}
 				<CardSettings title="Stories">
 					{run.stories.length === 0 ? (
-						<p className="px-4 py-3 text-sm text-muted-foreground">No stories in this run.</p>
+						<StateEmpty isCompact icon={Newspaper} title="No stories in this run" />
 					) : (
 						<ul className="divide-y">
 							{run.stories.map((story) => (
 								<li key={story.storyKey || story.url} className="flex flex-wrap items-center gap-3 px-4 py-3">
+									<ImageLinkPreview src={story.previewImage} alt={story.title || story.url} size={48} />
 									<span className="min-w-0 flex-1">
 										<a href={story.url} target="_blank" rel="noreferrer noopener" className="block truncate text-sm font-medium hover:underline">
 											{story.title || story.url}

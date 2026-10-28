@@ -1,6 +1,6 @@
 import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
-import { BRIEFING_REVIEW_MODES, BRIEFING_STATUSES, DEFAULT_BUDGET_USD, DEFAULT_MIN_SCORE, SECTION_FORMATS } from "../lib/briefing-rules.js";
+import { BRIEFING_REVIEW_MODES, BRIEFING_STATUSES, DEFAULT_BUDGET_USD, DEFAULT_MIN_SCORE, SECTION_FORMATS, SECTION_ICON_KEYS } from "../lib/briefing-rules.js";
 
 // A newsletter's briefing (docs/BRIEFINGS-DESIGN.md): on its schedule the engine searches the web from the brief, picks the stories for the
 // audience, writes a sourced issue in the style guide's voice, checks it and leaves it as a draft. nextRunAt is the next run due,
@@ -56,6 +56,7 @@ const briefingSchema = new mongoose.Schema(
 				maxItems: { type: Number, required: true },
 				budgetShare: { type: Number },
 				priority: { type: Number },
+				icon: { type: String, enum: SECTION_ICON_KEYS },
 			},
 		],
 		minScore: { type: Number, default: DEFAULT_MIN_SCORE },

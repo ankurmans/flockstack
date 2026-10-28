@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { History } from "lucide-react";
 import BadgeStatus from "@/components/BadgeStatus";
 import CardSettings from "@/components/CardSettings";
 import FormSeries from "@/components/FormSeries";
 import HeaderPage from "@/components/HeaderPage";
+import StateEmpty from "@/components/StateEmpty";
 import TimeLocal from "@/components/TimeLocal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { runAction } from "@/lib/actions/run-action";
@@ -32,7 +34,7 @@ export default async function SeriesDetailPage({ params }) {
 				<FormSeries newsletterId={series.newsletterId} series={series} defaultTimeZone={series.schedule.timeZone} />
 				<CardSettings title="Runs" className="self-start">
 					{runs.length === 0 ? (
-						<p className="px-4 py-3 text-sm text-muted-foreground">Nothing has run yet.</p>
+						<StateEmpty isCompact icon={History} title="Nothing has run yet" />
 					) : (
 						<Table>
 							<TableHeader>

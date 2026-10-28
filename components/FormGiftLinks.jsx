@@ -1,10 +1,11 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { Check, Copy, Loader2 } from "lucide-react";
+import { Check, Copy, Gift, Loader2 } from "lucide-react";
 import { makeGiftLink, revokeGiftLink, saveGiftLinkSettings } from "@/app/(app)/gift-links/actions";
 import BadgeStatus from "@/components/BadgeStatus";
 import CardSettings, { RowSettings } from "@/components/CardSettings";
+import StateEmpty from "@/components/StateEmpty";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -158,7 +159,7 @@ function ListLinks({ links }) {
 	return (
 		<CardSettings title="Links">
 			{links.length === 0 ? (
-				<p className="px-4 py-3 text-sm text-muted-foreground">No gift links yet.</p>
+				<StateEmpty isCompact icon={Gift} title="No gift links yet" />
 			) : (
 				links.map((link) => (
 					<div key={link.id} className="flex flex-col gap-2 px-4 py-3 text-sm">

@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { Aggregator as FullAggregator, Query as FullQuery } from "mingo";
 import { Aggregator, OPERATORS, Query } from "../lib/docdb/mingo-engine.js";
+import nextConfig from "../next.config.mjs";
+import { buildApiWorker } from "../scripts/build-api-worker.mjs";
 
 // lib/docdb/mingo-engine.js registers only the operators of mingo the source names, and lib/docdb/model.js loads it only where SQL can't answer.
 // An operator the engine lacks fails when the query or the pipeline runs, so the source is read for every `$operator` and each one mingo has is
@@ -64,31 +67,45 @@ const rows = [
 	{ _id: "4", status: "bounced", email: "di@example.net", score: 0, tags: ["c", "a"], fields: {}, createdAt: new Date("2026-09-04T10:00:00Z"), sentAt: new Date("2026-09-05T23:59:00Z"), newsletterId: "n2" },
 ];
 
+const filters = [
+	{ status: "active" },
+	{ status: { $in: ["active", "bounced"] } },
+	{ status: { $nin: ["active"] } },
+	{ status: { $ne: "active" } },
+	{ score: { $exists: false } },
+	{ score: { $exists: true } },
+	{ score: { $gt: 0, $lte: 3 } },
+	{ score: { $gte: 3, $lt: 7 } },
+	{ score: { $type: "number" } },
+	{ email: { $regex: "^ann@", $options: "i" } },
+	{ email: { $regex: "example\\.com$" } },
+	{ $or: [{ status: "bounced" }, { score: 7 }] },
+	{ $and: [{ status: "active" }, { tags: "b" }] },
+	{ $nor: [{ status: "active" }] },
+	{ status: { $not: { $in: ["active"] } } },
+	{ tags: { $all: ["a", "b"] } },
+	{ tags: { $elemMatch: { $eq: "c" } } },
+	{ "fields.plan": { $in: ["pro"] } },
+	{ $expr: { $gt: ["$unsubscribedAt", { $add: ["$createdAt", 90 * 86_400_000] }] } },
+	{ $expr: { $and: [{ $lte: ["$score", 3] }, { $ne: ["$status", "bounced"] }] } },
+	{ $expr: { $or: [{ $eq: ["$status", "bounced"] }, { $in: ["$score", [7]] }] } },
+	{ $expr: { $not: [{ $gte: ["$score", 3] }] } },
+];
+
+const pipelines = [
+	[{ $match: { status: "active" } }, { $count: "count" }],
+	[{ $group: { _id: "$status", n: { $sum: 1 }, best: { $max: "$score" }, worst: { $min: "$score" }, emails: { $addToSet: "$email" }, first: { $first: "$email" }, all: { $push: "$score" } } }, { $sort: { _id: 1 } }],
+	[{ $group: { _id: "$newsletterId", opened: { $sum: { $cond: [{ $ifNull: ["$sentAt", false] }, 1, 0] } }, spread: { $sum: { $subtract: ["$score", 1] } } } }, { $sort: { _id: 1 } }],
+	[{ $match: { sentAt: { $exists: true } } }, { $group: { _id: { day: { $dateToString: { format: "%Y-%m-%d", date: "$sentAt", timezone: "+00:00" } }, hour: { $hour: { date: "$sentAt", timezone: "+00:00" } } }, n: { $sum: 1 } } }, { $sort: { "_id.day": 1, "_id.hour": 1 } }],
+	[{ $match: { sentAt: { $exists: true } } }, { $project: { email: 1, newsletterId: 1 } }, { $sort: { email: -1 } }, { $limit: 2 }],
+	[{ $addFields: { delta: { $abs: { $subtract: [{ $ifNull: ["$score", 0] }, 5] } } } }, { $project: { delta: 1 } }, { $sort: { _id: 1 } }],
+	[{ $unwind: "$tags" }, { $group: { _id: "$tags", n: { $sum: 1 } } }, { $sort: { _id: 1 } }],
+	[{ $set: { score: { $add: [{ $ifNull: ["$score", 0] }, 1] } } }, { $unset: "tags" }, { $project: { score: 1, tags: 1 } }, { $sort: { _id: 1 } }],
+	[{ $group: { _id: null, all: { $addToSet: { $type: "$score" } } } }],
+	[{ $group: { _id: "$status", has: { $first: { $in: ["a", { $ifNull: ["$tags", []] }] } } } }, { $sort: { _id: 1 } }],
+];
+
 describe("the narrowed engine answers like the whole library", () => {
-	const filters = [
-		{ status: "active" },
-		{ status: { $in: ["active", "bounced"] } },
-		{ status: { $nin: ["active"] } },
-		{ status: { $ne: "active" } },
-		{ score: { $exists: false } },
-		{ score: { $exists: true } },
-		{ score: { $gt: 0, $lte: 3 } },
-		{ score: { $gte: 3, $lt: 7 } },
-		{ score: { $type: "number" } },
-		{ email: { $regex: "^ann@", $options: "i" } },
-		{ email: { $regex: "example\\.com$" } },
-		{ $or: [{ status: "bounced" }, { score: 7 }] },
-		{ $and: [{ status: "active" }, { tags: "b" }] },
-		{ $nor: [{ status: "active" }] },
-		{ status: { $not: { $in: ["active"] } } },
-		{ tags: { $all: ["a", "b"] } },
-		{ tags: { $elemMatch: { $eq: "c" } } },
-		{ "fields.plan": { $in: ["pro"] } },
-		{ $expr: { $gt: ["$unsubscribedAt", { $add: ["$createdAt", 90 * 86_400_000] }] } },
-		{ $expr: { $and: [{ $lte: ["$score", 3] }, { $ne: ["$status", "bounced"] }] } },
-		{ $expr: { $or: [{ $eq: ["$status", "bounced"] }, { $in: ["$score", [7]] }] } },
-		{ $expr: { $not: [{ $gte: ["$score", 3] }] } },
-	];
 	test("filters", () => {
 		for (const filter of filters) {
 			const narrowed = rows.filter((row) => new Query(filter).test(row)).map(({ _id }) => _id);
@@ -97,18 +114,6 @@ describe("the narrowed engine answers like the whole library", () => {
 		}
 	});
 
-	const pipelines = [
-		[{ $match: { status: "active" } }, { $count: "count" }],
-		[{ $group: { _id: "$status", n: { $sum: 1 }, best: { $max: "$score" }, worst: { $min: "$score" }, emails: { $addToSet: "$email" }, first: { $first: "$email" }, all: { $push: "$score" } } }, { $sort: { _id: 1 } }],
-		[{ $group: { _id: "$newsletterId", opened: { $sum: { $cond: [{ $ifNull: ["$sentAt", false] }, 1, 0] } }, spread: { $sum: { $subtract: ["$score", 1] } } } }, { $sort: { _id: 1 } }],
-		[{ $match: { sentAt: { $exists: true } } }, { $group: { _id: { day: { $dateToString: { format: "%Y-%m-%d", date: "$sentAt", timezone: "+00:00" } }, hour: { $hour: { date: "$sentAt", timezone: "+00:00" } } }, n: { $sum: 1 } } }, { $sort: { "_id.day": 1, "_id.hour": 1 } }],
-		[{ $match: { sentAt: { $exists: true } } }, { $project: { email: 1, newsletterId: 1 } }, { $sort: { email: -1 } }, { $limit: 2 }],
-		[{ $addFields: { delta: { $abs: { $subtract: [{ $ifNull: ["$score", 0] }, 5] } } } }, { $project: { delta: 1 } }, { $sort: { _id: 1 } }],
-		[{ $unwind: "$tags" }, { $group: { _id: "$tags", n: { $sum: 1 } } }, { $sort: { _id: 1 } }],
-		[{ $set: { score: { $add: [{ $ifNull: ["$score", 0] }, 1] } } }, { $unset: "tags" }, { $project: { score: 1, tags: 1 } }, { $sort: { _id: 1 } }],
-		[{ $group: { _id: null, all: { $addToSet: { $type: "$score" } } } }],
-		[{ $group: { _id: "$status", has: { $first: { $in: ["a", { $ifNull: ["$tags", []] }] } } } }, { $sort: { _id: 1 } }],
-	];
 	test("pipelines", () => {
 		for (const pipeline of pipelines) {
 			const narrowed = new Aggregator(pipeline).run(structuredClone(rows));
@@ -164,5 +169,37 @@ describe("mingo is loaded where SQL can't answer, not before", () => {
 		assert.equal(result.status, 0, result.stderr);
 		const steps = JSON.parse(result.stdout.trim().split("\n").at(-1));
 		assert.deepEqual(steps, [["equality", false], ["range and sort", false], ["in", false], ["count", false], ["update", false], ["upsert", false], ["pipeline update", true], ["aggregate", true]]);
+	});
+});
+
+// Node runs the tests on mingo's CommonJS build, which no bundler can tree-shake; the Workers and the app's layers are given its ESM build
+// (scripts/mingo-esm.mjs), where only what the engine names is kept. Same library, two builds: the bundled engine is asked the same things.
+describe("the bundles take mingo's ESM build", () => {
+	const subpaths = [...readFileSync(join(ROOT, "lib/docdb/mingo-engine.js"), "utf8").matchAll(/from "(mingo\/[^"]+)"/g)].map((match) => match[1]);
+
+	test("the app's Turbopack aliases send every subpath the engine imports to the ESM build", () => {
+		assert.ok(subpaths.length >= 5, subpaths.join());
+		for (const name of subpaths) assert.match(nextConfig.turbopack.resolveAlias[name] ?? "", /^\.\/node_modules\/mingo\/esm\/.+\.js$/, name);
+	});
+
+	test("the Workers' bundle of the engine has no CommonJS mingo, is a fraction of the package and answers like the whole library", async () => {
+		const folder = mkdtempSync(join(tmpdir(), "mingo-esm-"));
+		try {
+			const outFile = join(folder, "engine.mjs");
+			const { bytes } = await buildApiWorker({ entry: join(ROOT, "lib/docdb/mingo-engine.js"), outFile, metafile: true });
+			const inputs = Object.keys(JSON.parse(readFileSync(`${outFile}.meta.json`, "utf8")).inputs).filter((path) => path.includes("node_modules/mingo/"));
+			assert.ok(inputs.length > 0);
+			assert.deepEqual(inputs.filter((path) => !path.includes("node_modules/mingo/esm/")), []);
+			assert.ok(bytes < 150_000, `${bytes} bytes`);
+			const bundled = await import(pathToFileURL(outFile).href);
+			for (const filter of filters) {
+				const narrowed = rows.filter((row) => new bundled.Query(filter).test(row)).map(({ _id }) => _id);
+				assert.deepEqual(narrowed, rows.filter((row) => new FullQuery(filter).test(row)).map(({ _id }) => _id), JSON.stringify(filter));
+			}
+			for (const pipeline of pipelines) assert.deepEqual(new bundled.Aggregator(pipeline).run(structuredClone(rows)), new FullAggregator(pipeline).run(structuredClone(rows)), JSON.stringify(pipeline));
+			assert.throws(() => new bundled.Query({ score: { $mod: [2, 1] } }), /\$mod/);
+		} finally {
+			rmSync(folder, { recursive: true, force: true });
+		}
 	});
 });
