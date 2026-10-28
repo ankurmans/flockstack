@@ -40,6 +40,8 @@ function fromBriefing(briefing, defaultTimeZone, defaultEmail) {
 		blockedHosts: (briefing?.blockedHosts ?? []).join("\n"),
 		searchKeyId: briefing?.discovery.searchKey?.keyId ?? "",
 		candidateFeedKeyId: briefing?.discovery.candidateFeedKey?.keyId ?? "",
+		lookbackHours: briefing?.discovery.lookbackHours ?? 30,
+		mondayLookbackHours: briefing?.discovery.mondayLookbackHours ?? 72,
 		days: briefing?.schedule.days ?? [1, 2, 3, 4, 5],
 		time: briefing?.schedule.time ?? "06:00",
 		timeZone: briefing?.schedule.timeZone ?? defaultTimeZone,
@@ -158,6 +160,14 @@ export default function FormBriefing({ newsletterId, briefing, keys, languages, 
 							</option>
 						))}
 					</select>
+				</RowSettings>
+				<RowSettings label="Look back" hint="How many hours of news a run reads. Older items are dropped; Monday's runs read longer to cover the weekend.">
+					<div className="flex flex-wrap items-center gap-2 text-sm">
+						<Input type="number" min={1} max={168} value={draft.lookbackHours} onChange={(event) => set("lookbackHours", event.target.value)} className="w-20" aria-label="Hours to look back" />
+						<span>hours, and on Mondays</span>
+						<Input type="number" min={1} max={168} value={draft.mondayLookbackHours} onChange={(event) => set("mondayLookbackHours", event.target.value)} className="w-20" aria-label="Hours to look back on Mondays" />
+						<span>hours</span>
+					</div>
 				</RowSettings>
 				{feedKeys.length > 0 && (
 					<RowSettings label="Candidate feed" isLabel>

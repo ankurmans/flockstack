@@ -465,7 +465,7 @@ describe("discovery's providers and their limits", () => {
 		await tick({ world });
 		assert.equal(calls.length, 3, "one search per query, the trusted outlet's included");
 		assert.equal(calls[0].headers["x-api-key"], TINYFISH_SECRET);
-		assert.deepEqual([calls[0].searchParams.get("query"), calls[0].searchParams.get("domain_type"), calls[0].searchParams.get("after_date")], ["battery plant funding", "news", "2026-10-21"]);
+		assert.deepEqual([calls[0].searchParams.get("query"), calls[0].searchParams.get("domain_type"), calls[0].searchParams.get("after_date")], ["battery plant funding", "news", "2026-10-27"], "the first run reads 30 hours back, not a week");
 		assert.equal(calls[2].searchParams.get("include_domains"), "news.example.com");
 		const run = await runOf(briefing);
 		assert.ok(run.stories.find(({ url }) => url === ZINC).foundBy.some((by) => by.startsWith("tinyfish:")));

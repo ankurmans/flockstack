@@ -677,3 +677,55 @@ describe("the first production run", () => {
 		]);
 	});
 });
+
+describe("the lookback window", async () => {
+	const { lookbackStart, discoverySettings } = await import("../lib/briefings/discovery/index.js");
+	const HOUR = 60 * 60_000;
+	const NY = { schedule: { timeZone: "America/New_York" } };
+	const hoursBack = (briefing, at) => (new Date(at) - lookbackStart(briefing, at)) / HOUR;
+
+	test("30 hours Tuesday to Friday and 72 on Monday by default, whenever the last run was", () => {
+		assert.equal(hoursBack({ ...NY, lastRunAt: new Date("2026-10-28T08:00:00Z") }, "2026-10-28T09:30:00Z"), 30, "a run 90 minutes after the last one still reads 30 hours");
+		assert.equal(hoursBack(NY, "2026-10-27T09:30:00Z"), 30, "Tuesday");
+		assert.equal(hoursBack(NY, "2026-10-30T09:30:00Z"), 30, "Friday");
+		assert.equal(hoursBack(NY, "2026-10-26T09:30:00Z"), 72, "Monday");
+	});
+
+	test("Monday is the schedule's Monday, not UTC's", () => {
+		// 23:30 Sunday in New York is 03:30 Monday UTC; 00:30 Monday in New York is 04:30 UTC.
+		assert.equal(hoursBack(NY, "2026-10-26T03:30:00Z"), 30, "still Sunday in New York");
+		assert.equal(hoursBack(NY, "2026-10-26T04:30:00Z"), 72, "Monday in New York");
+		assert.equal(hoursBack({ schedule: { timeZone: "UTC" } }, "2026-10-26T03:30:00Z"), 72, "Monday in UTC");
+		assert.equal(hoursBack({ schedule: { timeZone: "Not/AZone" } }, "2026-10-26T03:30:00Z"), 72, "an unknown zone reads as UTC");
+	});
+
+	test("the briefing's own hours win, within 1 to 168", () => {
+		assert.equal(hoursBack({ ...NY, discovery: { lookbackHours: 48, mondayLookbackHours: 96 } }, "2026-10-28T09:30:00Z"), 48);
+		assert.equal(hoursBack({ ...NY, discovery: { lookbackHours: 48, mondayLookbackHours: 96 } }, "2026-10-26T09:30:00Z"), 96);
+		assert.equal(hoursBack({ ...NY, discovery: { lookbackHours: 999 } }, "2026-10-28T09:30:00Z"), 168);
+		assert.equal(hoursBack({ ...NY, discovery: { lookbackHours: "x" } }, "2026-10-28T09:30:00Z"), 30);
+		assert.equal(hoursBack({ ...NY, discovery: { lookbackHours: 0 } }, "2026-10-28T09:30:00Z"), 1);
+		assert.deepEqual([discoverySettings({}).lookbackHours, discoverySettings({}).mondayLookbackHours], [30, 72]);
+	});
+
+	test("items older than the window are dropped at its edge; undated ones and the seen filter stay as they were", async () => {
+		const at = "2026-10-28T09:30:00Z";
+		const since = lookbackStart(NY, at);
+		const item = (urlHash, publishedAt) => ({ urlHash, url: `https://news.example.com/${urlHash}`, publishedAt });
+		const kept = await dedupe.dedupeItems({
+			items: [item("edge", since.toISOString()), item("older", new Date(since - 1000).toISOString()), item("new", at), item("undated", null), item("seen", at)],
+			seen: async () => new Set(["seen"]),
+			since,
+		});
+		assert.deepEqual(kept.map(({ urlHash }) => urlHash).sort(), ["edge", "new", "undated"]);
+	});
+
+	test("between two sources of one kind and trust, the newest leads", () => {
+		const sources = labels.rankSources([
+			{ host: "a.example.com", sourceKind: "reporting", publishedAt: "2026-10-26T10:00:00Z", foundBy: ["gdelt", "tinyfish"] },
+			{ host: "b.example.com", sourceKind: "reporting", publishedAt: "2026-10-28T07:00:00Z", foundBy: ["gdelt"] },
+			{ host: "c.example.com", sourceKind: "press_release", publishedAt: "2026-10-28T08:00:00Z", foundBy: ["gdelt"] },
+		]);
+		assert.deepEqual(sources.map(({ host }) => host), ["b.example.com", "a.example.com", "c.example.com"], "independent reporting still comes first");
+	});
+});

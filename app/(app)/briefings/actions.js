@@ -42,6 +42,9 @@ function readSections(values) {
 		});
 }
 
+// A field left empty keeps the briefing's hours.
+const readHours = (value) => (value === undefined || value === null || String(value).trim() === "" ? undefined : Number(value));
+
 // The form's values as the actions take them: whole numbers, examples with an address, the steps that have a key.
 function readBriefing(values) {
 	const examples = (Array.isArray(values?.examples) ? values.examples : [])
@@ -59,7 +62,12 @@ function readBriefing(values) {
 		brief: { topic: String(values?.topic ?? ""), audience: String(values?.audience ?? ""), useful: String(values?.useful ?? ""), examples },
 		trustedOutlets: readHosts(values?.trustedOutlets),
 		blockedHosts: readHosts(values?.blockedHosts),
-		discovery: { searchKeyId: values?.searchKeyId ? String(values.searchKeyId) : null, candidateFeedKeyId: values?.candidateFeedKeyId ? String(values.candidateFeedKeyId) : null },
+		discovery: {
+			searchKeyId: values?.searchKeyId ? String(values.searchKeyId) : null,
+			candidateFeedKeyId: values?.candidateFeedKeyId ? String(values.candidateFeedKeyId) : null,
+			lookbackHours: readHours(values?.lookbackHours),
+			mondayLookbackHours: readHours(values?.mondayLookbackHours),
+		},
 		schedule: { days: (Array.isArray(values?.days) ? values.days : []).map(Number), time: String(values?.time ?? ""), timeZone: String(values?.timeZone ?? "UTC") },
 		styleGuide: String(values?.styleGuide ?? ""),
 		languages: (Array.isArray(values?.languages) ? values.languages : ["en"]).map(String),
