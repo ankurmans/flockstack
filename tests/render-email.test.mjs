@@ -120,3 +120,17 @@ test("presend checks pass when everything is ready", () => {
 	assert.equal(blocking.length, 0);
 	assert.ok(checks.every(({ isOk }) => isOk));
 });
+
+test("in the text part, sources cited in brackets become numbers listed once at the end, before the footer", () => {
+	const { text } = renderEmail({
+		markdown: "Arch grew 7.8% ([insurancebusinessmag.com](https://ib.example.com/arch)). The ratio rose to 82.5% ([insurancebusinessmag.com](https://ib.example.com/arch)) ([artemis.bm](https://artemis.example.com/a)).\n\nSee [our site](https://example.com).",
+		subject: "Hi",
+		newsletter,
+	});
+	assert.ok(text.includes("Arch grew 7.8% [1]. The ratio rose to 82.5% [1] [2]."), text);
+	assert.ok(!text.includes("(insurancebusinessmag.com (https://"), "no link inside brackets inside brackets");
+	assert.ok(text.includes("Sources:\n[1] insurancebusinessmag.com: https://ib.example.com/arch\n[2] artemis.bm: https://artemis.example.com/a"));
+	assert.equal(text.split("https://ib.example.com/arch").length, 2, "each address once");
+	assert.ok(text.includes("our site (https://example.com)"), "a link in a sentence reads as before");
+	assert.ok(text.indexOf("Sources:") < text.indexOf("Unsubscribe:"), "the sources come before the footer");
+});

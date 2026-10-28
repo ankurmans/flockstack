@@ -729,3 +729,63 @@ describe("the lookback window", async () => {
 		assert.deepEqual(sources.map(({ host }) => host), ["b.example.com", "a.example.com", "c.example.com"], "independent reporting still comes first");
 	});
 });
+
+describe("finished items and headline figures", async () => {
+	const write = await import("../lib/briefings/write.js");
+	const statusOf = (checks, id) => checks.find((entry) => entry.id === id)?.status;
+
+	test("a paragraph or item that stops mid-sentence blocks the draft", () => {
+		const cut = "Arch grew primary premiums 7.8% [1].\n\nWhy it matters: the shift signals tighter capacity for brokers. Insurtechs focused on [1]";
+		assert.equal(statusOf(check.finishedChecks(cut), "finished"), "blocker");
+		assert.match(check.finishedChecks(cut)[0].message, /Insurtechs focused on/);
+		assert.equal(statusOf(check.finishedChecks("- **Acme** raised $40 million in a round led by [2]"), "finished"), "blocker", "an item ending on a connecting word");
+		assert.equal(statusOf(check.finishedChecks("Rates fell 4%. Casualty is the line to watch, [3]"), "finished"), "blocker", "a dangling comma");
+		const whole = "Arch grew primary premiums 7.8% to US$2.77 billion [1].\n\nWhy it matters: brokers placing reinsurance face less capacity at 1 January.\n\nAlso today: Acme raises $40 million [2], Hartford reports [3]\n\n- **Acme** raised $40 million in a Series B [2]\n- *Announced by Hartford:* **Hartford** reported core earnings of $1.1 billion [3]";
+		assert.deepEqual(check.finishedChecks(whole).map(({ status }) => status), ["pass"], JSON.stringify(check.finishedChecks(whole)));
+	});
+
+	test("an item that ends on a figure tied to nothing blocks the draft", () => {
+		const found = check.finishedChecks("- **Aon** CEO Greg Case highlighted the need to connect risk with capital beyond traditional insurance markets, $250 trillion [4]");
+		assert.equal(statusOf(found, "bare_figures"), "blocker");
+		assert.match(found.find(({ id }) => id === "bare_figures").message, /\$250 trillion/);
+		for (const fine of ["- **Acme** raised $40 million in a Series B [2]", "- **Zinc** cut its rate 4%, the first cut since 2021 [5]", "Rates fell 4%, then 6% net of trend [1]."]) {
+			assert.equal(statusOf(check.finishedChecks(fine), "bare_figures"), undefined, fine);
+		}
+	});
+
+	test("a subject or preview figure the issue doesn't give blocks the draft, even when a cited page has it", () => {
+		const markdown = "## Lead\n\nArch's reinsurance premiums fell 8.0% to US$2.31 billion [1].";
+		const off = check.headlineCheck({ subject: "Arch's Q3", previewText: "Reinsurance premiums dropped 9.3%", markdown });
+		assert.equal(off.status, "blocker");
+		assert.match(off.message, /9\.3% \(preview\)$/, "the quarter in the subject is not a figure");
+		assert.equal(check.headlineCheck({ subject: "Arch's Q3 2026", previewText: "Reinsurance premiums fell 8.0%", markdown }).status, "pass");
+	});
+
+	test("an answer cut off at its cap is asked again with twice the room; cut off again, it says so", async () => {
+		const asks = [];
+		const models = (answers) => ({ text: async ({ maxTokens }) => (asks.push(maxTokens), answers.shift()) });
+		const done = await write.textInFull(models([{ text: "half", finishReason: "length" }, { text: "Whole sentence.", finishReason: "stop" }]), { maxTokens: 900 }, "The Lead section");
+		assert.deepEqual([done.text, asks], ["Whole sentence.", [900, 1800]]);
+		asks.length = 0;
+		await assert.rejects(write.textInFull(models([{ text: "a", finishReason: "length" }, { text: "b", finishReason: "length", maxTokens: 1800 }]), { maxTokens: 900 }, "The Lead section"), (error) => error instanceof write.CutOffError && /The Lead section was cut off at the model's 1800-token limit 2 times/.test(error.message));
+	});
+
+	test("the write and extract caps leave room for a reasoning model", async () => {
+		const prompts = await import("../lib/briefings/prompts.js");
+		const briefing = { name: "B", brief: { topic: "Insurance" }, languages: ["en"] };
+		const record = { n: 1, title: "T", label: "x.com", what: "W", numbers: [] };
+		const lead = prompts.sectionWritePrompt({ briefing, section: { id: "lead", title: "Lead", format: "sentences" }, records: [record], next: [], lead: true, language: "English" });
+		assert.equal(lead.maxTokens, 320 + prompts.REASONING_TOKENS, "the lead had 320, all of which gpt-oss's thinking could use");
+		assert.equal(prompts.extractPrompt({ briefing, story: { title: "T" }, pages: [] }).maxTokens, 700 + prompts.REASONING_TOKENS);
+	});
+});
+
+describe("why a section is empty", async () => {
+	const sections = await import("../lib/briefings/sections.js");
+	test("nothing about it, or what was about it scored under its bar", () => {
+		const scored = [{ id: "a", score: 40 }, { id: "b", score: 30 }, { id: "c", score: 80 }];
+		assert.equal(sections.emptyReason({ id: "people", format: "one-liners" }, scored, { c: "lead" }, 60), "No story found was about this section");
+		assert.equal(sections.emptyReason({ id: "people", format: "one-liners" }, scored, { a: "people", b: "people" }, 60), "2 stories were about it, the best scored 40, under its bar of 45");
+		assert.equal(sections.emptyReason({ id: "lead", format: "sentences" }, scored, { a: "lead" }, 60), "1 story was about it, the best scored 40, under its bar of 60");
+	});
+});
