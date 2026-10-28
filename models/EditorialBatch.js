@@ -20,6 +20,9 @@ const editorialBatchSchema = new mongoose.Schema(
 				time: { type: String },
 				timeZone: { type: String },
 			},
+			// briefing: each slot is a Briefing issue (lib/briefing-issue-pattern.js), with these of its sections when only some are kept.
+			issue: { type: String, enum: ["briefing"] },
+			sections: { type: [String], default: undefined },
 		},
 		// The last time the batch was put in front of the owner as a whole.
 		review: {

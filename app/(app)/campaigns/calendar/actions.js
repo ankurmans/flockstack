@@ -215,17 +215,19 @@ function readPattern(values) {
 	const stages = (Array.isArray(values?.stages) ? values.stages : []).filter((stage) => ["TOFU", "MOFU", "BOFU"].includes(stage));
 	const weekdays = (Array.isArray(values?.weekdays) ? values.weekdays : []).map(Number).filter((day) => day >= 1 && day <= 7);
 	return {
-		stages,
+		...(stages.length > 0 && { stages }),
 		cadence: {
 			...(weekdays.length > 0 ? { weekdays } : { everyDays: Math.max(1, Number(values?.everyDays) || 1) }),
 			...(values?.time && { time: text(values.time, 5) }),
 			...(values?.timeZone && { timeZone: text(values.timeZone, 64) }),
 		},
+		...(values?.issue === "briefing" && { issue: "briefing" }),
 	};
 }
 
 export async function saveBatchPattern(id, values) {
-	const { failure } = await runDashboardAction("update_editorial_batch", { id: String(id ?? ""), pattern: values?.stages?.length ? readPattern(values) : null });
+	const hasPattern = values?.stages?.length > 0 || values?.issue === "briefing";
+	const { failure } = await runDashboardAction("update_editorial_batch", { id: String(id ?? ""), pattern: hasPattern ? readPattern(values) : null });
 	if (failure) return toFormError(failure);
 	refresh(null, id);
 	return { ok: true };
