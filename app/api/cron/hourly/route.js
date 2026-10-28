@@ -26,12 +26,12 @@ const BRIEFINGS_BUDGET_MS = 40_000;
 
 // A self-hosted server runs briefings here (BRIEFINGS_IN_CRON=true) instead of in the optional briefings Worker, once an hour. FlockStack
 // Cloud has the Worker: in its build (FLOCKSTACK_CLOUD_BUILD, a constant there) the branch is dead, so the engine stays out of the app's bundle,
-// and elsewhere it loads only when switched on.
+// and elsewhere it loads only when switched on. No fetchImpl: on Node the engine's own checks each address as it connects.
 async function runBriefingsInCron() {
 	if (process.env.FLOCKSTACK_CLOUD_BUILD !== "true" && process.env.BRIEFINGS_IN_CRON === "true") {
 		try {
 			const [{ runTick }, { deliverIssue, notifyOwner }] = await Promise.all([import("@/lib/briefings"), import("@/lib/briefings-delivery")]);
-			return await runTick({ env: process.env, now: new Date(), delivery: { deliverIssue, notifyOwner }, timeBudgetMs: BRIEFINGS_BUDGET_MS, fetchImpl: (...args) => fetch(...args), ai: null });
+			return await runTick({ env: process.env, now: new Date(), delivery: { deliverIssue, notifyOwner }, timeBudgetMs: BRIEFINGS_BUDGET_MS, ai: null });
 		} catch (error) {
 			console.error("[hourly] briefings failed:", error?.message ?? error);
 			return { failed: error?.message ?? "failed" };

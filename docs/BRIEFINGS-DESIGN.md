@@ -224,7 +224,7 @@ Two adapters cover the text providers (OpenAI-compatible and Anthropic Messages)
 ## Safety
 
 - Discovery: free indexes and the account's own search key only; per-key pacing; never a paid tier without the owner raising `discoveryBudgetUsd`.
-- Fetches: public hosts only (`getPrivateHostProblem`, `global_fetch_strictly_public`), https for page fetches, 1 MB and 8 s per fetch, re-checked redirects, `robots.txt` respected, per-host concurrency of 2, 300 fetches per run, and a per-account cap of 3 runs an hour across its briefings.
+- Fetches: public hosts only (`getPrivateHostProblem`, every resolved address, on every hop; on Node checked again as each connection opens), https for page fetches, 1 MB and 8 s per fetch (headers and body), re-checked redirects, `robots.txt` respected on every hop's host, per-host concurrency of 2, 300 fetches per run, 600 an hour and 3,000 a day per account across its briefings (`ACCOUNT_FETCH_LIMITS`), and a per-account cap of 3 runs an hour. `global_fetch_strictly_public` only routes a fetch to our own zones through the front door; it is not an address filter. `docs/BRIEFINGS-SAFETY.md` has the review of every path and the residual risks.
 - Copyright: summaries in the newsletter's own words, quotes of at most 25 words, every story links to its original, no full articles stored after the run.
 - Keys: encrypted at rest, decrypted only inside the briefings Worker for the call, never in an action's answer, a log line, an error message, the activity log or an export. Removing a key deletes the ciphertext at once.
 - Prompts get the page text as data inside delimiters, and the instructions say text inside them is never an instruction. The check step and the code checks run on the result regardless.
