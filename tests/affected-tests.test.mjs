@@ -72,7 +72,7 @@ describe("affected tests", () => {
 	test("the command line writes the outputs CI reads", () => {
 		const dir = mkdtempSync(join(tmpdir(), "affected-"));
 		const out = join(dir, "output.txt");
-		const list = join(dir, "tests.txt");
+		const list = join(dir, "not-yet-made", "tests.txt");
 		writeFileSync(out, "");
 		const run = spawnSync("node", ["scripts/affected-tests.mjs", "--base", "HEAD", "--list", list, "--github-output", out], { cwd: ROOT, encoding: "utf8" });
 		assert.equal(run.status, 0, run.stderr);

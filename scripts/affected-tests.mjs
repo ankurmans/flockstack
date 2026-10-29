@@ -21,8 +21,8 @@
 //      segments of a path count as naming; for data and documents the file name alone does.
 //   5. If a third or more of the suite is affected, or the run's files are too foundational (below), everything runs.
 import { spawnSync } from "node:child_process";
-import { appendFileSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, posix } from "node:path";
+import { appendFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, posix } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
@@ -248,7 +248,11 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 		console.log(`no usable test map at ${mapFile}: falling back to imports`);
 	}
 	const result = plan({ ...changedFiles(base), map });
-	if (arg("--list")) writeFileSync(arg("--list"), `${result.tests.join("\n")}\n`);
+	// CI has no .ci/ directory until a test map is restored into it.
+	if (arg("--list")) {
+		mkdirSync(dirname(arg("--list")), { recursive: true });
+		writeFileSync(arg("--list"), `${result.tests.join("\n")}\n`);
+	}
 	const lines = [`mode=${result.mode}`, `build=${result.build}`, `count=${result.tests.length}`];
 	if (arg("--github-output")) appendFileSync(arg("--github-output"), `${lines.join("\n")}\n`);
 	console.log(`${lines.join(" ")}  (${result.reasons.join("; ") || "mapped by imports and names"})`);
