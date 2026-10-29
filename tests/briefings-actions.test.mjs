@@ -353,6 +353,36 @@ describe("managing a briefing", () => {
 	});
 });
 
+describe("the Free plan", () => {
+	let user;
+	let openai;
+
+	before(async () => {
+		user = await t.customer("briefings-free@example.com");
+		const Account = (await import("../models/Account.js")).default;
+		await Account.updateOne({ _id: user.accountId }, { $set: { subscriptionStatus: "canceled" } });
+		openai = await addKey(user, "openai");
+	});
+
+	test("a briefing on Free runs once a week: one schedule day, and one manual run a week", async () => {
+		const daily = await t.api(user.key, "POST", "/briefings", { name: "Free briefing", brief: BRIEF, schedule: { days: [1, 2, 3, 4, 5], time: "06:00", timeZone: "UTC" } });
+		assert.match(t.assertError(daily, 400, "validation_failed"), /Free plan a briefing runs once a week/);
+		const created = await t.api(user.key, "POST", "/briefings", { name: "Free briefing", brief: BRIEF, schedule: { days: [3], time: "06:00", timeZone: "UTC" }, steps: allSteps(openai, openai) });
+		assert.equal(created.status, 201, JSON.stringify(created.body));
+		assert.match(t.assertError(await t.api(user.key, "PATCH", `/briefings/${created.body.id}`, { schedule: { days: [3, 4] } }), 400, "validation_failed"), /once a week/);
+
+		await withEnv({ BRIEFINGS_ENABLED: "true" }, async () => {
+			assert.equal((await t.api(user.key, "POST", `/briefings/${created.body.id}/run`)).status, 200);
+			const ranAt = new Date(Date.now() - 2 * 24 * 60 * 60_000);
+			await m.BriefingRun.create({ accountId: user.accountId, briefingId: created.body.id, newsletterId: created.body.newsletterId, slot: "manual:free-1", isManual: true, status: "drafted", startedAt: ranAt, createdAt: ranAt });
+			const again = await t.api(user.key, "POST", `/briefings/${created.body.id}/run`);
+			const message = t.assertError(again, 429, "rate_limited");
+			assert.match(message, /one manual run a week/);
+			assert.ok(message.includes(new Date(ranAt.getTime() + 7 * 24 * 60 * 60_000).toISOString()), message);
+		});
+	});
+});
+
 describe("verdict links", () => {
 	let user;
 	let briefing;

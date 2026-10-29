@@ -212,7 +212,8 @@ let usedKeys;
 let rejectedKeys;
 
 async function makeBriefing(overrides = {}) {
-	const account = await m.Account.create({ ownerId: new m.ObjectId() });
+	// A paid plan unless the test says otherwise: on Free a briefing runs weekly.
+	const account = await m.Account.create({ ownerId: new m.ObjectId(), plan: "starter", subscriptionStatus: "active", ...overrides.account });
 	const newsletter = await m.Newsletter.create({ accountId: account._id, name: "Battery news", slug: `battery-${account._id}`, fromEmail: "news@example.com" });
 	const ids = { typesafe: new m.ObjectId(), openai: new m.ObjectId(), openrouter: new m.ObjectId(), tinyfish: new m.ObjectId() };
 	keys.set(String(ids.typesafe), { provider: "typesafe", baseUrl: "https://api.typesafe.ai/v1", accountRef: null, secret: TYPESAFE_SECRET });
@@ -228,7 +229,7 @@ async function makeBriefing(overrides = {}) {
 		translate: { keyId: ids.openai, model: "gpt-4o-mini" },
 		...overrides.steps?.(ids),
 	};
-	const { discovery, ...rest } = overrides;
+	const { discovery, account: _account, ...rest } = overrides;
 	const briefing = await m.Briefing.create({
 		accountId: account._id,
 		newsletterId: newsletter._id,
@@ -905,6 +906,34 @@ describe("the security review's findings", () => {
 		assert.equal(result.claimed, 1);
 		assert.equal(await m.BriefingRun.countDocuments({ accountId: waiting.account._id, briefingId: waiting.briefing._id }), 1);
 		await m.Briefing.updateMany({ accountId: account._id }, { $set: { status: "paused" } });
+	});
+
+	test("on Free a briefing runs weekly: a scheduled slot within 6 days of the last is passed over, and so is a second manual run in a week", async () => {
+		const world = makeWorld();
+		const free = { subscriptionStatus: "canceled" };
+		const { account, briefing } = await makeBriefing({ account: free, manualRunAt: undefined, nextRunAt: NOW });
+		const fiveDaysAgo = new Date(NOW.getTime() - 5 * 24 * HOUR);
+		await m.BriefingRun.create({ accountId: account._id, briefingId: briefing._id, newsletterId: briefing.newsletterId, slot: "2026-10-23", isManual: false, status: "drafted", stage: "done", startedAt: fiveDaysAgo, createdAt: fiveDaysAgo });
+		assert.equal((await tick({ world, timeBudgetMs: 0 })).claimed, 0);
+		const saved = await m.Briefing.findOne({ accountId: account._id, _id: briefing._id }).lean();
+		assert.ok(saved.nextRunAt > NOW, "the slot is passed over, not kept due");
+
+		await m.BriefingRun.updateMany({ accountId: account._id, briefingId: briefing._id }, { $set: { createdAt: new Date(NOW.getTime() - 6 * 24 * HOUR - 1) } });
+		await m.Briefing.updateOne({ accountId: account._id, _id: briefing._id }, { $set: { nextRunAt: NOW } });
+		assert.equal((await tick({ world, timeBudgetMs: 0 })).claimed, 1, "6 days after the last, the slot runs");
+
+		await m.Briefing.updateOne({ accountId: account._id, _id: briefing._id }, { $set: { status: "paused" } });
+		const threeDaysAgo = new Date(NOW.getTime() - 3 * 24 * HOUR);
+		await m.BriefingRun.create({ accountId: account._id, briefingId: briefing._id, newsletterId: briefing.newsletterId, slot: "manual:free-earlier", isManual: true, status: "drafted", stage: "done", startedAt: threeDaysAgo, createdAt: threeDaysAgo });
+		await m.Briefing.updateOne({ accountId: account._id, _id: briefing._id }, { $set: { manualRunAt: NOW } });
+		const later = new Date(NOW.getTime() + 2 * HOUR);
+		assert.equal((await tick({ world, timeBudgetMs: 0, now: later })).claimed, 0);
+		assert.equal((await m.Briefing.findOne({ accountId: account._id, _id: briefing._id }).lean()).manualRunAt, undefined, "the request is dropped, not kept waiting");
+
+		const paid = await makeBriefing({ manualRunAt: undefined, nextRunAt: NOW });
+		await m.BriefingRun.create({ accountId: paid.account._id, briefingId: paid.briefing._id, newsletterId: paid.briefing.newsletterId, slot: "2026-10-27", isManual: false, status: "drafted", stage: "done", startedAt: fiveDaysAgo, createdAt: new Date(NOW.getTime() - 24 * HOUR) });
+		assert.equal((await tick({ world, timeBudgetMs: 0 })).claimed, 1, "a paid plan's daily schedule runs daily");
+		await m.Briefing.updateMany({ accountId: paid.account._id }, { $set: { status: "paused" } });
 	});
 
 	test("a briefing gets 3 manual runs a local day at most", async () => {
