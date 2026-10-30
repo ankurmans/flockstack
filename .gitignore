@@ -63,3 +63,6 @@ workers/collaboration/dist/
 # One deployment's optional Workers setting and the copies of Wrangler configurations scripts/deploy-all.mjs makes for a deploy
 /optional-workers.json
 wrangler.optional.jsonc
+
+# CI scratch: the cached test map and the affected-test list
+/.ci/
