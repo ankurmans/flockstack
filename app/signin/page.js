@@ -100,7 +100,7 @@ export default async function SigninPage({ searchParams }) {
 					<SupportChat />
 				</Suspense>
 			)}
-			{SiteAnalytics && <SiteAnalytics />}
+			{SiteAnalytics && <SiteAnalytics signupSource={params.cta} />}
 		</LayoutSplit>
 	);
 }
