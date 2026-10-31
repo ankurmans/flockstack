@@ -58,6 +58,7 @@ function readSettings(formData) {
 		preferencesLink: formData.get("preferencesLink") === "on",
 		utmLinks: formData.get("utmLinks") === "on",
 		shareButtons: formData.get("shareButtons") === "on",
+		requireClaimCheck: formData.get("requireClaimCheck") === "on",
 		...(formData.has("customHeaders") && { customHeaders: readHeaderLines(String(formData.get("customHeaders") ?? "")) }),
 		...(formData.has("sendUndoSeconds") && { sendUndoSeconds: Number(readText(formData, "sendUndoSeconds")) }),
 		author: { bio: readText(formData, "authorBio"), imageUrl: readText(formData, "authorImageUrl") },

@@ -429,6 +429,12 @@ export default function FormNewsletter({
 						In the email header
 					</span>
 				</Field>
+				<Field label="Claim check" hint="Before a send, the ready-to-send check opens the issue's links and looks for each figure on the pages its paragraph links to. Its findings are warnings unless you require it to pass." as="div">
+					<span className="flex items-center gap-2 text-sm">
+						<Switch name="requireClaimCheck" checked={draft.isClaimCheckRequired} onCheckedChange={(isChecked) => set("isClaimCheckRequired", isChecked)} aria-label="Require the claim check to pass before a send" />
+						Required before a send
+					</span>
+				</Field>
 				<Field label="Custom headers" hint="Extra headers on every email, one Name: value a line, 10 at most. Names starting with X-, List-Id, List-Archive, List-Help, List-Owner, List-Subscribe, Organization and Keywords are allowed. The sender, signature and unsubscribe headers can't be changed." as="div">
 					<Textarea name="customHeaders" value={draft.customHeaders} rows={3} placeholder="X-Newsletter-Group: weekly" aria-label="Custom headers" className="font-mono text-xs" onChange={update("customHeaders")} />
 				</Field>

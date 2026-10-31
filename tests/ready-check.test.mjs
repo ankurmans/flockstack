@@ -335,7 +335,7 @@ describe("opening the links", () => {
 
 		assert.deepEqual(await runCheckJob(), { checked: 2, broken: 1 });
 		const done = await act(m, user, "check_campaign", { id });
-		assert.equal(done.isChecking, false);
+		assert.deepEqual(done.checking, ["claims"], "the links are done; the claim check is a job of its own");
 		const links = done.items.find(({ id: one }) => one === "links");
 		assert.equal(links.status, "warning");
 		assert.match(links.message, /A link doesn't load: example\.org\/gone \(404, page not found\)/);

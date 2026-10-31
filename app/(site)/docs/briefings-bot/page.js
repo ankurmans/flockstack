@@ -26,10 +26,15 @@ export default function BriefingsBotPage() {
 
 			<Section title="What it reads" stagger={2}>
 				<p>
-					Only pages that a FlockStack user&apos;s briefing found: a result of a search for the briefing&apos;s topic, a story in a feed the
+					Pages that a FlockStack user&apos;s briefing found: a result of a search for the briefing&apos;s topic, a story in a feed the
 					briefing reads, or a page linked from one of those. It does not crawl a site, follow its links beyond one step, or keep a copy of
 					a page after the briefing&apos;s run: it keeps the facts it needs for a short summary, at most 25 words of quotation, and the
 					link to the page.
+				</p>
+				<p className="mt-4">
+					It also opens the pages a FlockStack issue links to when its writer checks the issue before sending it: it looks for the
+					issue&apos;s figures on the pages it cites and checks that its links load, at most 25 links and 12 pages per check, and keeps
+					nothing of the pages it read.
 				</p>
 				<p className="mt-4">
 					It reads at most 1 MB of a page, waits at most 8 seconds, makes at most 2 requests to one host at a time and at most 300

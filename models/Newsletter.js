@@ -102,6 +102,9 @@ const newsletterSchema = new mongoose.Schema(
 		shareButtons: { type: Boolean },
 		// How long the dashboard holds a send so it can be undone: 0, 10, 30 or 60 seconds (lib/send-hold-rules.js). Unset: 30.
 		sendUndoSeconds: { type: Number },
+		// A send waits until the claim check (lib/claim-check.js) has passed on the issue's words as they are. Unset: its findings are
+		// only warnings.
+		requireClaimCheck: { type: Boolean },
 		// The website's signup pop-up and the gate (lib/popup-rules.js): when it opens, how long closing it snoozes it, where it
 		// shows, and whether older issues show only their beginning to readers who haven't subscribed. Unsaved: the defaults.
 		popup: {
