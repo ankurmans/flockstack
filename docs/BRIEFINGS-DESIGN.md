@@ -1,6 +1,6 @@
 # Briefings: design note
 
-Status: design, 2026-10-28. Nothing here is built yet; the build follows this note, and the note changes when the build shows it is wrong.
+Status: built and deployed in the US region (2026-10-29); the EU briefings Worker is not provisioned yet. Only `reviewMode: draft` runs: sending by itself once every check passes (Phase 3) is not built. The note changes when the build shows it is wrong.
 
 A briefing belongs to a newsletter. From a topic brief (no fixed source list), it searches the open web on a schedule, picks the stories its audience cares about, reads the original pages, writes a short sourced issue in the newsletter's style, checks the issue, and saves it as a draft (or, when the account allows, sends it once every check passes). Each account brings its own AI provider key, and optionally its own search provider key, so the cost is the account's; model spend is capped per briefing per run, and discovery runs on free indexes and free tiers.
 
