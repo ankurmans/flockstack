@@ -291,6 +291,7 @@ before(async () => {
 	m = {
 		ObjectId: docdb.ObjectId,
 		engine: await import("../lib/briefings/index.js"),
+		stages: await import("../lib/briefings/stages.js"),
 		rank: await import("../lib/briefings/rank.js"),
 		robots: await import("../lib/briefings/robots.js"),
 		schedule: await import("../lib/briefing-schedule.js"),
@@ -315,6 +316,89 @@ beforeEach(async () => {
 	m.robots.clearRobotsCache();
 	// Each test starts with no run left going by an earlier one.
 	await m.BriefingRun.updateMany({ status: "running" }, { $set: { status: "failed" } }).setOptions({ crossAccount: true });
+});
+
+describe("sending by itself, as the engine hands a run to delivery", () => {
+	// Delivery decides the send (lib/briefings-delivery.js); the engine hands over the run's own verdict and takes its answer.
+	function deliveryAnswering(answer) {
+		const delivery = makeDelivery();
+		delivery.deliverIssue = async (payload) => {
+			delivery.issues.push(payload);
+			return answer(payload, delivery.issues.length);
+		};
+		return delivery;
+	}
+
+	test("a clean run in send mode reaches delivery with no held reason, and a delivery that sent finishes it as sent", async () => {
+		const world = makeWorld();
+		const delivery = deliveryAnswering(() => ({ campaignId: CAMPAIGN_ID, status: "sent" }));
+		const { briefing } = await makeBriefing({ reviewMode: "send_if_checks_pass", languages: ["en", "fr"] });
+		await tick({ world, delivery, ai });
+		const run = await runOf(briefing);
+		assert.equal(run.status, "sent", run.error);
+		assert.equal(run.heldReason, undefined);
+		assert.equal(String(run.campaignId), CAMPAIGN_ID);
+		assert.deepEqual([delivery.issues[0].heldReason, delivery.issues[0].reviewMode], [null, "send_if_checks_pass"]);
+		assert.equal(await m.BriefingSeen.countDocuments({ accountId: briefing.accountId, briefingId: briefing._id }), 8, "a sent run marks what it used as seen, as a drafted one does");
+	});
+
+	test("while the checks are being read the stage asks again, with the same payload, and then finishes", async () => {
+		const world = makeWorld();
+		const delivery = deliveryAnswering((payload, count) => (count < 3 ? { campaignId: CAMPAIGN_ID, status: "checking" } : { campaignId: CAMPAIGN_ID, status: "sent" }));
+		const { briefing } = await makeBriefing({ reviewMode: "send_if_checks_pass" });
+		await tick({ world, delivery, ai });
+		const run = await runOf(briefing);
+		assert.equal(run.status, "sent", run.error);
+		assert.equal(delivery.issues.length, 3);
+		assert.ok(delivery.issues.every((issue) => issue.checksTimedOut === undefined && issue.markdown === delivery.issues[0].markdown));
+		assert.ok(world.sleeps.includes(4000), "it waited between questions");
+	});
+
+	test("checks that never finish are given up on after ten minutes: delivery is told to decide with what it has", async () => {
+		const answers = [];
+		const ctx = {
+			run: { _id: "r", accountId: "a", newsletterId: "n", slot: "2026-11-02", checks: [], discoveryNotes: [], sections: [], languages: [] },
+			briefing: { _id: "b", reviewMode: "send_if_checks_pass" },
+			work: { records: [], draft: { subject: "S", previewText: "P", markdown: "M" }, linkedMarkdown: "M", translations: [] },
+			meter: { spent: () => 0 },
+			clock: () => new Date(),
+			canWait: () => true,
+			sleep: async () => {},
+			delivery: {
+				async deliverIssue(payload) {
+					answers.push(payload.checksTimedOut === true);
+					return payload.checksTimedOut ? { campaignId: CAMPAIGN_ID, status: "drafted", heldReason: "checks" } : { campaignId: CAMPAIGN_ID, status: "checking" };
+				},
+			},
+		};
+		assert.deepEqual(await m.stages.STAGES.deliver(ctx), { partial: true }, "asked again");
+		assert.ok(ctx.work.checkingSince);
+		assert.deepEqual(await m.stages.STAGES.deliver({ ...ctx, canWait: () => false }), { yield: true }, "no time left in this tick: the next one asks");
+		ctx.work.checkingSince -= 11 * 60_000;
+		assert.deepEqual(await m.stages.STAGES.deliver(ctx), { finish: "drafted", campaignId: CAMPAIGN_ID });
+		assert.equal(ctx.run.heldReason, "checks");
+		assert.deepEqual(answers, [false, false, false, true]);
+	});
+
+	test("delivery's own reason for holding the issue replaces the engine's, and the run is a draft", async () => {
+		const world = makeWorld();
+		const delivery = deliveryAnswering(() => ({ campaignId: CAMPAIGN_ID, status: "drafted", heldReason: "daily_cap" }));
+		const { briefing } = await makeBriefing({ reviewMode: "send_if_checks_pass" });
+		await tick({ world, delivery, ai });
+		const run = await runOf(briefing);
+		assert.deepEqual([run.status, run.heldReason], ["drafted", "daily_cap"]);
+	});
+
+	test("a translation that was not written holds a send-mode run as partial", async () => {
+		const world = makeWorld();
+		const delivery = makeDelivery();
+		const { briefing } = await makeBriefing({ reviewMode: "send_if_checks_pass", languages: ["en", "fr"], steps: () => ({ translate: null }) });
+		await tick({ world, delivery, ai });
+		const run = await runOf(briefing);
+		assert.deepEqual(run.languages, [{ language: "fr", status: "skipped_no_key" }]);
+		assert.equal(run.heldReason, "partial");
+		assert.equal(delivery.issues[0].heldReason, "partial");
+	});
 });
 
 describe("a full run with open-web discovery", () => {

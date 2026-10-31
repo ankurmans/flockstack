@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { History } from "lucide-react";
 import BadgeStatus from "@/components/BadgeStatus";
+import CardBriefingAutoSend from "@/components/CardBriefingAutoSend";
 import CardSettings from "@/components/CardSettings";
 import FormBriefing from "@/components/FormBriefing";
 import HeaderPage from "@/components/HeaderPage";
@@ -9,9 +10,13 @@ import StateEmpty from "@/components/StateEmpty";
 import TimeLocal from "@/components/TimeLocal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { runAction } from "@/lib/actions/run-action";
+import { scoped } from "@/lib/account-scope";
+import { AUTO_SEND } from "@/lib/briefing-rules";
+import { isOnFreeTier } from "@/lib/plans";
 import { isValidObjectId } from "@/lib/docdb";
 import { READER_LANGUAGES } from "@/lib/reader-language-copy";
 import { getSelectedNewsletter, openNewsletter } from "@/lib/selected-newsletter";
+import Newsletter from "@/models/Newsletter";
 
 export const metadata = { title: "Briefing" };
 
@@ -41,6 +46,7 @@ export default async function BriefingPage({ params }) {
 		throw error;
 	}
 	openNewsletter(view, briefing.newsletterId, `/briefings/${id}`);
+	const newsletter = await Newsletter.findOne(scoped(account, { _id: briefing.newsletterId })).select({ agentApproval: 1 }).lean();
 	const [{ runs }, { keys }] = await Promise.all([
 		runAction("list_briefing_runs", { account, user, input: { id }, via: "dashboard" }),
 		runAction("list_ai_keys", { account, user, input: {}, via: "dashboard" }),
@@ -50,7 +56,18 @@ export default async function BriefingPage({ params }) {
 		<>
 			<HeaderPage title={briefing.name} backHref="/briefings" meta={<BadgeStatus status={briefing.status} />} />
 			<div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]">
-				<FormBriefing newsletterId={briefing.newsletterId} briefing={briefing} keys={keys} languages={READER_LANGUAGES} defaultTimeZone={briefing.schedule.timeZone} />
+				<div className="flex min-w-0 flex-col gap-6">
+					<CardBriefingAutoSend
+						key={`${briefing.reviewMode}-${briefing.autoSendDailyCap}`}
+						briefingId={briefing.id}
+						isOn={briefing.reviewMode === "send_if_checks_pass"}
+						dailyCap={briefing.autoSendDailyCap ?? AUTO_SEND.dailyCap}
+						maxDailyCap={AUTO_SEND.maxDailyCap}
+						isFree={isOnFreeTier(account)}
+						askBeforeAgentSends={Boolean(newsletter?.agentApproval)}
+					/>
+					<FormBriefing newsletterId={briefing.newsletterId} briefing={briefing} keys={keys} languages={READER_LANGUAGES} defaultTimeZone={briefing.schedule.timeZone} />
+				</div>
 				<CardSettings title="Runs" className="self-start">
 					{runs.length === 0 ? (
 						<StateEmpty isCompact icon={History} title={briefing.manualRunAt ? "A run is waiting to start" : "Nothing has run yet"} />

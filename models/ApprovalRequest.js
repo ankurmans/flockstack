@@ -15,7 +15,8 @@ const approvalRequestSchema = new mongoose.Schema(
 		actorId: { type: String, required: true },
 		actorName: { type: String, required: true },
 		preset: { type: String, required: true },
-		via: { type: String, enum: ["api", "mcp"], required: true },
+		// briefing: a briefing that sends by itself (lib/briefings-delivery.js), as an app named after the briefing.
+		via: { type: String, enum: ["api", "mcp", "briefing"], required: true },
 		action: { type: String, required: true },
 		className: { type: String, required: true },
 		// Why it wasn't run: the key's level, the newsletter's setting, or the size of the change.
