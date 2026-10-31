@@ -1,6 +1,6 @@
 # Briefings: design note
 
-Status: design, 2026-10-28. Nothing here is built yet; the build follows this note, and the note changes when the build shows it is wrong.
+Status: built. Phases 1 and 2 (drafts only) run in production since 2026-10-31. Phase 3, sending by itself (`reviewMode: send_if_checks_pass`), is built and described under "Auto-send" below; it needs a deploy of the API Worker first (it carries the new delivery), then the app, then the briefings Worker. The note changes when the build shows it is wrong.
 
 A briefing belongs to a newsletter. From a topic brief (no fixed source list), it searches the open web on a schedule, picks the stories its audience cares about, reads the original pages, writes a short sourced issue in the newsletter's style, checks the issue, and saves it as a draft (or, when the account allows, sends it once every check passes). Each account brings its own AI provider key, and optionally its own search provider key, so the cost is the account's; model spend is capped per briefing per run, and discovery runs on free indexes and free tiers.
 
@@ -45,7 +45,7 @@ Seven collections and one migration (`0049_briefings.sql`, additive). All are ac
 - `steps`: `{ query, triage, extract, write, check, translate }`, each `{ keyId, model }`; `translate` is needed only when `languages` has more than one. The check step must use a different model from the write step; saving the same model is refused.
 - `prices`: optional per-model `{ inputPerMillion, outputPerMillion }` in USD, overriding the built-in table
 - `budgetUsd`: the model spend cap per run (default 0.25, at most 20), with optional per-step shares `stepBudgets: { query, triage, extract, write, check, translate }` (defaults 5, 10, 35, 20, 15, 15 percent). Discovery has its own `discoveryBudgetUsd`, 0 by default because the default indexes and free tiers cost nothing.
-- `reviewMode`: `draft` or `send_if_checks_pass` (Phase 3; until then only `draft` is accepted)
+- `reviewMode`: `draft` or `send_if_checks_pass` (see "Auto-send"); with the second, `autoSendDailyCap` (1 to 3, default 1) and who confirmed it and when (`autoSendConfirmedBy`, `autoSendConfirmedAt`)
 - `testEmail`: the address the test send goes to, which must be a team member's address
 
 **`BriefingRun`** (one per briefing per slot; the unique `(briefingId, slot)` index is the lock, as `SeriesRun` is for series)
@@ -55,7 +55,7 @@ Seven collections and one migration (`0049_briefings.sql`, additive). All are ac
 - `stories[]`: `{ externalId, title, url, score, sources[] }`
 - `calls[]`: `{ step, provider, model, inputTokens, outputTokens, costUsd, costFrom: "provider" | "price_table" }`, and `costUsd` (the total)
 - `stories[]` also carry `kind` (`full` or `brief`) and `sourceKind` (`reporting`, `press_release`, `filing`, `regulator`, `company`, `community`, `other`).
-- `thin`, `heldReason` (`review_mode`, `thin`, `checks`, `partial`, `agent_approval`), `languages[]` (`{ language, status }`)
+- `thin`, `heldReason` (`review_mode`, `thin`, `checks`, `partial`, `agent_approval`, `daily_cap`), `autoSentAt` (when delivery queued the issue for sending by itself, which the daily cap counts), `languages[]` (`{ language, status }`)
 - `checks[]`: `{ id, status, message }`, `campaignId`, `error`, `startedAt`, `finishedAt`
 - Working data between stages (`items`, `records`, `draft`) is kept on the run while it is running and dropped when it finishes. Runs are kept 90 days.
 
@@ -75,10 +75,11 @@ A new `Briefings` group in the registry, so the dashboard, REST and MCP get the 
 | - | - | - |
 | `list_briefings` | `GET /briefings` | read |
 | `get_briefing` | `GET /briefings/{id}` | read |
-| `create_briefing` | `POST /briefings` | write (send with `send_if_checks_pass`) |
-| `update_briefing` | `PATCH /briefings/{id}` | write (send when it turns on `send_if_checks_pass`) |
+| `create_briefing` | `POST /briefings` | write (refuses `send_if_checks_pass`) |
+| `update_briefing` | `PATCH /briefings/{id}` | write (refuses turning on `send_if_checks_pass`; an agent's change to what the briefing writes from turns it off) |
+| `set_briefing_auto_send` | none: dashboard only | admin class (a `dashboardOnly` action, so no key, app, tool or route) |
 | `pause_briefing` | `POST /briefings/{id}/pause` | write |
-| `resume_briefing` | `POST /briefings/{id}/resume` | write (send with `send_if_checks_pass`) |
+| `resume_briefing` | `POST /briefings/{id}/resume` | write |
 | `delete_briefing` | `DELETE /briefings/{id}` | destructive |
 | `run_briefing` | `POST /briefings/{id}/run` | write; 6 an hour |
 | `list_briefing_runs` | `GET /briefings/{id}/runs` | read |
@@ -120,7 +121,26 @@ Why its own Worker: the app handler has about 250 KB left in its size budget, an
 6. **Write.** One call to the write model with the style guide, the brief and the records only (no raw pages): full stories first, then the brief items as one line each with their link. It returns Markdown in which every paragraph cites at least one record by number; code turns the citations into links to the originals.
 7. **Check.** Code checks first: every number in the draft appears in the text of a page it cites; every link resolves (the link checker's rules); every story links to its original; no quote is over 25 words; length within bounds. Then the check model, which must differ from the writer, judges each claim against the record it cites (with a TypeSafe key: one Noul per claim, as in TypeSafe's citation check). Each check is recorded as `pass`, `warning` or `blocker`. The same code checks of links and figures, without a briefing's records (the issue's own links are its sources), run on every issue as the ready-to-send check's claim check (docs/CLAIM-CHECK.md, `lib/claim-check-rules.js`), through this engine's fetcher.
 8. **Translate** (beta). When `languages` has more than one, the translate model writes each other language from the checked draft, within its share of the budget. The translations are stored against the draft for readers who choose that language, labelled beta; one that does not fit the budget is skipped and noted.
-9. **Deliver.** Through `BriefingsDelivery`: the issue as a draft campaign (`externalId` `briefing:<briefingId>:<slot>`, so a retried run returns the same draft), one newsletter content item linked to it carrying every story's references (the calendar allows one newsletter item per issue, and per-story items would fill the 5,000-item cap within a year of daily runs; story keys stay on the run), a test email of the draft to `testEmail`, and a separate note to the owner with the run's checks, cost, discovery notes and a keep or drop link per story. The note is never part of the draft. With `send_if_checks_pass` (Phase 3), a run with no blocker and no warning is queued for sending, unless the newsletter has "ask me before an agent sends" on, which turns it into an approval request. A thin run, a run that stopped at the budget, a run with any blocker, and a run with a discovery provider that failed never send: they are held as a draft, with `heldReason` and the reason in the owner's email.
+9. **Deliver.** Through `BriefingsDelivery`: the issue as a draft campaign (`externalId` `briefing:<briefingId>:<slot>`, so a retried run returns the same draft), one newsletter content item linked to it carrying every story's references (the calendar allows one newsletter item per issue, and per-story items would fill the 5,000-item cap within a year of daily runs; story keys stay on the run), a test email of the draft to `testEmail`, and a separate note to the owner with the run's checks, cost, discovery notes and a keep or drop link per story. The note is never part of the draft. With `send_if_checks_pass` (Phase 3), delivery decides whether the draft it just made is sent, as set out under "Auto-send": a run that passes every condition is queued for sending, unless the newsletter has "ask me before an agent sends" on, which turns it into an approval request. A thin run, a run that stopped at the budget, a run with any blocker or warning, a run with a discovery provider that failed and a run with a translation missing never send: they are held as a draft, with `heldReason` and the reason in the owner's email.
+
+## Auto-send
+
+Decided and built 2026-10-31. The engine only ever makes drafts; sending is a second decision, taken in `lib/briefings-delivery.js` (`settleSend`) with the API Worker's reach, and made through the normal send path, never a new one.
+
+**How the owner opts in.** Only a signed-in person, in the dashboard: the briefing's page has a "Sending by itself" card with a tick that issues go to the whole audience unread, and the daily cap. It runs `set_briefing_auto_send`, a `dashboardOnly` action like `set_agent_approval`: it has no REST route, MCP tool or docs entry, `runAction` refuses it for any other `via`, and it needs `confirm: true`. `create_briefing` and `update_briefing` refuse `reviewMode: send_if_checks_pass` for everyone (the dashboard's form does not send the field), and accept `draft`, which turns it off. So no API key at any level, including `full`, and no connected app can switch it on; a drafts key could not run those actions at all. The action class of `create_briefing` and `update_briefing` no longer rises with `reviewMode` (that input is refused), only with a raised budget. A change an API key or app makes to what a briefing writes from (brief, hosts, discovery, style guide, languages, story counts, sections, minimum score, steps) while it sends by itself sets it back to `draft`: the owner confirmed those settings, not an agent's. Name, schedule, test address, budget and status changes keep it. The Free plan is draft only: the action refuses there, and delivery holds as `review_mode` after a downgrade.
+
+**What must hold for a send**, all of it, checked in this order. Anything else leaves the draft, the run `drafted` with the reason in `heldReason`, and the owner's note (the same one, titled "A briefing draft is ready to review") saying why:
+
+1. The engine's verdict (`holdReason`): not `thin`, not `partial` (a step, a provider or a translation that did not finish; `run.languages` all `done`), every code check and the different-model judge a `pass` (`checks`), and the review mode is `send_if_checks_pass` (else `review_mode`).
+2. Delivery's own reading of the world now: the run is scheduled, not started by hand (`run_briefing` promises a draft; `review_mode`); the briefing exists, is `active` and is still in send mode (the owner may have paused or turned it off mid-run; `review_mode`); the account is not on the Free plan (`review_mode`).
+3. The daily cap: at most `autoSendDailyCap` runs with `autoSentAt` since 00:00 UTC (`daily_cap`).
+4. `check_campaign` on the draft, including its links and its claim check: no blocker and no warning, except the test email item, which says nothing about the issue (`checks`). While the links and the claim check are still being read (their jobs run in the background), delivery answers `checking`, makes no note, and the deliver stage asks again every 4 seconds with the same payload for up to 10 minutes (`READY_CHECK_WAIT_MS`), then delivers once more with `checksTimedOut`, which holds it as `checks`. The checks are kept for the issue's words, so asking again costs nothing.
+5. The send itself: `send_campaign` through `runAction` with `via: "briefing"`, so `queueCampaign`, the plan's emails and subscribers, the Free plan's guards, `getSendBlocker` (including `requireClaimCheck`) and the postal address all apply. A refusal is a draft (`checks`), not an error; a campaign already past draft (a retry, or the owner's own send) counts as sent and is not sent again.
+6. A newsletter that asks before an agent sends (`Newsletter.agentApproval`) turns step 5 into an approval request instead: the briefing asks as an app named `briefing:<id>` (`ApprovalRequest` with `via: "briefing"`, `reason: "newsletter"`), the run is `drafted` with `agent_approval`, and approving on the Approvals page runs `send_campaign` once, for as long as the briefing exists. An approval is not counted by the cap until it sends.
+
+**After a send.** The run is `sent`, `autoSentAt` is set, and the owner's note ("A briefing issue was sent") carries the checks, the cost and a pause link (`lib/briefing-pause-links.js`): a signed link to `/briefing-pause/<token>`, valid 14 days, which opens a confirmation page and pauses only when its button is pressed, so scanners and previews cannot. It is emailed only, never logged, and not single use because pausing twice changes nothing. There is no undo window: that belongs to the dashboard's Send, and API, MCP and approved sends are never held. The ready-to-send check, the cap and the opt-in are the guard instead.
+
+**What it deliberately does not do.** It does not send a run it started itself on a Free plan, resend after a failed send, send to a part of the audience, or change a campaign's audience: the campaign's own audience (all, by default) is what `send_campaign` uses.
 
 ## Sections
 
@@ -230,7 +250,7 @@ Two adapters cover the text providers (OpenAI-compatible and Anthropic Messages)
 - Copyright: summaries in the newsletter's own words, quotes of at most 25 words, every story links to its original, no full articles stored after the run.
 - Keys: encrypted at rest, decrypted only inside the briefings Worker for the call, never in an action's answer, a log line, an error message, the activity log or an export. Removing a key deletes the ciphertext at once.
 - Prompts get the page text as data inside delimiters, and the instructions say text inside them is never an instruction. The check step and the code checks run on the result regardless.
-- Sending: a briefing never sends while its review mode is `draft`; "ask me before an agent sends" wins over `send_if_checks_pass`.
+- Sending: a briefing never sends while its review mode is `draft`; only the owner, in the dashboard, turns on `send_if_checks_pass`; "ask me before an agent sends" wins over it (see "Auto-send").
 
 ## Open questions for the owner
 

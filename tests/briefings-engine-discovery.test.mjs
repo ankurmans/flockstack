@@ -350,6 +350,8 @@ describe("budget shares and holds", () => {
 		assert.equal(hold({ checks: [{ status: "warning" }] }), "checks");
 		assert.equal(hold({ checks: clean }, {}, { reviewMode: "draft" }), "review_mode");
 		assert.equal(hold({ checks: clean }), null);
+		assert.equal(hold({ checks: clean, languages: [{ language: "fr", status: "done" }] }), null, "every translation written");
+		for (const status of ["pending", "failed", "skipped_budget", "skipped_no_key"]) assert.equal(hold({ checks: clean, languages: [{ language: "fr", status }] }), "partial", status);
 	});
 
 	test("the translate prompt keeps the citations and Markdown, and the page text stays data", () => {
