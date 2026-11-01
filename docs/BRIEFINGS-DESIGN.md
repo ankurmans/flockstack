@@ -1,6 +1,6 @@
 # Briefings: design note
 
-Status: built. Phases 1 and 2 (drafts only) run in production since 2026-10-31. Phase 3, sending by itself (`reviewMode: send_if_checks_pass`), is built and described under "Auto-send" below; it needs a deploy of the API Worker first (it carries the new delivery), then the app, then the briefings Worker. The note changes when the build shows it is wrong.
+Status: built. Phases 1 and 2 (drafts only) run in production in the US region and, since 2026-10-31, in the EU region too: the EU briefings Worker exists and is enabled. Phase 3, sending by itself (`reviewMode: send_if_checks_pass`), is built and described under "Auto-send" below; it needs a deploy of the API Worker first (it carries the new delivery), then the app, then the briefings Worker, in each region. The note changes when the build shows it is wrong.
 
 A briefing belongs to a newsletter. From a topic brief (no fixed source list), it searches the open web on a schedule, picks the stories its audience cares about, reads the original pages, writes a short sourced issue in the newsletter's style, checks the issue, and saves it as a draft (or, when the account allows, sends it once every check passes). Each account brings its own AI provider key, and optionally its own search provider key, so the cost is the account's; model spend is capped per briefing per run, and discovery runs on free indexes and free tiers.
 
