@@ -3,7 +3,7 @@ import { describe, test } from "node:test";
 import router from "../workers/router/index.js";
 import { DEFAULT_ASSET_RETRY_MS, DEFAULT_TIMEOUT_MS, HEALTH_PATH, chooseRedirect, chooseRoute, isWorkersDevHost } from "../workers/router/routing.js";
 import { PUBLIC_EXACT_PATHS } from "../lib/public-routing.js";
-import { WEBSITE_EXACT_PATHS, WEBSITE_PREFIXES } from "../lib/website-routing.js";
+import { WEBSITE_EXACT_PATHS, WEBSITE_PREFIXES, WEBSITE_SIGNED_OUT_PATHS } from "../lib/website-routing.js";
 
 // workers/router: the Worker that owns flockstack.io and hands each request to WEBSITE, PUBLIC or APP. The three bindings are
 // stand-ins that record what they were asked, so the table, the fail-open rules and the pass-through are all run without Cloudflare.
@@ -39,7 +39,8 @@ describe("the routing table", () => {
 		assert.ok(samples.length > 20);
 		for (const path of samples) {
 			assert.equal(route(env, `https://flockstack.io${path}`), "website", path);
-			assert.equal(route(env, `https://flockstack.io${path}`, { headers: SESSION_US }), "website", `${path} signed in`);
+			// The dashboard's own page answers a signed-in visitor at the paths they share (/authors), as at /.
+			assert.equal(route(env, `https://flockstack.io${path}`, { headers: SESSION_US }), WEBSITE_SIGNED_OUT_PATHS.includes(path) ? "app" : "website", `${path} signed in`);
 		}
 	});
 
@@ -387,7 +388,7 @@ describe("the trust pages and the renamed page (2026-10-21)", () => {
 			const { env } = stack(config);
 			for (const path of NEW_PATHS) {
 				assert.equal(route(env, `https://${host}${path}`), "website", `${host}${path}`);
-				assert.equal(route(env, `https://${host}${path}`, { headers: cookie }), "website", `${host}${path} signed in`);
+				assert.equal(route(env, `https://${host}${path}`, { headers: cookie }), WEBSITE_SIGNED_OUT_PATHS.includes(path) ? "app" : "website", `${host}${path} signed in`);
 				assert.equal(route(env, `https://${host}${path}?utm_source=x`), "website", `${host}${path} with a query`);
 				assert.equal(route(env, `https://${host}${path}/`), "app", `${host}${path}/ is not the page`);
 				assert.equal(route(env, `https://${host}${path}/extra`), "app", `${host}${path}/extra`);

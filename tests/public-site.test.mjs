@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { after, before, beforeEach, describe, test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { activate, anonymous, as, catchRedirect, form, listPlanPrices, mockStripe, platformEmails, signIn, startTestApp, withEnv } from "./helpers/app.mjs";
+import { WEBSITE_SIGNED_OUT_PATHS } from "../lib/website-routing.js";
 
 // The public side of the app on every server: where / sends signed-out visitors, which paths open without a session,
 // the plan buttons' way through sign-in to Checkout, and what the pages, the sitemap, robots.txt
@@ -322,13 +323,24 @@ describe("search engines", () => {
 			folders.push(...entries.filter((entry) => entry.isDirectory() && !entry.name.startsWith("(")).map(({ name }) => `/${name}`));
 		}
 		assert.ok(folders.includes("/campaigns") && folders.includes("/billing"));
-		for (const path of [...folders, "/admin", "/api/", "/mcp", "/welcome", "/oauth/"]) assert.ok(rules.disallow.includes(path), `${path} is crawlable`);
+		// On Cloud a few of the dashboard's paths are also the website's public pages (/authors): crawlers have no session, so they open.
+		const shared = m.config.isCloud() ? WEBSITE_SIGNED_OUT_PATHS : [];
+		for (const path of [...folders, "/admin", "/api/", "/mcp", "/welcome", "/oauth/"]) assert.equal(rules.disallow.includes(path), !shared.includes(path), `${path} is ${shared.includes(path) ? "blocked" : "crawlable"}`);
 
 		// Sign-in stays crawlable, so search engines that follow the public pages' links to it read its noindex.
 		const publicPaths = [...m.siteExtensions.publicPages, ...m.docs.DOC_PAGES.map(({ href }) => href), "/signin"];
 		for (const path of publicPaths) {
 			assert.ok(!rules.disallow.some((rule) => path.startsWith(rule)), `${path} is blocked`);
 		}
+	});
+
+	test("robots.txt opens /authors on Cloud, where the website's public page is, and keeps it closed on a self-hosted server", async () => {
+		await withEnv({ FLOCKSTACK_CLOUD: "true", APP_URL: SITE_URL }, () => {
+			const { rules } = m.robots();
+			assert.ok(!rules.disallow.includes("/authors"));
+			assert.ok(rules.disallow.includes("/templates") && rules.disallow.includes("/campaigns"));
+		});
+		await withEnv({ FLOCKSTACK_CLOUD: "", APP_URL: "https://news.example.com" }, () => assert.ok(m.robots().rules.disallow.includes("/authors")));
 	});
 
 	test("public pages name their canonical URL", () => {

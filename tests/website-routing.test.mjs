@@ -6,7 +6,7 @@ import { after, before, describe, test } from "node:test";
 import { startTestApp, withEnv } from "./helpers/app.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isReservedSlug } from "../lib/reserved-slugs.js";
-import { WEBSITE_EXACT_PATHS, WEBSITE_PREFIXES, hasSessionCookie, isWebsitePath, shouldForwardToWebsite } from "../lib/website-routing.js";
+import { WEBSITE_EXACT_PATHS, WEBSITE_PREFIXES, WEBSITE_SIGNED_OUT_PATHS, hasSessionCookie, isWebsitePath, shouldForwardToWebsite } from "../lib/website-routing.js";
 
 // The marketing website is a separate Worker (a private repository). The app's worker-entry.mjs hands it a short list of paths
 // through the WEBSITE service binding, and answers everything else itself.
@@ -15,7 +15,7 @@ const forward = (overrides) => shouldForwardToWebsite({ method: "GET", hostname:
 
 describe("lib/website-routing.js", () => {
 	test("forwards the website's paths, with or without a session", () => {
-		for (const pathname of ["/pricing", "/compare", "/changelog", "/blog", "/blog/a-post", "/blog/feed.xml", "/vs", "/vs/mailchimp", "/alternatives", "/alternatives/mailchimp", "/switch", "/switch/mailchimp", "/newsletter-api", "/newsletter-mcp-server", "/newsletter-automation", "/paid-newsletter-platform", "/low-cost-newsletter-platform", "/cheapest-newsletter-platform", "/amazon-ses-newsletter", "/about", "/pricing-explained", "/who-its-for", "/authors", "/self-hosted-newsletter", "/tools/newsletter-cost-calculator", "/llms.txt", "/sitemap-website.xml", "/_website/_next/static/a.js", "/_website/og/home", "/_website/site.webmanifest"]) {
+		for (const pathname of ["/pricing", "/compare", "/changelog", "/blog", "/blog/a-post", "/blog/feed.xml", "/vs", "/vs/mailchimp", "/alternatives", "/alternatives/mailchimp", "/switch", "/switch/mailchimp", "/newsletter-api", "/newsletter-mcp-server", "/newsletter-automation", "/paid-newsletter-platform", "/low-cost-newsletter-platform", "/cheapest-newsletter-platform", "/amazon-ses-newsletter", "/about", "/pricing-explained", "/who-its-for", "/self-hosted-newsletter", "/tools/newsletter-cost-calculator", "/llms.txt", "/sitemap-website.xml", "/_website/_next/static/a.js", "/_website/og/home", "/_website/site.webmanifest"]) {
 			assert.equal(forward({ pathname }), true, pathname);
 			assert.equal(forward({ pathname, hasSession: true }), true, `${pathname} signed in`);
 		}
@@ -24,6 +24,14 @@ describe("lib/website-routing.js", () => {
 	test("sends / to the website only for a visitor with no session", () => {
 		assert.equal(forward({ pathname: "/", hasSession: false }), true);
 		assert.equal(forward({ pathname: "/", hasSession: true }), false);
+	});
+
+	test("shares /authors: the website's page without a session, the dashboard's Authors form with one", () => {
+		assert.deepEqual(WEBSITE_SIGNED_OUT_PATHS, ["/authors"]);
+		assert.equal(isWebsitePath("/authors"), true);
+		assert.equal(forward({ pathname: "/authors", hasSession: false }), true);
+		assert.equal(forward({ pathname: "/authors", hasSession: true }), false);
+		assert.equal(forward({ pathname: "/authors", hasSession: false, method: "POST" }), false);
 	});
 
 	test("leaves everything else to the app", () => {

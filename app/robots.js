@@ -1,6 +1,7 @@
 import { APP_ROUTES } from "@/lib/app-routes";
 import { getAppUrl, isCloud } from "@/lib/config";
 import { isSiteIndexedElsewhere } from "@/lib/site-origin";
+import { WEBSITE_SIGNED_OUT_PATHS } from "@/lib/website-routing";
 
 // The dashboard and the newsletter setup, the admin, the APIs, apps' consent and tracked links. / stays open: on
 // FlockStack Cloud it's the marketing website's home page (worker-entry.mjs). Sign-in stays open too, so crawlers that
@@ -16,8 +17,11 @@ const PUBLIC_API_PATHS = ["/api/v1/openapi.json"];
 export const dynamic = "force-dynamic";
 
 export default function robots() {
+	// On Cloud a crawler has no session, so these paths are the website's public pages (lib/website-routing.js): they stay open.
+	// Self-hosted, there is no website and the same paths are only the dashboard's.
+	const sharedWithWebsite = isCloud() ? WEBSITE_SIGNED_OUT_PATHS : [];
 	return {
-		rules: { userAgent: "*", allow: ["/", ...PUBLIC_API_PATHS], disallow: PRIVATE_PATHS },
+		rules: { userAgent: "*", allow: ["/", ...PUBLIC_API_PATHS], disallow: PRIVATE_PATHS.filter((path) => !sharedWithWebsite.includes(path)) },
 		// FlockStack Cloud's marketing website lists its own pages in a sitemap of its own (docs/ROUTING.md of the website),
 		// on the address the shared pages are indexed at: not on the EU Worker's.
 		sitemap: isCloud() && !isSiteIndexedElsewhere() ? [`${getAppUrl()}/sitemap.xml`, `${getAppUrl()}/sitemap-website.xml`] : `${getAppUrl()}/sitemap.xml`,
