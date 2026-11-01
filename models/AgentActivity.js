@@ -11,7 +11,7 @@ const agentActivitySchema = new mongoose.Schema(
 		actorType: { type: String, enum: ["key", "app"], required: true },
 		actorId: { type: String, required: true },
 		actorName: { type: String, required: true },
-		via: { type: String, enum: ["api", "mcp"] },
+		via: { type: String, enum: ["api", "mcp", "briefing"] },
 		action: { type: String, required: true },
 		className: { type: String },
 		newsletterId: { type: mongoose.Schema.Types.ObjectId, ref: "Newsletter" },

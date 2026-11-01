@@ -94,6 +94,18 @@ export async function updateBriefing(id, values) {
 	return { ok: true };
 }
 
+// Sending by itself, on or off. Only the dashboard can turn it on, and only with the owner's confirmation (set_briefing_auto_send).
+export async function setBriefingAutoSend(id, { enabled, confirm = false, dailyCap } = {}) {
+	const { failure } = await runDashboardAction("set_briefing_auto_send", {
+		id: String(id ?? ""),
+		enabled: enabled === true,
+		...(enabled === true && { confirm: confirm === true, ...(dailyCap && { dailyCap: Number(dailyCap) }) }),
+	});
+	if (failure) return toFormError(failure);
+	refresh(id);
+	return { ok: true };
+}
+
 export async function deleteBriefing(id) {
 	const { failure } = await runDashboardAction("delete_briefing", { id: String(id ?? "") });
 	if (failure) return toFormError(failure);

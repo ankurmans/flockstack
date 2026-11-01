@@ -49,7 +49,7 @@ describe("the Briefings guide", () => {
 		for (const phrase of [
 			"Run a newsletter with an agent",
 			"There is no list of sources to keep up",
-			"never sends by itself",
+			"Each issue waits as a draft until you",
 			"topic", "audience", "useful", "examples",
 			"Trusted outlets", "Blocked hosts", "whatever their robots.txt allows",
 			"AI keys", "never shown again", "under the key holder's own TinyFish account and terms",
@@ -64,6 +64,7 @@ describe("the Briefings guide", () => {
 			"English, Spanish, French, German, Italian and Portuguese", "beta",
 			"recorded per run on the run page", "an estimate from the prompts, not a measurement",
 			"get_agent_brief", "needsOwner", "apply_editorial_pattern",
+			"Sending by itself", "set_briefing_auto_send", "daily_cap", "a pause link", "no blocker and no warning", "only you can turn it on",
 		]) {
 			assert.ok(text.includes(phrase), phrase);
 		}

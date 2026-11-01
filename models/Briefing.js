@@ -69,6 +69,11 @@ const briefingSchema = new mongoose.Schema(
 		prices: [{ _id: false, model: { type: String, required: true }, inputPerMillion: { type: Number }, outputPerMillion: { type: Number } }],
 		budgetUsd: { type: Number, default: DEFAULT_BUDGET_USD },
 		reviewMode: { type: String, enum: BRIEFING_REVIEW_MODES, default: "draft" },
+		// Set with reviewMode send_if_checks_pass, by the owner in the dashboard only (set_briefing_auto_send): who confirmed, when, and
+		// how many issues a UTC day it may send.
+		autoSendDailyCap: { type: Number },
+		autoSendConfirmedAt: { type: Date },
+		autoSendConfirmedBy: { type: String },
 		testEmail: { type: String, trim: true, lowercase: true },
 		nextRunAt: { type: Date },
 		manualRunAt: { type: Date },

@@ -11,7 +11,7 @@ export default function BriefingsBotPage() {
 		<>
 			<HeaderDocs kicker="Guides" title="The FlockStack-Briefings fetcher">
 				FlockStack-Briefings is the program that reads web pages for briefings: a FlockStack feature where a newsletter owner describes a
-				topic, and FlockStack finds the week&apos;s stories on it and writes a draft issue that links to each original page.
+				topic, and FlockStack finds the week&apos;s stories on it and writes an issue that links to each original page, kept as a draft or, if the owner turns that on, sent once its checks pass.
 			</HeaderDocs>
 
 			<Section title="How to recognize it" stagger={1}>
@@ -34,7 +34,7 @@ export default function BriefingsBotPage() {
 				<p className="mt-4">
 					It also opens the pages a FlockStack issue links to when its writer checks the issue before sending it: it looks for the
 					issue&apos;s figures on the pages it cites and checks that its links load, at most 25 links and 12 pages per check, and keeps
-					nothing of the pages it read.
+					nothing of the pages it read. When the owner has let the briefing send by itself, the same check runs on the issue just before it would go out, and a failing one keeps it as a draft.
 				</p>
 				<p className="mt-4">
 					It reads at most 1 MB of a page, waits at most 8 seconds, makes at most 2 requests to one host at a time and at most 300

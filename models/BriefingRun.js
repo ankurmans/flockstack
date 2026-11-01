@@ -29,6 +29,8 @@ const briefingRunSchema = new mongoose.Schema(
 		thin: { type: Boolean, default: false },
 		// Set when the run made a draft where its review mode would have sent.
 		heldReason: { type: String, enum: HOLD_REASONS },
+		// When delivery queued this run's issue for sending by itself; the daily cap counts these.
+		autoSentAt: { type: Date },
 		campaignId: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign" },
 		error: { type: String },
 		work: { type: mongoose.Schema.Types.Mixed },

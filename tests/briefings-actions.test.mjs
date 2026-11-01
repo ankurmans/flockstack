@@ -202,7 +202,7 @@ describe("managing a briefing", () => {
 			[{ schedule: { time: "6am" } }, /time/],
 			[{ languages: ["xx"] }, /languages/],
 			[{ budgetUsd: 0 }, /budgetUsd/],
-			[{ reviewMode: "send_if_checks_pass" }, /isn't available yet/],
+			[{ reviewMode: "send_if_checks_pass" }, /turned on by the owner in the dashboard/],
 			[{ testEmail: "stranger@example.org" }, /team/],
 			[{ steps: { triage: { keyId: foreign.id, model: "gpt-4.1-mini" } } }, /isn't one of this account's/],
 			[{ steps: { query: { keyId: search.id, model: "x" } } }, /needs a model key, not a search key/],
@@ -547,6 +547,74 @@ describe("sections", () => {
 	});
 });
 
+describe("sending by itself", () => {
+	let user;
+	let briefing;
+	let runAction;
+	const dashboard = (name, input) => as(user, async () => runAction(name, { account: await m.Account.findById(user.accountId).lean(), user: { id: String(user.userId), email: user.email }, input, via: "dashboard" }));
+
+	before(async () => {
+		runAction = (await import("../lib/actions/run-action.js")).runAction;
+		user = await t.customer("briefings-autosend@example.com");
+		const openai = await addKey(user, "openai");
+		briefing = (await t.api(user.key, "POST", "/briefings", { name: "Daily", brief: BRIEF, steps: allSteps(openai, openai) })).body;
+	});
+
+	test("no key or app turns it on: create and update refuse the mode, and the action that sets it is the dashboard's alone", async () => {
+		const create = await t.api(user.key, "POST", "/briefings", { name: "Other", newsletter: user.newsletterId, brief: BRIEF, reviewMode: "send_if_checks_pass" });
+		assert.match(t.assertError(create, 400, "validation_failed"), /turned on by the owner in the dashboard/);
+		assert.match(t.assertError(await t.api(user.key, "PATCH", `/briefings/${briefing.id}`, { reviewMode: "send_if_checks_pass" }), 400, "validation_failed"), /dashboard/);
+		const response = await t.api(user.key, "PATCH", `/briefings/${briefing.id}/auto-send`, { enabled: true, confirm: true });
+		assert.ok(response.status >= 400, "there is no REST route for it");
+		await assert.rejects(runAction("set_briefing_auto_send", { account: await m.Account.findById(user.accountId).lean(), input: { id: briefing.id, enabled: true, confirm: true }, via: "api", apiKey: { _id: "a".repeat(24) } }), { code: "forbidden" });
+		assert.equal((await m.Briefing.findOne({ accountId: user.accountId, _id: briefing.id }).lean()).reviewMode, "draft");
+		const { ACTIONS } = await import("../lib/actions/registry.js");
+		assert.ok(!ACTIONS.some(({ name }) => name === "set_briefing_auto_send"), "not a REST route, MCP tool or documented action");
+	});
+
+	test("the dashboard turns it on only with the owner's confirmation, with a daily cap, and off again", async () => {
+		await assert.rejects(dashboard("set_briefing_auto_send", { id: briefing.id, enabled: true }), /Confirm that issues will be sent/);
+		await assert.rejects(dashboard("set_briefing_auto_send", { id: briefing.id, enabled: true, confirm: true, dailyCap: 4 }), { code: "validation_failed" });
+		const on = await dashboard("set_briefing_auto_send", { id: briefing.id, enabled: true, confirm: true });
+		assert.deepEqual([on.reviewMode, on.autoSendDailyCap], ["send_if_checks_pass", 1]);
+		assert.ok(on.autoSendConfirmedAt);
+		const stored = await m.Briefing.findOne({ accountId: user.accountId, _id: briefing.id }).lean();
+		assert.equal(stored.autoSendConfirmedBy, String(user.userId));
+		assert.equal((await dashboard("set_briefing_auto_send", { id: briefing.id, enabled: true, confirm: true, dailyCap: 3 })).autoSendDailyCap, 3);
+		assert.deepEqual((await t.api(user.key, "GET", `/briefings/${briefing.id}`)).body.reviewMode, "send_if_checks_pass", "the API shows it");
+		const off = await as(user, () => m.actions.setBriefingAutoSend(briefing.id, { enabled: false }));
+		assert.deepEqual(off, { ok: true });
+		const after = (await t.api(user.key, "GET", `/briefings/${briefing.id}`)).body;
+		assert.deepEqual([after.reviewMode, after.autoSendDailyCap, after.autoSendConfirmedAt], ["draft", null, null]);
+		assert.match((await as(user, () => m.actions.setBriefingAutoSend(briefing.id, { enabled: true }))).error, /Confirm that issues/);
+	});
+
+	test("what an agent changes in what the briefing writes turns it back off; its schedule, name and budget do not", async () => {
+		await dashboard("set_briefing_auto_send", { id: briefing.id, enabled: true, confirm: true });
+		const patch = (body) => t.api(user.key, "PATCH", `/briefings/${briefing.id}`, body);
+		for (const body of [{ name: "Renamed" }, { schedule: { days: [1, 2] } }, { testEmail: user.email }, { budgetUsd: 0.2 }, { reviewMode: "send_if_checks_pass" }]) {
+			assert.equal((await patch(body)).body.reviewMode, "send_if_checks_pass", JSON.stringify(body));
+		}
+		for (const body of [{ styleGuide: "Be bold" }, { brief: { topic: "Something else" } }, { trustedOutlets: ["example.com"] }]) {
+			await dashboard("set_briefing_auto_send", { id: briefing.id, enabled: true, confirm: true });
+			const changed = await patch(body);
+			assert.equal(changed.status, 200, JSON.stringify(changed.body));
+			assert.deepEqual([changed.body.reviewMode, changed.body.autoSendConfirmedAt], ["draft", null], JSON.stringify(body));
+		}
+		await dashboard("set_briefing_auto_send", { id: briefing.id, enabled: true, confirm: true });
+		const own = await dashboard("update_briefing", { id: briefing.id, styleGuide: "Mine" });
+		assert.equal(own.reviewMode, "send_if_checks_pass", "the owner's own edits in the dashboard keep it");
+	});
+
+	test("the Free plan keeps drafts: it can't be turned on", async () => {
+		const free = await t.customer("briefings-autosend-free@example.com");
+		await m.Account.updateOne({ _id: free.accountId }, { $set: { subscriptionStatus: "canceled" } });
+		const created = await t.api(free.key, "POST", "/briefings", { name: "Free daily", brief: BRIEF, schedule: { days: [3], time: "06:00", timeZone: "UTC" } });
+		const account = await m.Account.findById(free.accountId).lean();
+		await assert.rejects(as(free, () => runAction("set_briefing_auto_send", { account, user: { id: String(free.userId), email: free.email }, input: { id: created.body.id, enabled: true, confirm: true }, via: "dashboard" })), /Free plan keeps a briefing's issues as drafts/);
+	});
+});
+
 describe("agents", () => {
 	test("each action has its class: reads, settings, drafting, deletes and keys", async () => {
 		const names = ["list_briefings", "get_briefing", "create_briefing", "update_briefing", "pause_briefing", "resume_briefing", "delete_briefing", "run_briefing", "list_briefing_runs", "get_briefing_run", "rate_briefing_story", "add_ai_key", "list_ai_keys", "check_ai_key", "delete_ai_key"];
@@ -567,8 +635,10 @@ describe("agents", () => {
 			check_ai_key: "admin",
 			delete_ai_key: "destructive",
 		});
-		assert.equal(m.scopes.getActionClass("create_briefing", { reviewMode: "send_if_checks_pass" }), "send");
-		assert.equal(m.scopes.getActionClass("update_briefing", { reviewMode: "send_if_checks_pass" }), "send");
+		// Sending by itself is not an input an agent can set (create and update refuse it), so it does not raise the class.
+		assert.equal(m.scopes.getActionClass("create_briefing", { reviewMode: "send_if_checks_pass" }), "write");
+		assert.equal(m.scopes.getActionClass("update_briefing", { reviewMode: "send_if_checks_pass" }), "write");
+		assert.equal(m.scopes.getActionClass("set_briefing_auto_send", { enabled: true }), "admin", "and only a signed-in person could run the action that does");
 		assert.equal(m.scopes.isGateable("create_briefing"), true);
 		assert.equal(m.scopes.getTargetOf("get_briefing_run").model, "BriefingRun");
 		assert.equal(m.scopes.getTargetOf("rate_briefing_story").model, "BriefingRun");
