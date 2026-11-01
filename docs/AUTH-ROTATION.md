@@ -94,3 +94,7 @@ printf %s "$NEW" | npx wrangler secret put BETTER_AUTH_SECRET            # then 
 With `FLOCKSTACK_API_KEY` in the environment (never an argument) it also lists the tools as that key. Exit code 1 when a check fails, with the status and the start of the body of the answer (that is where the router's "The app is not answering" shows). It cannot issue a token, which needs a person signing in, so it cannot see a signing key that fails to decrypt; connecting one client is that test.
 
 `node scripts/deploy-all.mjs` runs it after each region's router is deployed, as a warning that never stops the run (it asks again after a pause; a key for the other region is not used). `--dry-run` prints what it would run.
+
+## Refresh tokens used twice
+
+Refresh tokens rotate on use. Several MCP client sessions can share one login, so a token another session already used reaches the server again. For 10 minutes (`REFRESH_REPLAY_SECONDS` in `lib/auth.js`; Better Auth's default is 30 seconds) the server answers it with the tokens the first refresh issued. Past that, it refuses with `invalid_grant` and drops every token of that login for the client, so each session has to connect again. Each refusal is logged as `[auth] A refresh_token grant was refused as invalid_grant for <client>`; if "reconnect" prompts come back, look for those lines (`tests/oauth-refresh-replay.test.mjs`).
