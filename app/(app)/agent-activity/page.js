@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Activity, ArrowUpRight } from "lucide-react";
 import BadgeStatus from "@/components/BadgeStatus";
 import HeaderPage from "@/components/HeaderPage";
+import NoticeOwnerOnly from "@/components/NoticeOwnerOnly";
 import StateEmpty from "@/components/StateEmpty";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -12,6 +13,7 @@ import { ACTIVITY_PAGE_SIZE, getDayCounts, listActivity, listDayCounts } from "@
 import { ACTIVITY_RETENTION_DAYS } from "@/lib/agent-activity-rules";
 import { getKeyLevel, listApiKeys } from "@/lib/api-keys";
 import { requireAccount } from "@/lib/auth";
+import { isAccountOwner } from "@/lib/team";
 import { connectDb } from "@/lib/db";
 import { formatDate, formatRelative } from "@/lib/format";
 import { listConnectedApps } from "@/lib/oauth-apps";
@@ -31,7 +33,8 @@ function pick(value) {
 // ?actor= is the per-key view.
 export default async function AgentActivityPage({ searchParams }) {
 	const params = await searchParams;
-	const { account } = await requireAccount();
+	const { account, user } = await requireAccount();
+	if (!isAccountOwner(account, user)) return <NoticeOwnerOnly title="Agent activity">Agent activity is available to the account owner.</NoticeOwnerOnly>;
 	await connectDb();
 	const actor = pick(params.actor);
 	const action = pick(params.action)?.slice(0, 100);
