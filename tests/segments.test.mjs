@@ -311,6 +311,31 @@ describe("a campaign sent to a segment", () => {
 		assert.equal(more.body.error.code, "no_recipients");
 	});
 
+	test("a key or app can't change the rules of a segment a scheduled send or an active automation uses, and can once they don't", async () => {
+		const user = await setup("segment-pending-send@example.com");
+		await t.importReaders(user, 4, { tags: (index) => (index === 0 ? ["vip"] : []) });
+		const segment = (await t.api(user.key, "POST", "/segments", { name: "VIPs", rules: vipRules })).body;
+		const nobody = { match: "all", conditions: [{ type: "tag", op: "has_not", value: "nobody-has-this" }] };
+		const id = await t.draft(user, { segment: segment.id });
+		assert.equal((await t.api(user.key, "PATCH", `/segments/${segment.id}`, { rules: vipRules })).status, 200, "a draft follows the segment");
+		const at = new Date(Date.now() + 2 * 3_600_000);
+		assert.equal((await t.api(user.key, "POST", `/campaigns/${id}/schedule`, { scheduledAt: at.toISOString() })).status, 200);
+
+		assert.match(t.assertError(await t.api(user.key, "PATCH", `/segments/${segment.id}`, { rules: nobody }), 409, "conflict"), /scheduled send goes to this segment/);
+		assert.equal((await t.api(user.key, "GET", `/campaigns/${id}/recipients`)).body.emails, 1, "the audience is the one that was approved");
+		assert.equal((await t.api(user.key, "PATCH", `/segments/${segment.id}`, { name: "Renamed VIPs" })).status, 200, "a name is not an audience");
+		assert.equal((await t.api(user.key, "POST", `/campaigns/${id}/unschedule`)).status, 200);
+		assert.equal((await t.api(user.key, "PATCH", `/segments/${segment.id}`, { rules: nobody })).status, 200);
+		await t.api(user.key, "PATCH", `/segments/${segment.id}`, { rules: vipRules });
+
+		const created = await t.api(user.key, "POST", "/automations", { name: "VIP series", trigger: { type: "manual" }, steps: [{ type: "branch", segment: "Renamed VIPs", paths: [{ steps: [{ type: "add_tag", tag: "yes" }] }, { steps: [] }] }] });
+		assert.equal(created.status, 201, JSON.stringify(created.body));
+		assert.equal((await t.api(user.key, "POST", `/automations/${created.body.id}/activate`)).status, 200);
+		assert.match(t.assertError(await t.api(user.key, "PATCH", `/segments/${segment.id}`, { rules: nobody }), 409, "conflict"), /VIP series is active and uses this segment/);
+		assert.equal((await t.api(user.key, "POST", `/automations/${created.body.id}/pause`)).status, 200);
+		assert.equal((await t.api(user.key, "PATCH", `/segments/${segment.id}`, { rules: nobody })).status, 200);
+	});
+
 	test("narrows within the audience tier: a paid issue to a segment reaches its paid readers only", async () => {
 		const user = await setup("segment-and-tier@example.com");
 		await t.m.Newsletter.updateOne({ accountId: user.accountId, _id: user.newsletterId }, { $set: { "paidTier.enabled": true } });

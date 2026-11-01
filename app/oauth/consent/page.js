@@ -6,7 +6,7 @@ import FormConsent from "@/components/FormConsent";
 import LogoFlockstack from "@/components/LogoFlockstack";
 import { PRESET_INFO, getPresetOfScopes, getPresetsUpTo } from "@/lib/action-scopes";
 import { isDeletionPending } from "@/lib/account-state";
-import { getCurrentAccount } from "@/lib/auth";
+import { getPersonalAccount } from "@/lib/auth";
 import { readOAuthRequest } from "@/lib/oauth";
 import { isLoopbackRedirect } from "@/lib/oauth-rules";
 
@@ -20,7 +20,7 @@ const SUGGESTED = "send_with_approval";
 export default async function ConsentPage({ searchParams }) {
 	const oauthRequest = await readOAuthRequest(await searchParams);
 	if (!oauthRequest || oauthRequest.isExpired) return <Expired />;
-	const current = await getCurrentAccount();
+	const current = await getPersonalAccount();
 	if (!current) redirect(`/signin?${oauthRequest.query}`);
 	if (isDeletionPending(current.account)) redirect("/restore");
 

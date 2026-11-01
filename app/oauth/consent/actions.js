@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isDeletionPending } from "@/lib/account-state";
 import { notifyActivity } from "@/lib/alerts";
-import { getAuth, getCurrentAccount } from "@/lib/auth";
+import { getAuth, getPersonalAccount } from "@/lib/auth";
 import { answerConsent, saveConsentAccess } from "@/lib/oauth";
 import { isExpiredOAuthQuery, readOAuthQuery, readOAuthQueryField } from "@/lib/oauth-rules";
 
@@ -14,7 +14,8 @@ const EXPIRED_MESSAGE = "This request expired. Go back to the app and connect Fl
 export async function answerConsentRequest(_state, formData) {
 	const query = readOAuthQueryField(formData.get("oauth_query"));
 	if (!query) return { error: EXPIRED_MESSAGE };
-	const current = await getCurrentAccount();
+	// The app is connected to the signed-in person's own account: a seat on a team never answers for the owner's.
+	const current = await getPersonalAccount();
 	if (!current) redirect(`/signin?${query}`);
 	if (isDeletionPending(current.account)) redirect("/restore");
 	const accept = formData.get("decision") === "allow";
