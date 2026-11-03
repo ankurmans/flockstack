@@ -30,6 +30,10 @@ at no model cost and within the size budgets.
    their icon (24×24, alt = section title) beside the heading. Images off: headings and text read the same, icons carry alt text,
    nothing depends on an image. No emoji as the only visual. Added weight per email: one card (about 60 KB, fetched by the client,
    not counted in the HTML) and at most nine icons (about 1 KB each); the HTML grows by under 2 KB, well inside Gmail's 102 KB.
+   The images load from `IMAGES_CDN_URL` (the bucket) when an R2 server has them stored: a send checks the card and the color's
+   icons with a `HEAD`, asks the app's routes to draw what is missing, and points the email at the bucket (`lib/email-images.js`),
+   because a mail client's image proxy gives up on the app's slow first draw. Without R2, a CDN address or a stored file the email
+   keeps the app's addresses, which draw on request.
 6. **Web.** The issue page shows the same section icons inline (lucide, accent colour) beside section headings; an empty list in the
    dashboard shows an icon empty state (one shared component).
 7. **Briefings.** A section may carry `icon` (one of the keys below; default by section id or format). A story keeps its source's
