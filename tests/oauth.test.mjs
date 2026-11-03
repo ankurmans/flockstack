@@ -908,6 +908,29 @@ describe("connected apps", () => {
 	});
 });
 
+describe("a team seat", () => {
+	test("never answers a consent request for the owner's account: the owner's connected app keeps the level the owner gave", async () => {
+		const owner = await customer("oauth-team-owner@example.com", { slug: "oauth-team-owner" });
+		const viewer = await customer("oauth-team-viewer@example.com");
+		const account = await m.Account.findById(owner.accountId).lean();
+		const person = (who) => ({ id: String(who.userId), email: who.email, emailVerified: true });
+		const { runAction } = await import("../lib/actions/run-action.js");
+		const team = await import("../lib/team.js");
+		const invite = await as(owner, () => runAction("invite_team_member", { account, user: person(owner), input: { email: viewer.email, role: "viewer" }, via: "dashboard" }));
+		await team.acceptTeamInvitation(person(viewer), invite.id);
+		const consents = () => mongoose.connection.db.collection("oauthConsent");
+		const urlFor = () => authorizationUrl(AGENT, { challenge: pkce().challenge, prompt: "consent", scope: `${MCP_SCOPE} offline_access` });
+
+		assert.ok((await authorizeInBrowser(owner, urlFor(), { access: "drafts" })).searchParams.get("code"));
+		assert.equal((await consents().findOne({ userId: owner.userId, clientId: AGENT.clientId })).flockstackLevel, "drafts");
+
+		viewer.jar.set(team.TEAM_COOKIE, String(account._id));
+		assert.ok((await authorizeInBrowser(viewer, urlFor(), { access: "full" })).searchParams.get("code"), "the seat can still connect an app of its own");
+		assert.equal((await consents().findOne({ userId: owner.userId, clientId: AGENT.clientId })).flockstackLevel, "drafts", "the owner's choice is the owner's");
+		assert.equal((await consents().findOne({ userId: viewer.userId, clientId: AGENT.clientId })).flockstackLevel, "full", "the seat's own connection holds the seat's answer");
+	});
+});
+
 describe("API keys", () => {
 	test("keep working beside OAuth, with the same tools and checks", async () => {
 		const { key } = await as(users.owner, () => m.apiKeys.createApiKey(null, form({ name: "Claude Code", level: "full" })));

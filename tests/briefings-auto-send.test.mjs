@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { after, before, describe, test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 import { anonymous, as, catchRedirect, form, platformEmails, startTestApp } from "./helpers/app.mjs";
-import { QSTASH_KEYS, loadSendingModules, setupSender } from "./helpers/sending.mjs";
+import { QSTASH_KEYS, act, loadSendingModules, setupSender } from "./helpers/sending.mjs";
 
 // Briefings sending by itself (docs/BRIEFINGS-DESIGN.md, Auto-send): lib/briefings-delivery.js sends a run's issue through
 // send_campaign only when every condition holds, and leaves a draft with the reason (heldReason) and a note to the owner when one
@@ -76,6 +76,39 @@ before(async () => {
 });
 
 after(() => app?.stop());
+
+describe("a draft that is not the run's own", () => {
+	test("the briefing: retry key is reserved, so a key or seat cannot claim a briefing's slot", async () => {
+		const setup = await scenario();
+		await assert.rejects(
+			act(m, owner, "create_campaign", { newsletter: owner.newsletterId, externalId: `briefing:${setup.briefingId}:2026-11-02`, subject: "Mine", format: "markdown", content: "Mine." }),
+			(error) => error.code === "validation_failed" && /reserved for briefings/.test(error.message)
+		);
+		assert.equal(await m.Campaign.countDocuments({ accountId: owner.accountId, externalId: `briefing:${setup.briefingId}:2026-11-02` }), 0);
+	});
+
+	test("a draft already under the retry key from another source is kept as a draft, never sent", async () => {
+		const setup = await scenario();
+		// Made as a key makes a draft, then moved under the retry key as a draft from before the prefix was reserved would sit.
+		const seeded = await act(m, owner, "create_campaign", { newsletter: owner.newsletterId, subject: "Attacker chosen", previewText: "A short note", format: "markdown", content: "Attacker chosen body." });
+		await m.Campaign.updateOne({ accountId: owner.accountId, _id: seeded.id }, { $set: { externalId: `briefing:${setup.briefingId}:2026-11-02` } });
+		const { result, campaign, run } = await deliver(setup);
+		assert.equal(result.status, "drafted");
+		assert.equal(result.heldReason, "checks");
+		assert.equal(campaign.status, "draft");
+		assert.equal(campaign.subject, "Attacker chosen");
+		assert.equal(run.autoSentAt, undefined);
+	});
+
+	test("the run's own draft edited before the send is kept as a draft", async () => {
+		const setup = await scenario();
+		const first = await delivery.deliverIssue({ ...setup.payload, heldReason: "thin" });
+		assert.equal(first.status, "drafted");
+		await m.Campaign.updateOne({ accountId: owner.accountId, _id: first.campaignId }, { $set: { markdown: "Edited after the checks." } });
+		const { result, campaign } = await deliver(setup);
+		assert.deepEqual([result.status, result.heldReason, campaign.status], ["drafted", "checks", "draft"]);
+	});
+});
 
 describe("a run that passes everything", () => {
 	test("is queued for sending to the audience through send_campaign, counted against the daily cap, and the owner is told with a pause link", async () => {
