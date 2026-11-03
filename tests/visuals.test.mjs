@@ -26,6 +26,7 @@ before(async () => {
 		icons: await import("../lib/section-icons.js"),
 		card: await import("../lib/share-card.js"),
 		issueCard: await import("../lib/issue-card.js"),
+		emailImages: await import("../lib/email-images.js"),
 		seo: await import("../lib/archive-seo.js"),
 		mountRules: await import("../lib/mount-rules.js"),
 		renderEmail: await import("../lib/render-email.js"),
@@ -351,6 +352,88 @@ describe("email", () => {
 			assert.equal(text.replace(/&amp;/g, "&"), SECTION_TITLES[index]);
 		}
 		assert.doesNotMatch(html, /\p{Extended_Pictographic}/u, "no emoji");
+	});
+
+	describe("images from the bucket", () => {
+		const CDN = "https://img.example.com";
+
+		// A bucket that holds what it is told to and stores what the app draws when asked for its address.
+		function bucket({ stored = [], canDraw = true } = {}) {
+			const held = new Set(stored);
+			const requests = [];
+			const fetcher = async (input, init = {}) => {
+				const url = String(input);
+				const method = init.method ?? "GET";
+				requests.push(`${method} ${url}`);
+				if (url.startsWith(CDN)) return new Response(null, { status: held.has(url.slice(CDN.length + 1)) ? 200 : 404 });
+				if (canDraw) {
+					const icon = /\/icon\/([a-z-]+)\.png\?c=([0-9a-f]{6})/.exec(url);
+					if (icon) held.add(m.issueCard.getIconStorageKey(icon[2], icon[1]));
+					if (/\/og\?c=/.test(url)) held.add(drawnCard);
+				}
+				return new Response(new Uint8Array([1]), { status: 200 });
+			};
+			return { fetcher, requests, held };
+		}
+		let drawnCard;
+
+		async function setup(name) {
+			m.emailImages.forgetEmailImages();
+			const user = await briefingPublisher(name);
+			const hash = m.card.getCardHash(user.newsletter, user.issue);
+			drawnCard = m.card.getCardKey(user.newsletter._id, hash);
+			return { user, cardUrl: `${CDN}/${drawnCard}`, iconUrl: (key) => `${CDN}/${m.issueCard.getIconStorageKey("c33e00", key)}` };
+		}
+		const resolve = (user, fetcher, options = {}) => m.emailImages.resolveEmailImages({ newsletter: user.newsletter, campaign: user.issue }, { fetcher, cdnUrl: CDN, storage: "r2", ...options });
+
+		test("stored files are the email's addresses, and nothing is drawn", async () => {
+			const { user, cardUrl, iconUrl } = await setup("visuals-cdn-stored");
+			const { fetcher, requests, held } = bucket();
+			held.add(drawnCard);
+			for (const key of m.icons.SECTION_ICON_KEYS) held.add(m.issueCard.getIconStorageKey("c33e00", key));
+			const images = await resolve(user, fetcher);
+			assert.equal(images.cardUrl, cardUrl);
+			assert.equal(images.iconUrl("market-pulse"), iconUrl("market-pulse"));
+			assert.ok(requests.every((request) => request.startsWith("HEAD ")), "only asked whether they are there");
+			const html = (await m.sendingRules.buildRecipientEmail({ campaign: user.issue, newsletter: user.newsletter, contact: { _id: "65a000000000000000000001", email: "reader@example.com", status: "active" }, messageId: null, emailImages: images })).html;
+			assert.ok(html.includes(`<img src="${cardUrl}" width="600" height="315"`), "the card");
+			assert.equal([...html.matchAll(/<img src="https:\/\/img\.example\.com\/section-icons\/2\/c33e00\/[a-z-]+\.png"/g)].length, 9, "the icons");
+			assert.doesNotMatch(html, /\/archive\/[^"]+\/(og|icon)/, "no address of the app's left");
+		});
+
+		test("a file that isn't stored yet is drawn once by the app, then served from the bucket, and asked about once", async () => {
+			const { user, cardUrl, iconUrl } = await setup("visuals-cdn-draw");
+			const { fetcher, requests } = bucket();
+			const images = await resolve(user, fetcher);
+			assert.equal(images.cardUrl, cardUrl);
+			assert.equal(images.iconUrl("lead"), iconUrl("lead"));
+			assert.equal(requests.filter((request) => request.startsWith("GET ") && request.includes("/og?c=")).length, 1, "the card is asked for once");
+			assert.equal(requests.filter((request) => request.startsWith("GET ") && request.includes("/icon/")).length, m.icons.SECTION_ICON_KEYS.length);
+			requests.length = 0;
+			assert.equal((await resolve(user, fetcher)).cardUrl, cardUrl);
+			assert.deepEqual(requests, [], "the next email of the send asks nothing");
+		});
+
+		test("files that can't be stored leave the email on the app's addresses", async () => {
+			const { user } = await setup("visuals-cdn-fallback");
+			const images = await resolve(user, bucket({ canDraw: false }).fetcher);
+			assert.deepEqual({ cardUrl: images.cardUrl, iconUrl: images.iconUrl }, { cardUrl: null, iconUrl: null });
+			const { html } = await m.sendingRules.buildRecipientEmail({ campaign: user.issue, newsletter: user.newsletter, contact: { _id: "65a000000000000000000001", email: "reader@example.com", status: "active" }, messageId: null, emailImages: images });
+			assert.match(html, /\/og\?c=[0-9a-f]{24}&amp;s=/);
+			assert.match(html, /\/icon\/lead\.png\?c=c33e00&amp;v=2/);
+		});
+
+		test("a network that fails or hangs is not an error, and storage other than R2 is left alone", async () => {
+			const { user } = await setup("visuals-cdn-down");
+			const images = await resolve(user, async () => { throw new Error("offline"); });
+			assert.equal(images.cardUrl, null);
+			assert.equal(images.iconUrl, null);
+			m.emailImages.forgetEmailImages();
+			const { fetcher, requests } = bucket();
+			assert.equal(await resolve(user, fetcher, { storage: "s3" }), null);
+			assert.equal(await resolve(user, fetcher, { cdnUrl: "" }), null);
+			assert.deepEqual(requests, []);
+		});
 	});
 
 	test("a typical briefing reads the same with images off and stays far below Gmail's 102 KB clip", async () => {

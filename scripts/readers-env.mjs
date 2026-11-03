@@ -51,6 +51,8 @@ export const VARIABLES = {
 export const NOT_NEEDED = {
 	REPLIES_DOMAIN: "campaign reply capture; signup emails never use a campaign reply address",
 	REPLY_INGEST_SECRET: "campaign reply capture, not reader signup email delivery",
+	IMAGES_CDN_URL: "the card and icons of an issue's email (lib/email-images.js); a signup email has neither",
+	IMAGES_STORAGE: "the card and icons of an issue's email (lib/email-images.js); a signup email has neither",
 	AI_DAILY_LIMIT: "the app's writing assistant",
 	ALLOWED_EMAILS: "a self-hosted server's sign-in allowlist",
 	CLOUDFLARE_API_TOKEN: "custom domains and shared DNS, set up from the dashboard",
