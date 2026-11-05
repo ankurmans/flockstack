@@ -357,15 +357,15 @@ describe("email", () => {
 	describe("images from the bucket", () => {
 		const CDN = "https://img.example.com";
 
-		// A bucket that holds what it is told to and stores what the app draws when asked for its address.
+		// A bucket that holds what it is told to (asked through `keeps`, as the bucket binding is) and stores what the app draws
+		// when asked for its address (`fetcher`).
 		function bucket({ stored = [], canDraw = true } = {}) {
 			const held = new Set(stored);
 			const requests = [];
-			const fetcher = async (input, init = {}) => {
+			const keeps = async (key) => held.has(key);
+			const fetcher = async (input) => {
 				const url = String(input);
-				const method = init.method ?? "GET";
-				requests.push(`${method} ${url}`);
-				if (url.startsWith(CDN)) return new Response(null, { status: held.has(url.slice(CDN.length + 1)) ? 200 : 404 });
+				requests.push(`GET ${url}`);
 				if (canDraw) {
 					const icon = /\/icon\/([a-z-]+)\.png\?c=([0-9a-f]{6})/.exec(url);
 					if (icon) held.add(m.issueCard.getIconStorageKey(icon[2], icon[1]));
@@ -373,7 +373,7 @@ describe("email", () => {
 				}
 				return new Response(new Uint8Array([1]), { status: 200 });
 			};
-			return { fetcher, requests, held };
+			return { fetcher, keeps, requests, held };
 		}
 		let drawnCard;
 
@@ -384,17 +384,17 @@ describe("email", () => {
 			drawnCard = m.card.getCardKey(user.newsletter._id, hash);
 			return { user, cardUrl: `${CDN}/${drawnCard}`, iconUrl: (key) => `${CDN}/${m.issueCard.getIconStorageKey("c33e00", key)}` };
 		}
-		const resolve = (user, fetcher, options = {}) => m.emailImages.resolveEmailImages({ newsletter: user.newsletter, campaign: user.issue }, { fetcher, cdnUrl: CDN, storage: "r2", ...options });
+		const resolve = (user, { fetcher, keeps }, options = {}) => m.emailImages.resolveEmailImages({ newsletter: user.newsletter, campaign: user.issue }, { fetcher, keeps, cdnUrl: CDN, storage: "r2", ...options });
 
 		test("stored files are the email's addresses, and nothing is drawn", async () => {
 			const { user, cardUrl, iconUrl } = await setup("visuals-cdn-stored");
-			const { fetcher, requests, held } = bucket();
-			held.add(drawnCard);
-			for (const key of m.icons.SECTION_ICON_KEYS) held.add(m.issueCard.getIconStorageKey("c33e00", key));
-			const images = await resolve(user, fetcher);
+			const stored = bucket();
+			stored.held.add(drawnCard);
+			for (const key of m.icons.SECTION_ICON_KEYS) stored.held.add(m.issueCard.getIconStorageKey("c33e00", key));
+			const images = await resolve(user, stored);
 			assert.equal(images.cardUrl, cardUrl);
 			assert.equal(images.iconUrl("market-pulse"), iconUrl("market-pulse"));
-			assert.ok(requests.every((request) => request.startsWith("HEAD ")), "only asked whether they are there");
+			assert.deepEqual(stored.requests, [], "nothing is asked of the app, and the bucket's own address is never fetched");
 			const html = (await m.sendingRules.buildRecipientEmail({ campaign: user.issue, newsletter: user.newsletter, contact: { _id: "65a000000000000000000001", email: "reader@example.com", status: "active" }, messageId: null, emailImages: images })).html;
 			assert.ok(html.includes(`<img src="${cardUrl}" width="600" height="315"`), "the card");
 			assert.equal([...html.matchAll(/<img src="https:\/\/img\.example\.com\/section-icons\/2\/c33e00\/[a-z-]+\.png"/g)].length, 9, "the icons");
@@ -403,36 +403,43 @@ describe("email", () => {
 
 		test("a file that isn't stored yet is drawn once by the app, then served from the bucket, and asked about once", async () => {
 			const { user, cardUrl, iconUrl } = await setup("visuals-cdn-draw");
-			const { fetcher, requests } = bucket();
-			const images = await resolve(user, fetcher);
+			const stored = bucket();
+			const images = await resolve(user, stored);
 			assert.equal(images.cardUrl, cardUrl);
 			assert.equal(images.iconUrl("lead"), iconUrl("lead"));
-			assert.equal(requests.filter((request) => request.startsWith("GET ") && request.includes("/og?c=")).length, 1, "the card is asked for once");
-			assert.equal(requests.filter((request) => request.startsWith("GET ") && request.includes("/icon/")).length, m.icons.SECTION_ICON_KEYS.length);
-			requests.length = 0;
-			assert.equal((await resolve(user, fetcher)).cardUrl, cardUrl);
-			assert.deepEqual(requests, [], "the next email of the send asks nothing");
+			assert.equal(stored.requests.filter((request) => request.includes("/og?c=")).length, 1, "the card is asked for once");
+			assert.equal(stored.requests.filter((request) => request.includes("/icon/")).length, m.icons.SECTION_ICON_KEYS.length);
+			stored.requests.length = 0;
+			assert.equal((await resolve(user, stored)).cardUrl, cardUrl);
+			assert.deepEqual(stored.requests, [], "the next email of the send asks nothing");
 		});
 
 		test("files that can't be stored leave the email on the app's addresses", async () => {
 			const { user } = await setup("visuals-cdn-fallback");
-			const images = await resolve(user, bucket({ canDraw: false }).fetcher);
+			const images = await resolve(user, bucket({ canDraw: false }));
 			assert.deepEqual({ cardUrl: images.cardUrl, iconUrl: images.iconUrl }, { cardUrl: null, iconUrl: null });
 			const { html } = await m.sendingRules.buildRecipientEmail({ campaign: user.issue, newsletter: user.newsletter, contact: { _id: "65a000000000000000000001", email: "reader@example.com", status: "active" }, messageId: null, emailImages: images });
 			assert.match(html, /\/og\?c=[0-9a-f]{24}&amp;s=/);
 			assert.match(html, /\/icon\/lead\.png\?c=c33e00&amp;v=2/);
 		});
 
-		test("a network that fails or hangs is not an error, and storage other than R2 is left alone", async () => {
+		test("a network or bucket that fails is not an error, and storage other than R2 is left alone", async () => {
 			const { user } = await setup("visuals-cdn-down");
-			const images = await resolve(user, async () => { throw new Error("offline"); });
+			const down = async () => { throw new Error("offline"); };
+			const images = await resolve(user, { fetcher: down, keeps: down });
 			assert.equal(images.cardUrl, null);
 			assert.equal(images.iconUrl, null);
 			m.emailImages.forgetEmailImages();
-			const { fetcher, requests } = bucket();
-			assert.equal(await resolve(user, fetcher, { storage: "s3" }), null);
-			assert.equal(await resolve(user, fetcher, { cdnUrl: "" }), null);
-			assert.deepEqual(requests, []);
+			const stored = bucket();
+			assert.equal(await resolve(user, stored, { storage: "s3" }), null);
+			assert.equal(await resolve(user, stored, { cdnUrl: "" }), null);
+			assert.deepEqual(stored.requests, []);
+		});
+
+		test("a test email's card is the issue's own, whatever its subject says", async () => {
+			const { user } = await setup("visuals-cdn-test-subject");
+			const sent = { ...user.issue, subject: `[Test] ${user.issue.subject}`, cardSubject: user.issue.subject };
+			assert.equal(m.card.getCardHash(user.newsletter, sent), m.card.getCardHash(user.newsletter, user.issue));
 		});
 	});
 
