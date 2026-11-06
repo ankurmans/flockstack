@@ -77,6 +77,12 @@ describe("scope classes", () => {
 		assert.equal(scopes.getActionClass("create_series", { mode: "send" }), "send");
 		assert.equal(scopes.getActionClass("send_test_email", {}), "write-draft", "a test to the owner is drafting");
 		assert.equal(scopes.getActionClass("send_test_email", { to: ["someone@example.com"] }), "send", "a test to addresses the agent names is an email to strangers");
+		for (const name of ["create_briefing", "update_briefing"]) {
+			assert.equal(scopes.getActionClass(name, { name: "Morning" }), "write");
+			assert.equal(scopes.getActionClass(name, { budgetUsd: 1 }), "send");
+			assert.equal(scopes.getActionClass(name, { prices: [] }), "write", "clearing the briefing's own prices puts the table back");
+			assert.equal(scopes.getActionClass(name, { prices: [{ model: "gpt-5", inputPerMillion: 0, outputPerMillion: 0 }] }), "send", "a price of its own can lift the run's cap, so it waits like a bigger budget");
+		}
 		assert.equal(scopes.getActionClass("nonexistent_action"), null);
 		for (const name of ["send_test_email", "create_series", "send_campaign", "delete_campaign", "import_contacts", "add_contact"]) assert.equal(scopes.isGateable(name), true, name);
 		for (const name of ["create_campaign", "update_campaign", "list_campaigns", "update_newsletter", "pause_campaign"]) assert.equal(scopes.isGateable(name), false, name);

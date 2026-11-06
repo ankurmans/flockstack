@@ -4,12 +4,14 @@ import BadgeStatus from "@/components/BadgeStatus";
 import CardAgentApproval from "@/components/CardAgentApproval";
 import CardApproval from "@/components/CardApproval";
 import HeaderPage from "@/components/HeaderPage";
+import NoticeOwnerOnly from "@/components/NoticeOwnerOnly";
 import StateEmpty from "@/components/StateEmpty";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { scoped } from "@/lib/account-scope";
 import { getStaleness, listApprovals, toApprovalView } from "@/lib/approvals";
 import { requireAccount } from "@/lib/auth";
+import { isAccountOwner } from "@/lib/team";
 import { connectDb } from "@/lib/db";
 import { formatRelative } from "@/lib/format";
 import Newsletter from "@/models/Newsletter";
@@ -19,7 +21,8 @@ export const metadata = { title: "Approvals" };
 const HISTORY_LIMIT = 30;
 
 export default async function ApprovalsPage() {
-	const { account } = await requireAccount();
+	const { account, user } = await requireAccount();
+	if (!isAccountOwner(account, user)) return <NoticeOwnerOnly title="Approvals">Approvals are available to the account owner.</NoticeOwnerOnly>;
 	await connectDb();
 	const [pendingRows, decidedRows, newsletters] = await Promise.all([
 		listApprovals(account, { status: "pending", limit: 50 }),

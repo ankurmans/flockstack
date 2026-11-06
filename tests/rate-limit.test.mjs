@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { setDriver, sqliteDriver } from "../lib/docdb/driver.js";
-import { isLimitedInDatabase, isLimitedInMemory, isRateLimited } from "../lib/rate-limit.js";
+import { getClientIp, isLimitedInDatabase, isLimitedInMemory, isRateLimited } from "../lib/rate-limit.js";
 
 delete process.env.UPSTASH_REDIS_REST_URL;
 delete process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -84,4 +84,12 @@ test("when the database errors, limits fall back to memory and say so once", asy
 	} finally {
 		setDriver(database);
 	}
+});
+
+test("the client address is the one Cloudflare set, whatever x-forwarded-for starts with", () => {
+	const spoofed = new Headers({ "x-forwarded-for": "10.9.1.1, 198.51.100.200", "cf-connecting-ip": "203.0.113.9" });
+	assert.equal(getClientIp(spoofed), "203.0.113.9");
+	assert.equal(getClientIp(new Headers({ "x-forwarded-for": "203.0.113.5, 10.0.0.1" })), "203.0.113.5", "without Cloudflare, the first forwarded address");
+	assert.equal(getClientIp(new Headers({ "x-real-ip": "203.0.113.6" })), "203.0.113.6");
+	assert.equal(getClientIp(new Headers()), "unknown");
 });
