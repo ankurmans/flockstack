@@ -142,6 +142,10 @@ describe("the checklist", () => {
 		assert.equal(find(web, "website").status, "pass");
 		for (const id of ["preview", "unsubscribe", "sender", "address", "audience", "plan", "test"]) assert.equal(find(web, id), undefined, id);
 		assert.equal(find(check({ campaign: { ...campaign, publishTo: "web" }, newsletter: { ...newsletter, archiveEnabled: false } }), "website").status, "blocker");
+		const long = "A subject that runs well past the sixty characters an inbox would cut off";
+		assert.equal(find(check({ campaign: { ...campaign, subject: long } }), "subject").status, "warning");
+		assert.equal(find(check({ campaign: { ...campaign, subject: long, publishTo: "web" } }), "subject").status, "pass", "no inbox shows a web only title");
+		assert.equal(find(check({ campaign: { ...campaign, subject: "", publishTo: "web" } }), "subject").status, "blocker");
 	});
 
 	test("links: none, checking, working, broken and not checked", () => {

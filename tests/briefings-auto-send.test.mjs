@@ -294,3 +294,39 @@ describe("a run that is held as a draft", () => {
 		}
 	});
 });
+
+describe("a web only briefing", () => {
+	test("publishes a long-subject issue of a newsletter with no list by itself, and emails nobody", async () => {
+		const listless = await setupSender(m, "webonly-owner@example.com", { contacts: 0 });
+		await m.Newsletter.updateOne({ accountId: listless.accountId, _id: listless.newsletterId }, { $set: { archiveEnabled: true } });
+		const real = owner;
+		owner = listless;
+		try {
+			const subject = "A subject that runs well past the sixty characters an inbox would cut off";
+			const setup = await scenario({ briefing: { publishTo: "web" }, payload: { subject, publishTo: "web" } });
+			const { result, campaign, run, note } = await deliver(setup);
+			assert.deepEqual([result.status, result.heldReason], ["sent", undefined], JSON.stringify(result));
+			assert.equal(campaign.publishTo, "web");
+			assert.ok(SENT.includes(campaign.status), campaign.status);
+			assert.ok(campaign.archiveSlug, "the issue has its page");
+			assert.ok(run.autoSentAt);
+			assert.match(note.subject, /A briefing issue was sent/);
+			assert.equal(await m.Message.countDocuments({ accountId: listless.accountId, campaignId: result.campaignId, kind: "campaign" }), 0, "no email went to anyone");
+
+			// The same issue on both channels, with nobody on the list, is held: that is what web only is for.
+			const both = await scenario({ payload: { subject } });
+			const held = await deliver(both);
+			assert.deepEqual([held.result.status, held.result.heldReason], ["drafted", "checks"]);
+		} finally {
+			owner = real;
+		}
+	});
+
+	test("a briefing makes its drafts for the web only when asked", async () => {
+		const web = await scenario({ briefing: { publishTo: "web" }, payload: { publishTo: "web", heldReason: "thin" } });
+		const made = await delivery.deliverIssue(web.payload);
+		assert.equal((await campaignOf(made.campaignId)).publishTo, "web");
+		const plain = await scenario({ payload: { heldReason: "thin" } });
+		assert.equal((await campaignOf((await delivery.deliverIssue(plain.payload)).campaignId)).publishTo, "both");
+	});
+});

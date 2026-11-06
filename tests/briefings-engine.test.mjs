@@ -1300,6 +1300,20 @@ describe("the third production run's quality", () => {
 		assert.deepEqual(delivery.issues[0].translations.map(({ language }) => language).sort(), ["es", "fr"]);
 	});
 
+	test("a language refused for its rate limit several times is still written: it is not what holds a run as partial", async () => {
+		let german = 0;
+		const world = makeWorld({
+			openai: (body) => (body.messages[0].content.startsWith("You translate") && /into German/.test(body.messages[0].content) && ++german <= 6 ? new Response(JSON.stringify({ error: { message: "Rate limit reached for tokens per minute" } }), { status: 429, headers: { "retry-after": "0" } }) : null),
+		});
+		const { briefing } = await makeBriefing({ languages: ["en", "de"] });
+		const delivery = makeDelivery();
+		await tick({ world, delivery, items: [...STORIES, found(ZINC)] });
+		const run = await runOf(briefing);
+		assert.deepEqual(run.languages.map(({ language, status }) => [language, status]), [["de", "done"]]);
+		assert.equal(delivery.issues[0].translations.length, 1);
+		assert.ok(german > 6);
+	});
+
 	test("a translation past its share says what it needed", async () => {
 		const world = makeWorld();
 		const { briefing } = await makeBriefing({ languages: ["en", "fr"], prices: [{ model: "big-translator", inputPerMillion: 5000, outputPerMillion: 5000 }], steps: (ids) => ({ translate: { keyId: ids.openai, model: "big-translator" } }) });

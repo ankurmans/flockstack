@@ -1,6 +1,6 @@
 import mongoose from "../lib/docdb/index.js";
 import { accountScoped } from "../lib/account-scope.js";
-import { BRIEFING_REVIEW_MODES, BRIEFING_STATUSES, DEFAULT_BUDGET_USD, DEFAULT_MIN_SCORE, SECTION_FORMATS, SECTION_ICON_KEYS } from "../lib/briefing-rules.js";
+import { BRIEFING_PUBLISH_TARGETS, BRIEFING_REVIEW_MODES, BRIEFING_STATUSES, DEFAULT_BUDGET_USD, DEFAULT_MIN_SCORE, SECTION_FORMATS, SECTION_ICON_KEYS } from "../lib/briefing-rules.js";
 
 // A newsletter's briefing (docs/BRIEFINGS-DESIGN.md): on its schedule the engine searches the web from the brief, picks the stories for the
 // audience, writes a sourced issue in the style guide's voice, checks it and leaves it as a draft. nextRunAt is the next run due,
@@ -69,6 +69,8 @@ const briefingSchema = new mongoose.Schema(
 		prices: [{ _id: false, model: { type: String, required: true }, inputPerMillion: { type: Number }, outputPerMillion: { type: Number } }],
 		budgetUsd: { type: Number, default: DEFAULT_BUDGET_USD },
 		reviewMode: { type: String, enum: BRIEFING_REVIEW_MODES, default: "draft" },
+		// web: each issue is a page with no email (publishTo web), so a newsletter with no list can still publish by itself.
+		publishTo: { type: String, enum: BRIEFING_PUBLISH_TARGETS, default: "both" },
 		// Set with reviewMode send_if_checks_pass, by the owner in the dashboard only (set_briefing_auto_send): who confirmed, when, and
 		// how many issues a UTC day it may send.
 		autoSendDailyCap: { type: Number },

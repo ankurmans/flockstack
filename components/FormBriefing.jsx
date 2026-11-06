@@ -54,6 +54,7 @@ function fromBriefing(briefing, defaultTimeZone, defaultEmail) {
 		minScore: briefing?.minScore ?? 60,
 		budgetUsd: briefing?.budgetUsd ?? 0.25,
 		steps: Object.fromEntries(STEPS.map(([step]) => [step, { keyId: briefing?.steps[step]?.keyId ?? "", model: briefing?.steps[step]?.model ?? "" }])),
+		publishTo: briefing?.publishTo ?? "both",
 		testEmail: briefing?.testEmail ?? defaultEmail ?? "",
 		active: briefing?.status === "active",
 	};
@@ -259,6 +260,12 @@ export default function FormBriefing({ newsletterId, briefing, keys, languages, 
 				</RowSettings>
 				<RowSettings label="Test email" hint="Each run's draft is sent here: you or a team member. Your note with the checks, cost and keep or drop links goes to the account owner." isLabel>
 					<Input type="email" value={draft.testEmail} onChange={(event) => set("testEmail", event.target.value)} maxLength={254} />
+				</RowSettings>
+				<RowSettings label="Publish to" hint="Web page only sends no email, so a newsletter with no list yet still gets a page for each issue." isLabel>
+					<select value={draft.publishTo} onChange={(event) => set("publishTo", event.target.value)} className={SELECT}>
+						<option value="both">Email and web page</option>
+						<option value="web">Web page only, no email</option>
+					</select>
 				</RowSettings>
 				<RowSettings label="Review">
 					<span className="text-sm">Each issue waits as a draft for you to review. Nothing is sent by itself.</span>

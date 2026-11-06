@@ -595,7 +595,7 @@ describe("sending by itself", () => {
 		for (const body of [{ name: "Renamed" }, { schedule: { days: [1, 2] } }, { testEmail: user.email }, { budgetUsd: 0.2 }, { reviewMode: "send_if_checks_pass" }]) {
 			assert.equal((await patch(body)).body.reviewMode, "send_if_checks_pass", JSON.stringify(body));
 		}
-		for (const body of [{ styleGuide: "Be bold" }, { brief: { topic: "Something else" } }, { trustedOutlets: ["example.com"] }]) {
+		for (const body of [{ styleGuide: "Be bold" }, { brief: { topic: "Something else" } }, { trustedOutlets: ["example.com"] }, { publishTo: "web" }]) {
 			await dashboard("set_briefing_auto_send", { id: briefing.id, enabled: true, confirm: true });
 			const changed = await patch(body);
 			assert.equal(changed.status, 200, JSON.stringify(changed.body));
@@ -604,6 +604,7 @@ describe("sending by itself", () => {
 		await dashboard("set_briefing_auto_send", { id: briefing.id, enabled: true, confirm: true });
 		const own = await dashboard("update_briefing", { id: briefing.id, styleGuide: "Mine" });
 		assert.equal(own.reviewMode, "send_if_checks_pass", "the owner's own edits in the dashboard keep it");
+		assert.equal((await dashboard("update_briefing", { id: briefing.id, publishTo: "web" })).publishTo, "web", "and a web only briefing is a setting the dashboard can save");
 	});
 
 	test("the Free plan keeps drafts: it can't be turned on", async () => {

@@ -76,6 +76,7 @@ function readBriefing(values) {
 		minScore: Number(values?.minScore),
 		budgetUsd: Number(values?.budgetUsd),
 		steps,
+		publishTo: values?.publishTo === "web" ? "web" : "both",
 		testEmail: String(values?.testEmail ?? "").trim() || null,
 	};
 }

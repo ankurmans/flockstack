@@ -140,6 +140,8 @@ Decided and built 2026-10-31. The engine only ever makes drafts; sending is a se
 
 **After a send.** The run is `sent`, `autoSentAt` is set, and the owner's note ("A briefing issue was sent") carries the checks, the cost and a pause link (`lib/briefing-pause-links.js`): a signed link to `/briefing-pause/<token>`, valid 14 days, which opens a confirmation page and pauses only when its button is pressed, so scanners and previews cannot. It is emailed only, never logged, and not single use because pausing twice changes nothing. There is no undo window: that belongs to the dashboard's Send, and API, MCP and approved sends are never held. The ready-to-send check, the cap and the opt-in are the guard instead.
 
+**Web only.** `publishTo` on the briefing (`both`, the default, or `web`) sets the `publishTo` of every draft the briefing makes. With `web` an issue is a page on the newsletter's website and nothing is emailed, so a newsletter with no list yet can publish by itself: `send_campaign` publishes it and the audience check does not apply. The ready-to-send check does not warn about a web only issue's subject length (no inbox cuts it). It is one of the settings an agent's change to which turns auto-send back to `draft` (`CONTENT_FIELDS`), since going from `web` to `both` widens who gets an issue. A rate-limited translation (Groq's per-minute token limit) is waited out, up to six tries within the tick or across ticks, so one language does not hold a run as `partial`.
+
 **What it deliberately does not do.** It does not send a run it started itself on a Free plan, resend after a failed send, send to a part of the audience, or change a campaign's audience: the campaign's own audience (all, by default) is what `send_campaign` uses.
 
 ## Sections
