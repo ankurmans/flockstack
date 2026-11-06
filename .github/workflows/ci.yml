@@ -1,15 +1,20 @@
 # Lint, tests and production build. Never deploys.
-# Runs on the self-hosted Contabo runners (up to two jobs at once across every repo, queued by repo, then push to main before pull
+# Runs on the self-hosted Contabo runners (four jobs at once across every repo, queued by repo, then push to main before pull
 # requests before nightly). This repo is PUBLIC, so pull requests from forks are skipped: they must never run on that machine.
+# Jobs install with npm ci only: the runners can't sudo, so nothing here installs system packages.
 #
-# Two jobs:
-#   check       The gate. A ready pull request (not a draft, not Dependabot's) runs lint, then the tests scripts/affected-tests.mjs picks
-#               from the changed files, then the Next.js build only if the change can reach it (app/, components/, public/, proxy.js,
-#               instrumentation.js, or any file those import, the Next, PostCSS or package config, the lockfile). A push to main, the
-#               nightly run and a manual run (workflow_dispatch) run lint and the build.
-#   full-suite  Every test. Push to main, nightly at 05:00 UTC and manual runs only. Nothing waits for it, so a slow or red suite
-#               never holds back the build; a failure turns the run red and GitHub mails the owner. It also writes the test map (which
-#               files each test loaded) and caches it for the pull requests.
+# A ready pull request (not a draft, not Dependabot's) runs these in parallel:
+#   lint         ESLint.
+#   plan         scripts/affected-tests.mjs picks the tests from the changed files, and whether the Next.js build can be reached.
+#   test-subset  The tests the plan picked, when it picked some.
+#   test         The whole suite in four shards (node --test-shard), when the plan says "all".
+#   build        The Next.js build, only if the change can reach it (app/, components/, public/, proxy.js, instrumentation.js, or any
+#                file those import, the Next, PostCSS or package config, the lockfile).
+#   check        The gate: green when every job above passed or was skipped on purpose. Its name is the one to require.
+# A push to main, the nightly run and a manual run (workflow_dispatch) run lint and the build, and apart from them:
+#   full-suite   Every test, in four shards. Nothing waits for it, so a slow or red suite never holds back the build; a failure
+#                turns the run red and GitHub mails the owner.
+#   test-map     Joins what the shards loaded into the test map (which files each test loaded) and caches it for the pull requests.
 #
 # A pull request runs the FULL suite and the build when it changes any of these (scripts/affected-tests.mjs, FOUNDATIONAL):
 #   package.json and the lockfile; the Next, OpenNext, ESLint, PostCSS, Wrangler, Vitest and components configs and jsconfig.json;
@@ -17,40 +22,41 @@
 #   scripts/affected-tests.mjs; migrations/; models/; perf-budgets.json; worker-entry.mjs.
 # It also runs everything when a changed file maps to no test, or when a third or more of the suite is affected.
 # If a failure ever shows up only on the full-suite job, say so in that pull request so the list above can be tightened.
+#
+# No paths-ignore for documents: tests read docs, READMEs and AGENTS.md as text, and the plan already runs only the tests that read a
+# changed document (none, for one nothing reads), so skipping the workflow on markdown would skip checks.
 name: CI
 
 on:
   pull_request:
     # A draft runs nothing; marking it ready starts the gate.
     types: [opened, synchronize, reopened, ready_for_review]
+  # Pushes only on main: any other branch is covered by its pull request, once.
   push:
     branches: [main]
+  # Overnight, away from the working day's pull requests.
   schedule:
-    - cron: "0 5 * * *"
+    - cron: "0 3 * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# A new push to a pull request cancels its older run. Runs on main (a push, the nightly, a manual run) are never cancelled, so each
+# has a group of its own.
 concurrency:
-  group: ci-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  check:
+  lint:
     if: >-
-      github.event_name != 'pull_request' || (
-        github.event.pull_request.head.repo.full_name == github.repository
-        && !github.event.pull_request.draft
-        && github.actor != 'dependabot[bot]'
-      )
+      github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && github.actor != 'dependabot[bot]')
     runs-on: [self-hosted, linux, contabo]
     # Jobs also count the wait for the runner's shared lock.
     timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -62,8 +68,24 @@ jobs:
       - name: Lint
         run: npm run lint
 
+  plan:
+    if: >-
+      github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && github.actor != 'dependabot[bot]'
+    runs-on: [self-hosted, linux, contabo]
+    timeout-minutes: 360
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+      build: ${{ steps.plan.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
       - name: Restore the test map
-        if: github.event_name == 'pull_request'
         uses: actions/cache/restore@v4
         with:
           path: .ci/test-map.json
@@ -72,23 +94,19 @@ jobs:
 
       - name: Pick the tests this pull request affects
         id: plan
-        if: github.event_name == 'pull_request'
         run: node scripts/affected-tests.mjs --base "origin/${{ github.base_ref }}" --map .ci/test-map.json --list .ci/affected-tests.txt --github-output "$GITHUB_OUTPUT"
 
-      - name: Tests (everything)
-        if: github.event_name == 'pull_request' && steps.plan.outputs.mode == 'all'
-        run: npm test
+      - name: Keep the list for the test job
+        if: steps.plan.outputs.mode == 'subset'
+        uses: actions/upload-artifact@v4
+        with:
+          name: affected-tests
+          path: .ci/affected-tests.txt
+          retention-days: 1
 
-      - name: Tests (affected only)
-        if: github.event_name == 'pull_request' && steps.plan.outputs.mode == 'subset'
-        run: node --import ./tests/setup/register.mjs --test $(cat .ci/affected-tests.txt)
-
-      - name: Build
-        if: github.event_name != 'pull_request' || steps.plan.outputs.build == 'true'
-        run: npm run build
-
-  full-suite:
-    if: github.event_name != 'pull_request'
+  test-subset:
+    needs: plan
+    if: needs.plan.outputs.mode == 'subset'
     runs-on: [self-hosted, linux, contabo]
     timeout-minutes: 360
     steps:
@@ -101,18 +119,140 @@ jobs:
 
       - run: npm ci
 
-      - name: Tests (everything)
+      - uses: actions/download-artifact@v4
+        with:
+          name: affected-tests
+          path: .ci
+
+      - name: Tests (affected only)
+        run: node --import ./tests/setup/register.mjs --test $(cat .ci/affected-tests.txt)
+
+  test:
+    needs: plan
+    if: needs.plan.outputs.mode == 'all'
+    runs-on: [self-hosted, linux, contabo]
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Tests (everything, shard ${{ matrix.shard }} of 4)
+        run: node --import ./tests/setup/register.mjs --test --test-shard=${{ matrix.shard }}/4 "tests/**/*.test.mjs"
+
+  build:
+    needs: plan
+    # The plan is skipped outside pull requests, which always build.
+    if: >-
+      ${{ !cancelled() && (github.event_name != 'pull_request' || needs.plan.outputs.build == 'true') && (github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && github.actor != 'dependabot[bot]')) }}
+    runs-on: [self-hosted, linux, contabo]
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  full-suite:
+    if: github.event_name != 'pull_request'
+    runs-on: [self-hosted, linux, contabo]
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Tests (everything, shard ${{ matrix.shard }} of 4)
         env:
           TEST_MAP_DIR: ${{ runner.temp }}/test-map
         run: |
           mkdir -p "$TEST_MAP_DIR"
-          npm test
+          node --import ./tests/setup/register.mjs --test --test-shard=${{ matrix.shard }}/4 "tests/**/*.test.mjs"
+
+      # Process ids repeat from one shard to the next, so each shard's notes travel under its own name.
+      - name: Keep what the tests loaded
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-map-${{ matrix.shard }}
+          path: ${{ runner.temp }}/test-map
+          retention-days: 1
+
+  test-map:
+    needs: full-suite
+    runs-on: [self-hosted, linux, contabo]
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: test-map-*
+          path: ${{ runner.temp }}/shards
 
       - name: Write the test map
-        run: node scripts/test-map.mjs "${{ runner.temp }}/test-map" .ci/test-map.json
+        run: |
+          mkdir -p "${{ runner.temp }}/test-map"
+          for shard in "${{ runner.temp }}"/shards/*/; do
+            for notes in "$shard"*.txt; do cp "$notes" "${{ runner.temp }}/test-map/$(basename "$shard")-$(basename "$notes")"; done
+          done
+          node scripts/test-map.mjs "${{ runner.temp }}/test-map" .ci/test-map.json
 
       - name: Cache the test map
         uses: actions/cache/save@v4
         with:
           path: .ci/test-map.json
           key: test-map-${{ github.sha }}
+
+  # The one name to require: a pull request passes when every job it needed passed, and a job it had no need of was skipped.
+  # Outside pull requests the tests are not part of it (they are the full-suite job's, and nothing waits for them).
+  check:
+    needs: [lint, plan, test-subset, test, build]
+    if: >-
+      ${{ always() && (github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && !github.event.pull_request.draft && github.actor != 'dependabot[bot]')) }}
+    runs-on: [self-hosted, linux, contabo]
+    timeout-minutes: 360
+    steps:
+      - name: Every job passed or was skipped
+        env:
+          LINT: ${{ needs.lint.result }}
+          PLAN: ${{ needs.plan.result }}
+          SUBSET: ${{ needs.test-subset.result }}
+          TESTS: ${{ needs.test.result }}
+          BUILD: ${{ needs.build.result }}
+        run: |
+          failed=0
+          for pair in "lint=$LINT" "plan=$PLAN" "test-subset=$SUBSET" "test=$TESTS" "build=$BUILD"; do
+            result="${pair#*=}"
+            case "$result" in success | skipped) ;; *) echo "${pair%%=*}: $result"; failed=1 ;; esac
+          done
+          exit "$failed"
