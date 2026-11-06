@@ -44,7 +44,7 @@ describe("the files of the public pages", { skip: !hasFiles && "workers/public/d
 	for (const region of ["us", "eu"]) {
 		test(`say what the docs and legal pages say now, in the ${region.toUpperCase()} region`, async () => {
 			const appUrl = region === "eu" ? "https://eu.flockstack.io" : "https://flockstack.io";
-			await withEnv({ FLOCKSTACK_CLOUD: "true", FLOCKSTACK_REGION: region, APP_URL: appUrl, REGION_URL_US: "https://flockstack.io", REGION_URL_EU: "https://eu.flockstack.io", POSTHOG_KEY: "" }, async () => {
+			await withEnv({ FLOCKSTACK_CLOUD: "true", FLOCKSTACK_REGION: region, APP_URL: appUrl, REGION_URL_US: "https://flockstack.io", REGION_URL_EU: "https://eu.flockstack.io", SHARED_DOMAIN: "", POSTHOG_KEY: "" }, async () => {
 				for (const path of [...PUBLIC_DOC_PATHS, ...PUBLIC_LEGAL_PATHS]) {
 					const entry = manifest.regions[region][path];
 					assert.ok(entry, `${region} ${path} is in the manifest`);
