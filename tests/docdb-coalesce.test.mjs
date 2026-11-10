@@ -63,3 +63,40 @@ describe("what is not held back", () => {
 		assert.deepEqual(plain(updated.rows), [{ name: "FIVE" }]);
 	});
 });
+
+describe("one queue per request", () => {
+	test("reads of two requests are never batched together, and each request's own reads still are", async () => {
+		const requests = [{}, {}];
+		let current = requests[0];
+		const scoped = coalescingDriver(await sqliteDriver(":memory:"), { scope: () => current });
+		await scoped.query("CREATE TABLE t (id INTEGER PRIMARY KEY)");
+		await scoped.query("INSERT INTO t (id) VALUES (1), (2)");
+		events = [];
+		const asked = [];
+		for (const request of requests) {
+			current = request;
+			asked.push(scoped.query("SELECT 1 AS n"), scoped.query("SELECT COUNT(*) AS n FROM t"));
+		}
+		await Promise.all(asked);
+		assert.deepEqual(events.map(({ kind, statements }) => `${kind}:${statements}`), ["batch:2", "batch:2"]);
+	});
+
+	test("a flush that never runs for one request leaves another request's reads to run", async () => {
+		const requests = [{}, {}];
+		let current = requests[0];
+		const stuck = [];
+		const scoped = coalescingDriver(await sqliteDriver(":memory:"), { scope: () => current, wait: (flush) => (current === requests[0] ? stuck.push(flush) : setTimeout(flush, 0)) });
+		scoped.query("SELECT 1 AS n").catch(() => {});
+		current = requests[1];
+		const [row] = (await Promise.all([scoped.query("SELECT 2 AS n"), scoped.query("SELECT 3 AS n")])).map(({ rows }) => rows[0].n);
+		assert.equal(row, 2);
+		assert.equal(stuck.length, 1);
+	});
+
+	test("a read with no request to belong to is sent at once", async () => {
+		const loose = coalescingDriver(await sqliteDriver(":memory:"), { scope: () => null });
+		events = [];
+		await Promise.all([loose.query("SELECT 1 AS n"), loose.query("SELECT 2 AS n")]);
+		assert.deepEqual(events.map(({ kind }) => kind), ["query", "query"]);
+	});
+});
