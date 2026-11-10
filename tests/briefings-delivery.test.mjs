@@ -101,6 +101,7 @@ describe("deliverIssue", () => {
 		assert.deepEqual(mails.map(({ to }) => to), ["editor@example.net"]);
 		const text = JSON.stringify(mails[0]);
 		assert.match(mails[0].subject, /This week in batteries/);
+		assert.doesNotMatch(mails[0].subject, /\[Test\]/, "the owner's copy reads as the issue");
 		assert.doesNotMatch(text, NOTE);
 		assert.doesNotMatch(text, /Model cost/);
 		assert.ok((await m.Campaign.findOne({ accountId: user.accountId, _id: first.campaignId }).lean()).testSentAt);
