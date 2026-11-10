@@ -35,6 +35,8 @@ import {
 	TERMS_CHANGE_NOTICE,
 	TRANSFER_SAFEGUARDS,
 	getElevenLabsStatus,
+	getAiProvidersStatus,
+	TEXT_AI_DESTINATION,
 	isLegalPublished,
 } from "@/lib/legal";
 import { REGION_NAMES } from "@/lib/region";
@@ -122,12 +124,15 @@ export default function PrivacyPage() {
 					</li>
 					<li>
 						<Strong>The support assistant:</Strong> FlockStack&apos;s own assistant answers from our docs and from what you type to it. It runs
-						on Cloudflare Workers AI, which runs on Cloudflare&apos;s global network, so what you type may be processed outside your region.
+						on the text AI ({TEXT_AI_DESTINATION}), so what you type may be processed outside your region.
 						Stored: {SUPPORT_CHAT_STORED}. How long: {SUPPORT_CHAT_RETENTION} {SUPPORT_AI_PROVIDER_NOTE}
 					</li>
 					<li>
+						<Strong>The text AI providers:</Strong> {getAiProvidersStatus()} Anthropic and Groq are listed on the sub-processors page.
+					</li>
+					<li>
 						<Strong>The AI writing tools:</Strong> in the editor you can ask for a rewrite of the text you selected, subject lines, preview
-						text and drafts of social posts. They run on Cloudflare Workers AI, which runs on Cloudflare&apos;s global network, so what you
+						text and drafts of social posts. They run on the text AI ({TEXT_AI_DESTINATION}), so what you
 						send may be processed outside your region. Stored: {AI_WRITING_STORED}. How long: {AI_WRITING_RETENTION}
 					</li>
 					<li>
@@ -139,7 +144,7 @@ export default function PrivacyPage() {
 					</li>
 					<li>
 						<Strong>Reader-requested translations:</Strong> Stored and sent: {READER_TRANSLATIONS_STORED}. How long: {READER_TRANSLATIONS_RETENTION}.
-						Workers AI runs on Cloudflare&apos;s global network, so this text may be processed outside your region.
+						The text AI ({TEXT_AI_DESTINATION}) may process this text outside your region.
 					</li>
 					<li>
 						<Strong>Audio versions:</Strong> Stored and sent: {AUDIO_VERSIONS_STORED}. How long: {AUDIO_VERSIONS_RETENTION}. {getElevenLabsStatus()}

@@ -57,7 +57,7 @@ test("a real draft tool runs through the guard; AI sees explicit bounded DTOs, n
 	const id = result.output.results[1].data.id;
 	assert.equal((await t.m.Campaign.findOne({ accountId: u.accountId, _id: id }).lean()).status, "draft");
 	assert.equal(calls.length, 3); assert.equal(result.output.usage.used, 3);
-	assert.equal(calls[0].name, m.assistant.ASSISTANT_MODEL);
+	assert.equal(calls[0].name, "@cf/qwen/qwen3-30b-a3b-fp8");
 	assert.deepEqual(calls[0].options, { gateway: { id: "default", skipCache: true, collectLog: false } });
 	const sent = JSON.stringify(calls);
 	assert.match(sent, /Write from this private brief/); assert.doesNotMatch(sent, /reader0@|reader1@|account-agent\d+@|postalAddress|hash|mc_/);

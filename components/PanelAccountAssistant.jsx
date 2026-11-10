@@ -56,7 +56,7 @@ export default function PanelAccountAssistant({ newsletterId, settings }) {
 			{grants.length > 0 && <label className="block space-y-2 text-sm">Active grant<select className="block w-full rounded-md border p-2" value={grant} onChange={(event) => { setGrant(event.target.value); setMessages([]); }} disabled={pending}>{grants.map((row) => <option value={row.id} key={row.id}>{LEVELS[row.level]} · {row.id.slice(-6)} · expires {row.expiresAt.slice(0, 10)}</option>)}</select></label>}
 		</section>
 		<p className="text-sm text-muted-foreground">{usage.used} shared AI requests used today{usage.limit === null ? "." : ` of ${usage.limit}.`} Each started model call counts, including failures; up to three model calls and four tool attempts per request.</p>
-		{!settings.available && <p role="status">Workers AI is not available on this server.</p>}
+		{!settings.available && <p role="status">No text AI is available on this server.</p>}
 		<div className="space-y-4" aria-live="polite" aria-busy={pending}>
 			{messages.map((message, index) => <article key={index} className="space-y-3 rounded-xl border p-4">
 				<p className="text-xs font-medium text-muted-foreground">{message.role === "user" ? "You" : "Account assistant"}</p><p className="whitespace-pre-wrap text-sm">{message.content}</p>
@@ -65,7 +65,7 @@ export default function PanelAccountAssistant({ newsletterId, settings }) {
 			</article>)}
 		</div>
 		<form onSubmit={send} className="space-y-3">
-			<label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} required disabled={pending} className="mt-1" /><span>Send this conversation and any selected private brief, authored draft or allowed tool result to Cloudflare Workers AI. Processing may occur outside my region. Don’t include secrets or private contact data. The conversation stays in this tab; drafts, plans, agent activity and approval requests follow their ordinary retention.</span></label>
+			<label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} required disabled={pending} className="mt-1" /><span>Send this conversation and any selected private brief, authored draft or allowed tool result to FlockStack’s text AI (Anthropic, Groq, or Cloudflare Workers AI until Anthropic and Groq may be used). Processing may occur outside my region. Don’t include secrets or private contact data. The conversation stays in this tab; drafts, plans, agent activity and approval requests follow their ordinary retention.</span></label>
 			<label className="block space-y-2 text-sm">Your request<Textarea required maxLength={4000} value={body} onChange={(event) => setBody(event.target.value)} disabled={pending || !settings.available} placeholder="Draft an issue from my brief, or plan next week’s posts" /></label>
 			{error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 			<div className="flex gap-3"><Button type="submit" disabled={pending || !settings.available || !consent || !grant || !body.trim()}>{pending ? "Working…" : "Ask assistant"}</Button><Button type="button" variant="ghost" disabled={pending} onClick={() => { setMessages([]); setBody(""); retry.current = null; }}>Clear conversation</Button></div>

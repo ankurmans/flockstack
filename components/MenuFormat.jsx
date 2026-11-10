@@ -21,7 +21,7 @@ const AI_TONES = [
 	{ value: "punchy", label: "Punchy" },
 ];
 
-// onAi({ style, language }): given only where the server has Workers AI and the account a plan; without it there is no AI button.
+// onAi({ style, language }): given only where the server has a text AI and the account a plan; without it there is no AI button.
 export default function MenuFormat({ editor, isEditingLink, onEditLink, onAi = null }) {
 	const [isAiOpen, setIsAiOpen] = useState(false);
 	const state = useEditorState({

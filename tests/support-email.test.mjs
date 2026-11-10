@@ -123,6 +123,7 @@ describe("the legal pages", () => {
 		assert.ok(!todos.includes("SUPPORT_CHAT_STORED") && !todos.includes("SUPPORT_CHAT_RETENTION"));
 		assert.match(SUPPORT_CHAT_STORED, /^nothing by FlockStack/);
 		assert.match(SUPPORT_CHAT_STORED, /stays in your browser tab/);
+		assert.match(SUPPORT_CHAT_STORED, /Anthropic/);
 		assert.match(SUPPORT_CHAT_STORED, /Cloudflare Workers AI/);
 		assert.match(SUPPORT_CHAT_STORED, /If you click Email a human, the conversation and your account email are emailed to our support inbox/);
 		assert.doesNotMatch(SUPPORT_CHAT_STORED, /\.$/);
@@ -136,14 +137,16 @@ describe("the legal pages", () => {
 		assert.ok(privacy.includes("the support assistant's conversation in that tab's session storage"));
 	});
 
-	test("the sub-processors and the regions page agree: messages may be processed on Cloudflare's global network, and nothing is stored", () => {
+	test("the sub-processors and the regions page agree: messages may be processed outside the region, and nothing is stored", () => {
 		const cloudflare = m.subprocessors.SUBPROCESSORS.find(({ name }) => name === "Cloudflare");
-		assert.match(cloudflare.purpose, /support assistant on Workers AI,? through AI Gateway with its logging turned off/);
-		assert.match(cloudflare.data, /messages typed to the support assistant/);
+		const anthropic = m.subprocessors.SUBPROCESSORS.find(({ name }) => name === "Anthropic");
+		assert.match(cloudflare.purpose, /support and account assistants/);
+		assert.match(cloudflare.purpose, /through AI Gateway with its logging turned off/);
+		assert.match(anthropic.data, /messages typed to the support assistant/);
 		assert.match(cloudflare.us, /Workers AI runs on Cloudflare's global network/);
 		assert.match(cloudflare.eu, /may be processed outside the EU/);
 		assert.match(m.subprocessors.SUBPROCESSORS.find(({ name }) => name.startsWith("Amazon SES")).purpose, /support conversations people choose to email/);
-		assert.ok(m.regions.REGION_LEAVES.some((line) => /support assistant.*global network.*stores none of it/.test(line)));
+		assert.ok(m.regions.REGION_LEAVES.some((line) => /support assistant.*text AI.*stores none of it/.test(line)));
 	});
 
 	test("scripts/check-legal.mjs no longer lists the support assistant's placeholders", () => {

@@ -255,10 +255,10 @@ describe("what a visitor gets is what the app would have worked out for them", (
 			})
 		);
 		assert.deepEqual(element.props, { token: M.token, host: M.host, replay: M.replay, region: "us", requiresConsent: M.requiresConsent, consent: M.consent, identity: null, privacyHref: "/privacy" });
-		const support = await withEnv({ FLOCKSTACK_CLOUD: "true", FLOCKSTACK_PRERENDER: "true" }, async () => (await import("../lib/marketing/support-config.js")).getAiBinding());
+		const support = await withEnv({ FLOCKSTACK_CLOUD: "true", FLOCKSTACK_PRERENDER: "true" }, async () => (await import("../lib/marketing/support-config.js")).isSupportAiAvailable());
 		assert.ok(support, "the help chat is rendered, as it is on FlockStack Cloud");
-		const without = await withEnv({ FLOCKSTACK_CLOUD: "true", FLOCKSTACK_PRERENDER: "" }, async () => (await import("../lib/marketing/support-config.js")).getAiBinding());
-		assert.equal(without, null);
+		const without = await withEnv({ FLOCKSTACK_CLOUD: "true", FLOCKSTACK_PRERENDER: "" }, async () => (await import("../lib/marketing/support-config.js")).isSupportAiAvailable());
+		assert.equal(without, false);
 	});
 });
 
