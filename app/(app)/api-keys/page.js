@@ -6,6 +6,7 @@ import ButtonRevoke from "@/components/ButtonRevoke";
 import DialogCreateApiKey from "@/components/DialogCreateApiKey";
 import GatePlan from "@/components/GatePlan";
 import HeaderPage from "@/components/HeaderPage";
+import NoticeOwnerOnly from "@/components/NoticeOwnerOnly";
 import IconBrand, { AGENTS } from "@/components/IconBrand";
 import StateEmpty from "@/components/StateEmpty";
 import TableConnectedApps from "@/components/TableConnectedApps";
@@ -24,6 +25,7 @@ import { getDayCounts } from "@/lib/agent-activity";
 import { getKeyLevel, listApiKeys } from "@/lib/api-keys";
 import { isKeyExpired } from "@/lib/api-key-tokens";
 import { requireAccount } from "@/lib/auth";
+import { isAccountOwner } from "@/lib/team";
 import { getAppUrl } from "@/lib/config";
 import { connectDb } from "@/lib/db";
 import { getMcpClients, getMcpConnectors, getMcpUrl } from "@/lib/docs/mcp-clients";
@@ -35,7 +37,8 @@ import Newsletter from "@/models/Newsletter";
 export const metadata = { title: "API keys" };
 
 export default async function ApiKeysPage() {
-	const { account } = await requireAccount();
+	const { account, user } = await requireAccount();
+	if (!isAccountOwner(account, user)) return <NoticeOwnerOnly title="API keys">API keys and connected apps are available to the account owner.</NoticeOwnerOnly>;
 	await connectDb();
 	const [apiKeys, connectedApps, newsletters] = await Promise.all([
 		listApiKeys(account),
