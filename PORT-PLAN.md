@@ -122,11 +122,11 @@ Customers' own archive domains and shared addresses' DNS, native on Cloudflare. 
 
 ## Support assistant (branch feat/support-assistant)
 
-A help chat on FlockStack's own pages, FlockStack Cloud only (README, Support assistant), answering from the docs with Workers AI.
+A help chat on FlockStack's own pages, FlockStack Cloud only (README, Support assistant), answering from the docs with the text AI (`lib/platform-ai.js`: Anthropic, then Groq, then Workers AI).
 
 - **Pieces.** `lib/marketing/support-corpus.js` reads the docs pages' and legal pages' server components as text (`support-page-text.js`, without react-dom/server), adds one chunk per API endpoint, the prices and the FAQ, and indexes them with BM25 in memory (`support-search.js`). `support-prompt.js` holds the rules and reads the model's answer and citations back; `support-context.js` the signed-in account's few facts; `support-assistant.js` the two routes' handlers, reached through `siteExtensions.supportAssistant` from `app/api/support/chat` and `app/api/support/email`. The UI is `components/marketing/SupportChat.jsx` (renders only with the `AI` binding) and `PanelSupportChat.jsx`.
 - **Choices.** Qwen3 30B A3B, then gpt-oss-20b, through the default AI Gateway with logs off. No Vectorize: about 300 chunks, scored in well under a millisecond. Nothing a person types is stored; the legal placeholders for it are filled.
-- **Not done.** A real Workers AI call (stub only in tests). Streaming answers. Per-region wording in answers beyond what the docs say. An admin view of how often it says "I don't know" (it would need counting without the text).
+- **Not done.** A real model call (stubs only in tests). Streaming answers. Per-region wording in answers beyond what the docs say. An admin view of how often it says "I don't know" (it would need counting without the text).
 
 ## Pricing v2 (branch feat/pricing-v2)
 

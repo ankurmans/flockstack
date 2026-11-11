@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import FormPublishedIssue from "@/components/FormPublishedIssue";
 import { scoped } from "@/lib/account-scope";
 import { runAction } from "@/lib/actions/run-action";
-import { getAiBinding } from "@/lib/ai";
+import { isTextAiAvailable } from "@/lib/platform-ai";
 import { hasActiveSubscription } from "@/lib/account-state";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { listCustomFields } from "@/lib/custom-fields";
@@ -31,7 +31,7 @@ export default async function EditPublishedPage({ params }) {
 	if (!newsletter) notFound();
 
 	const [ai, fields, { snippets }] = await Promise.all([
-		getAiBinding(),
+		isTextAiAvailable(),
 		listCustomFields(account, newsletter._id),
 		runAction("list_snippets", { account, user, via: "dashboard", input: { newsletter: String(newsletter._id) } }),
 	]);

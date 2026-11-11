@@ -11,7 +11,7 @@ import FormCampaign from "@/components/FormCampaign";
 import FormShortPost from "@/components/FormShortPost";
 import { htmlToMarkdown } from "@/lib/html-to-markdown";
 import { scoped } from "@/lib/account-scope";
-import { getAiBinding } from "@/lib/ai";
+import { isTextAiAvailable } from "@/lib/platform-ai";
 import { getAccountSendProblem, hasActiveSubscription, isBlocked } from "@/lib/account-state";
 import { getArchiveUrls } from "@/lib/archive-hosts";
 import { runAction } from "@/lib/actions/run-action";
@@ -55,7 +55,7 @@ export default async function CampaignPage({ params }) {
 	// The previews and the checks show the address its emails print.
 	const newsletter = { ...stored, postalAddress: getPostalAddress(stored, siteExtensions.defaultPostalAddress) };
 	if (campaign.kind === "note") return <FormShortPost campaign={{ id: String(campaign._id), status: campaign.status, scheduledAt: campaign.status === "scheduled" ? new Date(campaign.scheduledAt).toISOString() : null, webViews: campaign.webViews ?? 0 }} body={campaign.format === "markdown" ? campaign.markdown : htmlToMarkdown(campaign.html ?? "")} archiveUrl={newsletter.archiveEnabled && campaign.archiveSlug ? getArchiveUrls(newsletter).absolutePost(campaign.archiveSlug) : null} />;
-	const [plan, ai] = await Promise.all([getPlanState(account), getAiBinding()]);
+	const [plan, ai] = await Promise.all([getPlanState(account), isTextAiAvailable()]);
 	const isAiEnabled = Boolean(ai) && hasActiveSubscription(account);
 	const audioProps = await getAudioCardProps({ account, user, campaign, newsletter });
 	const authorControl = ["draft", "scheduled", "sent"].includes(campaign.status) ? <div className="flex flex-col gap-4"><FormIssueAuthor campaign={String(campaign._id)} selected={campaign.authorId ?? "default"} authors={[{ ...getArchiveAuthor(newsletter), id: "default" }, ...(newsletter.authors ?? [])]} /><FormReaderPreview campaign={String(campaign._id)} /><CardIssueLinks campaign={String(campaign._id)} newsletter={String(newsletter._id)} /></div> : null;

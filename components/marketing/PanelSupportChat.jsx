@@ -13,7 +13,7 @@ const MAX_QUESTION_CHARS = 1000;
 const FOCUSABLE = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const FAILED = "The assistant couldn't answer just now. Try again, or email a human.";
 
-// The help chat's button and panel (SupportChat renders it where Workers AI is bound). The conversation is kept in
+// The help chat's button and panel (SupportChat renders it where a text AI is available). The conversation is kept in
 // this tab's sessionStorage only and sent with each question; "Email a human" sends it to support only when clicked.
 // ph-no-capture keeps PostHog's autocapture out of it, and analytics hears only that it opened and answered.
 export default function PanelSupportChat({ isSignedIn: isSignedInAtRender = false, supportEmail, openPath = null }) {

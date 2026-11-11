@@ -32,7 +32,7 @@ import { IMAGE_TYPES, getDisplaySize, prepareImage, uploadAttachment, uploadImag
 const MIN_HEIGHT = "min-h-[560px]";
 
 // newsletterId and campaignId: where a poll made in this editor belongs. Without a newsletter, there's no poll block.
-// isAiEnabled: the selection's AI menu (rewrite, shorten, tone, translate), only where the server has Workers AI.
+// isAiEnabled: the selection's AI menu (rewrite, shorten, tone, translate), only where the server has a text AI.
 // hasStockPhotos: the image picker also searches Unsplash, only where the server has an Unsplash key; hasGifs: and GIPHY, with a GIPHY key.
 export default function EditorRich({ collaboration = null, content, onChange, fields = [], snippets = [], newsletterId = null, campaignId = null, tiers = [], isAiEnabled = false, hasStockPhotos = false, hasGifs = false }) {
 	const [isEditingLink, setIsEditingLink] = useState(false);
