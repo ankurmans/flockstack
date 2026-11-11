@@ -70,6 +70,19 @@ describe("FlockStack Cloud", () => {
 		assert.equal(platformEmails.at(-2).subject, "[FlockStack] Cloud alert");
 	});
 
+	test("an explicit SES selection uses SES with the Resend key retained for rollback and fails closed without SES keys", async () => {
+		const before = counts();
+		await withEnv({ PLATFORM_EMAIL_PROVIDER: "ses" }, async () => {
+			await m.platform.sendPlatformEmail({ to: "reader@example.com", subject: "Delivery check", text: "Unchanged content" });
+			assert.equal(platformSent.at(-1).text, "Unchanged content");
+			await withEnv({ SES_ACCESS_KEY_ID: "", SES_SECRET_ACCESS_KEY: "" }, async () => {
+				assert.equal(m.platform.canSendPlatformEmail(), false);
+				await assert.rejects(m.platform.sendPlatformEmail({ to: "reader@example.com", subject: "No fallback", text: "Check" }));
+			});
+		});
+		assert.deepEqual(added(before), { resend: 0, ses: 1, postshiba: 0, customer: 0 });
+	});
+
 	test("without RESEND_API_KEY the cloud sends its own emails through the email provider", async () => {
 		const before = counts();
 		await withEnv({ RESEND_API_KEY: "" }, async () => {
