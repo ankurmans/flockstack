@@ -297,6 +297,38 @@ describe("Amazon SES through SNS", () => {
 		assert.equal(wrongTopic.result.status, 403);
 		assert.equal(wrongTopic.alerts, 0);
 	});
+
+	test("an account migration accepts explicitly allowed old and new topics, while rejecting other topics and forged events", async () => {
+		const nextTopic = "arn:aws:sns:eu-west-1:222222222222:flockstack-next-ses-events";
+		process.env.SES_SNS_ADDITIONAL_TOPIC_ARNS = ` , ${nextTopic}, `;
+		try {
+			for (const topic of [SES_TOPIC, nextTopic]) {
+				const observed = await observe(() => post(m.sesRoute, "/api/webhooks/ses", notification(topic, bounceFor(OTHER_ACCOUNT))));
+				assert.equal(observed.result.status, 200);
+				assertAcknowledged(observed, "email-events");
+			}
+			const unknown = notification(`${nextTopic}-unknown`, bounceFor(OTHER_ACCOUNT));
+			assert.equal((await post(m.sesRoute, "/api/webhooks/ses", unknown)).status, 403);
+			const forged = { ...notification(nextTopic, bounceFor(OTHER_ACCOUNT)), Message: "{}" };
+			assert.equal((await post(m.sesRoute, "/api/webhooks/ses", forged)).status, 400);
+			assert.equal((await post(m.tenantRoute, "/api/webhooks/ses-tenants", notification(nextTopic, {}))).status, 403);
+		} finally {
+			delete process.env.SES_SNS_ADDITIONAL_TOPIC_ARNS;
+		}
+		assert.equal((await post(m.sesRoute, "/api/webhooks/ses", notification(nextTopic, {}))).status, 403);
+	});
+
+	test("empty topic configuration fails closed without accepting an unsigned envelope", async () => {
+		const previous = process.env.SES_SNS_TOPIC_ARN;
+		delete process.env.SES_SNS_TOPIC_ARN;
+		process.env.SES_SNS_ADDITIONAL_TOPIC_ARNS = " ,  ";
+		try {
+			assert.equal((await post(m.sesRoute, "/api/webhooks/ses", {})).status, 503);
+		} finally {
+			process.env.SES_SNS_TOPIC_ARN = previous;
+			delete process.env.SES_SNS_ADDITIONAL_TOPIC_ARNS;
+		}
+	});
 });
 
 describe("PostShiba", () => {
