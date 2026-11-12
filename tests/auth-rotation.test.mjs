@@ -5,6 +5,7 @@ import { activate, startTestApp, withEnv } from "./helpers/app.mjs";
 import { AGENT, APP_URL, MCP_URL, createOAuthHarness, loadOAuthRoutes } from "./helpers/oauth-flow.mjs";
 import { forgetAuth } from "../lib/auth.js";
 import { getSecretVersion } from "../lib/auth-secrets.js";
+import { createJwksKeyring } from "../lib/auth-keyring.js";
 
 // Rotating BETTER_AUTH_SECRET under MCP clients (Claude Code, Codex, ChatGPT): what keeps working with the old value in
 // BETTER_AUTH_SECRET_PREVIOUS, and what happens to an OAuth signing key nobody can decrypt (docs/AUTH-ROTATION.md).
@@ -193,4 +194,17 @@ describe("when something fails", () => {
 		});
 		deploy({ current: A });
 	});
+});
+
+// Two requests may discover the same unreadable key before either asynchronous read finishes.
+test("concurrent requests retire and report an unreadable signing key only once", async () => {
+	let writes = 0;
+	const errors = [];
+	const row = { id: "concurrent-fixture", privateKey: "invalid-json", createdAt: new Date() };
+	const adapter = { findMany: async () => [{ ...row }], update: async () => { writes++; } };
+	const read = createJwksKeyring({ log: { error: (...args) => errors.push(args), info() {} } });
+	const results = await Promise.all(Array.from({ length: 4 }, () => read({ context: { adapter } })));
+	assert.equal(writes, 1);
+	assert.equal(errors.length, 1);
+	for (const rows of results) assert.ok(rows[0].expiresAt.getTime() < Date.now());
 });

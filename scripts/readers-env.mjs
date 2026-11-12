@@ -73,6 +73,7 @@ export const NOT_NEEDED = {
 	POSTSHIBA_TEAM_ID: "the other email provider",
 	POSTSHIBA_TRANSACTIONAL_CLUSTER_ID: "the other email provider",
 	RESEND_API_KEY: "the app's own platform emails (sign-in codes), sent by the app",
+	PLATFORM_EMAIL_PROVIDER: "selects how the app sends its own sign-in codes and alerts, which the readers Worker never sends",
 	STRIPE_CONNECT_SECRET_KEY: "creators' payments",
 	STRIPE_PAYMENTS_WEBHOOK_SECRET: "creators' payments",
 	STRIPE_SECRET_KEY: "billing",

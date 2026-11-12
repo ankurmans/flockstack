@@ -24,6 +24,9 @@ before(async () => {
 			response.setHeader("content-type", "application/json");
 			if (request.url === "/v2/email/account") response.end(JSON.stringify({ ProductionAccessEnabled: true, SendingEnabled: true, EnforcementStatus: "HEALTHY", SendQuota: { Max24HourSend: 50000, MaxSendRate: 14, SentLast24Hours: 12 } }));
 			else if (request.url.startsWith("/v2/email/identities/")) response.end(JSON.stringify({ VerifiedForSendingStatus: true, DkimAttributes: { Status: "SUCCESS", Tokens: ["abc"] }, MailFromAttributes: { MailFromDomain: "bounce.example.com", MailFromDomainStatus: "SUCCESS" } }));
+			else if (request.method === "POST" && ["/v2/email/configuration-sets", "/v2/email/tenants"].includes(request.url) && /tag-check/.test(body)) response.end("{}");
+			else if (request.method === "POST" && request.url === "/v2/email/identities" && /tag-check/.test(body)) response.end("{}");
+			else if (request.method === "GET" && request.url === "/v2/email/tenants/mc-tag-check") response.end(JSON.stringify({ Tenant: { TenantArn: "arn:aws:ses:eu-west-1:111122223333:tenant/mc-tag-check/test" } }));
 			else if (request.url === "/v2/email/outbound-emails") response.end(JSON.stringify({ MessageId: "ses-123" }));
 			else {
 				response.statusCode = 404;
@@ -79,6 +82,14 @@ describe("lib/ses.js and the AWS SDK", () => {
 		assert.deepEqual(request.body.ReplyToAddresses, ["reply@example.com"]);
 		assert.equal(request.body.Content.Simple.Subject.Data, "Hi");
 		assert.equal(request.body.Content.Simple.Body.Html.Data, "<p>Hello</p>");
+	});
+
+	test("new customer identities carry the ownership tag required by runtime access", async () => {
+		const ses = await import("../lib/ses.js");
+		await ses.createDomainIdentity("tag-check.example.com", { configurationSet: "mc-tag-check", mailFromDomain: "bounce.tag-check.example.com" });
+		const identity = requests.find((request) => request.method === "POST" && request.url === "/v2/email/identities");
+		assert.deepEqual(identity.body.Tags, [{ Key: "managed_by", Value: "flockstack" }]);
+		assert.equal(identity.body.ConfigurationSetName, "mc-tag-check");
 	});
 
 	test("creating what exists counts as done, and a missing thing on delete too", async () => {

@@ -451,6 +451,8 @@ Use one AWS region for everything below (the examples use `us-east-1`). An AWS a
 4. **Add the variables** and redeploy: `SES_REGION`, `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY`, `SES_AWS_ACCOUNT_ID` (the 12-digit account ID) and `SES_SNS_TOPIC_ARN`. Each account's configuration set publishes its events to that topic.
 5. **Optional: tenant pauses.** SES pauses tenants that send badly. To block the account in FlockStack too, send SES's tenant status and reputation finding events from EventBridge to a second SNS topic, subscribe `https://<your-app>/api/webhooks/ses-tenants` to it, and set `SES_TENANT_SNS_TOPIC_ARN`.
 
+For an AWS account migration, `SES_SNS_ADDITIONAL_TOPIC_ARNS` accepts a comma-separated list of additional event-topic ARNs while delayed events drain from the old account. It does not change the publishing topic or sending credentials. See [Moving an SES account](docs/SES-ACCOUNT-MIGRATION.md) before a cutover.
+
 Sign-in codes and alerts go out through SES from `EMAIL_FROM`, outside every tenant, so its domain has to be verified in the AWS account before your first sign-in: **Identities > Create identity > Domain**, with Easy DKIM. In the sandbox, the addresses you sign in with have to be verified too.
 
 #### PostShiba
