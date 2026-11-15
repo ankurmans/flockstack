@@ -2,26 +2,27 @@ import Link from "next/link";
 import { Activity, ArrowUpRight } from "lucide-react";
 import BadgeStatus from "@/components/BadgeStatus";
 import HeaderPage from "@/components/HeaderPage";
+import SelectActivityRetention from "@/components/SelectActivityRetention";
 import StateEmpty from "@/components/StateEmpty";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { scoped } from "@/lib/account-scope";
 import { PRESET_INFO } from "@/lib/action-scopes";
 import { afterCursor, encodeCursor } from "@/lib/actions/cursor";
-import { ACTIVITY_PAGE_SIZE, getDayCounts, listActivity, listDayCounts } from "@/lib/agent-activity";
-import { ACTIVITY_RETENTION_DAYS } from "@/lib/agent-activity-rules";
+import { ACTIVITY_PAGE_SIZE, getDayCounts, listActivity, listActivityClients, listDayCounts } from "@/lib/agent-activity";
+import { getRetentionDays } from "@/lib/agent-activity-rules";
 import { getKeyLevel, listApiKeys } from "@/lib/api-keys";
 import { requireAccount } from "@/lib/auth";
 import { connectDb } from "@/lib/db";
 import { formatDate, formatRelative } from "@/lib/format";
 import { listConnectedApps } from "@/lib/oauth-apps";
+import { isAccountOwner } from "@/lib/team";
 import { isObjectIdString } from "@/lib/validation";
 import { ACTIVITY_STATUSES } from "@/models/AgentActivity";
 import Newsletter from "@/models/Newsletter";
 
 export const metadata = { title: "Agent activity" };
 
-const DAY_CHOICES = [1, 7, 30, ACTIVITY_RETENTION_DAYS];
 
 function pick(value) {
 	return typeof value === "string" && value ? value : undefined;
@@ -31,19 +32,24 @@ function pick(value) {
 // ?actor= is the per-key view.
 export default async function AgentActivityPage({ searchParams }) {
 	const params = await searchParams;
-	const { account } = await requireAccount();
+	const { account, user } = await requireAccount();
 	await connectDb();
+	const retention = getRetentionDays(account);
+	const dayChoices = [...new Set([1, 7, 30, retention])].filter((value) => value <= retention);
+	const isOwner = isAccountOwner(account, user);
 	const actor = pick(params.actor);
+	const client = pick(params.client)?.slice(0, 100);
 	const action = pick(params.action)?.slice(0, 100);
 	const newsletter = isObjectIdString(pick(params.newsletter) ?? "") ? pick(params.newsletter) : undefined;
 	const status = ACTIVITY_STATUSES.includes(params.status) ? params.status : undefined;
-	const days = DAY_CHOICES.includes(Number(params.days)) ? Number(params.days) : ACTIVITY_RETENTION_DAYS;
+	const days = dayChoices.includes(Number(params.days)) ? Number(params.days) : retention;
 	const cursor = pick(params.cursor);
 
-	const [keys, apps, newsletters] = await Promise.all([
+	const [keys, apps, newsletters, clients] = await Promise.all([
 		listApiKeys(account),
 		listConnectedApps(account),
 		Newsletter.find(scoped(account)).sort({ createdAt: 1, _id: 1 }).select({ name: 1 }).lean(),
+		listActivityClients(account, retention),
 	]);
 	const actors = [
 		...keys.map((key) => ({ id: String(key._id), name: key.name, kind: "API key", level: getKeyLevel(key), key })),
@@ -53,6 +59,7 @@ export default async function AgentActivityPage({ searchParams }) {
 	const names = new Map(newsletters.map(({ _id, name }) => [String(_id), name]));
 	const { entries, hasMore } = await listActivity(account, {
 		actorId: actor,
+		client,
 		action,
 		newsletterId: newsletter,
 		status,
@@ -79,17 +86,25 @@ export default async function AgentActivityPage({ searchParams }) {
 			<div className="flex flex-col gap-6">
 				<form method="get" className="flex flex-wrap items-end gap-3 text-xs text-muted-foreground">
 					<Select name="actor" label="Key or app" value={actor} options={actors.map(({ id, name, kind }) => [id, `${name} (${kind})`])} any="All" />
+					<Select name="client" label="Client" value={client} options={clients.map(({ name }) => [name, name])} any="All" />
 					<label className="flex flex-col gap-1">
 						Action
 						<input name="action" defaultValue={action ?? ""} placeholder="send_campaign" maxLength={100} className="h-9 w-44 rounded-lg bg-background px-2 text-sm text-foreground shadow-border" />
 					</label>
 					<Select name="newsletter" label="Newsletter" value={newsletter} options={newsletters.map(({ _id, name }) => [String(_id), name])} any="All" />
 					<Select name="status" label="Result" value={status} options={ACTIVITY_STATUSES.map((value) => [value, value.replaceAll("_", " ")])} any="Any" />
-					<Select name="days" label="Period" value={String(days)} options={DAY_CHOICES.map((value) => [String(value), value === 1 ? "Today" : `${value} days`])} />
+					<Select name="days" label="Period" value={String(days)} options={dayChoices.map((value) => [String(value), value === 1 ? "Today" : `${value} days`])} />
 					<Button type="submit" variant="outline">
 						Filter
 					</Button>
+					<Button asChild variant="ghost">
+						<a href={`/agent-activity/export?${new URLSearchParams(Object.entries({ actor, client, action, newsletter, status, days: String(days) }).filter(([, value]) => value))}`} download>
+							Export CSV
+						</a>
+					</Button>
 				</form>
+
+				{isOwner && <SelectActivityRetention days={retention} />}
 
 				{selected && (
 					<section className="rounded-xl bg-card p-4 shadow-border sm:p-5">
@@ -118,7 +133,7 @@ export default async function AgentActivityPage({ searchParams }) {
 				{entries.length === 0 ? (
 					<StateEmpty icon={Activity} title="No agent activity">
 						<p className="max-w-sm text-sm text-pretty text-muted-foreground">
-							Calls from API keys and connected apps that change something or show contact data are listed here for {ACTIVITY_RETENTION_DAYS} days.
+							Calls from API keys and connected apps that change something or show contact data, and team members&apos; changes, are listed here for {retention} days.
 						</p>
 					</StateEmpty>
 				) : (
@@ -165,7 +180,7 @@ export default async function AgentActivityPage({ searchParams }) {
 					</p>
 				)}
 				<p className="text-xs text-muted-foreground">
-					{ACTIVITY_PAGE_SIZE} entries a page. The log keeps ids, names and counts, never what an email says or who it went to, and is deleted after {ACTIVITY_RETENTION_DAYS} days.
+					{ACTIVITY_PAGE_SIZE} entries a page. The log keeps ids, names and counts, never what an email says or who it went to, and is deleted after {retention} days.
 				</p>
 			</div>
 		</>

@@ -6,6 +6,7 @@ import { Bot, Check, Loader2, TriangleAlert, X } from "lucide-react";
 import { decideApproval } from "@/app/(app)/approvals/actions";
 import ApprovalCheck from "@/components/ApprovalCheck";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { formatRelative } from "@/lib/format";
 import { toast } from "@/lib/toast";
@@ -26,14 +27,21 @@ export default function CardApproval({ approval, staleness = null }) {
 	const [note, setNote] = useState("");
 	const [warning, setWarning] = useState(staleness);
 	const [decision, setDecision] = useState(null);
+	// Step-up: the account asks for a code by email before a send or a delete is approved.
+	const [isAskingCode, setIsAskingCode] = useState(false);
+	const [code, setCode] = useState("");
 	const input = approval.input ? JSON.stringify(approval.input, null, 2) : "";
 
 	function decide(choice) {
 		setDecision(choice);
 		startTransition(async () => {
-			const result = await decideApproval(approval.id, choice, note, choice === "approve" && Boolean(warning));
+			const result = await decideApproval(approval.id, choice, note, choice === "approve" && Boolean(warning), choice === "approve" ? code : "");
 			if (result?.error) return void toast.error(result.error);
 			if (result?.stale) return void setWarning(result.stale);
+			if (result?.stepUp === "code_sent") {
+				setIsAskingCode(true);
+				return void toast.success("We emailed you a code. Enter it to approve.");
+			}
 			if (choice === "reject") return void toast.success("Rejected. Nothing was done.");
 			if (result.approval.execution.state === "failed") toast.error(`Approved, but it failed: ${result.approval.execution.error?.message}`);
 			else toast.success("Approved. It ran.");
@@ -104,12 +112,29 @@ export default function CardApproval({ approval, staleness = null }) {
 				aria-label="A note for the agent"
 			/>
 
+			{isAskingCode && (
+				<div className="flex flex-col gap-1.5">
+					<label htmlFor={`code-${approval.id}`} className="text-sm font-medium">
+						Code from your email
+					</label>
+					<Input
+						id={`code-${approval.id}`}
+						value={code}
+						onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+						inputMode="numeric"
+						autoComplete="one-time-code"
+						placeholder="6 digits"
+						className="max-w-40 font-mono tracking-widest"
+					/>
+				</div>
+			)}
+
 			<footer className="flex flex-wrap items-center justify-end gap-2">
 				<Button variant="outline" disabled={isPending} onClick={() => decide("reject")}>
 					{isPending && decision === "reject" ? <Loader2 className="animate-spin" /> : <X data-icon="inline-start" />}
 					Reject
 				</Button>
-				<Button disabled={isPending} onClick={() => decide("approve")}>
+				<Button disabled={isPending || (isAskingCode && code.length !== 6)} onClick={() => decide("approve")}>
 					{isPending && decision === "approve" ? <Loader2 className="animate-spin" /> : <Check data-icon="inline-start" />}
 					{warning ? "Approve the current version" : "Approve"}
 				</Button>

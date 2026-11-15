@@ -31,9 +31,11 @@ export async function makeKey(m, user, level, extra = {}) {
 	return result.key;
 }
 
-export async function agentOwner(m, email, { slug = email.split("@")[0].replace(/[^a-z0-9]/g, "-") } = {}) {
+// approvalByDefault: an account made since approval became the default (Account.agentApprovalByDefault), whose newsletters ask
+// before an agent sends. Without it, an account from before, for the tests of what each key's level does on its own.
+export async function agentOwner(m, email, { slug = email.split("@")[0].replace(/[^a-z0-9]/g, "-"), approvalByDefault = false } = {}) {
 	const user = await signIn(email);
-	await activate(user, { limitOverrides: { emailsPerMonth: 100_000, subscribers: 100_000 } });
+	await activate(user, { limitOverrides: { emailsPerMonth: 100_000, subscribers: 100_000 }, ...(approvalByDefault && { agentApprovalByDefault: true }) });
 	user.slug = slug;
 	user.newsletterId = (await as(user, () => catchRedirect(m.newsletters.saveNewsletter(null, form({ name: `${slug} one`, slug, postalAddress: "1 Main St, Paris" }))))).split("/").at(-1);
 	user.otherSlug = `${slug}-two`;

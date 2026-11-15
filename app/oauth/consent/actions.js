@@ -29,7 +29,7 @@ export async function answerConsentRequest(_state, formData) {
 	}
 	if (!url) return { error: EXPIRED_MESSAGE };
 	if (accept) {
-		await saveConsentAccess({ account: current.account, query, access: String(formData.get("access") ?? "") });
+		await saveConsentAccess({ account: current.account, query, access: String(formData.get("access") ?? ""), newsletter: String(formData.get("newsletter") ?? "") });
 		await notifyActivity(["App connected", readOAuthQuery(query).clientId], { accountId: current.account._id });
 	}
 	redirect(url);

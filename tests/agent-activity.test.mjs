@@ -81,12 +81,16 @@ describe("what is recorded", () => {
 		assert.ok(day.denied >= 1);
 	});
 
-	test("a call over MCP carries its channel, and the dashboard's own changes are not an agent's", async () => {
+	test("a call over MCP carries its channel, and the owner's change to the switch is a person's setting, not an agent's call", async () => {
 		await callTool(m, owner.keys.drafts, "create_campaign", { subject: "Over MCP", content: "x" });
 		assert.equal((await entries({ action: "create_campaign", via: "mcp" })).length, 1);
-		const before = (await entries()).length;
+		const before = (await entries({ actorType: { $in: ["key", "app"] } })).length;
 		await as(owner, () => m.approvals.setAgentApproval(owner.newsletterId, false));
-		assert.equal((await entries()).length, before);
+		assert.equal((await entries({ actorType: { $in: ["key", "app"] } })).length, before);
+		const [setting] = await entries({ kind: "setting", action: "set_agent_approval" });
+		assert.deepEqual([setting.actorType, setting.actorId, setting.via, setting.status, setting.summary], ["person", String(owner.userId), "dashboard", "ok", "Ask before agents send: off"]);
+		assert.match(setting.actorName, /\(owner\)$/);
+		assert.doesNotMatch(setting.actorName, /@/, "never an email");
 	});
 });
 

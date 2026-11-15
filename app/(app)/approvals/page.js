@@ -3,6 +3,7 @@ import { ArrowUpRight, ShieldCheck } from "lucide-react";
 import BadgeStatus from "@/components/BadgeStatus";
 import CardAgentApproval from "@/components/CardAgentApproval";
 import CardApproval from "@/components/CardApproval";
+import CardApprovalPeople from "@/components/CardApprovalPeople";
 import HeaderPage from "@/components/HeaderPage";
 import StateEmpty from "@/components/StateEmpty";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import { getStaleness, listApprovals, toApprovalView } from "@/lib/approvals";
 import { requireAccount } from "@/lib/auth";
 import { connectDb } from "@/lib/db";
 import { formatRelative } from "@/lib/format";
+import { getApproverNewsletters, listTeam } from "@/lib/team";
 import Newsletter from "@/models/Newsletter";
 
 export const metadata = { title: "Approvals" };
@@ -19,20 +21,28 @@ export const metadata = { title: "Approvals" };
 const HISTORY_LIMIT = 30;
 
 export default async function ApprovalsPage() {
-	const { account } = await requireAccount();
+	const { account, user } = await requireAccount();
 	await connectDb();
-	const [pendingRows, decidedRows, newsletters] = await Promise.all([
+	// A team approver sees the requests of their newsletters, and none of the owner's settings.
+	const approverFor = await getApproverNewsletters(account, user);
+	const isOwner = approverFor === null;
+	const mayDecide = (approval) => isOwner || (approval.className !== "admin" && approverFor.includes(String(approval.newsletterId ?? "")));
+	const [pendingRows, decidedRows, newsletters, seats] = await Promise.all([
 		listApprovals(account, { status: "pending", limit: 50 }),
 		listApprovals(account, { limit: HISTORY_LIMIT + 50 }),
-		Newsletter.find(scoped(account)).sort({ createdAt: 1, _id: 1 }).select({ name: 1, agentApproval: 1 }).lean(),
+		Newsletter.find(scoped(account)).sort({ createdAt: 1, _id: 1 }).select({ name: 1, agentApproval: 1, agentApprovalChangedAt: 1 }).lean(),
+		isOwner ? listTeam(account, user).then(({ seats }) => seats.filter(({ status }) => status === "active")) : [],
 	]);
 	const pending = await Promise.all(
-		pendingRows.map(async (approval) => ({ approval: toApprovalView(approval, { includeInput: true }), staleness: await getStaleness(account, approval) }))
+		pendingRows.filter(mayDecide).map(async (approval) => ({ approval: toApprovalView(approval, { includeInput: true }), staleness: await getStaleness(account, approval) }))
 	);
 	const history = decidedRows
+		.filter(mayDecide)
 		.map((approval) => toApprovalView(approval))
 		.filter(({ status }) => status !== "pending")
 		.slice(0, HISTORY_LIMIT);
+	// Newsletters nobody chose for: they keep what keys did before approval became the default, until the owner turns it on.
+	const unchosen = newsletters.filter(({ agentApproval, agentApprovalChangedAt }) => !agentApproval && !agentApprovalChangedAt);
 
 	return (
 		<>
@@ -62,7 +72,20 @@ export default async function ApprovalsPage() {
 					)}
 				</section>
 
-				<CardAgentApproval newsletters={newsletters.map(({ _id, name, agentApproval }) => ({ id: String(_id), name, required: Boolean(agentApproval) }))} />
+				{isOwner && (
+					<CardAgentApproval
+						newsletters={newsletters.map(({ _id, name, agentApproval }) => ({ id: String(_id), name, required: Boolean(agentApproval) }))}
+						unchosen={unchosen.map(({ _id }) => String(_id))}
+					/>
+				)}
+
+				{isOwner && (
+					<CardApprovalPeople
+						stepUp={account.approvalStepUp === true}
+						seats={seats}
+						newsletters={newsletters.map(({ _id, name }) => ({ id: String(_id), name }))}
+					/>
+				)}
 
 				{history.length > 0 && (
 					<section className="flex flex-col gap-3">

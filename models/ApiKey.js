@@ -15,6 +15,12 @@ const apiKeySchema = new mongoose.Schema(
 		level: { type: String, enum: API_KEY_LEVELS },
 		// A key limited to one newsletter reaches nothing of the account's others.
 		newsletterId: { type: mongoose.Schema.Types.ObjectId, ref: "Newsletter" },
+		// The only actions it may run, within its level (lib/agent-guard.js assertAllowed); none means every action its level allows.
+		allowedActions: { type: [String], default: undefined },
+		// Addresses and CIDR ranges it works from (lib/ip-allowlist.js); none means anywhere. Checked before anything else.
+		allowedIps: { type: [String], default: undefined },
+		// Reads the whole account's agent activity, not only its own. Never set unless the owner asked for it.
+		auditRead: { type: Boolean },
 		// Calls a day (UTC), counted in AgentDay; none means no cap.
 		dailyCap: { type: Number },
 		// After this the key answers unauthorized, like a revoked one.

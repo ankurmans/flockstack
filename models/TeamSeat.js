@@ -7,6 +7,8 @@ const schema = new mongoose.Schema({
 	status: { type: String, enum: ["invited", "active", "revoked"], default: "invited" },
 	invitedAt: Date,
 	acceptedAt: Date,
+	// The newsletters (IDs) whose agents' requests this person may approve or reject. Only the owner sets it (set_team_approver).
+	approverFor: { type: [String], default: undefined },
 }, { timestamps: true });
 schema.plugin(accountScoped);
 schema.index({ accountId: 1, email: 1 }, { unique: true });
