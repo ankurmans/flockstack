@@ -31,7 +31,10 @@ const newsletterSchema = new mongoose.Schema(
 		signupFlowFormId: { type: mongoose.Schema.Types.ObjectId, ref: "Form" },
 		// "Ask me before an agent sends": what an API key or a connected app does in the SEND and DESTRUCTIVE classes
 		// waits for the owner's approval, whatever the key's level (lib/agent-guard.js). Dashboard only (set_agent_approval).
+		// Also billing changes (NEWSLETTER_APPROVAL_ACTIONS). On from the start for an account made with agentApprovalByDefault; none
+		// means nobody chose, and the Approvals page offers it.
 		agentApproval: { type: Boolean },
+		agentApprovalChangedAt: { type: Date },
 		sendingBrake: { at: Date, reason: String, metric: String, revision: String },
 		spreadUntil: { type: Date },
 		senderChangedAt: { type: Date },

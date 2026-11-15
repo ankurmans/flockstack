@@ -14,6 +14,8 @@ const agentDaySchema = new mongoose.Schema(
 		denied: { type: Number, default: 0 },
 		// Contacts changed by calls that count toward SCALE_LIMITS (lib/action-scopes.js).
 		scaled: { type: Number, default: 0 },
+		// As AgentActivity's: the account's retention when it was written.
+		keepDays: { type: Number },
 	},
 	{ timestamps: true }
 );

@@ -34,6 +34,10 @@ const approvalRequestSchema = new mongoose.Schema(
 		expiresAt: { type: Date, required: true },
 		decidedAt: { type: Date },
 		decidedBy: { type: String },
+		// How the person who decided showed it was them: their signed-in session, or also a code by email (Account.approvalStepUp).
+		decidedHow: { type: String, enum: ["session", "code"] },
+		// The code an approval with step-up waits for: its hash, for whom, until when, and how many tries (lib/approvals.js).
+		stepUp: { userId: String, hash: String, expiresAt: Date, attempts: Number },
 		note: { type: String },
 		execution: {
 			state: { type: String, enum: EXECUTION_STATES, default: "none" },

@@ -5,10 +5,13 @@ import ButtonSignout from "@/components/ButtonSignout";
 import FormConsent from "@/components/FormConsent";
 import LogoFlockstack from "@/components/LogoFlockstack";
 import { PRESET_INFO, getPresetOfScopes, getPresetsUpTo } from "@/lib/action-scopes";
+import { scoped } from "@/lib/account-scope";
 import { isDeletionPending } from "@/lib/account-state";
 import { getPersonalAccount } from "@/lib/auth";
+import { connectDb } from "@/lib/db";
 import { readOAuthRequest } from "@/lib/oauth";
 import { isLoopbackRedirect } from "@/lib/oauth-rules";
+import Newsletter from "@/models/Newsletter";
 
 export const metadata = { title: "Connect an app" };
 
@@ -31,6 +34,8 @@ export default async function ConsentPage({ searchParams }) {
 	const choices = getPresetsUpTo(asked).toReversed();
 	const selected = choices.includes(SUGGESTED) ? SUGGESTED : asked;
 	const hasProfile = scopes.some((scope) => scope === "email" || scope === "profile");
+	await connectDb();
+	const newsletters = await Newsletter.find(scoped(current.account)).sort({ createdAt: 1, _id: 1 }).select({ name: 1 }).limit(100).lean();
 
 	return (
 		<main className="flex min-h-dvh items-center justify-center px-4 py-16">
@@ -78,6 +83,28 @@ export default async function ConsentPage({ searchParams }) {
 							Same levels as an API key. You can disconnect it anytime, and approve or reject what it asks to do on the Approvals page.
 						</p>
 					</fieldset>
+					{newsletters.length > 1 && (
+						<div className="flex flex-col gap-1.5 border-t border-border/60 p-4">
+							<label htmlFor="consent-newsletter" className="text-sm font-medium">
+								Newsletters it reaches
+							</label>
+							<select
+								id="consent-newsletter"
+								name="newsletter"
+								form="consent"
+								defaultValue=""
+								className="h-9 rounded-lg bg-background px-2.5 text-sm shadow-border focus-visible:shadow-border-hover focus-visible:outline-none"
+							>
+								<option value="">All of them</option>
+								{newsletters.map(({ _id, name }) => (
+									<option key={String(_id)} value={String(_id)}>
+										Only {name}
+									</option>
+								))}
+							</select>
+							<p className="text-xs text-muted-foreground">Limited to one, it can&apos;t see or change the others, or anything of the whole account.</p>
+						</div>
+					)}
 					<form action={switchAccount} className="flex items-center justify-between gap-3 border-t border-border/60 bg-muted/40 px-4 py-2.5">
 						<input type="hidden" name="oauth_query" value={query} />
 						<p className="min-w-0 truncate text-sm">

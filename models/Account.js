@@ -17,6 +17,13 @@ const accountSchema = new mongoose.Schema(
 	{
 		// The Better Auth user who signed up. One user per account at launch.
 		ownerId: { type: mongoose.Schema.Types.ObjectId, required: true, unique: true },
+		// Accounts made since approval became the default: each new newsletter starts with "Ask me before an agent sends" on.
+		// Older accounts keep what their keys did until the owner turns it on (the Approvals page offers it).
+		agentApprovalByDefault: { type: Boolean },
+		// Days the agent activity log keeps entries, one of ACTIVITY_RETENTION_CHOICES (lib/agent-activity-rules.js); none is 90.
+		agentActivityRetentionDays: { type: Number },
+		// Approving a send or a delete also takes a code sent by email to whoever approves (lib/approvals.js).
+		approvalStepUp: { type: Boolean },
 		// Written by the Stripe or Polar webhook (lib/billing.js, lib/billing-polar.js) and the checkout return, never from
 		// a form. Which provider bills is lib/billing-provider.js's choice; the other pair stays empty.
 		plan: { type: String, enum: PLAN_IDS },

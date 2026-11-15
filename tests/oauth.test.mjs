@@ -1004,7 +1004,7 @@ describe("access levels", () => {
 		const html = await renderConsent(users.owner, `${MCP_SCOPE} offline_access`);
 		for (const label of ["Full access", "Send with approval", "Drafts only", "Read only"]) assert.match(html, new RegExp(label), label);
 		assert.match(html, /Ask you first on the Approvals page before it sends, schedules, deletes/);
-		assert.match(html, /Send campaigns to your subscribers with no review/);
+		assert.match(html, /Send campaigns to your subscribers, with no review unless the newsletter asks you first/);
 		assert.match(html, /<input[^>]*checked=""[^>]*value="send_with_approval"|<input[^>]*value="send_with_approval"[^>]*checked=""/, "the safer level is the one pre-selected");
 		assert.doesNotMatch(html, /<input[^>]*checked=""[^>]*value="full"|<input[^>]*value="full"[^>]*checked=""/);
 

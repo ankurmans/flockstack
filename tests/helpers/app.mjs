@@ -208,8 +208,9 @@ export async function signIn(email) {
 	const stored = await mongoose.connection.db.collection("users").findOne({ email: email.toLowerCase() });
 	user.userId = stored._id;
 	// Past its warm-up: sends up to 200 emails, or 5 times what it proved (proveVolume), go out at full speed. Tests of the
-	// warm-up unset it.
-	await Account.updateOne({ ownerId: stored._id }, { $set: { spreadUntil: new Date(0) } });
+	// warm-up unset it. And an account from before agents' sends waited by default, so a full access key acts at once; the
+	// tests of that default (tests/capability-gaps.test.mjs) turn it back on.
+	await Account.updateOne({ ownerId: stored._id }, { $set: { spreadUntil: new Date(0) }, $unset: { agentApprovalByDefault: 1 } });
 	user.account = await Account.findOne({ ownerId: stored._id }).lean();
 	user.accountId = user.account._id;
 	return user;
